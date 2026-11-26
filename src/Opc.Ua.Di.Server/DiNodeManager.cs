@@ -1,31 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using System.Collections.Generic;
@@ -77,7 +51,8 @@ namespace Opc.Ua.Di.Server
     /// must still call <c>base</c>.
     /// </para>
     /// </remarks>
-    public class DiNodeManager : FluentNodeManagerBase, INodeIdFactory, IConformanceContributor
+    public partial class DiNodeManager : FluentNodeManagerBase, INodeIdFactory, IConformanceContributor,
+        INodeManagerReadinessNotification, INodeManagerReadinessInitializer
     {
         /// <summary>
         /// The DI namespace URI (<c>http://opcfoundation.org/UA/DI/</c>).
@@ -153,10 +128,8 @@ namespace Opc.Ua.Di.Server
         /// <summary>
         /// Initialises a new <see cref="DiNodeManager"/> with an
         /// optional post-setup runner. The runner is invoked
-        /// automatically at the end of
-        /// <see cref="CreateAddressSpaceAsync"/> (after the fluent
-        /// configuration pass has wired and registered everything, and
-        /// before the builder is sealed), for both the base
+        /// automatically during <see cref="INodeManagerReadinessNotification.OnServerReadyAsync"/>, after
+        /// publication and before the builder is sealed, for both the base
         /// <see cref="DiNodeManager"/> and every subclass.
         /// </summary>
         public DiNodeManager(
@@ -262,9 +235,8 @@ namespace Opc.Ua.Di.Server
         /// <summary>
         /// Optional post-setup runner injected through the
         /// Device Integration (DI) hosting pipeline. The base class
-        /// auto-invokes it from <see cref="CreateAddressSpaceAsync"/>
-        /// after the fluent configuration pass has wired and registered
-        /// everything, so subclasses do not need to (and should not) invoke it
+        /// auto-invokes it from <see cref="INodeManagerReadinessNotification.OnServerReadyAsync"/>
+        /// after publication, so subclasses do not need to (and should not) invoke it
         /// manually. Read-only on subclasses; exposed mostly for
         /// diagnostic / test inspection.
         /// </summary>
@@ -728,39 +700,10 @@ namespace Opc.Ua.Di.Server
         }
 
         /// <summary>
-        /// Constructs the address space and runs the
-        /// <c>IDiPostSetupRunner</c>-based hosting hooks. The flow is:
-        /// <list type="number">
-        ///   <item><description>
-        ///     <c>LoadPredefinedNodesAsync</c> loads predefined nodes and
-        ///     wires the type tree. The manager runs its own pipeline rather
-        ///     than the one in <c>FluentNodeManagerBase.CreateAddressSpaceAsync</c>,
-        ///     because the post-setup runner has to run before sealing.
-        ///   </description></item>
-        ///   <item><description>
-        ///     The manager's fluent builder is created and attached, then
-        ///     <see cref="FluentNodeManagerBase.ConfigureAsync"/> runs
-        ///     (subclasses override it to materialise additional instances
-        ///     and drive the fluent <c>INodeManagerBuilder</c>), the nodes
-        ///     it staged are registered and the reverse-reference pass
-        ///     reruns.
-        ///   </description></item>
-        ///   <item><description>
-        ///     The DI hosting <see cref="PostSetupRunner"/>, if any, is
-        ///     invoked with <c>this</c>; configurators registered via
-        ///     <c>ConfigureDevicesFor&lt;TNodeManager&gt;</c> see the
-        ///     fully wired manager.
-        ///   </description></item>
-        ///   <item><description>
-        ///     The builder is sealed, which starts the manager's fluent
-        ///     registries. This happens last so post-setup configurators
-        ///     can still register simulation loops and event sources.
-        ///   </description></item>
-        /// </list>
-        /// Subclasses should override
-        /// <see cref="FluentNodeManagerBase.ConfigureAsync"/> rather than
-        /// <c>CreateAddressSpaceAsync</c> so the builder is sealed and the
-        /// post-setup runner fires automatically.
+        /// Loads predefined nodes, awaits fluent configuration, registers authored nodes and completes references.
+        /// When a hosting post-setup runner is configured, its shared-service callbacks and the final builder seal
+        /// wait for published readiness. Without a runner the builder is sealed here.
+        /// Subclasses should override <see cref="FluentNodeManagerBase.ConfigureAsync"/> rather than this method.
         /// </summary>
         public override async ValueTask CreateAddressSpaceAsync(
             IDictionary<NodeId, IList<IReference>> externalReferences,
@@ -782,24 +725,30 @@ namespace Opc.Ua.Di.Server
             await CompleteConfigureAsync(externalReferences, cancellationToken)
                 .ConfigureAwait(false);
 
-            if (PostSetupRunner != null)
+            if (PostSetupRunner is { } runner)
             {
-                await PostSetupRunner.RunAsync(this, cancellationToken)
-                    .ConfigureAwait(false);
+                DeferConfigurationUntilReady(builder, (readiness, ct) =>
+                    runner is Hosting.DiPostSetupRunner stock
+                        ? stock.RunAsync(this, readiness, ct)
+                        : runner.RunAsync(this, ct));
             }
-
-            // Sealed last, after the post-setup configurators have had their
-            // turn. The fluent registries (simulations, event sources) are
-            // owned by the manager rather than by a single builder, and
-            // sealing starts them — so sealing before the configurators run
-            // would lock them out of registering simulation loops of their
-            // own. Configurators that build their own context seal it
-            // themselves; this second seal is then a no-op for the shared
-            // registries and only closes this builder. Sealing through
-            // SealConfigurationAsync replays NotifyNodeAdded, so OnNodeAdded
-            // handlers wired in ConfigureAsync fire as they do for managers
-            // that use the FluentNodeManagerBase pipeline.
             await SealConfigurationAsync(builder, cancellationToken).ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// Completes the shared-service setup before sealing the prepared builder.
+        /// </summary>
+        public ValueTask OnServerReadyAsync(CancellationToken cancellationToken = default)
+        {
+            return CompletePublishedConfigurationAsync(cancellationToken);
+        }
+
+        /// <inheritdoc/>
+        ValueTask INodeManagerReadinessInitializer.OnServerReadyAsync(
+            NodeManagerReadinessContext readiness,
+            CancellationToken cancellationToken)
+        {
+            return CompletePublishedConfigurationAsync(readiness, cancellationToken);
         }
 
         /// <summary>
@@ -1277,18 +1226,6 @@ namespace Opc.Ua.Di.Server
         }
 
         /// <summary>
-        /// Registers a composed runtime's root notifier and attaches existing event subscriptions.
-        /// </summary>
-        /// <param name="notifier">The event source owned by this node manager.</param>
-        /// <param name="cancellationToken">Cancels notifier registration.</param>
-        public ValueTask RegisterRootNotifierAsync(
-            NodeState notifier,
-            CancellationToken cancellationToken = default)
-        {
-            return AddRootNotifierAsync(notifier, cancellationToken);
-        }
-
-        /// <summary>
         /// Synchronously indexes a plain builder-created node subtree.
         /// </summary>
         /// <remarks>
@@ -1471,8 +1408,11 @@ namespace Opc.Ua.Di.Server
             {
                 if (node is LockingServicesState lockState &&
                     (lockState.InitLock?.OnCall != null ||
+                        lockState.InitLock?.OnCallAsync != null ||
                         lockState.RenewLock?.OnCall != null ||
-                        lockState.ExitLock?.OnCall != null))
+                        lockState.RenewLock?.OnCallAsync != null ||
+                        lockState.ExitLock?.OnCall != null ||
+                        lockState.ExitLock?.OnCallAsync != null))
                 {
                     return true;
                 }
@@ -1485,7 +1425,8 @@ namespace Opc.Ua.Di.Server
             foreach (NodeState node in PredefinedNodes.Values)
             {
                 if (node is LockingServicesState lockState &&
-                    lockState.BreakLock?.OnCall != null)
+                    (lockState.BreakLock?.OnCall != null ||
+                        lockState.BreakLock?.OnCallAsync != null))
                 {
                     return true;
                 }

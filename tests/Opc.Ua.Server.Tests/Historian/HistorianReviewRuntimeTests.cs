@@ -1,31 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using System.Collections.Generic;
@@ -50,6 +24,57 @@ namespace Opc.Ua.Server.Tests.Historian
     [Parallelizable(ParallelScope.All)]
     public sealed class HistorianReviewRuntimeTests
     {
+        /// <summary>
+        /// Both capture constructors preserve option diagnostics without admitting provider work.
+        /// </summary>
+        /// <param name="option">The capture setting to invalidate.</param>
+        /// <param name="events">Whether to construct event rather than value capture.</param>
+        /// <exception cref="ArgumentOutOfRangeException">The option selector is unsupported.</exception>
+        [TestCase(nameof(HistorianCaptureOptions.MaxQueuedSamples), false)]
+        [TestCase(nameof(HistorianCaptureOptions.MaxQueuedSamples), true)]
+        [TestCase(nameof(HistorianCaptureOptions.BatchTarget), false)]
+        [TestCase(nameof(HistorianCaptureOptions.BatchTarget), true)]
+        [TestCase(nameof(HistorianCaptureOptions.BatchWindow), false)]
+        [TestCase(nameof(HistorianCaptureOptions.BatchWindow), true)]
+        [TestCase(nameof(HistorianCaptureOptions.FullMode), false)]
+        [TestCase(nameof(HistorianCaptureOptions.FullMode), true)]
+        public async Task CaptureConstructorsRejectInvalidOptionsAsync(string option, bool events)
+        {
+            HistorianCaptureOptions options = option switch
+            {
+                nameof(HistorianCaptureOptions.MaxQueuedSamples) => new() { MaxQueuedSamples = 0 },
+                nameof(HistorianCaptureOptions.BatchTarget) => new() { BatchTarget = 0 },
+                nameof(HistorianCaptureOptions.BatchWindow) => new() { BatchWindow = TimeSpan.FromTicks(-1) },
+                nameof(HistorianCaptureOptions.FullMode) => new() { FullMode = (CaptureFullMode)int.MaxValue },
+                _ => throw new ArgumentOutOfRangeException(nameof(option))
+            };
+            string diagnostic = option switch
+            {
+                nameof(HistorianCaptureOptions.BatchWindow) => "BatchWindow must not be negative.",
+                nameof(HistorianCaptureOptions.FullMode) => "FullMode is not supported.",
+                _ => option + " must be positive."
+            };
+            var provider = new Mock<IHistorianProvider>();
+            provider.As<IHistorianDataProvider>();
+            provider.As<IHistorianEventProvider>();
+            IServerInternal server = Mock.Of<IServerInternal>();
+
+            ArgumentOutOfRangeException? failure = await Assert.ThrowsAsync<ArgumentOutOfRangeException>(async () =>
+            {
+                await using IAsyncDisposable capture = events
+                    ? new HistorianEventCapture(
+                        server, provider.Object, HistorianNodeCapabilities.EventReadWrite, options)
+                    : new HistorianCaptureSink(provider.Object, new ServerSystemContext(server), options);
+            }).ConfigureAwait(false);
+
+            using (Assert.EnterMultipleScope())
+            {
+                Assert.That(failure!.ParamName, Is.EqualTo("options"));
+                Assert.That(failure.Message, Does.StartWith(diagnostic));
+            }
+            provider.VerifyNoOtherCalls();
+        }
+
         [TestCase(false)]
         [TestCase(true)]
         public async Task CaptureSurvivesProviderFailuresWithExactDropsAndBoundedLogsAsync(bool canceledByProvider)
@@ -247,13 +272,15 @@ namespace Opc.Ua.Server.Tests.Historian
             }
 
             WaitHandle? handle = null;
+            TimeoutException? observedTimeout = null;
             try
             {
                 CancellationToken token = await entered.Task.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
                 handle = token.WaitHandle;
                 Task disposing = capture.DisposeAsync().AsTask();
                 clock.Advance(TimeSpan.FromSeconds(5));
-                await Assert.ThrowsAsync<TimeoutException>(async () => await disposing.ConfigureAwait(false));
+                observedTimeout = await Assert.ThrowsAsync<TimeoutException>(
+                    async () => await disposing.ConfigureAwait(false)).ConfigureAwait(false);
                 Assert.That(token.IsCancellationRequested, Is.True);
                 Assert.That(handle.SafeWaitHandle.IsClosed, Is.False,
                     "An in-flight provider still owns access to the cancellation token's resources.");
@@ -261,8 +288,15 @@ namespace Opc.Ua.Server.Tests.Historian
             finally
             {
                 release.TrySetResult(true);
-                await capture.DisposeAsync().ConfigureAwait(false);
+                if (observedTimeout is null)
+                {
+                    await capture.DisposeAsync().ConfigureAwait(false);
+                }
             }
+
+            TimeoutException? repeatedTimeout = await Assert.ThrowsAsync<TimeoutException>(
+                async () => await capture.DisposeAsync().ConfigureAwait(false)).ConfigureAwait(false);
+            Assert.That(repeatedTimeout, Is.SameAs(observedTimeout));
 
             for (int attempt = 0; attempt < 500 && !handle.SafeWaitHandle.IsClosed; attempt++)
             {
@@ -291,6 +325,134 @@ namespace Opc.Ua.Server.Tests.Historian
                 HistorianUpdateOutcome<DataValue> outcome =
                     await FinishProviderAsync<DataValue>(ct).ConfigureAwait(false);
                 return [outcome];
+            }
+        }
+
+        /// <summary>
+        /// The shutdown deadline does not wait for a cancellation callback, whose token resources remain owned.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task CaptureShutdownDeadlineDoesNotWaitForCancellationCallbacksAsync(bool events)
+        {
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+            using var cancellationRelease = new ManualResetEventSlim();
+            var logger = new Mock<ILogger>();
+            logger.Setup(value => value.IsEnabled(It.IsAny<LogLevel>())).Returns(true);
+            ServerSystemContext context = CreateSystemContext(logger.Object);
+            var clock = new FakeTimeProvider(s_start);
+            var entered = new TaskCompletionSource<CancellationToken>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            var cancellationEntered = new TaskCompletionSource<bool>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            var providerRelease = new TaskCompletionSource<bool>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            var providerReturned = new TaskCompletionSource<bool>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            var cleanupStarted = new TaskCompletionSource<Task>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            var provider = new Mock<IHistorianProvider>();
+            CancellationTokenRegistration registration = default;
+            IAsyncDisposable capture;
+            var options = new HistorianCaptureOptions { BatchTarget = 1 };
+            if (events)
+            {
+                provider.As<IHistorianEventProvider>().Setup(value => value.UpdateEventsAsync(
+                        It.IsAny<HistorianOperationContext>(),
+                        It.IsAny<NodeId>(),
+                        It.IsAny<ArrayOf<HistorianEventRecord>>(),
+                        It.IsAny<CancellationToken>()))
+                    .Returns((HistorianOperationContext _, NodeId _, ArrayOf<HistorianEventRecord> _,
+                        CancellationToken token) => FinishProviderAsync<HistorianEventRecord>(token));
+                var pump = new HistorianEventCapture(
+                    context.Server, provider.Object, HistorianNodeCapabilities.EventReadWrite, options, clock,
+                    task => cleanupStarted.TrySetResult(task));
+                capture = pump;
+                var notifier = new BaseObjectState(null) { NodeId = new NodeId("cancel-callback", 1) };
+                var reportedEvent = new BaseEventState(null);
+                reportedEvent.Initialize(
+                    context, notifier, EventSeverity.Medium, new LocalizedText("cancel-callback"));
+                pump.Enqueue(context, notifier, reportedEvent);
+            }
+            else
+            {
+                provider.As<IHistorianDataProvider>().Setup(value => value.InsertAsync(
+                        It.IsAny<HistorianOperationContext>(),
+                        It.IsAny<NodeId>(),
+                        It.IsAny<ArrayOf<DataValue>>(),
+                        It.IsAny<CancellationToken>()))
+                    .Returns((HistorianOperationContext _, NodeId _, ArrayOf<DataValue> _,
+                        CancellationToken token) => FinishProviderAsync<DataValue>(token));
+                var pump = new HistorianCaptureSink(
+                    provider.Object, context, options, clock, task => cleanupStarted.TrySetResult(task));
+                capture = pump;
+                pump.Enqueue(new NodeId("cancel-callback", 1), new DataValue(1));
+            }
+
+            Task? disposing = null;
+            Task? advancing = null;
+            Task? cleanup = null;
+            try
+            {
+                CancellationToken token = await entered.Task.WaitAsync(timeout.Token).ConfigureAwait(false);
+                WaitHandle handle = token.WaitHandle;
+                disposing = capture.DisposeAsync().AsTask();
+                advancing = Task.Run(() => clock.Advance(TimeSpan.FromSeconds(5)));
+                await cancellationEntered.Task.WaitAsync(timeout.Token).ConfigureAwait(false);
+                TimeoutException? failure = await Assert.ThrowsAsync<TimeoutException>(
+                    () => disposing.WaitAsync(timeout.Token)).ConfigureAwait(false);
+                Assert.That(disposing.IsFaulted, Is.True,
+                    "The capture's own deadline, not the test's wait deadline, must complete disposal.");
+                TimeoutException? repeated = await Assert.ThrowsAsync<TimeoutException>(
+                    async () => await capture.DisposeAsync().ConfigureAwait(false)).ConfigureAwait(false);
+                Assert.That(repeated, Is.SameAs(failure));
+                cleanup = await cleanupStarted.Task.WaitAsync(timeout.Token).ConfigureAwait(false);
+                providerRelease.TrySetResult(true);
+                await providerReturned.Task.WaitAsync(timeout.Token).ConfigureAwait(false);
+                Assert.That(cleanup.IsCompleted, Is.False,
+                    "Cleanup must also join the cancellation callback after the provider returns.");
+                Assert.That(handle.SafeWaitHandle.IsClosed, Is.False,
+                    "A cancellation callback still owns the token resources.");
+            }
+            finally
+            {
+                cancellationRelease.Set();
+                providerRelease.TrySetResult(true);
+                if (advancing is not null)
+                {
+                    await advancing.WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
+                }
+                if (disposing is not null)
+                {
+                    await Assert.ThrowsAsync<TimeoutException>(
+                        () => disposing).ConfigureAwait(false);
+                }
+                else
+                {
+                    await capture.DisposeAsync().ConfigureAwait(false);
+                }
+                if (cleanup is not null)
+                {
+                    await cleanup.WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
+                }
+#if NETFRAMEWORK
+                registration.Dispose();
+#else
+                await registration.DisposeAsync().ConfigureAwait(false);
+#endif
+            }
+
+            async ValueTask<HistorianUpdateOutcome<T>> FinishProviderAsync<T>(CancellationToken token)
+            {
+                registration = token.Register(() =>
+                {
+                    cancellationEntered.TrySetResult(true);
+                    cancellationRelease.Wait(TimeSpan.FromSeconds(15));
+                });
+                entered.TrySetResult(token);
+                await providerRelease.Task.ConfigureAwait(false);
+                providerReturned.TrySetResult(true);
+                return new HistorianUpdateOutcome<T>([StatusCodes.Good]);
             }
         }
 

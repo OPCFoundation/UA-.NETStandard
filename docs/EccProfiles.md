@@ -318,7 +318,7 @@ modules should note that these steps are not performed by a validated module
 on .NET Framework, so `CryptoCompliancePolicy.FipsOnly` withholds the ECC and
 AEAD policies there, and that the managed AES is neither hardware accelerated
 nor hardened against cache-timing side channels like the CNG implementation;
-use the .NET 8+ build, or an RSA policy, where that matters. The .NET 8+
+use the .NET 10+ build, or an RSA policy, where that matters. The .NET 10+
 builds use `ECDiffieHellman.DeriveRawSecretAgreement`, `AesGcm` and
 `ChaCha20Poly1305` from the BCL and do not load BouncyCastle for them.
 

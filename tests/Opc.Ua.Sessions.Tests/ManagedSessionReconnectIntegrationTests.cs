@@ -1,31 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using System.Collections.Concurrent;
@@ -490,7 +464,7 @@ namespace Opc.Ua.Sessions.Tests
             CancellationToken ct)
         {
             ConfiguredEndpoint endpoint = await ClientFixture
-                .GetEndpointAsync(ServerUrl, SecurityPolicies.None)
+                .GetEndpointAsync(ServerUrl, SecurityPolicies.Basic256Sha256)
                 .ConfigureAwait(false);
 
             // The fake handler returns the same endpoint as the failover
@@ -514,6 +488,7 @@ namespace Opc.Ua.Sessions.Tests
                     JitterFactor = 0.0
                 })
                 .WithServerRedundancy(fakeHandler)
+                .WithServerRedundancyOptions(CreateFailoverOptions())
                 .ConnectAsync(ct)
                 .ConfigureAwait(false);
 
@@ -607,7 +582,7 @@ namespace Opc.Ua.Sessions.Tests
             CancellationToken ct)
         {
             ConfiguredEndpoint endpoint = await ClientFixture
-                .GetEndpointAsync(ServerUrl, SecurityPolicies.None)
+                .GetEndpointAsync(ServerUrl, SecurityPolicies.Basic256Sha256)
                 .ConfigureAwait(false);
 
             // Handler always picks "no failover target available".
@@ -625,6 +600,7 @@ namespace Opc.Ua.Sessions.Tests
                     JitterFactor = 0.0
                 })
                 .WithServerRedundancy(fakeHandler)
+                .WithServerRedundancyOptions(CreateFailoverOptions())
                 .ConnectAsync(ct)
                 .ConfigureAwait(false);
 
@@ -835,7 +811,7 @@ namespace Opc.Ua.Sessions.Tests
             // session id. The subscription is recreated on the new
             // session and resumes delivering data.
             ConfiguredEndpoint endpoint = await ClientFixture
-                .GetEndpointAsync(ServerUrl, SecurityPolicies.None)
+                .GetEndpointAsync(ServerUrl, SecurityPolicies.Basic256Sha256)
                 .ConfigureAwait(false);
 
             var fakeHandler = new FakeRedundancyHandler(endpoint);
@@ -852,6 +828,7 @@ namespace Opc.Ua.Sessions.Tests
                     JitterFactor = 0.0
                 })
                 .WithServerRedundancy(fakeHandler)
+                .WithServerRedundancyOptions(CreateFailoverOptions())
                 .ConnectAsync(ct)
                 .ConfigureAwait(false);
 
@@ -1168,7 +1145,7 @@ namespace Opc.Ua.Sessions.Tests
             // becomes connected. The setting persists across an
             // in-place failover recreate (same V2 manager survives).
             ConfiguredEndpoint endpoint = await ClientFixture
-                .GetEndpointAsync(ServerUrl, SecurityPolicies.None)
+                .GetEndpointAsync(ServerUrl, SecurityPolicies.Basic256Sha256)
                 .ConfigureAwait(false);
 
             var fakeHandler = new FakeRedundancyHandler(endpoint);
@@ -1190,6 +1167,7 @@ namespace Opc.Ua.Sessions.Tests
                 // sides of the recreation so transfer is expected to succeed.
                 .WithUserIdentity(new UserIdentity("user1", "password"u8))
                 .WithServerRedundancy(fakeHandler)
+                .WithServerRedundancyOptions(CreateFailoverOptions())
                 .WithTransferSubscriptionsOnRecreate()
                 .ConnectAsync(ct)
                 .ConfigureAwait(false);
@@ -1390,6 +1368,23 @@ namespace Opc.Ua.Sessions.Tests
         /// endpoint. Always reports a non-transparent redundancy mode so
         /// the failover path is engaged.
         /// </summary>
+        private ServerRedundancyOptions CreateFailoverOptions()
+        {
+            string? expectedServerUri = ServerFixture?.Config.ApplicationUri ??
+                Environment.GetEnvironmentVariable("CLIENT_SERVER_URI");
+            if (string.IsNullOrWhiteSpace(expectedServerUri))
+            {
+                Assert.Ignore("An external redundancy test server requires a provisioned CLIENT_SERVER_URI.");
+            }
+
+            return new ServerRedundancyOptions
+            {
+                ExpectedServerApplicationUri = expectedServerUri,
+                ProbeMemberServiceLevel = false,
+                ServiceLevelMonitoringInterval = null
+            };
+        }
+
         private sealed class FakeRedundancyHandler : IServerRedundancyHandler
         {
             public FakeRedundancyHandler(ConfiguredEndpoint? target)

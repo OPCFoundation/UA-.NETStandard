@@ -1,31 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using System.Text;
@@ -557,6 +531,55 @@ namespace OpcUaPubSubJsonTests
                 Assert.That(fields[5].Value.GetInt32Array(), Has.Count.EqualTo(4));
                 Assert.That(fields[6].Value.IsNull, Is.False);
                 Assert.That(fields[6].Value.TypeInfo.BuiltInType, Is.EqualTo(BuiltInType.ExtensionObject));
+            });
+        }
+
+        [Test]
+        [Category("SecurityRegression")]
+        [TestSpec("7.2.5.4.3")]
+        public void StructureArrayOfUnregisteredTypeDoesNotCopyTheTypeIdIntoEveryElement()
+        {
+            // Received metadata can declare a DataType with a long String
+            // NodeId. Writing it as UaTypeId into each element of a Structure
+            // array made a 45 KB frame allocate gigabytes.
+            var dataType = new NodeId(new string('t', 60000), 0);
+            DataSetMetaDataType meta = JsonTestUtilities.CreateMetaData();
+            meta.Fields = [NewField("Items", BuiltInType.ExtensionObject, ValueRanks.OneDimension, dataType)];
+            PubSubNetworkMessageContext ctx = NewContextWithMetaData(meta);
+            const int count = 2000;
+            var json = new StringBuilder(
+                "{\"MessageType\":\"ua-data\",\"PublisherId\":\"P\",\"Messages\":[{\"DataSetWriterId\":1," +
+                "\"Payload\":{\"Items\":[{\"A\":1},{\"UaTypeId\":\"i=884\",\"Low\":1,\"High\":2}");
+            for (int i = 2; i < count; i++)
+            {
+                json.Append(",{}");
+            }
+            json.Append("]}}]}");
+            byte[] frame = Encoding.UTF8.GetBytes(json.ToString());
+
+            long before = GC.GetAllocatedBytesForCurrentThread();
+            PubSubNetworkMessage? result = Opc.Ua.PubSub.Encoding.Json.JsonDecoder.DecodeCore(frame, ctx);
+            long allocated = GC.GetAllocatedBytesForCurrentThread() - before;
+
+            Assert.That(result, Is.Not.Null);
+            Assert.That(result!.DataSetMessages, Has.Count.EqualTo(1));
+            Assert.That(
+                result.DataSetMessages[0].Fields[0].Value.TryGetValue(out ArrayOf<ExtensionObject> items),
+                Is.True);
+            ExpandedNodeId expected = NodeId.ToExpandedNodeId(dataType, ctx.MessageContext.NamespaceUris);
+            Assert.Multiple(() =>
+            {
+                // Copying the 60 KB type id into 2000 elements allocated about 1 GB.
+                Assert.That(allocated, Is.LessThan(64L * 1024 * 1024), "allocated bytes");
+                Assert.That(items.Count, Is.EqualTo(count));
+                Assert.That(items[0].TypeId, Is.EqualTo(expected));
+                Assert.That(items[0].TryGetAsJson(out string? body), Is.True);
+                Assert.That(body, Does.Contain("\"A\""));
+                // An element with its own UaTypeId keeps it.
+                Assert.That(items[1].TypeId, Is.Not.EqualTo(expected));
+                // An empty object is a Structure of the declared type without a body.
+                Assert.That(items[2].IsNull, Is.False);
+                Assert.That(items[2].TypeId, Is.EqualTo(expected));
             });
         }
 

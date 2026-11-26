@@ -1,31 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using System.Collections.Concurrent;
@@ -51,6 +25,14 @@ namespace Opc.Ua.Sessions.Tests
     /// <summary>
     /// Server load tests.
     /// </summary>
+    /// <remarks>
+    /// These tests check correctness under load and log their rates and latencies as
+    /// <c>load-metric:</c> lines. Client and server share one process (and its GC mode:
+    /// set <c>DOTNET_gcServer=1</c> for Server GC), and the full subscribe shape needs about
+    /// a dozen cores, so they are <c>[Explicit]</c> and not run in CI. The nightly
+    /// throughput and delivery floors run the server out of process with
+    /// <c>perf/regression/Invoke-LoadFloors.ps1</c>, on shapes derived from these tests.
+    /// </remarks>
     [TestFixture]
     [Explicit]
     [Category("LoadTest")]
@@ -60,7 +42,10 @@ namespace Opc.Ua.Sessions.Tests
     public class LoadTest : ClientTestFramework
     {
         public LoadTest(string uriScheme)
-            : base(uriScheme, NUnitTelemetryContext.Create(logLevel: LogLevel.Warning))
+            // Error: an overloaded server sets the overflow bit on every value it drops from a
+            // queue of 2, and the client logs each one as a warning; millions of lines exhaust
+            // the memory of the NUnit result. The tests count the overflows instead.
+            : base(uriScheme, NUnitTelemetryContext.Create(logLevel: LogLevel.Error))
         {
             SingleSession = false;
         }
@@ -180,6 +165,7 @@ namespace Opc.Ua.Sessions.Tests
 
                 TestContext.Out.WriteLine($"Subscribing to {nodeIds.Count} nodes.");
                 var valueChanges = new NodeChangeCounters(nodeIds.Keys);
+                var latency = new LatencyHistogram();
 
                 // Create reader sessions and subscriptions in parallel
                 var createSessionTasks = new List<Task>();
@@ -199,7 +185,7 @@ namespace Opc.Ua.Sessions.Tests
                             session = managedSession;
                             sessions.Add(session);
 
-                            var handler = new LoadTestDataChangeHandler(valueChanges);
+                            var handler = new LoadTestDataChangeHandler(valueChanges, latency);
 
                             for (int j = 0; j < subscriptionsPerSession; j++)
                             {
@@ -221,7 +207,9 @@ namespace Opc.Ua.Sessions.Tests
                                             AttributeId = Attributes.Value,
                                             MonitoringMode = MonitoringMode.Reporting,
                                             SamplingInterval = TimeSpan.Zero,
-                                            QueueSize = 1
+                                            // 2: a value written while the previous one is still
+                                            // queued is not an overwrite, so every write counts
+                                            QueueSize = kNothingLostQueueSize
                                         },
                                         out Client.Subscriptions.MonitoredItems.IMonitoredItem? item);
 
@@ -253,7 +241,8 @@ namespace Opc.Ua.Sessions.Tests
                                             StartNodeId = nodeId,
                                             AttributeId = Attributes.Value,
                                             MonitoringMode = MonitoringMode.Reporting,
-                                            SamplingInterval = 0
+                                            SamplingInterval = 0,
+                                            QueueSize = kNothingLostQueueSize
                                         };
                                         valueChanges.Register(item.ClientHandle, nodeId);
 
@@ -263,17 +252,22 @@ namespace Opc.Ua.Sessions.Tests
 
                                     subscription.FastDataChangeCallback = (sub, item, value) =>
                                     {
-                                        foreach (MonitoredItemNotification dv in item.MonitoredItems)
+                                        for (int ii = 0; ii < item.MonitoredItems.Count; ii++)
                                         {
-                                            if (!StatusCode.IsGood(dv.DiagnosticInfo.InnerStatusCode))
+                                            DiagnosticInfo? diagnosticInfo = ii < item.DiagnosticInfos.Count
+                                                ? item.DiagnosticInfos[ii]
+                                                : null;
+                                            if (diagnosticInfo != null &&
+                                                !StatusCode.IsGood(diagnosticInfo.InnerStatusCode))
                                             {
                                                 Assert.Fail(
                                                     "Monitored item reported bad status code: " +
-                                                    dv.DiagnosticInfo.InnerStatusCode +
-                                                    dv.DiagnosticInfo.LocalizedText);
+                                                    diagnosticInfo.InnerStatusCode +
+                                                    diagnosticInfo.LocalizedText);
                                             }
 
-                                            valueChanges.Increment(dv.ClientHandle);
+                                            valueChanges.Increment(item.MonitoredItems[ii].ClientHandle);
+                                            valueChanges.RecordValue(item.MonitoredItems[ii].Value, latency);
                                         }
                                     };
 
@@ -295,6 +289,13 @@ namespace Opc.Ua.Sessions.Tests
                 // Create writer session (always uses classic session)
                 ISession writerSession = await ClientFixture.ConnectAsync(ServerUrl, SecurityPolicies.Basic256Sha256).ConfigureAwait(false);
                 sessions.Add(writerSession);
+
+                // Let the initial values arrive before the window starts: their server
+                // timestamps predate the test and are not delivery latency.
+                await Task.Delay(2 * publishingInterval).ConfigureAwait(false);
+                latency.Clear();
+                long receivedAtStart = valueChanges.Total;
+                var window = LoadWindow.Start();
 
                 // Writer task
                 short writeCount = 0;
@@ -343,6 +344,8 @@ namespace Opc.Ua.Sessions.Tests
                 {
                     /* expected */
                 }
+                LoadWindow.Result measured = window.Stop();
+                long receivedInWindow = valueChanges.Total - receivedAtStart;
 
                 // Wait until the notifications of the last writes have been delivered: the
                 // received count stops growing for 10 publishing intervals. A fixed wait counted
@@ -389,10 +392,23 @@ namespace Opc.Ua.Sessions.Tests
                     }
                 }
 
-                Assert.That(allNodesReceivedChanges, Is.True, "Not all nodes received all value changes.");
                 // Allow for network delays
                 double receiveRatio = (double)receivedNotifications / expectedNotifications;
                 TestContext.Out.WriteLine($"Receive ratio: {receiveRatio:P2}");
+                ReportMetrics(
+                    "subscribe",
+                    measured,
+                    receivedInWindow,
+                    "Notification",
+                    ("delivered", receiveRatio),
+                    ("notifPerSec", receivedInWindow / measured.Seconds),
+                    ("writesPerSec", writeCount / measured.Seconds),
+                    ("overflowed", valueChanges.Overflows),
+                    ("p50Ms", latency.Percentile(0.5)),
+                    ("p99Ms", latency.Percentile(0.99)),
+                    ("drainSec", drain.Elapsed.TotalSeconds));
+
+                Assert.That(allNodesReceivedChanges, Is.True, "Not all nodes received all value changes.");
                 Assert.That(receiveRatio, Is.GreaterThan(0.99), "The overall notification receive ratio is too low.");
             }
             finally
@@ -450,6 +466,7 @@ namespace Opc.Ua.Sessions.Tests
                 }
 
                 // Create reader sessions
+                var window = LoadWindow.Start();
                 var readerTasks = new List<Task>();
                 for (int i = 0; i < sessionCount; i++)
                 {
@@ -585,6 +602,7 @@ namespace Opc.Ua.Sessions.Tests
                 {
                 }
 
+                LoadWindow.Result measured = window.Stop();
                 TestContext.Out.WriteLine($"Total reads: {totalReads}");
                 TestContext.Out.WriteLine($"Total writes: {totalWrites}");
                 TestContext.Out.WriteLine($"Total read errors: {readErrors.Count}");
@@ -596,6 +614,14 @@ namespace Opc.Ua.Sessions.Tests
                         TestContext.Out.WriteLine(error);
                     }
                 }
+
+                ReportMetrics(
+                    "read",
+                    measured,
+                    totalReads,
+                    "ReadValue",
+                    ("readValuesPerSec", totalReads / measured.Seconds),
+                    ("writesPerSec", totalWrites / measured.Seconds));
 
                 Assert.That(readErrors, Is.Empty, "There were read errors.");
                 Assert.That(totalReads, Is.GreaterThan(0), "No reads were performed.");
@@ -640,7 +666,7 @@ namespace Opc.Ua.Sessions.Tests
 
             var sessions = new ConcurrentBag<ISession>();
             long eventsReceived = 0;
-            long totalDelayTicks = 0;
+            var latency = new LatencyHistogram();
 
             try
             {
@@ -707,8 +733,7 @@ namespace Opc.Ua.Sessions.Tests
                                     {
                                         if (fieldList.EventFields.Count > 4 && fieldList.EventFields[4].TryGetValue(out DateTimeUtc eventTime))
                                         {
-                                            TimeSpan delay = DateTime.UtcNow - ((DateTime)eventTime).ToUniversalTime();
-                                            Interlocked.Add(ref totalDelayTicks, delay.Ticks);
+                                            latency.RecordSince(eventTime);
                                         }
                                     }
                                 };
@@ -741,6 +766,7 @@ namespace Opc.Ua.Sessions.Tests
                 using var testCts = new CancellationTokenSource(TimeSpan.FromSeconds(testDurationSeconds));
 
                 var sw = System.Diagnostics.Stopwatch.StartNew();
+                var window = LoadWindow.Start();
                 while (!testCts.IsCancellationRequested)
                 {
                     var e = new BaseEventState(null);
@@ -754,6 +780,8 @@ namespace Opc.Ua.Sessions.Tests
                 }
 
                 sw.Stop();
+                LoadWindow.Result measured = window.Stop();
+                long receivedInWindow = Interlocked.Read(ref eventsReceived);
                 TestContext.Out.WriteLine($"Generated {eventCount} events in {sw.ElapsedMilliseconds} ms " +
                     $"({eventCount / sw.Elapsed.TotalSeconds:F0} events/sec).");
 
@@ -780,12 +808,17 @@ namespace Opc.Ua.Sessions.Tests
                 double receiveRatio = expectedTotal > 0 ? (double)received / expectedTotal : 0;
                 TestContext.Out.WriteLine($"Receive ratio: {receiveRatio:P2}");
 
-                if (received > 0)
-                {
-                    long averageDelayTicks = Interlocked.Read(ref totalDelayTicks) / received;
-                    var averageDelay = TimeSpan.FromTicks(averageDelayTicks);
-                    TestContext.Out.WriteLine($"Average event delivery delay: {averageDelay.TotalMilliseconds:F2} ms");
-                }
+                ReportMetrics(
+                    "events",
+                    measured,
+                    eventCount,
+                    "GeneratedEvent",
+                    ("delivered", receiveRatio),
+                    ("generatedPerSec", eventCount / measured.Seconds),
+                    ("eventsPerSec", receivedInWindow / measured.Seconds),
+                    ("p50Ms", latency.Percentile(0.5)),
+                    ("p99Ms", latency.Percentile(0.99)),
+                    ("drainSec", drain.Elapsed.TotalSeconds));
 
                 Assert.That(
                     received,
@@ -1170,6 +1203,170 @@ namespace Opc.Ua.Sessions.Tests
         }
 
         /// <summary>
+        /// Monitored item queue size of the tests that count every written value as
+        /// expected. With 1, a value written while the previous one still waits for a
+        /// publish overwrites it, which counts a late publish cycle as lost.
+        /// </summary>
+        private const int kNothingLostQueueSize = 2;
+
+        /// <summary>
+        /// Writes one <c>load-metric:</c> line with the throughput, latency and garbage
+        /// collection numbers of a test, so runs can be compared from the test output.
+        /// The fixture runs client and server in one process, so the allocation per
+        /// operation includes the client side. Run with <c>DOTNET_gcServer=1</c> to measure
+        /// the server under Server GC (the test host otherwise uses workstation GC, which
+        /// pauses a loaded server for a large part of the window); the out-of-process
+        /// floors in <c>perf/regression</c> measure the server alone.
+        /// </summary>
+        private static void ReportMetrics(
+            string name,
+            LoadWindow.Result window,
+            long operations,
+            string operationName,
+            params (string Name, double Value)[] metrics)
+        {
+            var line = new System.Text.StringBuilder();
+            line.Append("load-metric: test=").Append(name);
+            foreach ((string metric, double value) in metrics)
+            {
+                line.Append(' ').Append(metric).Append('=')
+                    .Append(value.ToString("G5", CultureInfo.InvariantCulture));
+            }
+            line.Append(" seconds=").Append(window.Seconds.ToString("F1", CultureInfo.InvariantCulture))
+                .Append(" gc=").Append(window.GcMode)
+                .Append(" gcCount=").Append(window.GcCount.ToString(CultureInfo.InvariantCulture))
+                .Append(" gcPauseMs=").Append(window.GcPauseMs.ToString("F0", CultureInfo.InvariantCulture));
+            if (operations > 0 && window.AllocatedBytes >= 0)
+            {
+                line.Append(" processAllocBPer").Append(operationName)
+                    .Append('=').Append((window.AllocatedBytes / (double)operations).ToString("F0", CultureInfo.InvariantCulture));
+            }
+            TestContext.Out.WriteLine(line.ToString());
+            if (!System.Runtime.GCSettings.IsServerGC)
+            {
+                TestContext.Out.WriteLine(
+                    "load-metric: note: workstation GC; set DOTNET_gcServer=1 to run the in-process server under Server GC.");
+            }
+        }
+
+        /// <summary>
+        /// The measurement window of a load test: elapsed time and the garbage collection
+        /// and allocation deltas of the process.
+        /// </summary>
+        private sealed class LoadWindow
+        {
+            private LoadWindow()
+            {
+                m_clock = System.Diagnostics.Stopwatch.StartNew();
+                m_gcCount = GC.CollectionCount(0);
+#if NET
+                m_pause = GC.GetTotalPauseDuration();
+                m_allocated = GC.GetTotalAllocatedBytes(false);
+#endif
+            }
+
+            public static LoadWindow Start()
+            {
+                return new LoadWindow();
+            }
+
+            public Result Stop()
+            {
+                m_clock.Stop();
+#if NET
+                double pauseMs = (GC.GetTotalPauseDuration() - m_pause).TotalMilliseconds;
+                long allocated = GC.GetTotalAllocatedBytes(false) - m_allocated;
+#else
+                const double pauseMs = double.NaN;
+                const long allocated = -1;
+#endif
+                return new Result(
+                    Math.Max(m_clock.Elapsed.TotalSeconds, 0.001),
+                    System.Runtime.GCSettings.IsServerGC ? "server" : "workstation",
+                    GC.CollectionCount(0) - m_gcCount,
+                    pauseMs,
+                    allocated);
+            }
+
+            public readonly record struct Result(
+                double Seconds,
+                string GcMode,
+                int GcCount,
+                double GcPauseMs,
+                long AllocatedBytes);
+
+            private readonly System.Diagnostics.Stopwatch m_clock;
+            private readonly int m_gcCount;
+#if NET
+            private readonly TimeSpan m_pause;
+            private readonly long m_allocated;
+#endif
+        }
+
+        /// <summary>
+        /// Lock-free latency histogram with logarithmic buckets of about 9 % resolution
+        /// (eight per power of two microseconds), recorded from the notification callbacks.
+        /// </summary>
+        private sealed class LatencyHistogram
+        {
+            /// <summary>
+            /// Records the time from <paramref name="since"/> (a server timestamp of the
+            /// same process clock) to now.
+            /// </summary>
+            public void RecordSince(DateTimeUtc since)
+            {
+                if (since.IsNull)
+                {
+                    return;
+                }
+                TimeSpan elapsed = DateTimeUtc.Now - since;
+                double microseconds = Math.Max(elapsed.TotalMilliseconds * 1000.0, 1.0);
+                int index = (int)Math.Min(Math.Log(microseconds, 2) * kBucketsPerOctave, m_buckets.Length - 1);
+                Interlocked.Increment(ref m_buckets[index]);
+            }
+
+            public void Clear()
+            {
+                for (int i = 0; i < m_buckets.Length; i++)
+                {
+                    Interlocked.Exchange(ref m_buckets[i], 0);
+                }
+            }
+
+            /// <summary>
+            /// The latency in milliseconds below which <paramref name="quantile"/> of the
+            /// recorded values fall (upper bound of the bucket), or NaN without values.
+            /// </summary>
+            public double Percentile(double quantile)
+            {
+                long total = 0;
+                for (int i = 0; i < m_buckets.Length; i++)
+                {
+                    total += Interlocked.Read(ref m_buckets[i]);
+                }
+                if (total == 0)
+                {
+                    return double.NaN;
+                }
+                long rank = Math.Min(total - 1, (long)(quantile * total));
+                long seen = 0;
+                for (int i = 0; i < m_buckets.Length; i++)
+                {
+                    seen += Interlocked.Read(ref m_buckets[i]);
+                    if (seen > rank)
+                    {
+                        return Math.Pow(2, (i + 1) / (double)kBucketsPerOctave) / 1000.0;
+                    }
+                }
+                return double.NaN;
+            }
+
+            private const int kBucketsPerOctave = 8;
+            // 2^36 us is about 19 hours
+            private readonly long[] m_buckets = new long[36 * kBucketsPerOctave];
+        }
+
+        /// <summary>
         /// Counts the data changes received per node from every subscription.
         /// </summary>
         /// <remarks>
@@ -1210,6 +1407,25 @@ namespace Opc.Ua.Sessions.Tests
             }
 
             /// <summary>
+            /// Records the delivery latency of a value and whether the server dropped values
+            /// before it (overflow bit).
+            /// </summary>
+            public void RecordValue(DataValue value, LatencyHistogram latency)
+            {
+                latency.RecordSince(value.ServerTimestamp);
+                if (value.StatusCode.Overflow)
+                {
+                    Interlocked.Increment(ref m_overflows);
+                }
+            }
+
+            /// <summary>
+            /// Values received with the overflow bit set: the server dropped older values of
+            /// the monitored item because its queue was full.
+            /// </summary>
+            public long Overflows => Interlocked.Read(ref m_overflows);
+
+            /// <summary>
             /// The data changes received for a node.
             /// </summary>
             public long GetCount(NodeId nodeId)
@@ -1236,6 +1452,7 @@ namespace Opc.Ua.Sessions.Tests
             private readonly Dictionary<NodeId, int> m_indexByNode = [];
             private readonly ConcurrentDictionary<uint, int> m_indexByHandle = new();
             private readonly long[] m_counts;
+            private long m_overflows;
         }
 
         /// <summary>
@@ -1246,10 +1463,12 @@ namespace Opc.Ua.Sessions.Tests
         private sealed class LoadTestDataChangeHandler : Client.Subscriptions.ISubscriptionNotificationHandler
         {
             private readonly NodeChangeCounters m_valueChanges;
+            private readonly LatencyHistogram m_latency;
 
-            public LoadTestDataChangeHandler(NodeChangeCounters valueChanges)
+            public LoadTestDataChangeHandler(NodeChangeCounters valueChanges, LatencyHistogram latency)
             {
                 m_valueChanges = valueChanges;
+                m_latency = latency;
             }
 
             public ValueTask OnDataChangeNotificationAsync(
@@ -1276,6 +1495,7 @@ namespace Opc.Ua.Sessions.Tests
                     if (change.MonitoredItem != null)
                     {
                         m_valueChanges.Increment(change.MonitoredItem.ClientHandle);
+                        m_valueChanges.RecordValue(change.Value, m_latency);
                     }
                 }
                 return default;

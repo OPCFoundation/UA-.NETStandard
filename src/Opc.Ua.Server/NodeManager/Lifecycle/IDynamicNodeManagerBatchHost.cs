@@ -1,31 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using System.Threading;
@@ -34,12 +8,360 @@ using System.Threading.Tasks;
 namespace Opc.Ua.Server
 {
     /// <summary>
-    /// Carries the candidate routing image and callbacks for a batch publication.
+    /// Identifies lifecycle operations that a callback may re-enter without reacquiring its current admission.
+    /// </summary>
+    [Flags]
+    internal enum NodeManagerAdmissionCapability
+    {
+        /// <summary>
+        /// No re-entry capability is granted.
+        /// </summary>
+        None = 0,
+
+        /// <summary>
+        /// The callback may publish address-space changes.
+        /// </summary>
+        AddressSpaceMutation = 1,
+
+        /// <summary>
+        /// The callback may publish server lifecycle changes.
+        /// </summary>
+        ServerLifecycle = 2
+    }
+
+    /// <summary>
+    /// Carries semantic host admission for one lifecycle batch commit.
+    /// </summary>
+    internal interface INodeManagerBatchAdmission : IDisposable
+    {
+        /// <summary>
+        /// Determines whether the host granted the specified lifecycle capability.
+        /// </summary>
+        /// <param name="capability">The capability to check.</param>
+        /// <returns>True when the capability is currently available.</returns>
+        bool Includes(NodeManagerAdmissionCapability capability);
+
+        /// <summary>
+        /// Releases the specified lifecycle capability before an external durable decision.
+        /// </summary>
+        /// <param name="capability">The capability to release.</param>
+        void Release(NodeManagerAdmissionCapability capability);
+    }
+
+    /// <summary>
+    /// Carries semantic capabilities for lifecycle re-entry from a manager callback.
+    /// </summary>
+    internal sealed class NodeManagerCallbackPermit : IAsyncDisposable
+    {
+        /// <summary>
+        /// Creates a revocable permit for a callback.
+        /// </summary>
+        /// <param name="capabilities">The lifecycle capabilities granted to the callback.</param>
+        /// <param name="previous">The enclosing permit, if any.</param>
+        /// <param name="hostId">The issuing host for an explicit permit.</param>
+        internal NodeManagerCallbackPermit(
+            NodeManagerAdmissionCapability capabilities,
+            NodeManagerCallbackPermit? previous = null,
+            Guid hostId = default)
+        {
+            Previous = previous;
+            Capabilities = capabilities;
+            HostId = hostId;
+        }
+
+        /// <summary>
+        /// Gets the preceding callback permit.
+        /// </summary>
+        internal NodeManagerCallbackPermit? Previous { get; }
+
+        /// <summary>
+        /// Gets the lifecycle capabilities granted to this callback.
+        /// </summary>
+        internal NodeManagerAdmissionCapability Capabilities { get; }
+
+        /// <summary>
+        /// Identifies the host that granted an explicit callback permit.
+        /// </summary>
+        internal Guid HostId { get; }
+
+        /// <summary>
+        /// Gets whether this permit remains active.
+        /// </summary>
+        internal bool IsActive => Volatile.Read(ref m_active) != 0;
+
+        /// <summary>
+        /// Attempts to borrow this callback's admission without waiting for another child.
+        /// </summary>
+        /// <param name="capability">The capability required by the nested operation.</param>
+        /// <returns>A lease, or null when the callback is closed or another child owns its admission.</returns>
+        internal Borrow? TryBorrow(NodeManagerAdmissionCapability capability)
+        {
+            if (!TryStartBorrow(capability))
+            {
+                return null;
+            }
+            bool admitted = false;
+            try
+            {
+                admitted = m_childAdmission.Wait(0);
+                return admitted ? CompleteBorrow() : null;
+            }
+            finally
+            {
+                if (!admitted)
+                {
+                    ReleaseBorrow(releaseAdmission: false);
+                }
+            }
+        }
+
+        /// <summary>
+        /// Waits for exclusive child admission while the callback remains active.
+        /// </summary>
+        /// <param name="capability">The capability required by the nested operation.</param>
+        /// <param name="cancellationToken">Cancels the wait for child admission.</param>
+        /// <returns>A lease, or null if the callback has closed.</returns>
+        internal async ValueTask<Borrow?> BorrowAsync(
+            NodeManagerAdmissionCapability capability,
+            CancellationToken cancellationToken)
+        {
+            if (!TryStartBorrow(capability))
+            {
+                return null;
+            }
+            bool admitted = false;
+            try
+            {
+                await m_childAdmission.WaitAsync(cancellationToken).ConfigureAwait(false);
+                admitted = true;
+                return CompleteBorrow();
+            }
+            finally
+            {
+                if (!admitted)
+                {
+                    ReleaseBorrow(releaseAdmission: false);
+                }
+            }
+        }
+
+        /// <summary>
+        /// Retains child admission before a wait can race with permit disposal.
+        /// </summary>
+        private bool TryStartBorrow(NodeManagerAdmissionCapability capability)
+        {
+            lock (m_gate)
+            {
+                if (m_active == 0 ||
+                    capability == NodeManagerAdmissionCapability.None ||
+                    (Capabilities & capability) != capability)
+                {
+                    return false;
+                }
+                m_borrows++;
+                return true;
+            }
+        }
+
+        /// <summary>
+        /// Transfers accepted admission to a child only while the callback remains active.
+        /// </summary>
+        private Borrow? CompleteBorrow()
+        {
+            lock (m_gate)
+            {
+                if (m_active != 0)
+                {
+                    return new Borrow(this);
+                }
+            }
+            ReleaseBorrow();
+            return null;
+        }
+
+        /// <inheritdoc/>
+        public ValueTask DisposeAsync()
+        {
+            Task disposal;
+            lock (m_gate)
+            {
+                Volatile.Write(ref m_active, 0);
+                if (m_disposal is null)
+                {
+                    if (m_borrows == 0)
+                    {
+                        m_childAdmission.Dispose();
+                        m_disposal = Task.CompletedTask;
+                    }
+                    else
+                    {
+                        m_drained ??= new TaskCompletionSource<bool>(
+                            TaskCreationOptions.RunContinuationsAsynchronously);
+                        m_disposal = DisposeChildAdmissionAsync(m_drained.Task);
+                    }
+                }
+                disposal = m_disposal;
+            }
+            return new ValueTask(disposal);
+        }
+
+        /// <summary>
+        /// Disposes the semaphore after both borrowed admissions and waiting children have exited.
+        /// </summary>
+        private async Task DisposeChildAdmissionAsync(Task drain)
+        {
+            await drain.ConfigureAwait(false);
+            m_childAdmission.Dispose();
+        }
+
+        /// <summary>
+        /// Owns one nested operation's use of a callback capability.
+        /// </summary>
+        internal sealed class Borrow : IDisposable
+        {
+            /// <summary>
+            /// Creates an admission borrow for its exact callback permit.
+            /// </summary>
+            /// <param name="owner">The permit that granted the capability.</param>
+            internal Borrow(NodeManagerCallbackPermit owner)
+            {
+                m_owner = owner;
+                Capabilities = owner.Capabilities;
+            }
+
+            /// <summary>
+            /// Gets the complete admission retained for the nested operation.
+            /// </summary>
+            internal NodeManagerAdmissionCapability Capabilities { get; }
+
+            /// <inheritdoc/>
+            public void Dispose()
+            {
+                Interlocked.Exchange(ref m_owner, null)?.ReleaseBorrow();
+            }
+
+            private NodeManagerCallbackPermit? m_owner;
+        }
+
+        /// <summary>
+        /// Releases one accepted child after its wait or borrowed operation has stopped using the semaphore.
+        /// </summary>
+        /// <param name="releaseAdmission">Whether the child acquired the semaphore.</param>
+        private void ReleaseBorrow(bool releaseAdmission = true)
+        {
+            if (releaseAdmission)
+            {
+                m_childAdmission.Release();
+            }
+            TaskCompletionSource<bool>? drained = null;
+            lock (m_gate)
+            {
+                m_borrows--;
+                if (m_borrows == 0)
+                {
+                    drained = m_drained;
+                    m_drained = null;
+                }
+            }
+            drained?.TrySetResult(true);
+        }
+
+        private readonly Lock m_gate = new();
+        private readonly SemaphoreSlim m_childAdmission = new(1, 1);
+        private TaskCompletionSource<bool>? m_drained;
+
+        /// <summary>The single shared completion of permit disposal.</summary>
+        private Task? m_disposal;
+
+        private int m_active = 1;
+
+        /// <summary>Counts accepted children, including pending semaphore waits.</summary>
+        private int m_borrows;
+    }
+
+    /// <summary>
+    /// Adapts released session callbacks that cannot pass a lifecycle permit.
+    /// </summary>
+    internal readonly struct LegacyNodeManagerCallbackScope : IAsyncDisposable
+    {
+        /// <summary>
+        /// Installs a callback permit for context-free calls made by the legacy callback.
+        /// </summary>
+        internal LegacyNodeManagerCallbackScope(
+            AsyncLocal<NodeManagerCallbackPermit?> current,
+            NodeManagerAdmissionCapability capabilities)
+        {
+            m_current = current;
+            Permit = new NodeManagerCallbackPermit(capabilities, current.Value);
+            current.Value = Permit;
+        }
+
+        /// <summary>
+        /// Gets the permit granted to this callback.
+        /// </summary>
+        internal NodeManagerCallbackPermit Permit { get; }
+
+        /// <inheritdoc/>
+        public ValueTask DisposeAsync()
+        {
+            ValueTask disposal = Permit.DisposeAsync();
+            if (ReferenceEquals(m_current.Value, Permit))
+            {
+                m_current.Value = Permit.Previous;
+            }
+            return disposal;
+        }
+
+        private readonly AsyncLocal<NodeManagerCallbackPermit?> m_current;
+    }
+
+    /// <summary>
+    /// Owns the lifecycle decision and atomic registration publication, independently of host reservations.
+    /// </summary>
+    internal interface INodeManagerPublicationCommit
+    {
+        /// <summary>
+        /// Gets whether this plan should publish rather than only validate.
+        /// </summary>
+        bool Publishes { get; }
+
+        /// <summary>
+        /// Associates namespace admission with the writer's scope before publication callbacks run.
+        /// </summary>
+        /// <returns>The scope that expires the host reservation marker.</returns>
+        LifecycleWriter.Mutation.DecisionWindow EnterPublicationScope();
+
+        /// <summary>
+        /// Executes the durable decision once under lifecycle mutation ownership.
+        /// </summary>
+        /// <param name="reservation">The host's publication reservation, if it opened one.</param>
+        /// <param name="cancellationToken">Cancels before the durable decision.</param>
+        /// <returns>Completion of the decision.</returns>
+        ValueTask DecideAsync(
+            LifecycleWriter.Mutation.DecisionWindow? reservation,
+            CancellationToken cancellationToken);
+
+        /// <summary>
+        /// Installs committed registration and retirement bookkeeping at the routing swap.
+        /// </summary>
+        /// <param name="historianRegistrationsChanged">
+        /// Whether routing publication retired historian registrations.
+        /// </param>
+        void Publish(bool historianRegistrationsChanged);
+
+        /// <summary>
+        /// Takes ownership of committed reference reconciliation before host reservations are released.
+        /// </summary>
+        /// <param name="references">The reference changes installed by publication.</param>
+        void CaptureCommittedReferences(PublishedReferenceChanges references);
+    }
+
+    /// <summary>
+    /// Carries publication inputs and their lifecycle commit owner.
+    /// Reconciliation and retirement remain with their owners outside host publication.
     /// </summary>
     /// <param name="Candidates">The prepared node managers to add or replace.</param>
     /// <param name="Removed">The node managers removed by the batch.</param>
-    /// <param name="ImmediateRetirements">The removed managers that retire without draining.</param>
-    /// <param name="RoutingRevision">The routing image the batch was prepared against.</param>
     /// <param name="TypeTree">The candidate type tree.</param>
     /// <param name="OriginalTypes">The type tree the batch was prepared against.</param>
     /// <param name="TypeRevision">The revision of the original type tree.</param>
@@ -47,16 +369,19 @@ namespace Opc.Ua.Server
     /// <param name="OriginalFactory">The encodeable factory the batch was prepared against.</param>
     /// <param name="FactoryRevision">The revision of the original factory.</param>
     /// <param name="ReadImages">The read images to bind when the batch is published.</param>
-    /// <param name="DecideAsync">The callback deciding whether to publish, or null to validate only.</param>
-    /// <param name="Published">The callback invoked after the candidate has been published.</param>
-    /// <param name="ReconcileBindingsAsync">The callback reconciling monitored item bindings.</param>
-    /// <param name="ReportCleanupFailure">The callback receiving cleanup failures.</param>
+    /// <param name="Commit">The owner of the durable decision and registration publication.</param>
+    /// <param name="CaptureCommittedReferences">
+    /// Captures reference reconciliation ownership immediately after publication.
+    /// </param>
     /// <param name="CancellationToken">The token to cancel the operation.</param>
-    internal sealed record NodeManagerBatchContext(
+    /// <param name="Preparation">The explicit private metadata staging context.</param>
+    /// <param name="References">Reference edits discovered before publication serialization.</param>
+    /// <param name="CallbackPermit">The callback permit captured when preparation began, if any.</param>
+    /// <param name="Admission">The semantic host admission acquired before mutation ownership.</param>
+    /// <param name="Progress">The transaction's core-publication progress, distinct from the route swap.</param>
+    internal sealed record NodeManagerPublicationPlan(
         ArrayOf<PreparedNodeManager> Candidates,
         ArrayOf<IAsyncNodeManager> Removed,
-        ArrayOf<IAsyncNodeManager> ImmediateRetirements,
-        NodeManagerRoutingTable.RoutingSnapshot RoutingRevision,
         TypeTable TypeTree,
         TypeTable OriginalTypes,
         long TypeRevision,
@@ -64,14 +389,40 @@ namespace Opc.Ua.Server
         EncodeableFactory OriginalFactory,
         long FactoryRevision,
         ArrayOf<INodeManagerReadImage> ReadImages,
-        Func<CancellationToken, ValueTask>? DecideAsync,
-        Action Published,
-        Func<ValueTask> ReconcileBindingsAsync,
-        Action<Exception> ReportCleanupFailure,
-        CancellationToken CancellationToken);
+        INodeManagerPublicationCommit Commit,
+        Action<PublishedReferenceChanges> CaptureCommittedReferences,
+        ChangePreparer Preparation,
+        CancellationToken CancellationToken,
+        PreparedAddressSpaceReferences? References = null,
+        NodeManagerCallbackPermit? CallbackPermit = null,
+        INodeManagerBatchAdmission? Admission = null,
+        AddressSpacePublisher.PublicationProgress? Progress = null);
 
     /// <summary>
-    /// Optional host support for a single prepared routing publication.
+    /// Decorates publication and observes dispatch without replacing the bound host or its owners.
+    /// </summary>
+    internal interface INodeManagerHostBoundary
+    {
+        /// <summary>
+        /// Executes publication through the real host, optionally decorating its commit notification.
+        /// </summary>
+        ValueTask<PublishedReferenceChanges?> CommitBatchAsync(
+            NodeManagerPublicationPlan plan,
+            Func<NodeManagerPublicationPlan, ValueTask<PublishedReferenceChanges?>> publish);
+
+        /// <summary>
+        /// Observes reference preparation after the host has returned its pending or completed operation.
+        /// </summary>
+        void ReferencePreparationDispatched();
+
+        /// <summary>
+        /// Observes AddNodes after the host has returned its pending or completed operation.
+        /// </summary>
+        void AddNodesDispatched();
+    }
+
+    /// <summary>
+    /// Publication responsibilities of the unified dynamic NodeManager host.
     /// </summary>
     internal interface IDynamicNodeManagerBatchHost
     {
@@ -81,55 +432,49 @@ namespace Opc.Ua.Server
         NodeManagerRoutingTable.RoutingSnapshot RoutingRevision { get; }
 
         /// <summary>
-        /// Uses live routing during lifecycle work instead of an enclosing Client request's captured image.
+        /// Captures the callback permit associated with the current asynchronous execution context.
         /// </summary>
-        /// <returns>A scope that restores the previous routing when disposed.</returns>
-        IDisposable UseLiveRouting();
+        /// <returns>The current callback permit, if present.</returns>
+        NodeManagerCallbackPermit? CaptureLifecycleCallbackPermit();
 
         /// <summary>
-        /// Uses a private type image while preparing or discarding a candidate.
+        /// Stops routing item deletions to a retired generation after its all-events bindings were released.
         /// </summary>
-        /// <param name="typeTree">The private type tree to use.</param>
-        /// <param name="factory">The private encodeable factory to use.</param>
-        /// <returns>A scope that restores the previous type image when disposed.</returns>
-        IDisposable UseTypeImage(TypeTable typeTree, EncodeableFactory factory);
+        /// <param name="generation">The retired generation whose bindings were released.</param>
+        void ReleaseRetiringEventGeneration(NodeManagerGeneration generation);
 
         /// <summary>
-        /// Releases the binding admission captured for the specified request context while a callback waits for
-        /// and executes lifecycle work. A null or unadmitted context is an ordinary external caller and suspends
-        /// nothing. Async disposal resumes admission after lifecycle serialization has been released.
+        /// Resolves reference owners under the captured view without holding lifecycle mutation ownership.
         /// </summary>
-        /// <param name="context">The operation context the admitted request was started with, or null.</param>
-        /// <returns>A suspension that resumes admission when disposed asynchronously.</returns>
-        IAsyncDisposable SuspendBindingAdmission(IOperationContext? context);
+        /// <param name="candidates">Private additions and replacements.</param>
+        /// <param name="removed">Explicit removals.</param>
+        /// <param name="view">The serving view captured by the transaction.</param>
+        /// <param name="callbackPermit">The callback permit captured when preparation began, if any.</param>
+        /// <param name="cancellationToken">Cancels reference discovery.</param>
+        /// <returns>The versioned reference edits to reserve before deciding.</returns>
+        ValueTask<PreparedAddressSpaceReferences> PrepareReferencesAsync(
+            ArrayOf<PreparedNodeManager> candidates,
+            ArrayOf<IAsyncNodeManager> removed,
+            NodeManagerRoutingTable.RoutingSnapshot view,
+            CancellationToken cancellationToken,
+            NodeManagerCallbackPermit? callbackPermit = null);
 
         /// <summary>
-        /// Checks whether the request admitted for the context is already removing this exact monitored item.
-        /// A null or unadmitted context is removing nothing.
+        /// Acquires all required host admission capabilities without retaining a partial set while waiting.
         /// </summary>
-        /// <param name="context">The operation context the admitted request was started with, or null.</param>
-        /// <param name="monitoredItem">The monitored item to check.</param>
-        /// <returns><c>true</c> if the admitted operation is removing the item.</returns>
-        bool IsRemovingBinding(IOperationContext? context, IMonitoredItem monitoredItem);
-
-        /// <summary>
-        /// Dispatches Session activation and its notifications against the published bindings.
-        /// </summary>
-        /// <param name="context">The ActivateSession request context, or null for an independent caller.</param>
-        /// <param name="activateAsync">The callback performing the Session activation.</param>
-        /// <param name="cancellationToken">The token to cancel the operation.</param>
-        /// <returns>The server nonce and activation status produced by <paramref name="activateAsync"/>.</returns>
-        ValueTask<(ByteString ServerNonce, ServiceResult ActivationStatus)> DispatchSessionActivationAsync(
-            IOperationContext? context,
-            Func<ValueTask<(ByteString ServerNonce, ServiceResult ActivationStatus)>> activateAsync,
+        /// <param name="callbackPermit">The callback permit captured when preparation began, if any.</param>
+        /// <param name="cancellationToken">The token used to cancel admission.</param>
+        /// <returns>The semantic admission granted by the host.</returns>
+        ValueTask<INodeManagerBatchAdmission> AcquireCommitAdmissionAsync(
+            NodeManagerCallbackPermit? callbackPermit,
             CancellationToken cancellationToken);
 
         /// <summary>
         /// Reserves and checks the complete candidate, then publishes it when a decision is supplied.
         /// A null decision validates and releases the reservations without changing the serving image.
         /// </summary>
-        /// <param name="context">The batch publication inputs and callbacks.</param>
-        /// <returns>A task that completes when the batch has been validated or published.</returns>
-        ValueTask CommitBatchAsync(NodeManagerBatchContext context);
+        /// <param name="context">The batch publication inputs and atomic bookkeeping.</param>
+        /// <returns>The committed reference work, or null for validation without publication.</returns>
+        ValueTask<PublishedReferenceChanges?> CommitBatchAsync(NodeManagerPublicationPlan context);
     }
 }

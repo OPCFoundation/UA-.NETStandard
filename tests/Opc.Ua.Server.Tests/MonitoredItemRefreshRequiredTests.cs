@@ -1,31 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using System.Collections.Generic;
@@ -68,7 +42,7 @@ namespace Opc.Ua.Server.Tests
             monitoredItem.QueueEvent(new AuditUrlMismatchEventState(null));
             monitoredItem.QueueEvent(new AuditUrlMismatchEventState(null));
 
-            var result = new Queue<EventFieldList>();
+            var result = new Queue<QueuedEvent>();
             monitoredItem.Publish(new OperationContext(monitoredItem), result, 10);
 
             object?[] handles = [.. result.Select(r => r.Handle)];
@@ -93,7 +67,7 @@ namespace Opc.Ua.Server.Tests
             monitoredItem.QueueEvent(new AuditUrlMismatchEventState(null));
             monitoredItem.QueueEvent(new AlarmConditionState(null));
 
-            var result = new Queue<EventFieldList>();
+            var result = new Queue<QueuedEvent>();
             monitoredItem.Publish(new OperationContext(monitoredItem), result, 10);
 
             object?[] handles = [.. result.Select(r => r.Handle)];
@@ -121,7 +95,7 @@ namespace Opc.Ua.Server.Tests
             {
                 // drop the oldest (the condition) and queue a new audit event...
                 monitoredItem.QueueEvent(new AuditUrlMismatchEventState(null));
-                var drained = new Queue<EventFieldList>();
+                var drained = new Queue<QueuedEvent>();
                 monitoredItem.Publish(new OperationContext(monitoredItem), drained, 10);
             }
 
@@ -130,7 +104,7 @@ namespace Opc.Ua.Server.Tests
             monitoredItem.QueueEvent(new AuditUrlMismatchEventState(null));
             monitoredItem.QueueEvent(new AuditUrlMismatchEventState(null));
 
-            var result = new Queue<EventFieldList>();
+            var result = new Queue<QueuedEvent>();
             monitoredItem.Publish(new OperationContext(monitoredItem), result, 10);
 
             Assert.That(result.Select(r => r.Handle), Has.None.AssignableTo<RefreshRequiredEventState>());
@@ -151,18 +125,18 @@ namespace Opc.Ua.Server.Tests
             monitoredItem.QueueEvent(new AuditUrlMismatchEventState(null));
             monitoredItem.QueueEvent(CreateConditionEvent(telemetry));
 
-            var first = new Queue<EventFieldList>();
+            var first = new Queue<QueuedEvent>();
             bool more = monitoredItem.Publish(new OperationContext(monitoredItem), first, 3);
             Assert.That(first.Select(r => r.Handle), Has.None.AssignableTo<RefreshRequiredEventState>());
             Assert.That(first.Last().Handle, Is.AssignableTo<EventQueueOverflowEventState>());
             Assert.That(more, Is.True, "The RefreshRequired event is still pending.");
 
-            var second = new Queue<EventFieldList>();
+            var second = new Queue<QueuedEvent>();
             monitoredItem.Publish(new OperationContext(monitoredItem), second, 3);
             Assert.That(second.Select(r => r.Handle).ToArray(), Has.Length.EqualTo(1));
             Assert.That(second.Single().Handle, Is.AssignableTo<RefreshRequiredEventState>());
 
-            var third = new Queue<EventFieldList>();
+            var third = new Queue<QueuedEvent>();
             monitoredItem.Publish(new OperationContext(monitoredItem), third, 3);
             Assert.That(third, Is.Empty, "The RefreshRequired event is sent once.");
         }
@@ -280,7 +254,7 @@ namespace Opc.Ua.Server.Tests
             monitoredItem.QueueEvent(CreateConditionEvent(telemetry));
             Refill(monitoredItem, (int)queueSize);
 
-            var first = new Queue<EventFieldList>();
+            var first = new Queue<QueuedEvent>();
             bool more = monitoredItem.Publish(new OperationContext(monitoredItem), first, budget);
             object?[] handles = [.. first.Select(r => r.Handle)];
             Assert.That(handles, Has.Length.EqualTo(3));
@@ -349,7 +323,7 @@ namespace Opc.Ua.Server.Tests
 
         private static object?[] Publish(MonitoredItem monitoredItem, uint budget)
         {
-            var result = new Queue<EventFieldList>();
+            var result = new Queue<QueuedEvent>();
             monitoredItem.Publish(new OperationContext(monitoredItem), result, budget);
             return [.. result.Select(r => r.Handle)];
         }

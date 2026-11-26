@@ -435,9 +435,19 @@ and the existing response-size calculation. Bindings allow at most 64 open
 handles, one writer, and independent reader snapshots. Temporary writers commit
 through `CommitAsync`; `commitOnClose` selects the ordinary FileType close lifecycle.
 Application commit callbacks run without holding the binding's operation gate, so
-publication can refresh other file bindings. Disposal cancels and drains an active
-commit before releasing its handles. [Machine Vision](Vision.md) uses this
+publication can refresh other file bindings. Session closure and disposal request
+cancellation of a running commit and retain its writer reservation until the
+callback and stream cleanup finish. A successful callback remains published even
+if it ignored cancellation. Session closure discards a buffer whose commit has
+not started; it does not invoke `commitOnClose`. [Machine Vision](Vision.md) uses this
 surface for its specialized transfers and recipe files.
+
+Direct `IFileTypeBinding.OpenAsync` calls use the same session admission as the
+generated methods. When the binding has a server session manager, the owner must
+appear in its registry and must not be closing or expired; an absent owner is
+rejected with `BadSessionClosed`. In-process callers using a server context must
+therefore supply a registered session identity. Without a session manager, the
+caller supplies the logical owner identity and owns its lifetime.
 
 Both lazy `FileSystemNodeManager` nodes and materialized
 `FileDirectoryBinder` nodes protect their mounted root from deletion,
@@ -450,12 +460,30 @@ continuation's lookahead reference. It does not snapshot the directory or
 apply the materialized binder's `MaxEntries` limit. Named-child lookup scans
 without retaining unrelated entries and stops when it finds a match.
 
-The cursor is disposed exactly once on exhaustion, cancellation, or
-continuation release. Cancellation affects only the active page; cancelling
-an already completed page does not cancel later pages. Synchronous
-continuation release starts and observes asynchronous cursor cleanup without
-blocking its caller. The system surfaces provider failures instead of
-returning an empty directory.
+Each opened cursor receives one disposal attempt on exhaustion, cancellation,
+or continuation release. Cancellation affects only the active page; cancelling
+an already completed page does not cancel later pages. Synchronous continuation
+release starts asynchronous cursor cleanup and does not wait for incomplete
+cleanup to finish. Provider failures during enumeration are reported rather
+than returned as an empty directory.
+
+The host registers each cursor before opening it. Address-space deletion closes
+new cursor admission and waits for registered cursors and their cleanup before
+closing the node manager's file handles. Direct node-manager disposal can
+request file-handle shutdown while cursor cleanup is still pending. If cursor
+disposal fails, the host retains the exact
+cursor and error and does not retry disposal. Deletion reports the failure and
+leaves the nodes in place until an authorized host verifies cleanup through
+[NodeManager cleanup recovery](NodeManagers.md#recovering-retained-cleanup).
+Active browsers must receive distinct enumerator instances, including across
+mounts. A second browser is rejected if the provider returns an enumerator
+that is still active or retained after failed cleanup; it does not dispose
+the first browser's enumerator.
+
+Synchronous continuation release cannot report an asynchronous cleanup
+failure; it is logged and remains available to the host's recovery service.
+If the node manager's bounded disposal wait expires, `NodeManagerCleanupDeferredException`
+provides a completion task for the still-owned cleanup.
 
 Before Delete or MoveOrCopy reaches an arbitrary provider, the lazy host
 validates the decoded provider path. Separator-only root aliases resolve to
@@ -477,9 +505,52 @@ synchronous delegates remain available.
 
 File opens reserve compatible access before invoking the provider. This
 prevents a rejected erase request from truncating a file held by another
-opener. Failed or cancelled opens release their reservations. If a provider
-returns a stream after session closure or disposal, the system closes it
-instead of publishing it.
+opener. Failed or cancelled opens release their reservations after stream
+cleanup. If a provider returns a stream after session closure or disposal, the
+system closes it instead of publishing it.
+
+Providers can opt into combined Read and Write mode through the additive
+`IFileSystemReadWriteProvider.OpenReadWriteAsync` capability. Existing providers
+need no changes: a combined request returns `BadNotSupported` before either
+provider open method is called. The physical provider and writable bounded-content
+bindings support combined access. A bounded binding without a commit callback
+remains read-only.
+
+A combined handle owns one seekable stream and one cursor, exclusively for its
+session. Read and Write permissions come from the accepted mode bits, not the
+stream's `CanRead` or `CanWrite` properties. Append sets the initial position to
+EOF; later `SetPosition` calls can seek backwards. Erase truncates before the
+handle is published. The physical provider uses `FileAccess.ReadWrite` and
+`FileShare.None` for combined access, with `Create` for erase and `OpenOrCreate`
+otherwise.
+
+A mount bounds the files it keeps open through `FileType.Open`, because every
+open holds a provider stream until it is closed or its session ends.
+`FileSystemNodeManager.MaxOpenFilesPerSession` and
+`FileDirectoryBindingOptions.MaxOpenFilesPerSession` (64 by default) limit the
+files one session keeps open in the mount; `MaxOpenFiles` (1024 by default)
+limits the files all sessions keep open in it. Zero means no limit. An open
+beyond a limit fails with `BadTooManyOperations`, and a closed file, or the end
+of its session, releases its place. A Read allocates at most the bytes left
+after the position of a seekable stream.
+
+Each handle serializes Read, Write, GetPosition, and SetPosition. Explicit Close
+stops admission, drains operations already admitted, then closes the stream.
+Session closure and server shutdown also request cancellation of active provider
+requests. `FileSystemNodeManager.CloseTimeout`, `FileTypeBinder.CloseTimeout`,
+and `FileDirectoryBindingOptions.CloseTimeout` bound lifecycle waits; the default
+is ten seconds. An expired deadline does not prove that provider I/O stopped:
+unfinished I/O retains its stream and writer reservation through actual cleanup.
+Disposal can be awaited again to observe retained cleanup and any errors. Cleanup
+attempts every stream before surfacing failures. If stream cleanup fails, the
+reservation remains held: a thrown disposal does not establish that the provider
+released the file. Repeated lifecycle waits report the retained failure rather
+than reopening the file or silently retrying provider cleanup. Each repeated
+disposal wait uses the configured deadline. Applications that require an
+unbounded cleanup wait can configure `Timeout.InfiniteTimeSpan` before binding.
+Resources used by an unfinished provider operation or commit callback must remain
+available until that operation actually finishes.
+
 Materialized `FileDirectoryBinder` bindings supplied with a `ServerSystemContext`
 attach to that server's session lifecycle on the first open. Explicit session
 closure and expiry release only that session's handles and pending reservations;
@@ -512,7 +583,7 @@ whose targets are inside the mount, dangling links, and the configured root
 and every existing ancestor of that root. Use a physical root path without
 linked ancestors (for example, avoid the `/var` alias on systems where it is
 a symlink). The checks run before root creation and again on operations.
-On .NET 8 and later, the ReferenceServer resolves system temporary-directory
+On .NET 10 and later, the ReferenceServer resolves system temporary-directory
 aliases before selecting its default mount; provider-relative links remain rejected.
 Enumeration fails on a linked entry rather than exposing its target metadata.
 Recursive copy, move, and delete validate the source tree one directory level

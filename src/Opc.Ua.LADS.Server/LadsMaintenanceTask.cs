@@ -1,31 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using System.Threading;
@@ -76,11 +50,18 @@ namespace Opc.Ua.LADS.Server
                 stateMachine,
                 context,
                 LadsStateMaps.Maintenance,
-                LadsMaintenanceStateValue.Planned);
-            Machine.StateChanged += state =>
+                LadsMaintenanceStateValue.Planned,
+                Device);
+            Machine.StateChangedInternal += state =>
             {
                 Runtime.Logger.MaintenanceStateChanged(Device.Name, Name, state);
                 StateChanged?.Invoke(state);
+            };
+            Machine.StateChangedAsync += (state, _) =>
+            {
+                Runtime.Logger.MaintenanceStateChanged(Device.Name, Name, state);
+                StateChanged?.Invoke(state);
+                return default;
             };
 
             node.EventType?.Value = node.TypeDefinitionId;
@@ -178,13 +159,16 @@ namespace Opc.Ua.LADS.Server
         /// <inheritdoc/>
         public async ValueTask StartAsync(CancellationToken cancellationToken = default)
         {
+            Device.RequireStorageHealthy();
             await m_gate.WaitAsync(cancellationToken).ConfigureAwait(false);
             try
             {
+                Device.RequireStorageHealthy();
                 Machine.Require(LadsMaintenanceStateValue.Planned);
                 await AskProviderAsync(LadsMaintenanceCommand.Start, cancellationToken).ConfigureAwait(false);
-                Transition(LadsMaintenanceStateValue.Executing);
-                ApplyCondition(Runtime.Context, active: true, message: default);
+                await TransitionAsync(LadsMaintenanceStateValue.Executing).ConfigureAwait(false);
+                await ApplyConditionAsync(active: true, message: default).ConfigureAwait(false);
+                await Device.SaveStoredDataAsync(cancellationToken).ConfigureAwait(false);
             }
             finally
             {
@@ -198,20 +182,36 @@ namespace Opc.Ua.LADS.Server
             LocalizedText comment = default,
             CancellationToken cancellationToken = default)
         {
+            Device.RequireStorageHealthy();
             await m_gate.WaitAsync(cancellationToken).ConfigureAwait(false);
             try
             {
+                Device.RequireStorageHealthy();
                 Machine.Require(LadsMaintenanceStateValue.Executing);
                 await AskProviderAsync(LadsMaintenanceCommand.Stop, cancellationToken).ConfigureAwait(false);
-                DateTimeUtc now = Runtime.TimeProvider.GetUtcNow();
-                lock (m_lock)
+                void RecordCompletion(LadsMaintenanceStateValue state)
                 {
-                    m_lastExecution = now;
-                    m_lastResult = result;
+                    if (state == LadsMaintenanceStateValue.Finished)
+                    {
+                        Device.RecordMaintenanceCompletion(this, Runtime.TimeProvider.GetUtcNow(), result);
+                    }
                 }
-                Runtime.Update(Node.LastExecutionDate, Variant.From(now));
-                Transition(LadsMaintenanceStateValue.Finished);
-                ApplyCondition(Runtime.Context, active: false, comment);
+                Machine.StateAssigned += RecordCompletion;
+                try
+                {
+                    await TransitionAsync(LadsMaintenanceStateValue.Finished).ConfigureAwait(false);
+                }
+                finally
+                {
+                    Machine.StateAssigned -= RecordCompletion;
+                }
+                if (Node.LastExecutionDate is { } lastExecutionDate)
+                {
+                    await lastExecutionDate.ClearChangeMasksAsync(
+                        Runtime.Context, false, CancellationToken.None).ConfigureAwait(false);
+                }
+                await ApplyConditionAsync(active: false, comment).ConfigureAwait(false);
+                await Device.SaveStoredDataAsync(cancellationToken).ConfigureAwait(false);
             }
             finally
             {
@@ -222,23 +222,73 @@ namespace Opc.Ua.LADS.Server
         /// <inheritdoc/>
         public async ValueTask ResetAsync(CancellationToken cancellationToken = default)
         {
+            Device.RequireStorageHealthy();
             await m_gate.WaitAsync(cancellationToken).ConfigureAwait(false);
             try
             {
+                Device.RequireStorageHealthy();
                 Machine.Require(LadsMaintenanceStateValue.Finished);
                 await AskProviderAsync(LadsMaintenanceCommand.Reset, cancellationToken).ConfigureAwait(false);
-                if (m_options.RecurrencePeriod is TimeSpan recurrence && Node.PlannedDate != null)
+                void RecordPlannedDate(LadsMaintenanceStateValue state)
                 {
-                    DateTime next = LastExecutionDate.ToDateTime() + recurrence;
-                    Runtime.Update(Node.PlannedDate, Variant.From((DateTimeUtc)next));
+                    if (state == LadsMaintenanceStateValue.Planned &&
+                        m_options.RecurrencePeriod is TimeSpan recurrence && Node.PlannedDate != null)
+                    {
+                        DateTime next = LastExecutionDate.ToDateTime() + recurrence;
+                        LadsRuntime.AssignValue(Node.PlannedDate, Variant.From((DateTimeUtc)next));
+                    }
                 }
-                Transition(LadsMaintenanceStateValue.Planned);
-                ApplyCondition(Runtime.Context, active: true, message: default);
+                Machine.StateAssigned += RecordPlannedDate;
+                try
+                {
+                    await TransitionAsync(LadsMaintenanceStateValue.Planned).ConfigureAwait(false);
+                }
+                finally
+                {
+                    Machine.StateAssigned -= RecordPlannedDate;
+                }
+                if (m_options.RecurrencePeriod.HasValue && Node.PlannedDate is { } plannedDate)
+                {
+                    await plannedDate.ClearChangeMasksAsync(
+                        Runtime.Context, false, CancellationToken.None).ConfigureAwait(false);
+                }
+                await ApplyConditionAsync(active: true, message: default).ConfigureAwait(false);
+                await Device.SaveStoredDataAsync(cancellationToken).ConfigureAwait(false);
             }
             finally
             {
                 m_gate.Release();
             }
+        }
+
+        /// <summary>
+        /// Captures the retained maintenance record.
+        /// </summary>
+        internal LadsStoredMaintenanceData CaptureStoredData()
+        {
+            return Device.CaptureMaintenanceData(this);
+        }
+
+        /// <summary>
+        /// Restores a record without restarting an interrupted physical maintenance operation.
+        /// </summary>
+        internal void RestoreStoredData(LadsStoredMaintenanceData data)
+        {
+            lock (m_lock)
+            {
+                m_lastExecution = data.LastExecutionDate;
+                m_lastResult = data.LastResult;
+            }
+            Machine.SetState(data.State == LadsMaintenanceStateValue.Executing
+                ? LadsMaintenanceStateValue.Planned
+                : data.State);
+            Runtime.Update(Node.LastExecutionDate, Variant.From(data.LastExecutionDate));
+            if (!data.PlannedDate.IsNull)
+            {
+                Node.AddPlannedDate(Runtime.Context);
+                Runtime.Update(Node.PlannedDate, Variant.From(data.PlannedDate));
+            }
+            ApplyCondition(Runtime.Context, State != LadsMaintenanceStateValue.Finished, data.Comment);
         }
 
         /// <summary>
@@ -259,9 +309,9 @@ namespace Opc.Ua.LADS.Server
         /// <summary>
         /// Applies a transition and rejects a vetoed one.
         /// </summary>
-        private void Transition(LadsMaintenanceStateValue target)
+        private async ValueTask TransitionAsync(LadsMaintenanceStateValue target)
         {
-            if (!Machine.TransitionTo(target))
+            if (!await Machine.TransitionToAsync(target, CancellationToken.None).ConfigureAwait(false))
             {
                 throw ServiceResultException.Create(
                     StatusCodes.BadInvalidState,
@@ -272,9 +322,22 @@ namespace Opc.Ua.LADS.Server
         }
 
         /// <summary>
-        /// Updates the condition state and reports it as an event.
+        /// Records a completed maintenance task without dispatching observable notifications.
         /// </summary>
-        private void ApplyCondition(ISystemContext context, bool active, LocalizedText message)
+        internal void AssignCompletion(DateTimeUtc completed, MaintenanceTaskResultEnum result)
+        {
+            lock (m_lock)
+            {
+                m_lastExecution = completed;
+                m_lastResult = result;
+            }
+            LadsRuntime.AssignValue(Node.LastExecutionDate, Variant.From(completed));
+        }
+
+        /// <summary>
+        /// Updates condition attributes without dispatching observable notifications.
+        /// </summary>
+        internal void AssignCondition(ISystemContext context, bool active, LocalizedText message)
         {
             MaintenanceTaskState condition = Node;
             if (condition.Message != null)
@@ -287,30 +350,54 @@ namespace Opc.Ua.LADS.Server
             {
                 if (condition.ActiveState?.Id?.Value != true)
                 {
-                    condition.SetActiveState(context, true);
-                    condition.SetAcknowledgedState(context, false);
+                    condition.SetActiveState(
+                        context, true, clearChangeMasks: false, updateRetainState: false);
+                    condition.SetAcknowledgedState(
+                        context, false, clearChangeMasks: false, updateRetainState: false);
                 }
-                condition.SetSeverity(context, (EventSeverity)ActiveSeverity);
+                condition.SetSeverity(context, (EventSeverity)ActiveSeverity, clearChangeMasks: false);
                 condition.Retain?.Value = true;
             }
             else
             {
-                condition.SetActiveState(context, false);
-                condition.SetSeverity(context, (EventSeverity)InactiveSeverity);
+                condition.SetActiveState(
+                    context, false, clearChangeMasks: false, updateRetainState: false);
+                condition.SetSeverity(context, (EventSeverity)InactiveSeverity, clearChangeMasks: false);
                 condition.Retain?.Value = condition.AckedState?.Id?.Value != true;
-            }
-            if (!Device.IsPublished || condition.EnabledState?.Id?.Value != true)
-            {
-                condition.ClearChangeMasks(context, true);
-                return;
             }
             condition.EventId?.Value = Uuid.NewUuid().ToByteString();
             condition.Time?.Value = DateTimeUtc.Now;
             condition.ReceiveTime?.Value = DateTimeUtc.Now;
-            condition.ClearChangeMasks(context, true);
+        }
+
+        /// <summary>
+        /// Updates the condition and reports its committed attributes after device state writes finish.
+        /// </summary>
+        private void ApplyCondition(ISystemContext context, bool active, LocalizedText message)
+        {
+            Device.SetMaintenanceCondition(this, active, message);
+            Node.ClearChangeMasks(context, true);
+            if (!Device.IsPublished || Node.EnabledState?.Id?.Value != true)
+            {
+                return;
+            }
             var snapshot = new InstanceStateSnapshot();
-            snapshot.Initialize(context, condition);
-            condition.ReportEvent(context, snapshot);
+            snapshot.Initialize(context, Node);
+            Node.ReportEvent(context, snapshot);
+        }
+
+        private async ValueTask ApplyConditionAsync(bool active, LocalizedText message)
+        {
+            ISystemContext context = Runtime.Context;
+            Device.SetMaintenanceCondition(this, active, message);
+            await Node.ClearChangeMasksAsync(context, true, CancellationToken.None).ConfigureAwait(false);
+            if (!Device.IsPublished || Node.EnabledState?.Id?.Value != true)
+            {
+                return;
+            }
+            var snapshot = new InstanceStateSnapshot();
+            snapshot.Initialize(context, Node);
+            await Node.ReportEventAsync(context, snapshot, CancellationToken.None).ConfigureAwait(false);
         }
 
         /// <summary>

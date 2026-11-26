@@ -1,31 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System.Collections.Generic;
 using System.Threading;
@@ -231,18 +205,6 @@ namespace Quickstarts.ReferenceServer
             addedNodes.AddRange(await AddConformanceDataSetsAsync(cancellationToken)
                 .ConfigureAwait(false));
 
-            // CTT: Part 17 clients discover aliases by browsing, so turn the
-            // aliases seeded into the server's alias store (tag aliases in
-            // ReferenceServer.ConfigureAliasNameStore, Topics aliases in
-            // AddConformanceDataSetsAsync above) into AliasNameType
-            // instances and nested AliasNameCategoryType objects. The
-            // created nodes are registered as predefined nodes of this
-            // manager, which serves Browse and Call for them — they are
-            // deliberately NOT imported into the CoreNodeManager, which
-            // would register the same NodeIds twice.
-            await MaterializeRegisteredAliasNameNodesAsync(
-                externalReferences, cancellationToken).ConfigureAwait(false);
-
             // Push any newly added namespace-0 nodes into the CoreNodeManager
             // so they are reachable via Browse from the standard address
             // space (base.CreateAddressSpaceAsync already performed the bulk
@@ -254,6 +216,21 @@ namespace Quickstarts.ReferenceServer
                     addedNodes,
                     true,
                     cancellationToken).ConfigureAwait(false);
+            }
+        }
+
+        /// <summary>
+        /// Materializes sample aliases after initial application publication and before accepting clients.
+        /// </summary>
+        internal async ValueTask InitializeSampleAliasesAsync(CancellationToken cancellationToken)
+        {
+            var externalReferences = new Dictionary<NodeId, IList<IReference>>();
+            await MaterializeRegisteredAliasNameNodesAsync(externalReferences, cancellationToken)
+                .ConfigureAwait(false);
+            foreach (KeyValuePair<NodeId, IList<IReference>> entry in externalReferences)
+            {
+                await Server.NodeManager.AddReferencesAsync(entry.Key, entry.Value, cancellationToken)
+                    .ConfigureAwait(false);
             }
         }
 

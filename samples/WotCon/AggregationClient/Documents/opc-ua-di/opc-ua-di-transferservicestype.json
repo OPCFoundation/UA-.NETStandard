@@ -3,6 +3,7 @@
     "https://www.w3.org/2022/wot/td/v1.1",
     {
       "ns1": "http://opcfoundation.org/UA/DI/",
+      "qudt": "http://qudt.org/schema/qudt/",
       "ua": "http://opcfoundation.org/UA/",
       "uav": "http://opcfoundation.org/UA/WoT-Binding/"
     },
@@ -20,12 +21,6 @@
   ],
   "actions": {
     "FetchTransferResultData": {
-      "@context": {
-        "title": {
-          "@id": "https://www.w3.org/2019/wot/td#title",
-          "@language": null
-        }
-      },
       "@type": "uav:method",
       "input": {
         "properties": {
@@ -68,6 +63,7 @@
       "output": {
         "properties": {
           "FetchResultData": {
+            "type": "object",
             "uav:mapToType": "i=22",
             "uav:valueRank": -1
           }
@@ -87,12 +83,6 @@
       "uav:modellingRule": "Mandatory"
     },
     "TransferFromDevice": {
-      "@context": {
-        "title": {
-          "@id": "https://www.w3.org/2019/wot/td#title",
-          "@language": null
-        }
-      },
       "@type": "uav:method",
       "output": {
         "properties": {
@@ -124,12 +114,6 @@
       "uav:modellingRule": "Mandatory"
     },
     "TransferToDevice": {
-      "@context": {
-        "title": {
-          "@id": "https://www.w3.org/2019/wot/td#title",
-          "@language": null
-        }
-      },
       "@type": "uav:method",
       "output": {
         "properties": {
@@ -414,6 +398,7 @@
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "TransferServicesType"
           }
         ],
@@ -448,6 +433,7 @@
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "TransferToDevice"
           }
         ],
@@ -478,6 +464,7 @@
         "dataType": "i=296",
         "displayName": [
           {
+            "locale": "",
             "value": "OutputArguments"
           }
         ],
@@ -511,6 +498,7 @@
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "TransferFromDevice"
           }
         ],
@@ -541,6 +529,7 @@
         "dataType": "i=296",
         "displayName": [
           {
+            "locale": "",
             "value": "OutputArguments"
           }
         ],
@@ -574,6 +563,7 @@
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "FetchTransferResultData"
           }
         ],
@@ -608,6 +598,7 @@
         "dataType": "i=296",
         "displayName": [
           {
+            "locale": "",
             "value": "InputArguments"
           }
         ],
@@ -640,6 +631,7 @@
         "dataType": "i=296",
         "displayName": [
           {
+            "locale": "",
             "value": "OutputArguments"
           }
         ],

@@ -1,31 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using System.Collections.Generic;
@@ -36,13 +10,14 @@ using Opc.Ua.AutoID.Server.Builders;
 using Opc.Ua.Di.Server;
 using Opc.Ua.Di.Server.Builders;
 using Opc.Ua.Server;
+using Opc.Ua.Server.FileSystem;
 
 namespace Opc.Ua.AutoID.Server
 {
     /// <summary>
     /// Creates and owns the OPC 30010 readers of one Device Integration node manager: the
     /// stand-alone <see cref="AutoIdNodeManager"/>, or the owner AutoID is composed into with
-    /// <see cref="DiNodeManagerAutoIdExtensions.CreateAutoIdRuntime"/>.
+    /// <see cref="DiNodeManagerAutoIdExtensions.CreateAutoIdRuntime(DiNodeManager, AutoIdServerOptions)"/>.
     /// </summary>
     /// <remarks>
     /// <para>
@@ -59,12 +34,13 @@ namespace Opc.Ua.AutoID.Server
     /// </remarks>
     public sealed class AutoIdRuntime : IAsyncDisposable, IConformanceContributor
     {
-        internal AutoIdRuntime(DiNodeManager manager, AutoIdServerOptions options)
+        internal AutoIdRuntime(DiNodeManager manager, AutoIdServerOptions options, IFileTypeBinder? fileBinder = null)
         {
             Manager = manager ?? throw new ArgumentNullException(nameof(manager));
             Options = (options ?? throw new ArgumentNullException(nameof(options))).Validate();
             m_logger = manager.SystemContext.Telemetry.CreateLogger<AutoIdRuntime>();
             m_placement = new AutoIdReaderPlacement(manager);
+            FileBinder = fileBinder ?? new FileTypeBinder();
             manager.RegisterConformanceContributor(this);
             m_sessionLease = manager.RegisterSessionClosingHandler(OnSessionClosingAsync);
         }
@@ -78,6 +54,11 @@ namespace Opc.Ua.AutoID.Server
         /// Gets the options the runtime was created with.
         /// </summary>
         public AutoIdServerOptions Options { get; }
+
+        /// <summary>
+        /// Gets the file binder used for reader-owned image slots.
+        /// </summary>
+        internal IFileTypeBinder FileBinder { get; }
 
         /// <summary>
         /// Gets the namespace the node manager mints instance NodeIds in, for the reader browse
@@ -177,6 +158,14 @@ namespace Opc.Ua.AutoID.Server
                 {
                     Add(AutoIdProfiles.AsyncAccessControlUnit);
                 }
+                if (Array.Exists(readers, reader => reader.Device.RuntimeParameters != null))
+                {
+                    Add(AutoIdProfiles.DeviceParametersUnit);
+                }
+                if (Array.Exists(readers, reader => reader.Device.ScanActive != null))
+                {
+                    Add(AutoIdProfiles.SimpleSyncAccessControlUnit);
+                }
                 return units.ToArrayOf();
             }
         }
@@ -198,6 +187,11 @@ namespace Opc.Ua.AutoID.Server
                     profiles.Add(AutoIdProfiles.BaseSyncServer);
                 }
                 profiles.Add(AutoIdProfiles.BaseAsyncServer);
+                if (Array.Exists(readers, reader => reader.SupportsScan && reader.SupportsAsyncScan &&
+                    reader.Device.RuntimeParameters != null))
+                {
+                    profiles.Add(AutoIdProfiles.FullServer);
+                }
                 return profiles.ToArrayOf();
             }
         }
@@ -321,6 +315,26 @@ namespace Opc.Ua.AutoID.Server
             NodeState parentNode;
             try
             {
+                if (builder.HasRuntimeParameters)
+                {
+                    var parametersProvider = (IAutoIdScanParametersProvider)builder.Provider;
+                    AutoIdScanParameters parameters = await parametersProvider.ReadParametersAsync(cancellationToken)
+                        .ConfigureAwait(false);
+                    AutoIdReader.ValidateParameters(parameters, parametersProvider.SupportedCodeTypes);
+                    builder.ParameterCapabilities = builder.Provider is IAutoIdReaderParametersProvider specific
+                        ? AutoIdReader.SnapshotCapabilities(specific.ReaderParameterCapabilities)
+                        : null;
+                    AutoIdReader.ValidateReaderParameters(
+                        parameters, builder.Provider.Kind, builder.ParameterCapabilities);
+                    if (builder.ParameterCapabilities is { CodeTypesRWData.IsNull: false } &&
+                        builder.Provider is not IAutoIdRfidDiagnosticFormatter)
+                    {
+                        throw ServiceResultException.Create(
+                            StatusCodes.BadConfigurationError,
+                            "CodeTypesRWData requires a diagnostic formatter.");
+                    }
+                    builder.Parameters = AutoIdReader.SnapshotParameters(parameters);
+                }
                 (device, applyIdentification) = await CreateDeviceOfKindAsync(builder, cancellationToken)
                     .ConfigureAwait(false);
                 parentNode = device.Parent ??
@@ -352,8 +366,11 @@ namespace Opc.Ua.AutoID.Server
                     device,
                     builder.Provider,
                     builder.OwnsProviderOnDispose,
-                    builder.DeviceLocation != null);
+                    builder.DeviceLocation != null,
+                    builder.Parameters,
+                    builder.ParameterCapabilities);
                 reader.Bind();
+                reader.BindImages(builder.Images);
                 await Manager.RegisterRootNotifierAsync(device, cancellationToken).ConfigureAwait(false);
                 await reader.AttachAsync(cancellationToken).ConfigureAwait(false);
                 if (ReaderRegisteredForTest != null)
@@ -594,16 +611,6 @@ namespace Opc.Ua.AutoID.Server
             if (!AutoIdCompat.IsDefined(provider.Kind))
             {
                 throw new ArgumentException("The provider reports an unknown reader kind.", nameof(provider));
-            }
-            if (provider.Kind == AutoIdReaderKind.OpticalVerifier && provider is IAutoIdScanProvider)
-            {
-                // The NodeSet declares the Scan method of OpticalVerifierDeviceType with WGS84Coordinate
-                // results (node i=7054) where OPC 30010 6.4.3.1 names OpticalVerifierScanResult, so
-                // the method cannot be served consistently; verifier results flow through ScanStart
-                // and the scan events.
-                throw new ArgumentException(
-                    "An optical verifier reports through ScanStart and scan events; its Scan method is not published.",
-                    nameof(provider));
             }
             if (provider is IAutoIdRfidProvider rfid)
             {

@@ -1,31 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using System.Collections.Concurrent;
@@ -38,6 +12,7 @@ using NUnit.Framework;
 using Opc.Ua.Client;
 using Opc.Ua.Client.TestFramework;
 using Opc.Ua.Export;
+using Opc.Ua.Server;
 using Opc.Ua.Server.Fluent;
 using Opc.Ua.Server.RuntimeNodeSet;
 using Opc.Ua.Server.TestFramework;
@@ -48,12 +23,17 @@ using Quickstarts.ReferenceServer;
 
 #pragma warning disable CS0618 // tests exercise the obsolete classic API
 
+using ISession = Opc.Ua.Client.ISession;
+using MonitoredItem = Opc.Ua.Client.MonitoredItem;
+using Subscription = Opc.Ua.Client.Subscription;
+
 namespace Opc.Ua.WotCon.Tests.Materialization
 {
     /// <summary>
     /// Contains tests for WoT observed property runtime.
     /// </summary>
     [TestFixture]
+    [Category("Integration")]
     public sealed partial class WotObservedPropertyRuntimeTests
     {
         /// <summary>
@@ -113,6 +93,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             ReferenceServer? server = null;
             try
             {
+                await WotTestPki.SeedAsync(directory).ConfigureAwait(false);
                 server = await fixture.StartAsync(directory).ConfigureAwait(false);
                 var host = new LifecycleWotProjectionHost(
                     server.NodeManagerLifecycle, new WotProjectionBindingRuntimeFactory(channels));
@@ -123,6 +104,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                                 new WotBindingPlan("observe-source", [], [observe], [], [])]
                             : default)).ConfigureAwait(false);
                 using var client = new ClientFixture(NUnitTelemetryContext.Create());
+                await WotTestPki.SeedAsync(directory).ConfigureAwait(false);
                 await client.LoadClientConfigurationAsync(directory).ConfigureAwait(false);
                 using ISession session = await client.ConnectAsync(
                     new UriBuilder(Utils.UriSchemeOpcTcp, "localhost", fixture.Port).Uri, SecurityPolicies.None)
@@ -663,7 +645,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             IWotProjectionBindingRuntimeFactory? runtimeFactory = null,
             UANode[]? additionalNodes = null,
             Action<Func<ValueTask>>? configureReload = null,
-            bool migrateMonitoredItems = false)
+            bool useRuntimeNodeSet = false)
         {
             string directory = Path.Combine(Path.GetTempPath(), "wot-observe-" + Guid.NewGuid().ToString("N"));
             var fixture = new ServerFixture<ReferenceServer>(telemetry => new ReferenceServer(telemetry))
@@ -675,13 +657,14 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             ReferenceServer? server = null;
             try
             {
+                await WotTestPki.SeedAsync(directory).ConfigureAwait(false);
                 server = await fixture.StartAsync(directory).ConfigureAwait(false);
                 IWotProjectionBindingRuntimeFactory bindings =
                     runtimeFactory ?? new WotProjectionBindingRuntimeFactory(channels);
                 Func<ValueTask> reload;
                 Func<ValueTask> remove;
                 WotProjectionDocument projection = CreateProjection(forms, dataType, valueRank, additionalNodes);
-                if (migrateMonitoredItems)
+                if (useRuntimeNodeSet)
                 {
                     var options = new RuntimeNodeSetOptions
                     {
@@ -695,25 +678,56 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                         ConfigureAsync = (builder, token) =>
                             bindings.CreateAsync(builder, projection.BindingPlans, token)
                     };
-                    Ua.Server.NodeManagerRegistration registration = await server.NodeManagerLifecycle
-                        .AddRuntimeNodeSetAsync(options, callerContext: null).ConfigureAwait(false);
-                    reload = async () => registration = await server.NodeManagerLifecycle
-                            .ReloadRuntimeNodeSetAsync(registration, options, callerContext: null)
+                    LifecycleResult addition = await server.NodeManagerLifecycle.ApplyAsync(
+                        [LifecycleChange.Add(new RuntimeNodeSetNodeManagerFactory(options))]).ConfigureAwait(false);
+                    Assert.That(addition.CleanupFailure, Is.Null);
+                    Assert.That(addition.Registrations[0].TryGetRegistration(
+                        out NodeManagerRegistration? registration), Is.True);
+                    reload = async () =>
+                    {
+                        ILifecycleCapture capture = server.NodeManagerLifecycle.CaptureChanges();
+                        await using ILifecycleWriter writer = await capture.BeginAsync().ConfigureAwait(false);
+                        Assert.That(server.NodeManagerLifecycle.Registrations.Contains(
+                            current => ReferenceEquals(current, registration)), Is.True);
+                        await using IPreparedChanges prepared = await writer.PrepareAsync(
+                            [LifecycleChange.Reload(registration!.Slot, new RuntimeNodeSetNodeManagerFactory(options))])
                             .ConfigureAwait(false);
-                    remove = () => server.NodeManagerLifecycle.RemoveAsync(registration, callerContext: null);
+                        LifecycleResult result = await prepared.CommitAsync().ConfigureAwait(false);
+                        Assert.That(result.CleanupFailure, Is.Null);
+                        Assert.That(result.Registrations[0].TryGetRegistration(out registration), Is.True);
+                    };
+                    remove = async () =>
+                    {
+                        ILifecycleCapture capture = server.NodeManagerLifecycle.CaptureChanges();
+                        await using ILifecycleWriter writer = await capture.BeginAsync().ConfigureAwait(false);
+                        Assert.That(server.NodeManagerLifecycle.Registrations.Contains(
+                            current => ReferenceEquals(current, registration)), Is.True);
+                        await using IPreparedChanges prepared = await writer.PrepareAsync(
+                            [LifecycleChange.Remove(registration!.Slot)]).ConfigureAwait(false);
+                        LifecycleResult result = await prepared.CommitAsync().ConfigureAwait(false);
+                        Assert.That(result.CleanupFailure, Is.Null);
+                        await result.Retired.ConfigureAwait(false);
+                    };
                 }
                 else
                 {
                     var host = new LifecycleWotProjectionHost(server.NodeManagerLifecycle, bindings);
                     WotProjectionHandle handle = await host.AddAsync(projection).ConfigureAwait(false);
                     reload = async () => handle = await host.ShadowReloadAsync(handle, projection).ConfigureAwait(false);
-                    remove = () => host.RemoveAsync(handle);
+                    remove = async () =>
+                    {
+                        LifecycleResult? result = await host.RemoveAsync(handle).ConfigureAwait(false);
+                        Assert.That(result, Is.Not.Null);
+                        Assert.That(result!.CleanupFailure, Is.Null);
+                        await result.Retired.ConfigureAwait(false);
+                    };
                 }
                 configureReload?.Invoke(reload);
                 Task? retirement = null;
                 async Task RetireCoreAsync() => await remove().ConfigureAwait(false);
                 ValueTask RetireAsync() => new(retirement ??= RetireCoreAsync());
                 using var client = new ClientFixture(NUnitTelemetryContext.Create());
+                await WotTestPki.SeedAsync(directory).ConfigureAwait(false);
                 await client.LoadClientConfigurationAsync(directory).ConfigureAwait(false);
                 using ISession session = await client.ConnectAsync(
                     new UriBuilder(Utils.UriSchemeOpcTcp, "localhost", fixture.Port).Uri, SecurityPolicies.None)

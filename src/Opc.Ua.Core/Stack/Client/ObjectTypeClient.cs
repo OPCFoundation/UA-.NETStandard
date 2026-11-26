@@ -1,31 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using System.Collections.Concurrent;
@@ -152,6 +126,34 @@ namespace Opc.Ua
             CancellationToken ct,
             params Variant[] args)
         {
+            (_, ArrayOf<Variant> outputArguments) = await CallMethodWithStatusAsync(
+                methodId, methodNamespaceUri, methodBrowseName, ct, args).ConfigureAwait(false);
+            return outputArguments;
+        }
+
+        /// <summary>
+        /// Calls a method with the same instance MethodId fallback as
+        /// <see cref="CallMethodAsync(NodeId, string, string, CancellationToken, Variant[])"/>
+        /// and returns its operation status separately from its output arguments.
+        /// Good and Uncertain statuses are preserved. Bad statuses throw before
+        /// output arguments can be interpreted; only BadMethodInvalid triggers fallback.
+        /// </summary>
+        /// <param name="methodId">The type-declaration MethodId.</param>
+        /// <param name="methodNamespaceUri">The method browse-name namespace URI.</param>
+        /// <param name="methodBrowseName">The method browse name.</param>
+        /// <param name="ct">Cancellation token for the request.</param>
+        /// <param name="args">The input arguments.</param>
+        /// <returns>The operation status and uninterpreted output arguments.</returns>
+        /// <exception cref="ServiceResultException">
+        /// The service or operation returned a Bad status.
+        /// </exception>
+        protected async ValueTask<(StatusCode CallStatus, ArrayOf<Variant> OutputArguments)> CallMethodWithStatusAsync(
+            NodeId methodId,
+            string methodNamespaceUri,
+            string methodBrowseName,
+            CancellationToken ct,
+            params Variant[] args)
+        {
             // Reuse a previously resolved instance MethodId if we already
             // had to fall back for this method against a non-conformant
             // server; otherwise start with the type-declaration MethodId.
@@ -186,7 +188,8 @@ namespace Opc.Ua
                 }
             }
 
-            return ThrowOrGetOutputArguments(response);
+            ArrayOf<Variant> outputArguments = ThrowOrGetOutputArguments(response);
+            return (response.Results[0].StatusCode, outputArguments);
         }
 
         /// <summary>

@@ -1,3 +1,8 @@
+<!--
+SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+SPDX-License-Identifier: MIT
+-->
+
 # Durable Subscription
 
 ## Overview
@@ -33,6 +38,10 @@ Typically the following porting steps are necessary:
   `SupportsDurableQueues` to `true`. Return an `IMonitoredItemQueue` that
   persists values and supports large queue sizes. See the sample
   [DurableMonitoredItemQueueFactory](../samples/Quickstarts.Servers/DurableSubscription/DurableMonitoredItemQueueFactory.cs).
+  Its data-change queue decoder uses stored batch identities to preserve a
+  shared enqueue/dequeue batch. This keeps empty restored queues writable and
+  prevents drained queues from replaying a duplicated batch; the stored binary
+  format is unchanged.
 - Register the queue factory by overriding
   `StandardServer.CreateMonitoredItemQueueFactory`.
 - Implement `ISubscriptionStore` to persist and restore subscriptions across
@@ -81,8 +90,7 @@ Typically the following porting steps are necessary:
   were. A queue
   disposed after `BeginRestore` but before `CommitRestore`, e.g. because a node
   manager failed to create its monitored item, must keep its stored contents as
-  well. The mirrored queues of `SharedKeyValueMonitoredItemQueueFactory`
-  implement it.
+  well.
   Only the base `SubscriptionManager.RestoreSubscriptionsAsync` stages queues:
   a monitored item restored outside of it, e.g. by calling
   `Subscription.RestoreAsync` or the restoring `MonitoredItem` constructor

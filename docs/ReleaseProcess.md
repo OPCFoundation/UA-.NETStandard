@@ -40,7 +40,7 @@ without any other context.
   shares the same root version except the **preview-only families**.
 - **Preview-only families** - the XRegistry, WoT Connectivity,
   Robotics, CranesHoists, Redundancy, Positioning, OpenUSD, and AI package
-  families, the Vision.OpenUsd renderer, the Robotics and CranesHoists MCP extensions, and the OpenUSD connector
+  families, the Vision.OpenUsd renderer, the Robotics, CranesHoists, Positioning, WotCon and XRegistry MCP extensions, and the OpenUSD connector
   tools. `version.targets` keeps these on a `-preview.N` suffix even when the
   root version is an exact stable release. The full, single source of truth
   for which package IDs this covers is `_IsPreviewPackage` in
@@ -194,6 +194,19 @@ Every procedure below starts here.
   input, which defaults to `stable`), and the `release` GitHub Environment's
   `deployment_branch_policy` (restricts which branch may even execute the
   `release.yml` job).
+- Only `master` and `release/*` builds are signed. `nuget-publish.yml` packs
+  every other branch and every tag **unsigned** (artifact
+  `unsigned-opcua-<configuration>-<run id>`, never aggregated or published),
+  because its pack job builds the branch's own code and anything it builds
+  could read a signing secret held by that job. The signing secrets
+  (`SIGNING_URL`, `SIGNING_VAULT_URL`, `SIGNING_TENANT_ID`,
+  `SIGNING_CLIENT_ID`, `SIGNING_CLIENT_SECRET`, `SIGNING_CERT_NAME`,
+  `OPCFOUNDATION_NETSTANDARD_SNK_BASE64`) must therefore be secrets of the
+  `nuget-signing` GitHub Environment, whose deployment branch policy allows
+  only `master` and `release/*`, and must **not** exist as repository
+  secrets: the workflow file comes from the pushed branch, so a branch that
+  edits it can read any repository secret, but GitHub refuses that branch
+  the environment.
 - The branch and stable package version must agree: `release/2.0` may
   release `2.0.p` only, while `release/2.1` may release `2.1.p` only.
   `Test-CanonicalReleaseBranchForPackageVersion` enforces this in both the

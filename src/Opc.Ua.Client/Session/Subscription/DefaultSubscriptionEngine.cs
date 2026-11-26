@@ -1,31 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using System.Collections.Generic;
@@ -175,6 +149,32 @@ namespace Opc.Ua.Client
                 previousSessionId, ct));
         }
 
+        /// <summary>
+        /// Queues the acknowledgement of a message delivered to a subscription the
+        /// session holds through the classic API, for example one recovered with
+        /// Republish. It is sent with the next Publish request, unless the
+        /// subscription of <paramref name="scope"/> was deleted or recreated.
+        /// </summary>
+        internal void QueueSessionAcknowledgement(
+            uint subscriptionId,
+            uint sequenceNumber,
+            AcknowledgementScope? scope)
+        {
+            if (!m_disposed)
+            {
+                m_manager.QueueSessionAcknowledgement(subscriptionId, sequenceNumber, scope);
+            }
+        }
+
+        /// <summary>
+        /// The lifetime of the subscription the session holds through the classic
+        /// API with the identifier, or <c>null</c> when it holds none.
+        /// </summary>
+        internal AcknowledgementScope? GetSessionSubscriptionScope(uint subscriptionId)
+        {
+            return m_disposed ? null : m_manager.GetSessionSubscriptionScope(subscriptionId);
+        }
+
         /// <inheritdoc/>
         public void Dispose()
         {
@@ -262,6 +262,50 @@ namespace Opc.Ua.Client
                     return 0;
 #endif
                 }
+            }
+
+            /// <inheritdoc/>
+            public int OperationTimeout => m_context.OperationTimeout;
+
+            /// <inheritdoc/>
+            public bool MayDeleteUnknownSubscription(uint subscriptionId)
+            {
+                // The guards of the classic engine: a transfer or restore sets
+                // Reconnecting while subscriptions are bound to their identifiers,
+                // and a subscription without an identifier is being created.
+                if (m_context.Reconnecting ||
+                    !m_context.DeleteSubscriptionsOnClose)
+                {
+                    return false;
+                }
+#if OPCUA_V1_CLIENT
+                foreach (Subscription subscription in m_context.Subscriptions)
+                {
+                    if (subscription.Id == default)
+                    {
+                        return false;
+                    }
+                }
+#endif
+                return true;
+            }
+
+            /// <inheritdoc/>
+            public AcknowledgementScope? GetSessionSubscriptionScope(uint subscriptionId)
+            {
+#if OPCUA_V1_CLIENT
+                if (subscriptionId != default)
+                {
+                    foreach (Subscription subscription in m_context.Subscriptions)
+                    {
+                        if (subscription.Id == subscriptionId)
+                        {
+                            return subscription.GetAcknowledgementScope();
+                        }
+                    }
+                }
+#endif
+                return null;
             }
 
             /// <inheritdoc/>
@@ -380,6 +424,26 @@ namespace Opc.Ua.Client
                 return m_context.TryDispatchToSessionSubscription(
                     subscriptionId, message, availableSequenceNumbers,
                     stringTable, moreNotifications);
+            }
+
+            /// <inheritdoc/>
+            public ValueTask<bool> WaitForSessionSubscriptionRoomAsync(
+                uint subscriptionId,
+                IIngressWaitPolicy waitPolicy,
+                CancellationToken ct)
+            {
+                if (subscriptionId != 0)
+                {
+                    IReadOnlyList<Subscription> subscriptions = m_context.Subscriptions;
+                    for (int i = 0; i < subscriptions.Count; i++)
+                    {
+                        if (subscriptions[i].Id == subscriptionId)
+                        {
+                            return subscriptions[i].WaitForIncomingRoomAsync(waitPolicy, ct);
+                        }
+                    }
+                }
+                return new ValueTask<bool>(true);
             }
 
             private readonly ISubscriptionEngineContext m_context;

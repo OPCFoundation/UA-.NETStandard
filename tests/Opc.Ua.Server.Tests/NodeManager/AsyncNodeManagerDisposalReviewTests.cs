@@ -1,31 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using System.Collections.Generic;
@@ -104,6 +78,35 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 Assert.That(manager.OwnedDisposeCalls, Is.EqualTo(1));
                 Assert.That(manager.RetainedNodes, Is.Zero);
                 Assert.That(() => manager.FindCachedNode(), Throws.TypeOf<ObjectDisposedException>());
+            }
+        }
+
+        /// <summary>
+        /// Verifies that a nested operation admitted after disposal started keeps cleanup waiting until it exits.
+        /// </summary>
+        [Test]
+        public async Task NestedAdmissionAfterDisposalKeepsCleanupWaitingUntilItExitsAsync()
+        {
+            Mock<IServerInternal> server = DeterministicServerMock.Create(out MonitoredItemQueueFactory queues);
+            using (queues)
+            {
+                var manager = new CleanupNodeManager(server.Object);
+                IDisposable parent = manager.BeginOperation();
+                manager.Dispose();
+                // Admitted after disposal started because the flow holds an active operation.
+                IDisposable child = manager.BeginOperation();
+                Task disposal = manager.DisposeAsync().AsTask();
+
+                parent.Dispose();
+                await Task.Delay(100).ConfigureAwait(false);
+                Assert.That(manager.CleanupCalls, Is.Zero,
+                    "Cleanup must wait for a nested operation admitted after disposal started.");
+                Assert.That(manager.FindCachedNode(), Is.SameAs(manager.CachedNode));
+
+                child.Dispose();
+                await disposal.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+                Assert.That(manager.CleanupCalls, Is.EqualTo(1));
+                Assert.That(() => manager.BeginOperation(), Throws.TypeOf<ObjectDisposedException>());
             }
         }
 
@@ -357,6 +360,14 @@ namespace Opc.Ua.Server.Tests.NodeManager
             public NodeState FindCachedNode()
             {
                 return LookupNodeInComponentCache(SystemContext, m_handle)!;
+            }
+
+            /// <summary>
+            /// Admits an operation in the caller's flow, nested in any operation the flow already holds.
+            /// </summary>
+            public IDisposable BeginOperation()
+            {
+                return BeginNodeManagerOperation();
             }
 
             /// <summary>

@@ -4,7 +4,19 @@ The AutoID packages implement
 [OPC 30010 OPC UA for AutoID Devices](https://reference.opcfoundation.org/AutoID/v101/docs/)
 (release 1.01, 2020-06-18): RFID readers, OCR readers, optical (barcode) readers
 and verifiers, and real-time locating systems (RTLS), with their scan results,
-tag access methods and diagnostics events.
+tag access methods, diagnostics events and optional read-only diagnostic variables.
+
+Provider-backed runtime parameters and variable-triggered scanning share the
+existing configuration and operation-ownership paths. Optional RFID and
+OCR/optical parameters require explicit provider capabilities. Typed Data Access
+clients configure readers and observe acquisition timestamps. Optional
+`CodeTypesRWData` uses a provider formatter for diagnostic user data; the simulated
+RFID provider supports `RAW:BYTES`. This projection changes neither method outputs
+nor event payloads. Hardware-specific IOData definitions remain application-owned.
+`WithIOData` composes their bindings; `WithImages` publishes acquired image files
+through standard FileType transfer. SDK support covers the defined mandatory and
+optional capabilities, with the [published contract limits](#support-scope-and-published-contract-limits)
+documented explicitly rather than supplied with invented signatures.
 
 | Package | What it adds |
 | --- | --- |
@@ -26,13 +38,17 @@ The [AutoID sample](../samples/AutoID/) runs a simulated RFID reader end to end.
   - [Placement](#placement)
   - [Direct composition and lifetime](#direct-composition-and-lifetime)
 - [Providers](#providers)
+  - [Runtime parameters and Data Access control](#runtime-parameters-and-data-access-control)
+  - [Diagnostics through Data Access](#diagnostics-through-data-access)
 - [Behavior of the methods](#behavior-of-the-methods)
+- [Acquired images](#acquired-images)
 - [Events](#events)
 - [Conformance](#conformance)
 - [Client](#client)
 - [MCP tools](#mcp-tools)
 - [Sample](#sample)
 - [Specification notes](#specification-notes)
+  - [Support scope and published contract limits](#support-scope-and-published-contract-limits)
 - [Provenance](#provenance)
 
 ## Model and dependencies
@@ -175,6 +191,11 @@ owns (`OwnsProvider()`), disposes it.
 The readers keep their scan state (`Idle_0`, `Scanning_2`, `Busy_3`, `Error_1`)
 in `DeviceStatus`. `AutoIdReader.SetFaultedAsync(true)` reports `Error_1`: new
 scans then return `DEVICE_NOT_READY_17` and an active asynchronous scan stops.
+Fault and recovery operations retain admission through status callbacks and the
+optional stop; disposal waits for them before disposing an owned provider.
+The error status is published before stopping. A rejected or cancelled stop
+retains the active scan and error status until provider confirmation; repairing
+the device restores the status of its current activity.
 `SetDeviceLocation` moves the `DeviceLocation` of a mobile reader.
 
 ### Coexisting with a server that already owns DI
@@ -380,6 +401,8 @@ implementing more interfaces:
 | `IAutoIdAsyncScanProvider` | `ScanStart`, `ScanStop` |
 | `IAutoIdRfidProvider` (`SupportedOperations`) | `ReadTag`, `WriteTag`, `WriteTagID`, `KillTag`, `LockTag`, `SetTagPassword`, each only when listed |
 | `IAutoIdRtlsProvider` | `GetLocation`, `GetSupportedLocationTypes` |
+| `IAutoIdScanParametersProvider` | Opt-in `RuntimeParameters`; with `IAutoIdAsyncScanProvider`, opt-in `ScanActive` |
+| `IAutoIdReaderParametersProvider` | Optional standard reader-specific parameters through the same configuration snapshot and commit |
 
 The sink pushes `ReportScanAsync` (scan event and `LastScanData`),
 `CompleteScanAsync` (a termination condition ended the asynchronous scan),
@@ -418,6 +441,345 @@ var rtls = new InMemoryRtlsProvider(locationConverter: (location, type) =>
 
 Without a converter, or when it returns `null`, `GetLocation` for another type
 answers `Bad_InvalidState`.
+
+### Runtime parameters and Data Access control
+
+`WithRuntimeParameters(enableScanControl: true)` exposes
+`RuntimeParameters/ScanSettings` with `Duration` (milliseconds), `Cycles`,
+`DataAvailable` and `CodeType`, together with the writable `CodeTypes` selection
+and its `EnumStrings`. The provider implements `IAutoIdScanParametersProvider`
+to supply the initial settings, supported code names and configuration commits.
+Existing providers need no changes unless the application enables this capability.
+The in-memory RFID provider supports the `EPC` format.
+
+```csharp
+AutoIdReader reader = await runtime
+    .Reader(new QualifiedName("Portal", runtime.InstanceNamespaceIndex), hardware)
+    .WithRuntimeParameters(enableScanControl: true)
+    .BuildAsync(ct);
+```
+
+Each parameter write validates the complete resulting configuration and awaits
+the provider's commit before publishing it. Negative or non-finite durations,
+negative cycle counts, unknown formats and invalid or duplicate code indexes are
+rejected. Standard parameters cannot change while scanning. Several writes in one OPC UA
+Write request remain independent operations, not a transaction. The provider
+owns persistence and must leave its previous configuration intact when it
+rejects or cancels a commit.
+
+A True write to `ScanActive` starts the existing asynchronous scan path with a
+snapshot of these settings. Repeating True while an asynchronous scan is active
+does not restart it or transfer ownership. False stops either a variable-started
+or method-started asynchronous scan; repeating False while idle succeeds.
+Natural completion resets the variable, including completion during startup.
+A rejected startup returns a bad write status. A rejected or cancelled stop
+keeps the active scan tracked until the provider confirms completion or a later
+stop succeeds, so a second scan cannot start on the same hardware.
+
+Variable-started scans belong to the device and survive the writing session's
+closure. `ScanStart` retains its existing session ownership, including when
+another client repeats a True write. `ScanStop` can stop either asynchronous
+control path. A synchronous `Scan` cannot be stopped through `ScanActive`.
+Shutdown cancels queued operations, stops scanning and detaches the provider.
+`WithScanWritePermissions` applies standard `RolePermissionType` entries to
+`ScanActive` and every standard writable runtime parameter; the owning server enforces
+them through its normal write authorization.
+
+The original `IAutoIdReaderBuilder` contract remains unchanged. The fluent
+`WithRuntimeParameters` and `WithScanWritePermissions` extensions require
+`IAutoIdRuntimeParametersBuilder`; `WithDiagnostics` requires
+`IAutoIdDiagnosticsBuilder`. The SDK builder implements both optional interfaces.
+Import `Opc.Ua.AutoID.Server` to use the extensions. A third-party builder can
+implement either capability independently; requesting an unsupported option throws
+`NotSupportedException` without changing the builder.
+
+#### Standard reader-specific parameters
+
+A provider can additionally implement `IAutoIdReaderParametersProvider`.
+`WithRuntimeParameters()` then binds the parameters declared in its
+`ReaderParameterCapabilities`; it does not infer support from the reader kind,
+antenna names or diagnostic values. Existing providers remain unchanged.
+
+| Reader kind | Optional standard parameters |
+|---|---|
+| RFID | `CodeTypesRWData`, `TagTypes`, `RfPower`, `MinRssi`, `EnableAntennas` |
+| OCR, optical and optical verifier | `TemplateName`, `MatchCode` |
+| RTLS | No additions to the common runtime parameters |
+
+Table 15 and the pinned NodeSet declare both `CodeTypesRWData` and `TagTypes`
+as `UInt32` arrays with `MultiStateDiscreteType`, ValueRank 1,
+ArrayDimensions `[0]` and mandatory namespace-zero `EnumStrings` properties.
+The binder implements both selections with read-only `EnumStrings` properties.
+The provider declares a stable tag-name catalogue and supplies the selected indexes in
+`AutoIdScanParameters`. Null arrays omit the capability; empty selected arrays
+select no entries. Invalid or duplicate indexes are rejected.
+
+`TemplateName` selects a template already configured on the device; it does not
+create or upload one. For example, an OCR provider with an existing
+`PalletLabel` template can declare the following capability and extend its
+otherwise valid common-parameter snapshot:
+
+```csharp
+public AutoIdReaderParameterCapabilities ReaderParameterCapabilities { get; } =
+    new() { TemplateNames = ["PalletLabel"], SupportsMatchCode = true };
+
+AutoIdScanParameters parameters = currentParameters with
+{
+    TemplateName = "PalletLabel",
+    MatchCode = "PALLET"
+};
+```
+
+The provider implements `ReadParametersAsync` and `WriteParametersAsync` from
+`IAutoIdScanParametersProvider` for the complete snapshot, including these
+fields. The SDK rejects unknown templates; the provider applies the selected
+template and match value to its actual decoding operation.
+
+RFID `RfPower` is scalar `SByte`, `MinRssi` is scalar `Int32` and
+`EnableAntennas` is scalar `UInt32`, matching Table 15 and the pinned NodeSet.
+The specification describes power adjustment per antenna but provides no
+antenna selector for this scalar parameter. The binding does not invent one:
+only a provider that implements the scalar setting can declare `SupportsRfPower`,
+and its antenna mapping remains device-specific. No generic power range or
+RSSI unit is imposed.
+
+`ConfiguredAntennas` is the provider's actual general device configuration.
+Runtime selections can only remove bits from that mask. Bit zero denotes
+antenna one; a zero write succeeds without committing or changing the cached
+value, quality or timestamp, as required by OPC 30010 6.5.3.1. The SDK never
+derives this mask from `AntennaNames`. Capability catalogues and the general
+mask remain fixed for the reader lifetime; recreate the reader when they change.
+
+`CodeTypesRWData` configures diagnostic `RWData` as described in OPC 30010
+6.5.3.1. A provider implements `IAutoIdRfidDiagnosticFormatter`, declares its actual
+format catalogue in `AutoIdReaderParameterCapabilities.CodeTypesRWData`, and commits
+selected indexes in `AutoIdScanParameters.CodeTypesRWData`. Declaring that catalogue
+without implementing the formatter is a configuration error. The existing
+`WithRuntimeParameters()` and `WithDiagnostics()` builder options enable the
+selection and its diagnostic projection; providers without the capability retain
+their existing report projection.
+
+Empty selection disables diagnostic `RWData` on subsequent access reports:
+the value becomes null with `BadNoData`, while the other access fields continue
+to update. A selection write does not reformat historical diagnostics. Multiple
+selected indexes are accepted without defining an order of preference. The
+formatter receives the selected names and returns one selected code type with
+its corresponding `ScanData` value. The runtime validates membership and the
+union field defined in OPC 30010 Table 32. Clients can browse and write this
+reader-specific selection through standard OPC UA services.
+
+The formatter receives independent user-data storage, not credentials, and its
+output is copied before publication. If formatting fails or returns an invalid
+representation, the runtime records the failure and publishes `RWData` as
+unavailable; it does not change an already executed tag command's outcome or
+suppress its access event. Formatting changes neither byte-valued method outputs
+nor access-event payloads. Public `ReportAccessAsync` awaits formatting, change
+notifications and asynchronous event reporting, retaining operation admission
+through those callbacks. Providers must also override `ReportEventAsync` on
+custom node states if they customize asynchronous reporting; a synchronous-only
+override is not called by that path. Cancellation before diagnostic publication
+propagates without updating part of the diagnostic group. Formatters must not
+await reader disposal or an operation waiting for their own callback.
+
+`ReportScanAsync` forwards its cancellation token through acquisition change
+notifications, scan events and access publication. Cancelling a provider's report
+loop can therefore release a cancellation-aware pending sink. Cancellation during
+notification does not roll back values already published to the cache.
+Presence and log-entry reports also forward cancellation to diagnostic change
+notifications; values cached before cancellation remain available.
+
+`InMemoryRfidReaderProvider` declares only `RAW:BYTES`, initially selected as
+index zero, and formats byte-valued user data. Additional formats require a
+provider that implements their actual conversion; the runtime does not infer
+String, EPC or vendor representations from arbitrary bytes.
+
+For example, enable the simulated provider's raw diagnostic capability through
+the existing fluent builder:
+
+```csharp
+var provider = new InMemoryRfidReaderProvider();
+AutoIdReader reader = await runtime.Reader(new QualifiedName("DockDoor", instanceNamespace), provider)
+    .OwnsProvider()
+    .WithRuntimeParameters()
+    .WithDiagnostics()
+    .BuildAsync(cancellationToken);
+```
+
+An application provider implementing `IAutoIdRfidDiagnosticFormatter` uses the
+same builder path. Its `FormatRWDataAsync` implementation returns an
+`AutoIdRfidDiagnosticData` containing the selected code-type name and the
+converted union value; the catalogue must not advertise conversions it cannot
+perform.
+
+All optional writes use the same authorization, scan-idle check, cancellation
+and complete-snapshot provider commit as the common parameters. Rejected or
+cancelled commits retain the previous published value, quality and timestamp.
+The SDK copies provider and caller arrays; a later array mutation does not
+change its saved configuration or catalogues. The typed client's
+`ReadScanParametersAsync` and `WriteScanParametersAsync` convenience methods
+cover the common fields; their writes preserve reader-specific values on the
+server. Use standard session Browse, Read and Write for the optional variables.
+
+The optional `configure` callback of `WithRuntimeParameters` adds application-specific
+variables under RuntimeParameters before registration. Use the application's
+namespace and supply their declared types, access metadata and value bindings;
+the standard parameter binder preserves those bindings. Reader-specific bindings
+also enforce their own policy for writes during scanning.
+
+### Diagnostics through Data Access
+
+`WithDiagnostics()` publishes the read-only standard diagnostic variables of
+[OPC 30010 6.1.3.3](https://reference.opcfoundation.org/specs/OPC-30010/6.1.3.3).
+It uses the reader's existing reports and method results; no additional provider
+interface or event source is required.
+
+```csharp
+AutoIdReader reader = await runtime
+    .Reader(new QualifiedName("Portal", runtime.InstanceNamespaceIndex), hardware)
+    .WithRuntimeParameters(enableScanControl: true)
+    .WithDiagnostics()
+    .BuildAsync(ct);
+```
+
+`ReportPresenceAsync` updates `Diagnostics/Presence`. A scan does not imply a
+presence count: the provider reports that measurement separately.
+`ReportLogEntryAsync` updates `Diagnostics/Logbook/LastLogEntry`, with
+`LogColumns` set to `"Message"` for the sink's single text column. These reports
+retain their existing events; the projection does not keep a second logbook.
+
+`Diagnostics/LastAccess` contains `Client`, `Command`, `Identifier` and
+`Timestamp`. Scans, tag methods and `ReportAccessAsync` update it through the
+same access-report path. As with `LastScanData`, the first result of a multi-result
+report is selected. `Identifier` contains the selected `ScanData` union arm,
+not an encoded union wrapper. All fields in an access update have the same
+source timestamp. Clients reading several fields must compare their
+`SourceTimestamp` values before treating them as one acquisition; use access
+events when all results are needed.
+
+The diagnostic cache copies ByteString buffers and EPC fields before retaining
+them. Custom values are snapshotted through the existing UA binary codec and the
+runtime's encodeable factory, then compared with the original Variant using
+the existing semantic equality rules, including nested structures and arrays.
+Custom structures encoded as ExtensionObjects require compatible registered
+activators. If a decoded structure becomes an opaque ExtensionObject, or the copied value
+otherwise compares unequal, the diagnostic copy throws `Bad_EncodingError` before any
+LastAccess field changes. Already-opaque values are accepted when their type
+and body round-trip unchanged; a representation change that compares unequal
+is rejected rather than silently retained with Good quality. Codec errors and
+encoding limits leave the previous LastAccess values, quality and timestamps
+unchanged. Custom structures must implement `IEncodeable.IsEqual`
+according to their value semantics.
+
+For provider scan reports and completed physical commands, the runtime logs
+`Bad_EncodingError`, `Bad_DecodingError` or `Bad_EncodingLimitsExceeded` from this
+projection and continues publishing the enabled access event. A provider scan
+report still updates LastScan and raises its scan event; a completed Scan
+retains its provider result and operation status. LastAccess retains its previous
+acquisition rather than retaining caller-owned data or an unequal copy.
+Direct `ReportAccessAsync` calls still propagate these errors before publishing
+their access event. Diagnostic isolation does not suppress validation errors
+for invalid report types.
+This isolation surrounds snapshot creation only. A change-notification callback
+that throws after LastAccess has changed is not treated as a copy rejection:
+provider reporting propagates that failure. Completed physical commands retain
+their existing logging and result policy for publication failures.
+
+Providers must keep the report stable until the reporting operation completes;
+later buffer reuse does not change diagnostic
+values, quality or timestamps. This copying applies only to the diagnostic
+projection and does not change access-event payloads.
+
+RFID readers also publish `RWData`, `Antenna`, `CurrentPowerLevel`, `PC`,
+`Polarization` and `Strength`, as defined in
+[Table 15](https://reference.opcfoundation.org/specs/OPC-30010/6.5.2).
+Optional fields absent from a later report become null with `Bad_NoData`;
+they do not retain an earlier tag's data. Unreported measurements start with
+`Uncertain_InitialValue`. Method `RWData` uses the existing
+`IAutoIdRfidAccessEventPolicy` classification, including the reserved-bank
+credential exclusion; password changes never populate it. Providers reporting
+autonomous access results remain responsible for excluding credentials from
+those reports.
+
+Diagnostics is opt-in and does not depend on `PublishAccessEvents`. Disabling
+access events does not disable an explicitly configured Data Access projection.
+Normal server read authorization applies to the variables, which reject writes.
+Disposal rejects further reports through the existing reader lifetime checks.
+The [server sample](../samples/AutoID/) enables the projection on its simulated
+RFID portal.
+
+The runtime does not invent vendor IO definitions. OPC 30010 6.1.3.2 defines
+`IOData` as an optional FunctionalGroup for application or reader-specific sensor
+and actuator variables, without standard children. `WithIOData((context, group) =>
+...)` creates that group and invokes the application's composition callback
+before registration. The application adds its own variables, access permissions
+and asynchronous hardware bindings; the runtime preserves them. A callback
+failure aborts registration and leaves the reader name available for retry.
+Without that callback the group remains absent. No such hardware points are
+defined by the simulated reader, so it does not publish that group.
+Clients use ordinary Browse, Read, Write and subscriptions for these
+application-defined variables; the SDK does not invent a universal IO schema.
+Standard reader-specific runtime parameters require the explicit provider
+capability described above; `WithDiagnostics()` alone does not publish writable
+configuration. The sample's in-memory RFID provider implements raw-byte diagnostic
+formatting but does not implement RF configuration or tag-type filtering, so those
+optional parameters remain absent rather than advertising simulated hardware
+capabilities it does not implement.
+
+## Acquired images
+
+OCR and optical readers, including optical verifiers, can publish acquired images
+through `WithImages`. OPC 30010 [6.2.3.2](https://reference.opcfoundation.org/specs/OPC-30010/6.2.3)
+and [6.3.3.2](https://reference.opcfoundation.org/specs/OPC-30010/6.3.3)
+define an optional `Images` folder containing named `FileType` objects. Each file
+publishes `MimeType`; image encoding remains the provider's responsibility.
+
+```csharp
+QualifiedName frame = new("Frame", context.Runtime.InstanceNamespaceIndex);
+AutoIdReader reader = await context.Runtime
+    .Reader(new QualifiedName("Camera", frame.NamespaceIndex), opticalHardware)
+    .WithImages([new AutoIdImageSlot(frame, "image/png", maximumBytes: 1024 * 1024)])
+    .BuildAsync(ct);
+
+// A provider obtains this optional capability from its attached IAutoIdReaderSink.
+await ((IAutoIdImageSink)reader).ReportImageAsync(frame, pngBytes, ct);
+```
+
+The catalogue is fixed when the reader is built: at most 16 slots, with unique
+qualified browse names and a positive per-slot byte limit no larger than 16 MiB.
+These are SDK resource limits, not limits imposed by OPC 30010. Other reader kinds
+reject image configuration. No configured slots means no `Images` folder.
+A null initial value means that the image is not yet available; an explicitly
+empty byte string is a readable, zero-length file. Reports must be nonnull and
+fit the configured slot. Unknown names, oversized values and canceled reports
+leave the last accepted image unchanged.
+
+The reader copies initial and reported bytes. An update replaces the content
+used by subsequent opens; handles already open retain their prior snapshots.
+Standard read-only FileType methods enforce session-owned handles and the
+existing binder's 64-handle limit per file. Reader shutdown retires these handles
+and rejects further reports; failed registration also disposes bindings already
+created. The reader owns the bindings, not the injected binder service.
+Register `IFileTypeBinder` before hosting to supply another binder; direct
+construction and `CreateAutoIdRuntime` also accept one and otherwise use
+`FileTypeBinder`. A composed owner's first runtime creation selects the binder.
+
+The typed client discovers the files and reuses the
+[File System client](FileSystemClient.md) for metadata and transfer:
+
+```csharp
+await foreach (UaFileInfo image in autoId.EnumerateImagesAsync(camera, ct))
+{
+    Console.WriteLine(image.MimeType);
+    byte[] content = await image.ReadAllBytesAsync(ct);
+}
+```
+
+These are detached `UaFileInfo` objects because `Images` is a `FolderType`, not a
+`FileDirectoryType`. File reads do not depend on a server-wide file-system root.
+An absent optional folder yields no files; service failures propagate.
+The sample verifier publishes a small portable graymap and the client reads it
+through this same path. Images are independent of scan result/event payloads
+and diagnostic formatting.
 
 ## Behavior of the methods
 
@@ -480,13 +842,26 @@ reader implements all its mandatory units.
 | `AutoID Sync Access` | A reader has a `Scan` method |
 | `AutoID Async Access` | A reader exists (scan events) |
 | `AutoID Async Access Control` | A reader has `ScanStart` and `ScanStop` |
+| `AutoID Device Parameters` | A reader was built with provider-backed runtime parameters |
+| `AutoID Simple Sync Access Control` | A reader was built with writable `ScanActive` and its settings |
 
 The *Simple Sync*, *Base Sync* and *Base Async* facets are advertised
-accordingly. `AutoID Simple Sync Access Control` (the `ScanActive` variable and
-the `ScanSettings` function group) and `AutoID Device Parameters` (the
-`RuntimeParameters` group) are not implemented, so the *Full AutoID Server Facet*
-is never advertised. `DeviceInfo`, `DeviceLocation`, `DeviceLocationName` and
-`AntennaNames` are published when configured.
+accordingly. Simple Sync Access Control is optional in Table 82, not a mandatory
+requirement for the Simple Sync facet. The runtime advertises the *Full AutoID
+Server Facet* when one reader implements all mandatory capabilities; units from
+unrelated readers do not establish that one reader supports that facet.
+`DeviceInfo`, `DeviceLocation`, `DeviceLocationName` and `AntennaNames` are
+published when configured.
+
+For Table 85, a Full candidate must provide Device Parameters and Async Access
+Control on the same reader and satisfy the included Simple Sync, Base Sync and
+Base Async facets. The host must also load the DI device model, encode the
+AutoID complex types and support event subscriptions. A parameter-enabled RFID
+reader with synchronous and asynchronous providers supplies that reader-level
+combination; a parameter-only reader or a different reader's scan methods do
+not. Table 85 defines scan operation modes, not every optional method on every
+device kind. Advertising this facet does not resolve the verifier and RTLS
+contract discrepancies described below or assert product certification.
 
 ## Client
 
@@ -555,6 +930,35 @@ published after the snapshot was taken.
 streaming subscription the caller owns; the monitored item lives as long as the
 enumeration.
 
+For Data Access clients, parameter browsing is explicit and independent of
+`ReadDeviceAsync` and `RefreshDeviceAsync`:
+
+```csharp
+AutoIdScanParameterReadResult current = await autoId.ReadScanParametersAsync(reader, ct);
+AutoIdScanParameterStatus written = await autoId.WriteScanParametersAsync(
+    reader, current.Parameters with { Duration = 0, Cycles = 0, DataAvailable = false }, ct);
+// Check every field in written before starting; writes are independent.
+StatusCode started = await autoId.SetScanActiveAsync(reader, true, ct);
+AutoIdScanActiveReadResult active = await autoId.ReadScanActiveAsync(reader, ct);
+AutoIdDeviceSnapshot acquired = await autoId.ReadLastScanAsync(reader, ct);
+StatusCode stopped = await autoId.SetScanActiveAsync(reader, false, ct);
+```
+
+Parameter reads preserve each field's status and expose supported code names.
+`ObserveScanActiveAsync` uses a caller-owned streaming subscription; ending its
+enumeration removes only the monitored item.
+Missing components return `BadNotFound`; a present value of the wrong type
+returns `BadTypeMismatch`. `ReadLastScanAsync` compares acquisition timestamps
+for `LastScanData`, `LastScanTimestamp` and available RFID antenna/RSSI values,
+retries a changing acquisition at most three times and reports `BadDataLost`
+if good values still disagree. Bad per-value statuses remain visible instead
+of being reported as a successful coherent acquisition. A scan without an RFID
+sighting marks antenna/RSSI `BadNoData`, rather than retaining a previous scan's
+values. Ordinary refreshes retain one Read and no nested browse.
+The server reads each acquisition variable's value, status and source timestamp
+under the publication lock. Separate variable reads can still cross acquisitions,
+so clients retain the timestamp comparison and retry.
+
 ## MCP tools
 
 `AddOpcUaMcpAutoId()` and `WithOpcUaAutoIdTools(McpToolProfile.AutoId)` (profile
@@ -581,18 +985,111 @@ and checks the output.
   The generated proxy and the server follow the NodeSet.
 - The NodeSet declares the `Scan` method of `OpticalVerifierDeviceType` with
   `WGS84Coordinate` results where OPC 30010 6.4.3.1 names
-  `OpticalVerifierScanResult`. The method cannot be served consistently, so a
-  verifier does not publish `Scan`; it reports through `ScanStart` and scan
-  events, and `AutoIdClient.ScanAsync` refuses a verifier.
-- The `GetUnits` method of `RtlsDeviceType` declares no output argument; it is not
-  published.
+  `OpticalVerifierScanResult`. The local model corrects the `Results` argument to `OpticalVerifierScanResult[]`
+  from the published method table. The method NodeId `i=7054`, OutputArguments
+  property `i=6076`, argument order and value rank are unchanged. Generated
+  server/client contracts use the corrected type; the in-memory verifier
+  supports synchronous `Scan` alongside `ScanStart` and scan events.
+- Table 16 lists `RtlsDeviceType.GetUnits` as Optional, but neither the NodeSet
+  nor the published method chapter defines its inputs or outputs. Reader instances
+  omit that method. The mandatory `LengthUnit`, `RotationalUnit`,
+  `GeographicalUnit` and `SpeedUnit` properties remain published as `EUInformation`;
+  applications configure them with `WithRtlsUnits`.
+
+The published reference still identifies version 1.01 as current. The
+`UA-Nodeset/latest/AutoID` XML has Git blob
+`2cdca69cd86c4f46c61ea4da9ce7d625a02ed53a`, identical to the pinned source.
+No corrected upstream artifact has been established. The verifier correction
+follows the published method table and is recorded explicitly in
+`Model/provenance.json`; it is not represented as an upstream model revision.
+RTLS signatures remain unchanged. The Full Server Facet is evaluated separately
+for each hosted reader's implemented capabilities.
+
+### Support scope and published contract limits
+
+The SDK supports the defined optional capabilities as well as mandatory reader
+behavior. Devices expose only their configured provider capabilities. Acquired
+images use bounded FileType slots, and `WithIOData` composes application-defined
+sensor and actuator nodes without assigning them invented standard semantics.
+
+One optional wire method is deliberately omitted because the published model
+provides no signature:
+
+- RTLS `GetUnits` is deliberately omitted until its inputs, outputs, types and
+  value ranks are defined by an authoritative contract. The four unit properties
+  do not determine a method signature. No output array or structure is invented.
+
+The SDK retains the released NodeSet's `GetLocation` wire order for compatibility;
+the typed convenience API accepts identifier, code type and location type and
+translates them to that order. `AutoIdModelVersion` retains the specification's
+prescribed value. These are explicit implementation decisions, not pending
+features. Current-head client/server, sample and
+NativeAOT execution is recorded separately as validation evidence; pending tests
+alone do not make implemented support Partial.
+Hardware-specific IO definitions and additional real-world formatter capabilities
+are provider responsibilities, not missing universal SDK wire contracts.
+
+### Data Access regression evidence
+
+The AutoID test project covers the SDK contract without requiring physical
+readers. These cases are implementation evidence, not OPC certification.
+
+| Requirement | Test in `tests/Opc.Ua.AutoID.Tests` |
+|---|---|
+| IOData composition for every reader kind, application-owned access/bindings and real-service writes | `IODataCompositionPreservesApplicationBindingsAsync` |
+| Unconfigured IOData and callback rollback without reserving the reader name | `IODataConfigurationFailureRollsBackAndUnconfiguredGroupRemainsAbsentAsync` |
+| Images for OCR, optical and verifier readers, copied bytes, MIME metadata, read-only access and session-owned snapshot handles | `ImageSlotsPublishReadOnlySnapshotsThroughStandardFilesAsync` |
+| Unknown, null, oversized and canceled image reports; unavailable and empty content | `ImagePublicationRejectsUnknownNullOversizedAndCanceledUpdatesAsync` |
+| Image binding cleanup after shutdown or partial setup failure; accepted notifications retain reader lifetime | `DisposingAReaderRetiresImageBindingsAsync`, `FailedImageBindingDisposesEarlierSlotsAndAllowsRegistrationRetryAsync`, `ImagePublicationKeepsReaderLifetimeUntilNotificationsCompleteAsync` |
+| Invalid image catalogues, bounds and reader kinds | `ImageConfigurationRejectsInvalidSlots` |
+| Corrected verifier method metadata, typed synchronous results and unchanged asynchronous events | `VerifierScanMetadataUsesPublishedResultType`, `AVerifierReturnsTypedSynchronousResultsAndRetainsScanEventsAsync`, `TheVerifierReportsVerificationResultsAsync` |
+| Opt-in capability and legacy-provider compatibility | `CapabilityIsOptInAndExistingProvidersRemainCompatibleAsync` |
+| Runtime metadata and configured conformance units; async-only parameters do not qualify for Full | `ParametersHavePublishedMetadataAndContributeOnlyConfiguredUnitsAsync` |
+| Full-facet eligibility for all mandatory capability combinations, without optional ScanActive | `FullFacetRequiresAllMandatoryCapabilitiesOnOneReaderAsync` |
+| Separate readers cannot combine capabilities to qualify for Full | `FullFacetCannotCombineCapabilitiesOfSeparateReadersAsync` |
+| Parameter-enabled RFID provider contributes Full through the fluent API and owning manager | `ParameterEnabledRfidReaderAdvertisesFullFacetAsync` |
+| Validation and provider-commit failures preserve the old configuration | `InvalidCodeTypeAndIndexesAreRejectedWithoutChangingConfigurationAsync`, `ProviderCommitFailurePreservesPublishedAndProviderValuesAsync` |
+| Commit/start serialization and cancellation | `ParameterCommitSerializesStartAndCancelledCommitLeavesPreviousValuesAsync` |
+| Gate release and preservation of independent cleanup failures | `SerializedCleanupPreservesBothOperationFailuresAsync` |
+| Reader-specific parameter composition and standard role metadata | `ReaderSpecificParameterBindingsAndConfiguredRolePermissionsArePreservedAsync` |
+| Standard reader-kind metadata, ranks and mandatory EnumStrings | `ReaderParametersMatchKindCapabilitiesAndPublishedMetadataAsync` |
+| Unsupported capabilities and invalid initial declarations | `UnsupportedReaderParametersRemainAbsentAsync`, `InvalidInitialReaderParameterDeclarationsAreRejectedAsync` |
+| Complete reader-specific commits and rejected values | `ReaderParameterWritesCommitThroughTheExistingProviderAsync`, `InvalidReaderValuesPreserveConfigurationAndQualityAsync` |
+| Antenna zero and the general configuration boundary | `AntennaZeroIsNoOpAndUnconfiguredBitsAreRejectedAsync` |
+| Reader-specific cancellation, scan serialization and shutdown | `ReaderParameterCancellationSerializesStartAndShutdownRejectsWritesAsync` |
+| Provider rejection and unchanged quality/timestamps | `ReaderParameterCommitFailureCancellationAndActivityPreserveValuesAsync` |
+| Copied provider arrays and frozen catalogues | `CapabilityMismatchIsRejectedAndParameterArraysAreCopiedAsync` |
+| Real-service optional writes, EnumStrings write denial and common-client preservation | `ReaderSpecificParametersUseRealServicesAndPreserveCoreWritesAsync` |
+| Optional-variable access, index ranges and real-service role enforcement | `ReaderParameterAccessDenialAndIndexRangePreserveSettingsAsync`, `ReaderSpecificWritesHonorServerRolePermissionsAsync` |
+| Repeated control writes and session ownership | `RepeatedWritesDoNotRestartAndVariableScanSurvivesSessionClosureAsync`, `MethodAndVariableControlsShareActivityButPreserveMethodOwnershipAsync` |
+| Completion, startup rejection and shutdown | `RejectedStartAndImmediateCompletionNeverLeaveScanActiveTrueAsync`, `NaturalCompletionAndShutdownResetScanActiveAsync`, `WritesAfterShutdownAreRejectedWithoutTouchingDisposedResourcesAsync` |
+| Provider-stop failure retains the active scan | `RejectedStopKeepsTheScanTrackedUntilProviderConfirmationAsync` |
+| Real-session parameter/control workflow without scan method calls | `ParametersControlAndCoherentResultsWorkWithoutScanMethodCallsAsync` |
+| Caller-owned ScanActive subscription and session lifetime | `ScanActiveObservationUsesTheSharedSubscriptionWithoutOwningItsSessionAsync` |
+| Mixed acquisition timestamps and bad RFID value statuses | `InconsistentAcquisitionTimestampsAreRejectedAndBadAntennaStatusIsPreservedAsync` |
+| Acquisition reads share the publication lock | `AcquisitionReadsKeepValueQualityAndTimestampTogetherAsync` |
+| Report cancellation reaches acquisition, scan and access sinks | `ScanReportCancellationReleasesEveryPublicationStageAsync` |
+| Fault and recovery callbacks retain owned-provider lifetime | `FaultStatusNotificationKeepsOwnedProviderAliveAsync` |
+| Opt-in Diagnostics metadata across all reader kinds | `DiagnosticsAreOptInReadOnlyAndUseStandardQualifiedMetadataAsync` |
+| Existing reports update variables without duplicate events or invented presence | `PresenceAndLogReportsUpdateValuesAndRetainSingleEventsAsync`, `ScanReportsShareAccessProjectionAndDoNotInventPresenceAsync` |
+| Timestamp consistency and removal of absent RFID values with events disabled | `AccessProjectionIsIndependentOfEventsAndClearsAbsentRfidFieldsAsync` |
+| Invalid, cancelled and disposed reports retain previous diagnostics | `InvalidCancelledAndDisposedReportsDoNotReplacePreviousDiagnosticsAsync` |
+| RFID credential exclusions also govern projected method data | `SecurityR14ReservedBankReadAndWriteNeverPublishCredentialsAsync`, `SecurityR14CredentialRangeOverlapAndUnknownClassificationFailSafeAsync` |
+| Real-session diagnostic browsing, typed tag access and write denial | `DiagnosticsAreBrowsableReadOnlyAndProjectTypedClientAccessAsync` |
+
+`DiagnosticReportsExecuteAndReadThroughDataAccessAsync` in `tests/Opc.Ua.Aot.Tests`
+also exercises report projection and Data Access encoding in the NativeAOT test binary.
+`RuntimeParametersAndScanControlExecuteThroughTypedClientAsync` includes the
+four optional RFID parameter encodings and complete-snapshot commits.
 
 ## Provenance
 
-`src/Opc.Ua.AutoID/Model` holds the unmodified NodeSet and identifier table
+`src/Opc.Ua.AutoID/Model` holds the NodeSet and identifier table
 from UA-Nodeset revision `9f6c7660b94af24d32c4248d4b13bf60adab0301`;
-`provenance.json` records the source URLs and SHA-256 hashes. The published
-identifier table predates model 1.01 and lacks 67 NodeSet declarations, so
+`provenance.json` records the source URLs and upstream SHA-256 hashes, and the
+effective NodeSet hash after the documented verifier argument correction.
+Reversing that single correction recovers the byte-identical publication.
+The published identifier table predates model 1.01 and lacks 67 NodeSet declarations, so
 `Opc.Ua.AutoID.Derived.NodeIds.csv` is generated from it with
 `tools/nodesets/derive-identifier-table.py` and used as the source generator's
 drift guard. NodeIds always come from the NodeSet.

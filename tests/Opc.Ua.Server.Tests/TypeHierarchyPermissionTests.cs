@@ -1,31 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System.Threading.Tasks;
 using Moq;
@@ -52,7 +26,7 @@ namespace Opc.Ua.Server.Tests
         [TestCase(PermissionType.Browse | PermissionType.Read)]
         public void TypeHierarchyNodeStaysVisibleWithoutGrant(PermissionType requested)
         {
-            OperationContext context = CreateContext(ObjectIds.WellKnownRole_AuthenticatedUser);
+            using OperationContext context = CreateContext(ObjectIds.WellKnownRole_AuthenticatedUser);
             NodeMetadata metadata = CreateTypeMetadata(
                 ObjectIds.WellKnownRole_SecurityAdmin,
                 PermissionType.Browse | PermissionType.Read | PermissionType.Call);
@@ -76,7 +50,7 @@ namespace Opc.Ua.Server.Tests
         [TestCase(PermissionType.Browse | PermissionType.Write)]
         public void TypeHierarchyNodeEnforcesNonVisibilityPermissions(PermissionType requested)
         {
-            OperationContext context = CreateContext(ObjectIds.WellKnownRole_Anonymous);
+            using OperationContext context = CreateContext(ObjectIds.WellKnownRole_Anonymous);
             NodeMetadata metadata = CreateTypeMetadata(
                 ObjectIds.WellKnownRole_Anonymous,
                 PermissionType.Browse | PermissionType.Read);
@@ -92,7 +66,7 @@ namespace Opc.Ua.Server.Tests
         [Test]
         public void TypeHierarchyNodeGrantsReceiveEventsToGrantedRole()
         {
-            OperationContext context = CreateContext(ObjectIds.WellKnownRole_SecurityAdmin);
+            using OperationContext context = CreateContext(ObjectIds.WellKnownRole_SecurityAdmin);
             NodeMetadata metadata = CreateTypeMetadata(
                 ObjectIds.WellKnownRole_SecurityAdmin,
                 PermissionType.Browse | PermissionType.ReceiveEvents);
@@ -108,7 +82,7 @@ namespace Opc.Ua.Server.Tests
         [Test]
         public void TypeHierarchyNodeWithoutRolePermissionsAllowsReceiveEvents()
         {
-            OperationContext context = CreateContext(ObjectIds.WellKnownRole_Anonymous);
+            using OperationContext context = CreateContext(ObjectIds.WellKnownRole_Anonymous);
             var metadata = new NodeMetadata(null!, ObjectTypeIds.BaseEventType)
             {
                 IsPartOfTypeHierarchy = true
@@ -125,7 +99,7 @@ namespace Opc.Ua.Server.Tests
         [Test]
         public void TypeHierarchyNodeAccessRestrictionsSkippedOnlyForVisibility()
         {
-            OperationContext context = CreateContext(
+            using OperationContext context = CreateContext(
                 ObjectIds.WellKnownRole_Anonymous,
                 MessageSecurityMode.None);
             var metadata = new NodeMetadata(null!, new NodeId(1000))
@@ -171,8 +145,8 @@ namespace Opc.Ua.Server.Tests
                 var nodeManager = server.CurrentInstance.DiagnosticsNodeManager as AsyncCustomNodeManager;
                 Assert.That(nodeManager, Is.Not.Null);
 
-                OperationContext anonymous = CreateContext(ObjectIds.WellKnownRole_Anonymous);
-                OperationContext securityAdmin = CreateContext(ObjectIds.WellKnownRole_SecurityAdmin);
+                using OperationContext anonymous = CreateContext(ObjectIds.WellKnownRole_Anonymous);
+                using OperationContext securityAdmin = CreateContext(ObjectIds.WellKnownRole_SecurityAdmin);
 
                 ServiceResult audit = await nodeManager.ValidateEventReceivePermissionsAsync(
                     anonymous,
@@ -235,7 +209,7 @@ namespace Opc.Ua.Server.Tests
                 BaseObjectState serverObject = nodeManager.FindPredefinedNode<BaseObjectState>(ObjectIds.Server);
                 Assert.That(serverObject, Is.Not.Null);
 
-                OperationContext anonymous = CreateContext(
+                using OperationContext anonymous = CreateContext(
                     ObjectIds.WellKnownRole_Anonymous,
                     requestType: RequestType.Call);
                 ArrayOf<CallMethodRequest> requests =

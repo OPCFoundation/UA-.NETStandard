@@ -1,32 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using System.Collections.Generic;
@@ -38,12 +11,15 @@ using System.Threading.Tasks;
 using NUnit.Framework;
 using Opc.Ua.Client;
 using Opc.Ua.Client.TestFramework;
+using Opc.Ua.Server;
 using Opc.Ua.Server.TestFramework;
 using Opc.Ua.Tests;
 using Opc.Ua.WotCon.Client;
 using Opc.Ua.WotCon.Server;
 using Opc.Ua.WotCon.Tests.Providers;
 using Quickstarts.ReferenceServer;
+
+using ISession = Opc.Ua.Client.ISession;
 
 namespace Opc.Ua.WotCon.Tests
 {
@@ -53,7 +29,6 @@ namespace Opc.Ua.WotCon.Tests
     [TestFixture]
     [Category("WotCon")]
     [Category("Integration")]
-    [NonParallelizable]
     public sealed class WotLegacyMaterializationLiveTests
     {
         /// <summary>
@@ -78,6 +53,7 @@ namespace Opc.Ua.WotCon.Tests
             ISession? session = null;
             try
             {
+                await WotTestPki.SeedAsync(directory).ConfigureAwait(false);
                 server = await fixture.StartAsync(directory).ConfigureAwait(false);
                 var options = new WotConnectivityServerOptions
                 {
@@ -90,9 +66,11 @@ namespace Opc.Ua.WotCon.Tests
                     }
                 };
                 options.Bindings.Add(new SimulatedWotAssetProviderFactory());
-                await server.NodeManagerLifecycle.AddAsync(
-                    new WotConnectivityNodeManagerFactory(options), callerContext: null).ConfigureAwait(false);
+                await server.NodeManagerLifecycle.ApplyAsync(
+                    [LifecycleChange.Add(new WotConnectivityNodeManagerFactory(options))])
+                    .ConfigureAwait(false);
                 clientFixture = new ClientFixture(false, false, telemetry);
+                await WotTestPki.SeedAsync(directory).ConfigureAwait(false);
                 await clientFixture.LoadClientConfigurationAsync(directory).ConfigureAwait(false);
                 session = await clientFixture.ConnectAsync(
                     new Uri($"{Utils.UriSchemeOpcTcp}://localhost:{fixture.Port}"),

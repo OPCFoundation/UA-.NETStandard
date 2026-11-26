@@ -1,33 +1,8 @@
-/* ========================================================================
- * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
@@ -60,9 +35,10 @@ namespace AmbSample.Client
         public static async Task<SampleSession> ConnectAsync(
             AmbClientOptions options,
             ITelemetryContext telemetry,
-            CancellationToken cancellationToken)
+            CancellationToken cancellationToken,
+            string? expectedServerUri = null)
         {
-            string pkiRoot = GetPrivateStateRoot();
+            string pkiRoot = options.PkiRoot ?? GetPrivateStateRoot();
             var configuration = new ApplicationConfiguration(telemetry)
             {
                 ApplicationName = "AmbClient",
@@ -124,6 +100,16 @@ namespace AmbSample.Client
                         StatusCodes.BadTimeout,
                         "Could not reach {0}.",
                         options.ServerUrl);
+                if (!string.IsNullOrEmpty(expectedServerUri) &&
+                    !string.Equals(
+                        endpointDescription.Server?.ApplicationUri,
+                        expectedServerUri,
+                        StringComparison.Ordinal))
+                {
+                    throw new ServiceResultException(
+                        StatusCodes.BadServerUriInvalid,
+                        "The endpoint does not belong to the requested server application URI.");
+                }
 
                 ManagedSession session = await CreateSessionBuilder(
                     configuration, telemetry, options, endpointDescription)
@@ -246,5 +232,74 @@ namespace AmbSample.Client
         }
 
         private readonly ApplicationInstance m_application;
+    }
+
+    /// <summary>
+    /// Resolves explicitly configured remote server application URIs and owns
+    /// the sample sessions until the traversal finishes.
+    /// </summary>
+    internal sealed class SampleRemoteSessionResolver : IAsyncDisposable
+    {
+        /// <summary>
+        /// Creates the resolver.
+        /// </summary>
+        public SampleRemoteSessionResolver(AmbClientOptions options, ITelemetryContext telemetry)
+        {
+            m_options = options ?? throw new ArgumentNullException(nameof(options));
+            m_telemetry = telemetry ?? throw new ArgumentNullException(nameof(telemetry));
+        }
+
+        /// <summary>
+        /// Resolves a server application URI from the command-line mapping.
+        /// </summary>
+        public async Task<ManagedSession> ResolveAsync(string serverUri, CancellationToken cancellationToken)
+        {
+            if (m_sessions.TryGetValue(serverUri, out SampleSession? existing))
+            {
+                return existing.Session;
+            }
+            if (!m_options.RemoteServers.TryGetValue(serverUri, out string? endpointUrl))
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadServerUriInvalid,
+                    $"No endpoint URL was configured for remote server '{serverUri}'.");
+            }
+            SampleSession connection = await SampleSession.ConnectAsync(
+                m_options with { ServerUrl = endpointUrl },
+                m_telemetry,
+                cancellationToken,
+                serverUri).ConfigureAwait(false);
+            m_sessions.Add(serverUri, connection);
+            return connection.Session;
+        }
+
+        /// <inheritdoc/>
+        public async ValueTask DisposeAsync()
+        {
+            List<Exception>? failures = null;
+            foreach (SampleSession session in m_sessions.Values)
+            {
+                try
+                {
+                    await session.DisposeAsync().ConfigureAwait(false);
+                }
+                catch (Exception exception)
+                {
+                    (failures ??= []).Add(exception);
+                }
+            }
+            if (failures is { Count: 1 })
+            {
+                System.Runtime.ExceptionServices.ExceptionDispatchInfo.Capture(failures[0]).Throw();
+            }
+            if (failures is { Count: > 1 })
+            {
+                throw new AggregateException("One or more remote AMB sessions could not be disposed.", failures);
+            }
+        }
+
+        private readonly AmbClientOptions m_options;
+        private readonly ITelemetryContext m_telemetry;
+        private readonly Dictionary<string, SampleSession> m_sessions = new(StringComparer.Ordinal);
     }
 }

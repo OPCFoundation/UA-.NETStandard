@@ -1,31 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using System.Collections.Generic;
@@ -44,7 +18,7 @@ namespace Opc.Ua.Server
     /// here stay on <see cref="MasterNodeManager"/> so overrides, protected access, and
     /// the public API surface are unchanged.
     /// </summary>
-    public partial class MasterNodeManager
+    public partial class MasterNodeManager : IRequestRouting
     {
         /// <summary>
         /// Determine the required history access permission depending on the HistoryUpdateDetails
@@ -104,6 +78,51 @@ namespace Opc.Ua.Server
         }
 
         /// <inheritdoc/>
+        OperationContext.RoutingScope IRequestRouting.CaptureRequest(OperationContext context)
+        {
+            return m_serviceDispatch.CaptureRouting(context);
+        }
+
+        /// <inheritdoc/>
+        void IRequestRouting.PinRequest(OperationContext context)
+        {
+            // These services recapture routing after their mutation-admission wait.
+            if (context.RequestType is RequestType.AddNodes or
+                RequestType.DeleteNodes or
+                RequestType.AddReferences or
+                RequestType.DeleteReferences)
+            {
+                return;
+            }
+            context.PinRouting(m_nodeManagers);
+        }
+
+        /// <inheritdoc/>
+        ValueTask<(object? handle, IAsyncNodeManager? nodeManager)> IRequestRouting.GetManagerHandleAsync(
+            OperationContext context,
+            NodeId nodeId,
+            CancellationToken cancellationToken)
+        {
+            return m_serviceDispatch.GetManagerHandleAsync(context, nodeId, cancellationToken);
+        }
+
+        /// <inheritdoc/>
+        ValueTask<NodeState?> IRequestRouting.FindNodeInAddressSpaceAsync(
+            OperationContext context,
+            NodeId nodeId,
+            CancellationToken cancellationToken)
+        {
+            return m_serviceDispatch.FindNodeInAddressSpaceAsync(context, nodeId, cancellationToken);
+        }
+
+        /// <inheritdoc/>
+#if NET5_0_OR_GREATER
+        [Obsolete(SyncNodeManagerDeprecation.MasterSyncNodeManager,
+            DiagnosticId = SyncNodeManagerDeprecation.DiagnosticId,
+            UrlFormat = SyncNodeManagerDeprecation.UrlFormat)]
+#else
+        [Obsolete(SyncNodeManagerDeprecation.MasterSyncNodeManager)]
+#endif
         public virtual object? GetManagerHandle(NodeId nodeId, out INodeManager? nodeManager)
         {
             return m_serviceDispatch.GetManagerHandle(nodeId, out nodeManager);
@@ -146,7 +165,6 @@ namespace Opc.Ua.Server
             NodeId nodeId,
             CancellationToken cancellationToken = default)
         {
-            using IDisposable routing = m_nodeManagers.UseLiveRouting();
             (object? handle, IAsyncNodeManager? _) = await GetManagerHandleAsync(nodeId, cancellationToken)
                 .ConfigureAwait(false);
             return handle is not null;
@@ -443,7 +461,7 @@ namespace Opc.Ua.Server
         }
 
         /// <inheritdoc/>
-        public virtual async ValueTask CreateMonitoredItemsAsync(
+        public virtual ValueTask CreateMonitoredItemsAsync(
             OperationContext context,
             uint subscriptionId,
             double publishingInterval,
@@ -455,10 +473,7 @@ namespace Opc.Ua.Server
             bool createDurable,
             CancellationToken cancellationToken = default)
         {
-            await m_bindingSemaphore.WaitAsync(cancellationToken).ConfigureAwait(false);
-            using BindingAdmission admission = EnterBindingAdmission(context);
-            using IDisposable routing = m_nodeManagers.UseLiveRouting();
-            await m_serviceDispatch.CreateMonitoredItemsAsync(
+            return m_serviceDispatch.CreateMonitoredItemsAsync(
                 context,
                 subscriptionId,
                 publishingInterval,
@@ -468,7 +483,7 @@ namespace Opc.Ua.Server
                 filterResults,
                 monitoredItems,
                 createDurable,
-                cancellationToken).ConfigureAwait(false);
+                cancellationToken);
         }
 
         /// <inheritdoc/>
@@ -509,7 +524,7 @@ namespace Opc.Ua.Server
         }
 
         /// <inheritdoc/>
-        public virtual async ValueTask ModifyMonitoredItemsAsync(
+        public virtual ValueTask ModifyMonitoredItemsAsync(
             OperationContext context,
             TimestampsToReturn timestampsToReturn,
             IList<IMonitoredItem> monitoredItems,
@@ -518,17 +533,14 @@ namespace Opc.Ua.Server
             IList<MonitoringFilterResult> filterResults,
             CancellationToken cancellationToken = default)
         {
-            await m_bindingSemaphore.WaitAsync(cancellationToken).ConfigureAwait(false);
-            using BindingAdmission admission = EnterBindingAdmission(context);
-            using IDisposable routing = m_nodeManagers.UseLiveRouting();
-            await m_serviceDispatch.ModifyMonitoredItemsAsync(
+            return m_serviceDispatch.ModifyMonitoredItemsAsync(
                 context,
                 timestampsToReturn,
                 monitoredItems,
                 itemsToModify,
                 errors,
                 filterResults,
-                cancellationToken).ConfigureAwait(false);
+                cancellationToken);
         }
 
         /// <summary>
@@ -608,22 +620,19 @@ namespace Opc.Ua.Server
         }
 
         /// <inheritdoc/>
-        public virtual async ValueTask DeleteMonitoredItemsAsync(
+        public virtual ValueTask DeleteMonitoredItemsAsync(
             OperationContext context,
             uint subscriptionId,
             IList<IMonitoredItem> itemsToDelete,
             IList<ServiceResult> errors,
             CancellationToken cancellationToken = default)
         {
-            await m_bindingSemaphore.WaitAsync(cancellationToken).ConfigureAwait(false);
-            using BindingAdmission admission = EnterBindingAdmission(context, [.. itemsToDelete]);
-            using IDisposable routing = m_nodeManagers.UseLiveRouting();
-            await m_serviceDispatch.DeleteMonitoredItemsAsync(
+            return m_serviceDispatch.DeleteMonitoredItemsAsync(
                 context,
                 subscriptionId,
                 itemsToDelete,
                 errors,
-                cancellationToken).ConfigureAwait(false);
+                cancellationToken);
         }
 
         /// <inheritdoc/>
@@ -1029,11 +1038,31 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
-        /// Validates the role permissions
+        /// Validates the role permissions without the role permissions the server applies to
+        /// namespaces that configure none (<see cref="StandardServer.NamespaceDefaultRolePermissions"/>),
+        /// which only the server's own permission checks can supply.
         /// </summary>
+        /// <remarks>
+        /// <c>null</c> metadata imposes no restriction and returns Good. Callers that
+        /// must fail closed check for missing metadata themselves.
+        /// </remarks>
         protected internal static ServiceResult ValidateRolePermissions(
             OperationContext context,
-            NodeMetadata nodeMetadata,
+            NodeMetadata? nodeMetadata,
+            PermissionType requestedPermission,
+            ILogger? logger = null)
+        {
+            return ValidateRolePermissions(null, context, nodeMetadata, requestedPermission, logger);
+        }
+
+        /// <summary>
+        /// Validates the role permissions of metadata a node manager supplied, applying the role
+        /// permissions of <paramref name="server"/> for namespaces that configure none.
+        /// </summary>
+        internal static ServiceResult ValidateRolePermissions(
+            IServerInternal? server,
+            OperationContext context,
+            NodeMetadata? nodeMetadata,
             PermissionType requestedPermission,
             ILogger? logger = null)
         {
@@ -1044,6 +1073,7 @@ namespace Opc.Ua.Server
             }
 
             return ValidateRolePermissions(
+                server,
                 context,
                 PermissionMetadata.From(nodeMetadata),
                 requestedPermission,
@@ -1051,9 +1081,71 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
+        /// Validates the requested permission against the role permissions the server applies to
+        /// nodes that have none, for the roles granted to the caller.
+        /// </summary>
+        private static ServiceResult ValidateServerDefault(
+            OperationContext context,
+            NodeId nodeId,
+            ArrayOf<RolePermissionType> serverDefault,
+            PermissionType requestedPermission,
+            ILogger? logger)
+        {
+            ArrayOf<NodeId> grantedRoleIds = context?.UserIdentity?.GrantedRoleIds ?? default;
+            if (grantedRoleIds.IsEmpty)
+            {
+                logger?.CurrentUserHasNoGrantedRole();
+                return ServiceResult.Create(
+                    StatusCodes.BadUserAccessDenied,
+                    "Current user has no granted role.");
+            }
+
+            PermissionType actualPermissions = PermissionType.None;
+            for (int ii = 0; ii < serverDefault.Count; ii++)
+            {
+                RolePermissionType rolePermission = serverDefault[ii];
+                for (int jj = 0; jj < grantedRoleIds.Count; jj++)
+                {
+                    if (rolePermission.RoleId == grantedRoleIds[jj])
+                    {
+                        actualPermissions |= (PermissionType)rolePermission.Permissions;
+                        if ((actualPermissions & requestedPermission) == requestedPermission)
+                        {
+                            return StatusCodes.Good;
+                        }
+                        break;
+                    }
+                }
+            }
+
+            logger?.RolePermissionsValidationFailedForNodeNodeId(
+                nodeId,
+                requestedPermission,
+                actualPermissions);
+
+            return ServiceResult.Create(
+                StatusCodes.BadUserAccessDenied,
+                "The requested permission {0} is not granted for node id {1}.",
+                requestedPermission,
+                nodeId);
+        }
+
+        /// <summary>
+        /// The role permissions <paramref name="server"/> applies to a node without role
+        /// permissions in a namespace without default role permissions; empty when it applies none.
+        /// </summary>
+        internal static ArrayOf<RolePermissionType> GetNamespaceDefaultRolePermissions(IServerInternal? server)
+        {
+            return server is IServerNamespaceDefaultPermissionsProvider provider
+                ? provider.NamespaceDefaultRolePermissions
+                : default;
+        }
+
+        /// <summary>
         /// Validates the role permissions
         /// </summary>
         internal static ServiceResult ValidateRolePermissions(
+            IServerInternal? server,
             OperationContext context,
             in PermissionMetadata nodeMetadata,
             PermissionType requestedPermission,
@@ -1097,8 +1189,22 @@ namespace Opc.Ua.Server
 
             if (userRolePermissions.IsEmpty && rolePermissions.IsEmpty)
             {
-                // there is no restriction from role permissions
-                return StatusCodes.Good;
+                // neither the node nor its namespace restricts the node: the role permissions the
+                // server applies to such nodes decide. Namespace 0 carries its permissions on the
+                // nodes and never takes them. A node or namespace that grants roles anything,
+                // including through user role permissions only, is evaluated as configured.
+                ArrayOf<RolePermissionType> serverDefault = nodeMetadata.NodeId.NamespaceIndex != 0
+                    ? GetNamespaceDefaultRolePermissions(server)
+                    : default;
+                if (serverDefault.IsEmpty)
+                {
+                    // there is no restriction from role permissions
+                    return StatusCodes.Good;
+                }
+
+                // this is the check of every node a server without configured permissions
+                // serves: the few entries are compared directly, without the lookups below.
+                return ValidateServerDefault(context, nodeMetadata.NodeId, serverDefault, requestedPermission, logger);
             }
 
             // group all permissions defined in rolePermissions by RoleId

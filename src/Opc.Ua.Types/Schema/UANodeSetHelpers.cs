@@ -1,31 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using System.Collections.Generic;
@@ -756,7 +730,7 @@ namespace Opc.Ua.Export
                             : null;
                     if (options?.UseTypedReplacement?.Invoke(parent, instance) == true)
                     {
-                        AttachTypedChild(context, nodes, parent, instance, options);
+                        linkedChild = AttachTypedChild(context, nodes, parent, instance, options);
                     }
                     else if (bindDeclaredChild && TryAttachMethodArguments(parent, instance))
                     {
@@ -790,6 +764,10 @@ namespace Opc.Ua.Export
                     if (!linkedChild.NodeId.IsNull)
                     {
                         nodeTable[linkedChild.NodeId] = linkedChild;
+                    }
+                    if (!ReferenceEquals(linkedChild, instance))
+                    {
+                        options?.OnImportedNodeConverted?.Invoke(instance, linkedChild);
                     }
                 }
                 else
@@ -947,7 +925,16 @@ namespace Opc.Ua.Export
         /// Attaches an imported child to a parent which declares typed,
         /// explicitly defined children.
         /// </summary>
-        private static void AttachTypedChild(
+        /// <remarks>
+        /// A slot which cannot hold the imported child directly materializes a
+        /// typed child copied from it. That typed child then represents the
+        /// imported node, so the parent never exposes both under one NodeId.
+        /// </remarks>
+        /// <returns>
+        /// The node which represents the imported child in the parent: the
+        /// imported child itself or the typed child copied from it.
+        /// </returns>
+        private static BaseInstanceState AttachTypedChild(
             ISystemContext context,
             NodeStateCollection nodes,
             NodeState parent,
@@ -957,6 +944,7 @@ namespace Opc.Ua.Export
             bool explicitSlotFound = false;
             bool replaced = false;
             bool attached = false;
+            BaseInstanceState linkedChild = instance;
 
             BaseInstanceState? existingChild = parent.FindChild(context, instance.BrowseName);
             if (existingChild is not null && ContainsReference(nodes, existingChild))
@@ -973,13 +961,22 @@ namespace Opc.Ua.Export
                     context,
                     instance,
                     out BaseInstanceState? replacedChild,
+                    out BaseInstanceState? adoptedChild,
                     out explicitSlotFound);
                 if (replaced)
                 {
+                    if (adoptedChild is not null && !ReferenceEquals(adoptedChild, instance))
+                    {
+                        // The slot copied the imported child into a typed
+                        // child, which takes its place from now on.
+                        PreserveImportedMetadata(instance, adoptedChild);
+                        instance.Parent = null;
+                        linkedChild = adoptedChild;
+                    }
                     if (replacedChild is not null)
                     {
                         // An empty slot displaces nothing.
-                        options.OnTypedReplacement?.Invoke(replacedChild, instance);
+                        options.OnTypedReplacement?.Invoke(replacedChild, linkedChild);
                     }
                     attached = true;
                 }
@@ -1001,8 +998,10 @@ namespace Opc.Ua.Export
             }
 
             if (replaced &&
-                !ReferenceEquals(parent.FindChild(context, instance.BrowseName), instance))
+                !ReferenceEquals(parent.FindChild(context, instance.BrowseName), linkedChild))
             {
+                // The slot holds neither the imported child nor a typed child
+                // copied from it.
                 throw ServiceResultException.Create(
                     StatusCodes.BadTypeMismatch,
                     "Typed parent '{0}' did not retain imported child '{1}'. " +
@@ -1010,6 +1009,7 @@ namespace Opc.Ua.Export
                     parent.NodeId,
                     instance.NodeId);
             }
+            return linkedChild;
         }
 
         private static bool ContainsReference(NodeStateCollection nodes, NodeState candidate)

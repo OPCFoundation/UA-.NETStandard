@@ -1,31 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using System.Formats.Asn1;
@@ -86,7 +60,7 @@ namespace Opc.Ua.Security.Certificates
             Oid = new Oid(CrlNumberOid, kFriendlyName);
             Critical = false;
             CrlNumber = crlNumber;
-            RawData = Encode();
+            SetRawData(Encode());
         }
 
         /// <summary>
@@ -103,6 +77,16 @@ namespace Opc.Ua.Security.Certificates
         }
 
         /// <summary>
+        /// Replaces the encoded value while keeping the current Oid and
+        /// Critical flag. The RawData setter is obsolete (SYSLIB0065) on
+        /// .NET 11; the base CopyFrom is the supported way on every target.
+        /// </summary>
+        private void SetRawData(byte[] rawData)
+        {
+            base.CopyFrom(new X509Extension(Oid!, rawData, Critical));
+        }
+
+        /// <summary>
         /// Initializes the extension from ASN.1 encoded data.
         /// </summary>
         /// <exception cref="ArgumentNullException"><paramref name="asnEncodedData"/> is <c>null</c>.</exception>
@@ -114,7 +98,7 @@ namespace Opc.Ua.Security.Certificates
             }
 
             Oid = asnEncodedData.Oid;
-            RawData = asnEncodedData.RawData;
+            SetRawData(asnEncodedData.RawData);
             Decode(RawData);
         }
 

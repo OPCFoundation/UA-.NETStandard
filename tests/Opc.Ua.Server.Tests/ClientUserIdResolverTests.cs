@@ -1,31 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using System.Collections.Generic;
@@ -33,6 +7,7 @@ using System.Text;
 using Moq;
 using NUnit.Framework;
 using Opc.Ua.Security.Certificates;
+using Opc.Ua.Tests;
 
 namespace Opc.Ua.Server.Tests
 {
@@ -246,6 +221,67 @@ namespace Opc.Ua.Server.Tests
                 Is.EqualTo("a"));
         }
 
+        [Test]
+        public void ResolveIdentityUsesUserNameAndIsNullForAnonymous()
+        {
+            var identity = new UserIdentity("operator", [])
+            {
+                DisplayName = "Operator Display Name"
+            };
+
+            Assert.That(ClientUserIdResolver.ResolveIdentity(identity), Is.EqualTo("operator"));
+            Assert.That(ClientUserIdResolver.ResolveIdentity(new UserIdentity()), Is.Null);
+            Assert.That(ClientUserIdResolver.ResolveIdentity(null), Is.Null);
+        }
+
+        [Test]
+        public void ResolveRequestedUsesTheRequestedUserName()
+        {
+            var token = new UserNameIdentityToken
+            {
+                UserName = "intruder",
+                Password = ByteString.Empty
+            };
+
+            Assert.That(ClientUserIdResolver.ResolveRequested(token), Is.EqualTo("intruder"));
+        }
+
+        [Test]
+        public void ResolveRequestedIsNullForAnonymousOrMissingToken()
+        {
+            Assert.That(ClientUserIdResolver.ResolveRequested(new AnonymousIdentityToken()), Is.Null);
+            Assert.That(ClientUserIdResolver.ResolveRequested(null), Is.Null);
+        }
+
+        [Test]
+        public void ResolveRequestedIsNullForX509TokenWithInvalidCertificate()
+        {
+            var token = new X509IdentityToken
+            {
+                CertificateData = new byte[] { 1, 2, 3 }.ToByteString()
+            };
+
+            Assert.That(ClientUserIdResolver.ResolveRequested(token), Is.Null);
+        }
+
+        [Test]
+        public void ResolveRequestedReadsIssuerAndSubjectOfUnencryptedJwt()
+        {
+            var token = new IssuedIdentityToken
+            {
+                PolicyId = Profiles.JwtUserToken,
+                TokenData = CreateJwt(Base64UrlEncode(
+                    "{\"iss\":\"https://issuer.example/\",\"sub\":\"subject-7\"}")).ToByteString()
+            };
+
+            Assert.That(
+                ClientUserIdResolver.ResolveRequested(token),
+                Is.EqualTo("https://issuer.example/subject-7"));
+
+            token.EncryptionAlgorithm = SecurityAlgorithms.RsaOaep;
+            Assert.That(ClientUserIdResolver.ResolveRequested(token), Is.Null);
+        }
+
         /// <summary>
         /// Builds a JWT whose payload segment is used verbatim, so that malformed
         /// segments can be exercised.
@@ -358,6 +394,45 @@ namespace Opc.Ua.Server.Tests
                 Assert.That(resolved, Is.False);
                 Assert.That(continuityKey, Is.Null);
             });
+        }
+
+        [Test]
+        public void SystemContextWithoutOperationUsesIssuedTokenIssuerAndSubject()
+        {
+            (_, JwtUserIdentity identity) = CreateIssuedIdentity("https://issuer.example/", "subject");
+            var context = new SessionSystemContext(NUnitTelemetryContext.Create())
+            {
+                UserIdentity = identity
+            };
+
+            Assert.That(context.ClientUserId, Is.EqualTo("https://issuer.example/subject"));
+            Assert.That(context.UserId, Is.EqualTo("https://issuer.example/subject"));
+        }
+
+        [Test]
+        public void SystemContextWithoutOperationLooksThroughRoles()
+        {
+            (_, JwtUserIdentity identity) = CreateIssuedIdentity("https://issuer.example/", "subject");
+            var context = new SessionSystemContext(NUnitTelemetryContext.Create())
+            {
+                UserIdentity = new RoleBasedIdentity(identity, [Role.AuthenticatedUser], new NamespaceTable())
+            };
+
+            Assert.That(context.ClientUserId, Is.EqualTo("https://issuer.example/subject"));
+        }
+
+        [Test]
+        public void SystemContextWithoutOperationUsesDisplayNameOnlyWithoutTokenOrClaims()
+        {
+            var identity = new Mock<IUserIdentity>();
+            identity.SetupGet(i => i.TokenType).Returns(UserTokenType.UserName);
+            identity.SetupGet(i => i.DisplayName).Returns("display");
+            var context = new SessionSystemContext(NUnitTelemetryContext.Create())
+            {
+                UserIdentity = identity.Object
+            };
+
+            Assert.That(context.ClientUserId, Is.EqualTo("display"));
         }
 
         private static string? ResolveIssuedTokenContinuityKey(string? issuer, string subject)

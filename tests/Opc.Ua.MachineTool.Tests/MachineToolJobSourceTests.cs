@@ -1,31 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using System.Collections.Generic;
@@ -117,6 +91,10 @@ namespace Opc.Ua.MachineTool.Tests
             }));
             Success(await source.ReceiveJobOrderAsync(Isa95JobOrderOperationV2.StoreAndStart, Order())
                 .ConfigureAwait(false));
+            Assert.That((await source.TransitionAsync("Job-1", Isa95JobExecutionTransition.BeginExecution)
+                .ConfigureAwait(false)).ReturnStatus, Is.EqualTo(Isa95JobReturnStatus.InvalidStatus));
+            Success(await source.TransitionAsync("Job-1", Isa95JobExecutionTransition.MarkReady)
+                .ConfigureAwait(false));
             Success(await source.TransitionAsync("Job-1", Isa95JobExecutionTransition.BeginExecution)
                 .ConfigureAwait(false));
             Success(await source.ReceiveJobOrderAsync(Isa95JobOrderOperationV2.Pause, Order()).ConfigureAwait(false));
@@ -167,15 +145,15 @@ namespace Opc.Ua.MachineTool.Tests
                 Assert.That(capture.Snapshot, Is.SameAs(snapshot));
                 history.Add(snapshot);
             }).ConfigureAwait(false);
-            Assert.That(history, Has.Count.EqualTo(11));
+            Assert.That(history, Has.Count.EqualTo(12));
             for (int i = 0; i < history.Count; i++)
             {
                 Assert.That(history[i].Revision, Is.EqualTo((ulong)i));
             }
-            Assert.That(history[5].Production.Jobs[0].PartSets[0].Sample, Is.EqualTo(Acquired));
-            Assert.That(history[8].Production.Jobs[0].TransitionSequence, Is.EqualTo(5));
-            Assert.That(history[9].Production.Jobs[0], Is.EqualTo(history[8].Production.Jobs[0]));
-            Assert.That(history[10].Production.Jobs, Is.Empty);
+            Assert.That(history[6].Production.Jobs[0].PartSets[0].Sample, Is.EqualTo(Acquired));
+            Assert.That(history[9].Production.Jobs[0].TransitionSequence, Is.EqualTo(5));
+            Assert.That(history[10].Production.Jobs[0], Is.EqualTo(history[9].Production.Jobs[0]));
+            Assert.That(history[11].Production.Jobs, Is.Empty);
         }
 
         /// <summary>
@@ -366,6 +344,8 @@ namespace Opc.Ua.MachineTool.Tests
         internal static async ValueTask StartExecutingAsync(MachineToolJobSource source)
         {
             Success(await source.ReceiveJobOrderAsync(Isa95JobOrderOperationV2.StoreAndStart, Order())
+                .ConfigureAwait(false));
+            Success(await source.TransitionAsync("Job-1", Isa95JobExecutionTransition.MarkReady)
                 .ConfigureAwait(false));
             Success(await source.TransitionAsync("Job-1", Isa95JobExecutionTransition.BeginExecution)
                 .ConfigureAwait(false));

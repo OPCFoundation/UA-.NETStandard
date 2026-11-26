@@ -1,31 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using System.Buffers;
@@ -63,6 +37,7 @@ namespace Opc.Ua
             Context = context ?? throw new ArgumentNullException(nameof(context));
             m_options = options ?? new JsonDecoderOptions();
             m_logger = context.Telemetry.CreateLogger<JsonDecoder>();
+            m_inputLength = utf8Json.Length;
             try
             {
                 m_document = JsonDocument.Parse(
@@ -93,6 +68,7 @@ namespace Opc.Ua
                 m_document = JsonDocument.Parse(
                     stream,
                     ParseOptions(Context.MaxEncodingNestingLevels));
+                m_inputLength = stream.CanSeek ? stream.Position : 0;
                 CheckDuplicateProperties(m_document);
                 m_stack.Push(m_document.RootElement);
             }
@@ -118,6 +94,7 @@ namespace Opc.Ua
                 m_document = JsonDocument.Parse(
                     json,
                     ParseOptions(Context.MaxEncodingNestingLevels));
+                m_inputLength = json.Length;
                 CheckDuplicateProperties(m_document);
                 m_stack.Push(m_document.RootElement);
             }
@@ -1712,7 +1689,7 @@ namespace Opc.Ua
                     }
                     // Verbose encoding
                     // https://reference.opcfoundation.org/Core/Part6/v105/docs/5.4.4.1.2
-                    int split = text.LastIndexOf('_');
+                    int split = text.LastIndexOf('_', StringComparison.Ordinal);
                     string? symbol = text;
                     if (split >= 0)
                     {
@@ -1771,7 +1748,7 @@ namespace Opc.Ua
                     CheckStringLength(text);
                     // Verbose encoding
                     // https://reference.opcfoundation.org/Core/Part6/v105/docs/5.4.4.1.2
-                    int split = text.LastIndexOf('_');
+                    int split = text.LastIndexOf('_', StringComparison.Ordinal);
                     // Without a separator there is no symbolic name. Taking the
                     // whole text as the symbol made a bare "5" re-encode as "5_5".
                     string? symbol = null;
@@ -2675,7 +2652,7 @@ namespace Opc.Ua
                 // Without the ';' that separates a NamespaceUri from the name
                 // only the <name> form of Table 7 matches: a name in
                 // namespace 0.
-                int index = text.IndexOf(';', 4);
+                int index = text.IndexOf(';', 4, StringComparison.Ordinal);
                 if (index >= 0 &&
                     CoreUtils.TryUnescapeUri(text.AsSpan()[4..index], out string? namespaceUri) &&
                     !string.IsNullOrWhiteSpace(namespaceUri))
@@ -3032,11 +3009,23 @@ namespace Opc.Ua
                                         // The embedded body continues this message's
                                         // nesting budget (approximated by the JSON
                                         // element depth) and spans the whole buffer.
+                                        // The bodies of one message share the
+                                        // limit of the encodeables they decode,
+                                        // which is that of the whole message: its
+                                        // length, or, when unknown, the bytes of
+                                        // all bodies.
+                                        m_binaryBodyRecoveries ??= new DecoderRecoveries();
+                                        m_binaryBodyBytes += body.Length;
+                                        m_binaryBodyRecoveries.RaiseEncodeableLimit(
+                                            BinaryDecoder.GetEncodeableLimit(
+                                                Context,
+                                                Math.Max(m_inputLength, m_binaryBodyBytes)));
                                         decoder.InheritDecodingState(
                                             m_namespaceMappings,
                                             m_serverMappings,
                                             (uint)m_stack.Count,
-                                            body.Length);
+                                            body.Length,
+                                            m_binaryBodyRecoveries);
                                         value = decoder.ReadEncodeable<T>(null, typeId);
                                         if (decoder.Position != body.Length)
                                         {
@@ -3204,7 +3193,7 @@ namespace Opc.Ua
                     typeof(T).Name);
             }
             value = instance;
-            return TryGetEncodeableFromElement(value, element);
+            return TryGetEncodeableFromElement(ref value, element);
         }
 
         /// <summary>
@@ -3216,7 +3205,7 @@ namespace Opc.Ua
             where T : IEncodeable, new()
         {
             value = new T();
-            return TryGetEncodeableFromElement(value, element);
+            return TryGetEncodeableFromElement(ref value, element);
         }
 
         /// <summary>
@@ -3224,7 +3213,11 @@ namespace Opc.Ua
         /// </summary>
         /// <typeparam name="T"></typeparam>
         /// <exception cref="ServiceResultException"></exception>
-        internal bool TryGetEncodeableFromElement<T>(T encodeable, JsonElement element)
+        /// <remarks>
+        /// The encodeable is passed by reference so that a value type is decoded in place
+        /// instead of into a copy.
+        /// </remarks>
+        internal bool TryGetEncodeableFromElement<T>(ref T encodeable, JsonElement element)
             where T : IEncodeable
         {
             switch (element.ValueKind)
@@ -4841,6 +4834,11 @@ namespace Opc.Ua
         private readonly ILogger m_logger;
         private ushort[]? m_namespaceMappings;
         private ushort[]? m_serverMappings;
+
+        // Shared by the decoders of the binary bodies embedded in this message.
+        private DecoderRecoveries? m_binaryBodyRecoveries;
+        private long m_binaryBodyBytes;
+        private readonly long m_inputLength;
         private readonly Stack<JsonElement> m_stack = new();
         private readonly JsonDocument m_document;
         private readonly JsonDecoderOptions m_options;

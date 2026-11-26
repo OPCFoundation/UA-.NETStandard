@@ -1,31 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 #if NET8_0_OR_GREATER
 using System;
@@ -143,7 +117,25 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             {
                 if (handle is not null)
                 {
-                    await host.RemoveAsync(handle, CancellationToken.None).ConfigureAwait(false);
+                    var entered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+                    var release = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+                    channels.Channels[0].BeforeDisposeAsync = () =>
+                    {
+                        entered.TrySetResult(true);
+                        return new ValueTask(release.Task);
+                    };
+                    Task removal = host.RemoveAsync(handle, CancellationToken.None).AsTask();
+                    try
+                    {
+                        await entered.Task.WaitAsync(ct).ConfigureAwait(false);
+                        Assert.That(removal.IsCompleted, Is.False,
+                            "Direct removal must await disposal, not only routing publication.");
+                    }
+                    finally
+                    {
+                        release.TrySetResult(true);
+                        await removal.ConfigureAwait(false);
+                    }
                 }
             }
             Assert.That(channels.Channels[0].DisposeCount, Is.EqualTo(1));
@@ -435,11 +427,23 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             }
             finally
             {
-                await host.RemoveAsync(active, CancellationToken.None).ConfigureAwait(false);
+                await RemoveAndRetireAsync(active).ConfigureAwait(false);
             }
             WotProjectionHandle recovered = await host.AddAsync(desired, ct).ConfigureAwait(false);
-            await host.RemoveAsync(recovered, CancellationToken.None).ConfigureAwait(false);
+            await RemoveAndRetireAsync(recovered).ConfigureAwait(false);
             Assert.That(channels.Channels.TrueForAll(channel => channel.DisposeCount == 1), Is.True);
+
+            async Task RemoveAndRetireAsync(WotProjectionHandle projection)
+            {
+                using var cleanup = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+                NodeManagerRegistration? registration = destination.Server.NodeManagerLifecycle.Registrations.Find(
+                    value => value.Id == projection.Registration!.Id);
+                Assert.That(registration, Is.Not.Null);
+                LifecycleResult? result = await host.RemoveAsync(projection, cleanup.Token).ConfigureAwait(false);
+                Assert.That(result, Is.Not.Null);
+                Assert.That(result!.CleanupFailure, Is.Null);
+                await result.Retired.WaitAsync(cleanup.Token).ConfigureAwait(false);
+            }
         }
 
         private static UAVariable ActivationTypeProperty()
@@ -512,6 +516,11 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             /// Gets or sets the dispose count for <c>ActivationChannel</c>.
             /// </summary>
             public int DisposeCount { get; private set; }
+
+            /// <summary>
+            /// Gets or sets the callback that holds disposal before the inner channel is released.
+            /// </summary>
+            public Func<ValueTask>? BeforeDisposeAsync { get; set; }
 
             /// <inheritdoc/>
             /// <param name="cancellationToken">The cancellation token supplied by the caller.</param>
@@ -609,6 +618,10 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             public async ValueTask DisposeAsync()
             {
                 DisposeCount++;
+                if (BeforeDisposeAsync is { } beforeDispose)
+                {
+                    await beforeDispose().ConfigureAwait(false);
+                }
                 await inner.DisposeAsync().ConfigureAwait(false);
             }
         }

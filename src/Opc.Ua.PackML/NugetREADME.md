@@ -29,8 +29,11 @@ optional PackML `State` machine.
 
 ## Target frameworks
 
-net48, net8.0, net9.0, net10.0
+net48, net10.0, net11.0
 
 ## Additional documentation
 
-See the [Scales developer guide](https://github.com/OPCFoundation/UA-.NETStandard/blob/master/docs/Scales.md).
+See the [PackML guide](https://github.com/OPCFoundation/UA-.NETStandard/blob/master/docs/PackML.md)
+for standalone provider hosting and typed clients, and the
+[Scales developer guide](https://github.com/OPCFoundation/UA-.NETStandard/blob/master/docs/Scales.md)
+for weighing-technology composition.

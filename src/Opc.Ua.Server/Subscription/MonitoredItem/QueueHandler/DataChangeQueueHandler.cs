@@ -1,31 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using System.Collections.Generic;
@@ -233,22 +207,27 @@ namespace Opc.Ua.Server
         /// <param name="samplingInterval">the sampling interval</param>
         public void SetSamplingInterval(double samplingInterval)
         {
-            // substract the previous sampling interval.
-            if (m_samplingInterval < m_nextSampleTime)
-            {
-                m_nextSampleTime -= m_samplingInterval;
-            }
-
-            // calculate the next sampling interval.
+            long previousInterval = m_samplingInterval;
             m_samplingInterval = (long)samplingInterval;
 
-            if (m_samplingInterval > 0)
-            {
-                m_nextSampleTime += m_samplingInterval;
-            }
-            else
+            if (m_samplingInterval <= 0)
             {
                 m_nextSampleTime = 0;
+                return;
+            }
+
+            // Zero means no sample has been queued yet: the first QueueValue anchors the
+            // next sample time to the current clock. Only an absolute next sample time is
+            // rebased onto the new interval; a relative interval must never be used as an
+            // absolute timestamp, or samples coalesce while the host clock is below it.
+            if (m_nextSampleTime > 0)
+            {
+                if (previousInterval <= m_nextSampleTime)
+                {
+                    m_nextSampleTime -= previousInterval;
+                }
+
+                m_nextSampleTime += m_samplingInterval;
             }
         }
 
@@ -296,7 +275,7 @@ namespace Opc.Ua.Server
 
                     m_logger.OVERWRITTENVALUETOOSOONFORANOTHERSAMPLE(
                         overwrittenValue.WrappedValue,
-                        overwrittenValue.StatusCode.Code,
+                        overwrittenValue.StatusCodeValue,
                         m_samplingInterval,
                         now,
                         m_nextSampleTime);
@@ -634,7 +613,7 @@ namespace Opc.Ua.Server
         /// </summary>
         /// <param name="value">The value that is not queued.</param>
         /// <param name="markerIndex">The marker's unchanged position after dropping the incoming value.</param>
-        private void DiscardIncomingValue(DataValue value, int markerIndex)
+        private void DiscardIncomingValue(in DataValue value, int markerIndex)
         {
             m_discardedValueHandler?.Invoke();
             ServerUtils.ReportDiscardedValue(default, m_monitoredItemId, value);

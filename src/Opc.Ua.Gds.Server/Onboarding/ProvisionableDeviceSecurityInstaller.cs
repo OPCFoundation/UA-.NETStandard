@@ -1,26 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person obtaining a copy
- * of this software and associated documentation files (the "Software"), to deal
- * in the Software without restriction, including without limitation the rights
- * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the Software is
- * furnished to do so, subject to the following conditions:
- *
- * The above copyright notice and this permission notice shall be included in
- * all copies or substantial portions of the Software.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
- * OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL
- * THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
- * IN THE SOFTWARE.
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using System.IO;
@@ -45,6 +24,21 @@ namespace Opc.Ua.Gds.Server.Onboarding
         /// Security reset does not clear or modify this state.
         /// </summary>
         ValueTask RequireReadyAsync(string applicationUri, CancellationToken cancellationToken = default);
+    }
+
+    /// <summary>
+    /// Retrieves a private key retained independently for one pull signing attempt.
+    /// </summary>
+    public interface IProvisionableDevicePullKeyProvider
+    {
+        /// <summary>
+        /// Returns an independently owned key handle for the received certificate and active attempt, or null
+        /// when no matching key exists. Retrieval must not consume the retained key.
+        /// </summary>
+        ValueTask<Certificate?> GetSigningKeyAsync(
+            Guid attemptId,
+            ByteString issuedCertificate,
+            CancellationToken cancellationToken = default);
     }
 
     /// <summary>
@@ -84,6 +78,7 @@ namespace Opc.Ua.Gds.Server.Onboarding
     /// </summary>
     public sealed class ProvisionableDeviceSecurityInstaller :
         IProvisionableDeviceSecurityInstaller,
+        IProvisionableDevicePullSecurityInstaller,
         IProvisionableDeviceSecurityDefaults,
         IProvisionableDeviceAppliedSecurity,
         IDisposable
@@ -103,6 +98,27 @@ namespace Opc.Ua.Gds.Server.Onboarding
             ProvisionableDeviceSecurityInstallerOptions options,
             ITelemetryContext telemetry,
             IProvisionableDeviceSoftwareUpdatePolicy? softwareUpdates = null)
+            : this(
+                secrets, scope, applicationUri, certificates, stores, pendingKeys, activator,
+                options, telemetry, softwareUpdates, null)
+        {
+        }
+
+        /// <summary>
+        /// Also uses an optional non-consuming provider for attempt-bound pull signing keys.
+        /// </summary>
+        public ProvisionableDeviceSecurityInstaller(
+            ISecretStore secrets,
+            string scope,
+            string applicationUri,
+            ICertificateManager certificates,
+            ICertificateStoreResolver stores,
+            IPendingCertificateKeyStore pendingKeys,
+            IServerApplicationCertificateActivator activator,
+            ProvisionableDeviceSecurityInstallerOptions options,
+            ITelemetryContext telemetry,
+            IProvisionableDeviceSoftwareUpdatePolicy? softwareUpdates,
+            IProvisionableDevicePullKeyProvider? pullKeys)
         {
             m_secrets = secrets ?? throw new ArgumentNullException(nameof(secrets));
             m_certificates = certificates ?? throw new ArgumentNullException(nameof(certificates));
@@ -110,6 +126,7 @@ namespace Opc.Ua.Gds.Server.Onboarding
             m_pendingKeys = pendingKeys ?? throw new ArgumentNullException(nameof(pendingKeys));
             m_activator = activator ?? throw new ArgumentNullException(nameof(activator));
             m_softwareUpdates = softwareUpdates;
+            m_pullKeys = pullKeys;
             if (options == null)
             {
                 throw new ArgumentNullException(nameof(options));
@@ -259,25 +276,147 @@ namespace Opc.Ua.Gds.Server.Onboarding
             ProvisionableDeviceCredentials credentials,
             CancellationToken cancellationToken = default)
         {
+            await InstallAsync(credentials, null, cancellationToken).ConfigureAwait(false);
+        }
+
+        /// <inheritdoc/>
+        public async ValueTask InstallForPullAsync(
+            Guid attemptId,
+            ProvisionableDeviceCredentials credentials,
+            CancellationToken cancellationToken = default)
+        {
+            if (attemptId == Guid.Empty)
+            {
+                throw new ArgumentException("A pull attempt is required.", nameof(attemptId));
+            }
+            await InstallAsync(credentials, attemptId, cancellationToken).ConfigureAwait(false);
+        }
+
+        /// <inheritdoc/>
+        public async ValueTask RequirePullKeyAsync(
+            Guid attemptId,
+            ByteString certificate,
+            CancellationToken cancellationToken = default)
+        {
+            if (attemptId == Guid.Empty)
+            {
+                throw new ArgumentException("A pull attempt is required.", nameof(attemptId));
+            }
+            certificate = CopyByteString(certificate);
+            using Certificate publicCertificate = Certificate.FromRawData(certificate);
+            ValidateCertificate(publicCertificate);
+            using Certificate paired = await CreatePullCertificateWithPrivateKeyAsync(
+                attemptId, publicCertificate, cancellationToken).ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// Snapshots public credentials and serializes installation with reset.
+        /// </summary>
+        private async ValueTask InstallAsync(
+            ProvisionableDeviceCredentials credentials,
+            Guid? attemptId,
+            CancellationToken cancellationToken)
+        {
             if (credentials == null)
             {
                 throw new ArgumentNullException(nameof(credentials));
             }
+            if (credentials.TrustList == null)
+            {
+                throw new ServiceResultException(StatusCodes.BadSecurityChecksFailed);
+            }
+            TrustListDataType trust = credentials.TrustList;
             var snapshot = new ProvisionableDeviceCredentials(
-                ByteString.From(credentials.Certificate.Span),
-                credentials.IssuerCertificates.ToList()
-                    .Select(static certificate => ByteString.From(certificate.Span)).ToArrayOf(),
-                CoreUtils.Clone(credentials.TrustList)!);
+                CopyByteString(credentials.Certificate),
+                CopyByteStrings(credentials.IssuerCertificates),
+                new TrustListDataType
+                {
+                    SpecifiedLists = trust.SpecifiedLists,
+                    TrustedCertificates = CopyByteStrings(trust.TrustedCertificates),
+                    TrustedCrls = CopyByteStrings(trust.TrustedCrls),
+                    IssuerCertificates = CopyByteStrings(trust.IssuerCertificates),
+                    IssuerCrls = CopyByteStrings(trust.IssuerCrls)
+                });
 
             await m_gate.WaitAsync(cancellationToken).ConfigureAwait(false);
             try
             {
-                await InstallCoreAsync(snapshot, cancellationToken).ConfigureAwait(false);
+                await InstallCoreAsync(snapshot, attemptId, cancellationToken).ConfigureAwait(false);
             }
             finally
             {
                 m_gate.Release();
             }
+        }
+
+        /// <inheritdoc/>
+        public async ValueTask VerifyInstalledPullKeyAsync(
+            ByteString certificate,
+            CancellationToken cancellationToken = default)
+        {
+            if (certificate.IsEmpty)
+            {
+                throw new ArgumentException("The installed certificate is required.", nameof(certificate));
+            }
+            certificate = ByteString.From(certificate.Span);
+            await m_gate.WaitAsync(cancellationToken).ConfigureAwait(false);
+            try
+            {
+                using Certificate expected = Certificate.FromRawData(certificate);
+                using CertificateEntry? current = m_certificates
+                    .AcquireApplicationCertificateByType(ApplicationCertificateType);
+                if (current == null || !current.Certificate.HasPrivateKey ||
+                    !current.Certificate.RawData.AsSpan().SequenceEqual(certificate.Span))
+                {
+                    throw new ServiceResultException(
+                        StatusCodes.BadSecurityChecksFailed,
+                        "The active DCA certificate differs from the pull receipt.");
+                }
+                using ICertificateStore store = OpenStore(
+                    ApplicationStorePath, ApplicationStoreType, noPrivateKeys: false);
+                char[]? password = PasswordFor(ApplicationCertificateIdentifier);
+                try
+                {
+                    await RequireStoredApplicationKeyAsync(store, expected, password, cancellationToken)
+                        .ConfigureAwait(false);
+                }
+                finally
+                {
+                    if (password != null)
+                    {
+                        Array.Clear(password, 0, password.Length);
+                    }
+                }
+            }
+            finally
+            {
+                m_gate.Release();
+            }
+        }
+
+        /// <summary>
+        /// Copies a byte string without changing its OPC UA null value.
+        /// </summary>
+        private static ByteString CopyByteString(ByteString value)
+        {
+            return value.IsNull ? default : ByteString.From(value.Span);
+        }
+
+        /// <summary>
+        /// Copies an array and its elements without changing its OPC UA null value.
+        /// </summary>
+        private static ArrayOf<ByteString> CopyByteStrings(ArrayOf<ByteString> values)
+        {
+            if (values.IsNull)
+            {
+                return default;
+            }
+            var copy = new ByteString[values.Count];
+            for (int i = 0; i < values.Count; i++)
+            {
+                copy[i] = CopyByteString(values[i]);
+            }
+            return copy;
         }
 
         /// <inheritdoc/>
@@ -351,6 +490,7 @@ namespace Opc.Ua.Gds.Server.Onboarding
         /// </summary>
         private async ValueTask InstallCoreAsync(
             ProvisionableDeviceCredentials credentials,
+            Guid? attemptId,
             CancellationToken ct)
         {
             using Certificate publicCertificate = Certificate.FromRawData(credentials.Certificate);
@@ -360,6 +500,10 @@ namespace Opc.Ua.Gds.Server.Onboarding
             {
                 await m_softwareUpdates.RequireReadyAsync(m_applicationUri, ct).ConfigureAwait(false);
             }
+            using Certificate? pullCertificate = attemptId.HasValue
+                ? await CreatePullCertificateWithPrivateKeyAsync(
+                    attemptId.Value, publicCertificate, ct).ConfigureAwait(false)
+                : null;
 
             using CertificateEntry? current = m_certificates
                 .AcquireApplicationCertificateByType(ApplicationCertificateType);
@@ -367,12 +511,10 @@ namespace Opc.Ua.Gds.Server.Onboarding
             await CaptureDefaultTrustListAsync(current, identity, ct).ConfigureAwait(false);
 
             using CertificateCollection issuers = DecodeCertificates(credentials.IssuerCertificates);
-            (Certificate pairedCertificateHandle, Certificate? claimedPendingKey) =
-                await CreateCertificateWithPrivateKeyAsync(
-                    publicCertificate,
-                    current,
-                    identity,
-                    ct).ConfigureAwait(false);
+            (Certificate pairedCertificateHandle, Certificate? claimedPendingKey) = attemptId.HasValue
+                ? (pullCertificate!.AddRef(), null)
+                : await CreateCertificateWithPrivateKeyAsync(
+                    publicCertificate, current, identity, ct).ConfigureAwait(false);
             using Certificate pairedCertificate = pairedCertificateHandle;
             using (claimedPendingKey)
             {
@@ -389,11 +531,24 @@ namespace Opc.Ua.Gds.Server.Onboarding
                         trustList,
                         TrustListMasks.All,
                         ct).ConfigureAwait(false);
-                    await EnsureCertificateStoredAsync(
-                        applicationStore,
-                        pairedCertificate,
-                        PasswordFor(ApplicationCertificateIdentifier),
-                        ct).ConfigureAwait(false);
+                    char[]? password = PasswordFor(ApplicationCertificateIdentifier);
+                    try
+                    {
+                        await EnsureCertificateStoredAsync(applicationStore, pairedCertificate, password, ct)
+                            .ConfigureAwait(false);
+                        if (attemptId.HasValue)
+                        {
+                            await RequireStoredApplicationKeyAsync(applicationStore, pairedCertificate, password, ct)
+                                .ConfigureAwait(false);
+                        }
+                    }
+                    finally
+                    {
+                        if (password != null)
+                        {
+                            Array.Clear(password, 0, password.Length);
+                        }
+                    }
 
                     await m_certificates.UpdateApplicationCertificateAsync(
                         ApplicationCertificateType,
@@ -421,6 +576,27 @@ namespace Opc.Ua.Gds.Server.Onboarding
                     throw;
                 }
             }
+        }
+
+        /// <summary>
+        /// Borrows the exact attempt's independently retained key without consuming it.
+        /// </summary>
+        private async ValueTask<Certificate> CreatePullCertificateWithPrivateKeyAsync(
+            Guid attemptId,
+            Certificate certificate,
+            CancellationToken ct)
+        {
+            IProvisionableDevicePullKeyProvider pullKeys = m_pullKeys ??
+                throw new ServiceResultException(
+                    StatusCodes.BadNotSupported, "The retained pull signing key cannot be recovered.");
+            using Certificate? retained = await pullKeys.GetSigningKeyAsync(
+                attemptId, ByteString.From(certificate.RawData.AsSpan()), ct).ConfigureAwait(false);
+            if (retained == null || !retained.HasPrivateKey || !X509Utils.VerifyKeyPair(certificate, retained))
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadSecurityChecksFailed, "The retained pull signing key does not match.");
+            }
+            return DefaultCertificateFactory.Instance.CreateWithPrivateKey(certificate, retained);
         }
 
         /// <summary>
@@ -844,6 +1020,32 @@ namespace Opc.Ua.Gds.Server.Onboarding
         }
 
         /// <summary>
+        /// Reopens the exact application certificate and verifies its private key.
+        /// </summary>
+        private async ValueTask RequireStoredApplicationKeyAsync(
+            ICertificateStore store,
+            Certificate expected,
+            char[]? password,
+            CancellationToken ct)
+        {
+            if (!store.SupportsLoadPrivateKey)
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadNotSupported, "The application store cannot reload private keys.");
+            }
+            using Certificate? stored = await store.LoadPrivateKeyAsync(
+                expected.Thumbprint, null, m_applicationUri,
+                ApplicationCertificateType, password, ct).ConfigureAwait(false);
+            if (stored == null || !stored.HasPrivateKey ||
+                !stored.RawData.AsSpan().SequenceEqual(expected.RawData) ||
+                !X509Utils.VerifyKeyPair(expected, stored))
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadSecurityChecksFailed, "The application store did not retain the key.");
+            }
+        }
+
+        /// <summary>
         /// Writes one certificate only when the store lacks a key-bearing copy of that thumbprint.
         /// </summary>
         private static async Task EnsureCertificateStoredAsync(
@@ -929,6 +1131,9 @@ namespace Opc.Ua.Gds.Server.Onboarding
 
         /// <summary>The host's existing software-management readiness policy, when updates are required.</summary>
         private readonly IProvisionableDeviceSoftwareUpdatePolicy? m_softwareUpdates;
+
+        /// <summary>The non-consuming source of attempt-bound pull signing keys, when configured.</summary>
+        private readonly IProvisionableDevicePullKeyProvider? m_pullKeys;
 
         /// <summary>The configured application-certificate store.</summary>
         private readonly string m_applicationStorePath;

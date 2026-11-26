@@ -1,31 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using System.Collections.Generic;
@@ -230,22 +204,47 @@ namespace Opc.Ua.Server.Fluent
         /// <see cref="StatusCodes.BadInvalidState"/> — the builder is sealed
         /// or the staged graph was already registered.
         /// </exception>
-        public async ValueTask RegisterAuthoredNodesAsync(
+        public ValueTask RegisterAuthoredNodesAsync(
             Func<NodeState, CancellationToken, ValueTask> register,
             CancellationToken cancellationToken = default)
+        {
+            return RegisterAuthoredNodesCoreAsync(register, resumeAfterFailure: false, cancellationToken);
+        }
+
+        /// <summary>
+        /// Resumes interrupted root registration without replaying completed roots or reopening graph authoring.
+        /// </summary>
+        internal ValueTask ResumeAuthoredNodesRegistrationAsync(
+            Func<NodeState, CancellationToken, ValueTask> register,
+            CancellationToken cancellationToken)
+        {
+            return RegisterAuthoredNodesCoreAsync(register, resumeAfterFailure: true, cancellationToken);
+        }
+
+        /// <summary>
+        /// Hands off staged roots, retaining the completed-root cursor only for an explicitly resumable owner.
+        /// </summary>
+        private async ValueTask RegisterAuthoredNodesCoreAsync(
+            Func<NodeState, CancellationToken, ValueTask> register,
+            bool resumeAfterFailure,
+            CancellationToken cancellationToken)
         {
             ThrowIfSealed();
             if (register is null)
             {
                 throw new ArgumentNullException(nameof(register));
             }
-            ThrowIfAuthoredNodesRegistered();
+            if (!resumeAfterFailure || m_registeredAuthoredRoots == m_authoredRoots.Count)
+            {
+                ThrowIfAuthoredNodesRegistered();
+            }
 
             m_authoredNodesRegistered = true;
-            foreach (NodeState root in m_authoredRoots)
+            while (m_registeredAuthoredRoots < m_authoredRoots.Count)
             {
                 cancellationToken.ThrowIfCancellationRequested();
-                await register(root, cancellationToken).ConfigureAwait(false);
+                await register(m_authoredRoots[m_registeredAuthoredRoots], cancellationToken).ConfigureAwait(false);
+                m_registeredAuthoredRoots++;
             }
         }
 
@@ -815,5 +814,8 @@ namespace Opc.Ua.Server.Fluent
         private readonly Dictionary<NodeId, NodeState> m_authoredNodes = [];
         private readonly List<NodeState> m_authoredRoots = [];
         private bool m_authoredNodesRegistered;
+
+        /// <summary>The number of fully registered roots; the current interrupted root remains retryable.</summary>
+        private int m_registeredAuthoredRoots;
     }
 }

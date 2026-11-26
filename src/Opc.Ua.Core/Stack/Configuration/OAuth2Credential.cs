@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
+
 using System;
 using System.Xml;
 
@@ -123,7 +126,7 @@ namespace Opc.Ua
                     nameof(authorityUrl));
             }
 
-            if (!authorityUrl.EndsWith('/'))
+            if (!authorityUrl.EndsWith('/', StringComparison.Ordinal))
             {
                 authorityUrl += "/";
             }
@@ -135,7 +138,7 @@ namespace Opc.Ua
                     System.Net.Dns.GetHostName().ToLowerInvariant(),
                     StringComparison.Ordinal);
 
-                if (!uri.EndsWith('/'))
+                if (!uri.EndsWith('/', StringComparison.Ordinal))
                 {
                     uri += "/";
                 }

@@ -1,31 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using System.Collections.Generic;
@@ -608,6 +582,128 @@ namespace Opc.Ua.Server.Tests.Fluent
             ServiceResultException exception = Assert.Throws<ServiceResultException>(
                 () => builder.AddFolder("TooLate"))!;
             Assert.That(exception.StatusCode, Is.EqualTo(StatusCodes.BadInvalidState));
+        }
+
+        /// <summary>
+        /// The ordinary startup handoff remains one-shot after a later root fails.
+        /// </summary>
+        [Test]
+        public async Task OrdinaryRegistrationFailureStillRejectsASecondHandoffAsync()
+        {
+            using var manager = new AuthoringTestManager(_ => { });
+            NodeManagerBuilder builder = manager.CreateBuilder();
+            builder.AddFolder("First");
+            builder.AddFolder("Second");
+            int calls = 0;
+            var failure = new InvalidOperationException("Injected second-root failure.");
+            ValueTask RegisterAsync(NodeState node, CancellationToken cancellationToken)
+            {
+                calls++;
+                if (calls == 2)
+                {
+                    throw failure;
+                }
+                return default;
+            }
+
+            InvalidOperationException? observed = await Assert.ThrowsAsync<InvalidOperationException>(
+                async () => await builder.RegisterAuthoredNodesAsync(RegisterAsync).ConfigureAwait(false));
+            Assert.That(observed, Is.SameAs(failure));
+            ServiceResultException? rejected = await Assert.ThrowsAsync<ServiceResultException>(
+                async () => await builder.RegisterAuthoredNodesAsync(RegisterAsync).ConfigureAwait(false));
+            Assert.Multiple(() =>
+            {
+                Assert.That(rejected!.StatusCode, Is.EqualTo(StatusCodes.BadInvalidState));
+                Assert.That(calls, Is.EqualTo(2), "Private preparation must abort rather than resume implicitly.");
+            });
+        }
+
+        /// <summary>
+        /// Explicit resumption retains completed roots across cancellation between roots or a failed root callback.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task ResumableRegistrationRetainsItsCursorAndRejectsFurtherAuthoringAsync(bool cancel)
+        {
+            using var manager = new AuthoringTestManager(_ => { });
+            NodeManagerBuilder builder = manager.CreateBuilder();
+            NodeId first = builder.AddFolder("First").Node.NodeId;
+            NodeId second = builder.AddFolder("Second").Node.NodeId;
+            var calls = new List<NodeId>();
+            using var cancellation = new CancellationTokenSource();
+            var failure = new InvalidOperationException("Injected second-root failure.");
+            bool inject = true;
+            ValueTask RegisterAsync(NodeState node, CancellationToken cancellationToken)
+            {
+                calls.Add(node.NodeId);
+                if (inject && node.NodeId == (cancel ? first : second))
+                {
+                    inject = false;
+                    if (cancel)
+                    {
+                        cancellation.Cancel();
+                    }
+                    else
+                    {
+                        throw failure;
+                    }
+                }
+                return default;
+            }
+
+            if (cancel)
+            {
+                await Assert.ThrowsAsync<OperationCanceledException>(async () => await builder
+                    .ResumeAuthoredNodesRegistrationAsync(RegisterAsync, cancellation.Token).ConfigureAwait(false));
+                Assert.That(calls, Is.EqualTo(new[] { first }));
+            }
+            else
+            {
+                InvalidOperationException? observed = await Assert.ThrowsAsync<InvalidOperationException>(
+                    async () => await builder.ResumeAuthoredNodesRegistrationAsync(
+                        RegisterAsync, cancellation.Token).ConfigureAwait(false));
+                Assert.That(observed, Is.SameAs(failure));
+                Assert.That(calls, Is.EqualTo(new[] { first, second }));
+            }
+            ServiceResultException? rejected = Assert.Throws<ServiceResultException>(
+                () => builder.AddFolder("TooLate"));
+            Assert.That(rejected!.StatusCode, Is.EqualTo(StatusCodes.BadInvalidState));
+
+            await builder.ResumeAuthoredNodesRegistrationAsync(RegisterAsync, CancellationToken.None)
+                .ConfigureAwait(false);
+            Assert.That(calls, Is.EqualTo(cancel ? new[] { first, second } : new[] { first, second, second }));
+        }
+
+        /// <summary>
+        /// Completing an empty or nonempty resumable pass still closes its handoff permanently.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task CompletedResumableRegistrationRejectsAnotherHandoffAsync(bool empty)
+        {
+            using var manager = new AuthoringTestManager(_ => { });
+            NodeManagerBuilder builder = manager.CreateBuilder();
+            if (!empty)
+            {
+                builder.AddFolder("OnlyRoot");
+            }
+            int calls = 0;
+            ValueTask RegisterAsync(NodeState node, CancellationToken cancellationToken)
+            {
+                calls++;
+                return default;
+            }
+            await builder.ResumeAuthoredNodesRegistrationAsync(RegisterAsync, CancellationToken.None)
+                .ConfigureAwait(false);
+
+            ServiceResultException? rejected = await Assert.ThrowsAsync<ServiceResultException>(
+                async () => await builder.ResumeAuthoredNodesRegistrationAsync(
+                    RegisterAsync, CancellationToken.None).ConfigureAwait(false));
+            Assert.Multiple(() =>
+            {
+                Assert.That(rejected!.StatusCode, Is.EqualTo(StatusCodes.BadInvalidState));
+                Assert.That(calls, Is.EqualTo(empty ? 0 : 1));
+            });
         }
 
         [Test]

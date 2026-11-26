@@ -1,13 +1,17 @@
+<!-- SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL -->
+<!-- SPDX-License-Identifier: MIT -->
+
 # Performance tooling
 
 Tools for measuring server and client latency, throughput and GC cost under load. They are not
-part of the product build (not in `UA.slnx`) and target `net10.0` only.
+part of the product build (not in `UA.slnx`) and target `net10.0` and `net11.0` (build one with `CustomTestTarget`). The server child runs on the same runtime as the harness, so the two builds compare the runtimes.
 
 | Path | Purpose |
 |---|---|
 | `ServerLoadHarness/` | Starts a reference server in a child process and drives load against it from the parent process, which is also the measured client. |
+| `regression/` | Nightly load floors: delivered %, server bytes per operation and rate ratios checked against fixed bounds; see [regression/README.md](regression/README.md). |
 | `TraceAnalyzer/` | Aggregates the `dotnet-trace` files the harness records (CPU, allocations, lock contention, garbage collections). |
-| `ab.sh`, `ab-summary.ps1` | Paired A/B runs of two harness builds, and the median summary. |
+| `ab.sh`, `ab-summary.ps1` | Paired A/B runs of two harness builds, with per-round results and a median and range summary. |
 | `variants.sh`, `variants-summary.ps1` | Paired runs of one build under several configurations (GC mode, affinity), and the median and range summary. |
 | `benchmarks/` | The variant and scenario files of the published tables in [docs/Benchmarks.md](../docs/Benchmarks.md#reproducing-the-results). |
 | `server-scenarios.txt`, `client-scenarios.txt` | The scenario lists used for the server and client comparisons. |
@@ -15,8 +19,8 @@ part of the product build (not in `UA.slnx`) and target `net10.0` only.
 The server runs in its own process, so the server-side numbers (CPU, allocated bytes, GC count
 and pause time, `Monitor.LockContentionCount`) exclude the load generator, and the same
 counters taken in the parent process measure the client stack without the server. The NUnit
-`LoadTest` fixture in `tests/Opc.Ua.Sessions.Tests` checks correctness under load; this harness
-measures it.
+`LoadTest` fixture in `tests/Opc.Ua.Sessions.Tests` checks correctness under load and logs its rates (`load-metric:` lines); this
+harness measures it, and [regression/](regression/README.md) checks the measurements nightly.
 
 - [Build](#build)
 - [Run](#run): `ServerLoadHarness run` scenarios and options
@@ -37,6 +41,7 @@ are described in [docs/ServerScalability.md](../docs/ServerScalability.md#runtim
 
 ```bash
 CustomTestTarget=net10.0 dotnet build perf/ServerLoadHarness -c Release
+CustomTestTarget=net11.0 dotnet build perf/ServerLoadHarness -c Release
 dotnet build perf/TraceAnalyzer -c Release
 dotnet tool install -g dotnet-trace
 ```
@@ -49,11 +54,17 @@ perf/ServerLoadHarness/bin/Release/net10.0/ServerLoadHarness.exe run --scenario 
 
 | Option | Default | Meaning |
 |---|---|---|
-| `--scenario` | `read` | `read`, `write`, `browse` (Server object), `sub` (data-change subscriptions plus writers), `events` (event subscriptions on the Server object, events reported by the server), `counters`, or `native-read`/`native-counters` (see below). |
+| `--scenario` | `read` | `read`, `write`, `browse` (Server object), `translate` (`--nodes` TranslateBrowsePaths of Server/ServerStatus/CurrentTime per request), `call` (`--nodes` calls of the reference server's `Methods_Void` per request), `churn` (CreateMonitoredItems plus DeleteMonitoredItems of `--nodes` items on one subscription per session), `sub` (data-change subscriptions plus writers), `events` (event subscriptions on the Server object, events reported by the server), `counters`, `lifecycle-reload` and `historyread-paging` (see [NodeManager lifecycle under load](#nodemanager-lifecycle-under-load-lifecycle-reload)), `connect` (`--workers` concurrent loops of open channel, CreateSession, ActivateSession, CloseSession; run with `--sessions 1`), `channel` (`--workers` concurrent loops of OpenSecureChannel and close), or `native-read`/`native-counters` (see below). |
+| `--workers` | 8 | Concurrent connection loops (`connect`, `channel`). |
 | `--sessions` | 20 (`counters`: 1) | Concurrent sessions. |
 | `--nodes` | 100 | Values per Read/Write request, or monitored items per subscription. |
 | `--inflight` | 1 | Outstanding requests per session (closed loop). |
 | `--security` | `none` | `none`, `sign` or `encrypt` (Basic256Sha256). |
+| `--security-policy`, `--security-mode` | from `--security` | Any policy the server child offers, by name (`Basic256Sha256`, `Aes256_Sha256_RsaPss`, ...) or URI, and `None`, `Sign` or `SignAndEncrypt` (default `SignAndEncrypt` when only the policy is given). The run lists the offered endpoints if none matches. |
+| `--identity` | `anonymous` | `connect`: the identity of ActivateSession. `username` (user `perfuser`, a password of `--password-length` bytes, default 16) or `issued` (a JWT-shaped issued token of `--token-length` bytes, default 1024, with `iss`/`sub` claims). The server child replaces its UserName and JWT authenticators with ones that compare these credentials byte for byte (no password hash, no signature check), so ActivateSession costs the token decryption and the session work; `authOk`/`authFailed` on the `server:` line count the outcomes. |
+| `--token-encryption` | `auto` | The secret format under RSA policies. `auto`: the client default (UserName: legacy EncryptedData up to 64 bytes, RSAEncryptedSecret above; issued: legacy). `legacy`: EncryptedData with `EncryptionAlgorithm` set. `secret`: RSAEncryptedSecret (UserName only; the stack has no RSAEncryptedSecret path for issued tokens). ECC policies always use the EccEncryptedSecret. |
+| `--wrong-credentials` | 0 | 1: the client sends a wrong password or token, to measure rejected activations; the failures count as `errors`. |
+| `--connection-rate` | `off` | The server's connection rate limiter. `off`: disabled. `server`: the server defaults (500 connections per second, burst 1000). `N`: N per second, burst 2N. With the limiter on, `connect` and `channel` at 8 workers exceed the rate and the server answers every further socket with `Bad_TcpNotEnoughResources`; the client retries at once, so the run measures rejections instead of sessions. |
 | `--client` | `managed` | `managed`: `ManagedSession` with the V2 subscription engine (`DefaultSubscriptionEngineFactory`), used by `sub`, `events` and `counters`. `classic`: `Session` with the classic subscription engine. `shared`: classic sessions on secure channels shared through one `ClientChannelManager`, created one at a time (`--connect-parallel`). |
 | `--pool-notifications` | 0 | 1: the V2 subscription manager recycles notification objects after the handler returns (`ManagedSessionBuilder.WithPoolNotifications`). |
 | `--callback` | `fast` | Classic engine only: data changes through `Subscription.FastDataChangeCallback` (`fast`) or the per-item `MonitoredItem.Notification` event (`item`). |
@@ -66,16 +77,22 @@ perf/ServerLoadHarness/bin/Release/net10.0/ServerLoadHarness.exe run --scenario 
 | `--queue-size` | 1 (`sub`), 10000 (`events`) | Monitored item queue size. |
 | `--publish-requests` | engine default (`counters`: subscriptions + 1, at least 4) | Minimum outstanding Publish requests per session. `counters` also sets the server's `MaxPublishRequestCount` to it. |
 | `--event-rate` | 0 | Events per second the server reports (`events`); 0 reports as fast as one thread can. |
+| `--aggregate`, `--aggregate-interval` | none, 1000 | `sub`: give every monitored item an AggregateFilter with this aggregate (`Average`, `Interpolative`, `Minimum`, `Maximum`, `TimeAverage` or `Count`) and processing interval in ms, so the server calculates the aggregate of the written values. |
+| `--event-where` | 0 | 1: the event filter also has a where clause every load event passes, `OfType(BaseEventType) And Like(Message, "Load event %")` (`events`). |
 | `--duration`, `--warmup` | 20, 10 | Measurement window and warm-up in seconds. |
 | `--diag`, `--audit` | 0 | Server diagnostics and auditing. |
 | `--threads`, `--queue` | 200, 2000 | `MaxRequestThreadCount` and `MaxQueuedRequestCount` of the server; `MinRequestThreadCount` is the smaller of 50 and `--threads`. |
 | `--isolation` | `default` | `sharedonly`: run the server with the SharedOnly [resource isolation](../docs/ResourceIsolation.md) mode (no isolation provider, one FIFO request queue) instead of the default profile. |
+| `--owner-share` | 1 | `ServerResourceIsolationOptions.DefaultOwnerShare` of the server. Every workload session (and every native worker) connects from this machine, so the server sees one owner; the harness lets it take the whole request queue and all workers. The library default is 0.5. |
 | `--trace <file>` | | Record the measurement window with `dotnet-trace`. |
-| `--trace-profile` | `cpu` | `cpu` (sampled thread time), `alloc` (allocation ticks), `contention` or `gc`. |
+| `--trace-profile` | `cpu` | `cpu` (sampled thread time), `alloc` (allocation ticks), `contention`, `gc`, `arraypool` (ArrayPool misses) or `arraypool-verbose` (every rent and return, plus GC events). |
 | `--trace-side` | `server` | The process to record: `server` (the child) or `client` (the harness itself). |
 | `--out <file>` | | Append the result block to a file. |
+| `--server-harness <executable>` | this harness | Start another compatible harness executable as the measured server child. This keeps the client executable and assemblies fixed when comparing server builds. The selected child must implement the same READY/MARKED/REPORT control protocol; this is not the native-worker `--server-exe` option. |
 | `--gc-events` | 1 | 0: turn the in-process GC event listener off (no `client-gc:` line). |
+| `--inject-alloc`, `--inject-spin-us` | 0 | Simulated regression in the server child: bytes allocated and microseconds of CPU per written value and per reported event, for validating the [load floors](regression/README.md#validating-a-floor). |
 | `--client-cores` | all | Windows only. Relaunch the client with `DOTNET_PROCESSOR_COUNT=N` (thread pool, GC and `ConcurrentDictionary` sizing) and affinity to the last N allowed processors. If processors remain, pin the server to them. On Linux the process-affinity API changes only the main thread's affinity; use a cgroup (`docker --cpuset-cpus`) or launch under `taskset` instead. |
+| `--server-affinity`, `--client-affinity` | all | Windows only. Hexadecimal processor masks of the server child and of the client; they override the masks `--client-cores` derives. The server runtime is sized for the processors of its mask (`DOTNET_PROCESSOR_COUNT`). On a processor with cores of different speed, compare runs on the same core type: see [Processors with cores of different speed](#processors-with-cores-of-different-speed). |
 | `--client-memory` | unlimited | Emulated client memory budget in MB. Sets the GC heap hard limit to 75 % of that budget; native memory is not capped. |
 
 Environment variables prefixed `SERVER_` are passed to the server process without the prefix,
@@ -111,6 +128,86 @@ alongside their collection counts. `CollectionCount` in `client-process:` counts
 collection under both `gen0` and `gen1`; `client-gc:` counts each collection once.
 The fixed log-linear latency histogram (about 1.6 % resolution) records each observation
 without allocating or retaining individual samples.
+
+## NodeManager lifecycle under load (`lifecycle-reload`)
+
+`--scenario lifecycle-reload` adds, reloads and removes NodeManagers through the public
+`INodeManagerLifecycle` API of the server child while the client drives load. The server adds
+`--lc-managers` runtime NodeSet managers (`RuntimeNodeSetNodeManagerFactory`) before it reports
+ready. Manager `i` owns namespace `urn:perf:lifecycle:i` with a `Root` object under the Objects
+folder, a custom ObjectType (so every publication changes the type tree) and `--lc-vars`
+writable Int32 variables `i=1000...`. After setup the driver sends
+`lifecycle start <interval> <mode> <removeEvery> <abortEvery> <workers>` to the server child.
+Each churn worker owns a disjoint set of slots. Every interval it applies one change with
+`PrepareAsync` and `CommitAsync`:
+
+- a reload (`LifecycleChange.Reload`) in the `--lc-mode` transition mode (`migrate`,
+  `invalidate`, or `alternate` between them);
+- every `--lc-remove-every`-th operation, a `LifecycleChange.Remove` followed by a
+  `LifecycleChange.Add` of the same namespace;
+- every `--lc-abort-every`-th operation, a reload that is prepared and disposed uncommitted.
+
+The time from the commit to `LifecycleResult.Retired` is tracked without blocking the worker.
+
+| Option | Default | Meaning |
+|---|---|---|
+| `--load` | 1 | 1: the write-driven subscription load of `sub` (`--sessions`, `--subs`, `--nodes`, `--pub`, `--write-interval`, `--writers`) runs as well. 0: no subscription load; `per-op` is then per lifecycle operation. |
+| `--readers` | 4 | Sessions reading `--read-nodes` (16) churned variables per Read in a closed loop. Node `k` belongs to manager `k % --read-managers` (default all managers), so one Read touches up to `--read-managers` managers. |
+| `--lc-monitor` | 1 | 1: one session monitors every churned variable with `--lc-sampling` (100) ms sampling. The runtime NodeSet managers have no sampling groups: their monitored items report on change only, so unchanged churned variables are never read again after the initial value. |
+| `--lc-polled` | 0 | N unchanged Int32 variables on a static manager with sampling groups (`LifecyclePolled.cs`), also monitored by the `--lc-monitor` session. A sampling group reads each of them every `--lc-sampling` ms and checks its cached read verdict (the sampled path). |
+| `--idle` | 0 | Additional connected sessions without subscriptions or requests. |
+| `--lc-managers`, `--lc-vars` | 8, 10 | Churned managers and variables per manager. |
+| `--lc-interval` | 2000 | Milliseconds between operations per worker; 0: no churn (a control run with the same sessions and load). |
+| `--lc-mode`, `--lc-remove-every`, `--lc-abort-every`, `--lc-workers` | `alternate`, 5, 0, 1 | See above. With several workers, preparations run concurrently. |
+| `--probe` | 0 | Every N ms, open a classic session (CreateSession + ActivateSession, `probeConnectMs`), re-activate it with `UpdateSessionAsync` (`probeReactivateMs`) and close it (`probeCloseMs`): activation and close cost against the open sessions and live generations. |
+| `--addnodes` | 0 | Every N ms, AddNodes then DeleteNodes of one Object under the ReferenceServer `Scalar` folder (`nmMs`, `nmGood`, `nmBad`). Each such request invalidates the server-wide role-permission cache, which keys the cached read verdicts of monitored items. |
+
+The `server:` line adds `lcOps` (reloads + removes + adds), the counts per kind, `lcFailures`
+(by exception type in `lcFailureTypes`), `lcIssues` (results with reconciliation issues),
+`lcPending`/`lcMaxPending` (retirements not yet completed), and latencies as
+`count/p50/p99/max` in milliseconds:
+
+- `lcPrepareMs`: `PrepareAsync`, including the factory and the candidate's address space;
+- `lcCommitMs`: `CommitAsync`, which includes reconciliation against all sessions;
+- `lcApplyMs`: prepare plus commit;
+- `lcRetiredMs`: commit to `Retired`;
+- `lcAbortMs`: prepare plus dispose of an aborted reload.
+
+The client line reports reads per second, `readBadValues` (for example `BadNodeIdUnknown`
+between a removal and its re-add), `lcMonitorGood`/`lcMonitorBad` (data changes of the
+monitored churned variables) and the probe and AddNodes latencies. With `--load 1`, `per-op`
+is per notification and `per-op2` per lifecycle operation. With `--load 0`, `per-op` is per
+lifecycle operation and `per-op2` per Read request. Allocation per lifecycle operation is only
+meaningful without other load: subtract a control run (`--lc-interval 0`, same sessions) to
+remove the idle and probe cost.
+
+```bash
+# reload under subscription and read load, both transition modes
+ServerLoadHarness.exe run --scenario lifecycle-reload --sessions 10 --subs 5 --nodes 100 --readers 4 --lc-interval 1000 --probe 500
+# publication and activation cost against 1000 idle sessions
+ServerLoadHarness.exe run --scenario lifecycle-reload --load 0 --readers 0 --lc-monitor 0 --idle 1000 --lc-interval 250 --probe 250
+# Reads that alternate over 64 managers against Reads that stay in one
+ServerLoadHarness.exe run --scenario lifecycle-reload --load 0 --readers 8 --lc-monitor 0 --lc-managers 64 --read-nodes 64 --read-managers 64 --lc-interval 0
+# sampled reads of 10,000 unchanged variables while AddNodes/DeleteNodes invalidates the permission cache
+ServerLoadHarness.exe run --scenario lifecycle-reload --load 0 --readers 0 --lc-managers 1 --lc-vars 1 --lc-polled 10000 --lc-interval 0 --addnodes 50
+# concurrent preparation and aborted preparations
+ServerLoadHarness.exe run --scenario lifecycle-reload --load 0 --readers 0 --lc-monitor 0 --lc-managers 16 --lc-interval 50 --lc-workers 4 --lc-abort-every 3 --lc-remove-every 0
+```
+
+Lock waits during preparation (F3 in #4931) need a `--trace-profile contention` trace and the
+`frames` mode of the analyzer; the `contention=` count on the `server:` line counts every
+`Monitor`/`Lock` contention in the process. The baselines are in
+[results/lifecycle-baseline-2026-11-24.md](results/lifecycle-baseline-2026-11-24.md).
+
+## HistoryRead paging (`historyread-paging`)
+
+`--scenario historyread-paging` inserts `--samples` (10000) raw values one second apart into
+each of `--hist-nodes` (4, at most 6) historizing scalar variables of the ReferenceServer, using
+HistoryUpdate against its in-memory historian. Each session then scans one node at a time with
+`ReadRawModifiedDetails` of `--page` (100) values per request and follows the continuation
+points to the end. An operation is one page (`per-op`); `per-op2` is per returned value. The
+client line reports pages and values per second, page and full-scan latency, `shortScans`
+(scans that returned fewer values than inserted) and errors.
 
 ## External benchmark workers
 
@@ -177,10 +274,10 @@ ServerLoadHarness.exe run --scenario counters --sessions 48 --subs 5 --nodes 100
 The `client:` line adds `delivered`, the notifications received against one per item and
 publishing interval (or per sample when sampling is slower), and the `server:` line reports
 `samplesTaken`. `per-op` divides the server's allocation and CPU by notifications and
-`per-op2` by samples taken. The managed client needs more CPU per notification than a native
-worker (`clientCpuCores`); on one machine it competes with the server for cores, so the
-highest passing session count is lower than with a native client, while the server's cost
-per sample stays comparable.
+`per-op2` by samples taken. These values describe one run; compare client modes only from
+controlled runs with the same server, workload and timing settings on an otherwise idle host.
+The managed `counters` run prints its result and exits with status 1 if any item
+progresses below 99% of its expected sample count or has no measurable progress window.
 
 `--server-affinity` (Windows and Linux) is applied after the server started, when the .NET
 runtime has already sized the thread pool and the GC heaps for all processors. Set
@@ -242,7 +339,15 @@ dotnet perf/TraceAnalyzer/bin/Release/net10.0/TraceAnalyzer.dll gc trace.nettrac
 dotnet perf/TraceAnalyzer/bin/Release/net10.0/TraceAnalyzer.dll samples trace.nettrace 30
 dotnet perf/TraceAnalyzer/bin/Release/net10.0/TraceAnalyzer.dll suspend trace.nettrace 5
 dotnet perf/TraceAnalyzer/bin/Release/net10.0/TraceAnalyzer.dll threads trace.nettrace 10
+dotnet perf/TraceAnalyzer/bin/Release/net10.0/TraceAnalyzer.dll frames trace.nettrace 0 NamespaceDefaultPermissionReader,ConditionalWeakTable
+dotnet perf/TraceAnalyzer/bin/Release/net10.0/TraceAnalyzer.dll pool trace.nettrace 30
 ```
+
+`frames <trace> 0 <p1,p2,...>` prints, for each comma-separated substring, the share of on-CPU
+samples, sampled allocation bytes and contention events whose stack contains a matching frame
+(inclusive, counted once per stack). Use it for a component that is called from several places
+and so has no frame of its own in the top lists of the other modes; which columns are filled
+depends on the `--trace-profile` the trace was recorded with.
 
 `cpu` with a focus frame also lists the callers of that frame and the first `Opc.Ua` frame
 above it, past framework wrappers such as `Monitor.Enter` or `SemaphoreSlim`, and the frame's
@@ -272,6 +377,12 @@ events, including `HEAPS <n> gen0budget~<bytes>` (the heap count DATAS chose, fr
 its main roles. This is a sample ratio, not a measurement of wall-clock CPU utilization.
 A thread near 100% busy while other cores are idle points to a possible serialized stage;
 confirm with its call stacks and the workload's available parallelism.
+
+`pool` reads a `--trace-profile arraypool` or `arraypool-verbose` trace. It counts the
+`System.Buffers.ArrayPoolEventSource` events by pool id, event, buffer size, reason and first
+`Opc.Ua` frame. `BufferAllocated` with `reason=2` (pool exhausted) is a rent that missed the pool;
+`BufferDropped` with `reason=0` (bucket full) is a return the pool discarded. With `arraypool-verbose` it
+also names the `Opc.Ua` frame that rents from each pool id.
 
 The `sub` and `events` scenarios add a `per-op2` line with the server cost per written value or
 per generated event. Async methods with loops run on-stack-replaced code that the trace rundown
@@ -316,20 +427,53 @@ the measurement.
 
 Build the baseline harness in a second worktree, then alternate the two builds. `SCENARIOS`
 selects the scenario list (`server-scenarios.txt` by default, `client-scenarios.txt` for the
-client), `ROUNDS` the rounds per scenario and `OUT` the result file:
+client), `ROUNDS` the rounds per scenario (1 through 100000), and `OUT` the result file:
 
 ```bash
 git worktree add --detach C:/uabase origin/master
 cp -r perf C:/uabase/ && (cd C:/uabase && CustomTestTarget=net10.0 dotnet build perf/ServerLoadHarness -c Release)
 cd perf && BASELINE=C:/uabase/perf/ServerLoadHarness/bin/Release/net10.0/ServerLoadHarness.exe SCENARIOS=client-scenarios.txt ROUNDS=5 ./ab.sh
-pwsh -File ab-summary.ps1
+pwsh -File ab-summary.ps1 -ExpectedRounds 5 -RequireExitStatus
 ```
 
-The summary prints medians as
-`baseline -> candidate (change)`: throughput, latency percentiles, client allocated bytes and CPU
-per operation (`calloc`, `ccpu`), GC pause and lock contention in the window (`cpause`,
-`ccont`), and the same for the server (`alloc`, `cpu`, `pause`, `cont`). It prints medians
-only; take the ranges from the result blocks in `ab-results.txt`.
+The summary prints the `RESULT` line, received and expected counts, delivery, rate and server CPU
+per operation for each side of every round, followed by their paired differences. Delivery is
+calculated from the counts when available; `reported-rounded` identifies an older result that
+contains only the rounded percentage. The delivery comparison is marked if either side uses that
+rounded input. A zero expected count has no delivery percentage. The comparison also prints the
+median and range as `baseline -> candidate (change)` for throughput,
+delivery, latency percentiles, client allocated bytes and CPU per operation (`calloc`, `ccpu`),
+GC pause and lock contention (`cpause`, `ccont`), and the same server metrics (`alloc`, `cpu`,
+`pause`, `cont`). Use the counts, not a displayed percentage, when checking a delivery threshold.
+
+`ab.sh` records the status returned by `timeout` for each harness invocation and exits with status
+1 if any of those statuses is nonzero. The summary rejects nonzero statuses.
+`-RequireExitStatus` also rejects older blocks without an exit status; without it those blocks
+show `exit=n/a`. `-ExpectedRounds 5` requires five paired rounds for each scenario present in the
+file. The summary rejects incomplete or duplicate blocks, mismatched `RESULT` lines or units, and
+missing rounds. Compare the scenarios in the file with the requested scenario list: the summary
+cannot detect an entirely omitted scenario.
+
+The harness records `cpuTicks` alongside `cpuMs`. A tick is a `TimeSpan` tick (100 ns), not a
+statement of the operating system CPU counter's resolution. For `sub` and `events`, the summary
+divides server ticks by the received notification count and labels the result
+`cpuSource=ticks/counts`. It retains both inputs and the rounded `reportedCpuUs`. A paired
+`serverCpuDirection` compares the raw ratios by integer cross-multiplication, so its direction
+remains visible even when the displayed difference rounds to zero.
+
+The displayed CPU differences, medians and ranges are rounded to eight decimal places.
+`serverCpuMedianDirection` compares the two sides' median raw tick/count ratios, averaging the two
+middle ratios for an even number of rounds. It reports `unavailable` if any round lacks a usable
+ratio. A direction alone does not establish an acceptance verdict; also consider each pair, the
+counter resolution and measurement noise. Older blocks and other workloads use the reported
+per-operation CPU; comparisons containing those values are marked `reported-per-op input`.
+`-RequireRawCpu` rejects blocks without a usable tick/count ratio, including zero received counts
+and scenarios other than `sub` and `events`. Use it only when every result is a `sub` or `events` run.
+
+`variants-summary.ps1` does not report raw ticks and rounds displayed CPU values to two decimal
+places, or to whole numbers at 100 and above. `ab.sh` does not detect competing processes or
+record source and harness SHAs. Record the identities and check for competing load separately;
+discard contaminated rounds.
 
 ## Configuration comparison
 
@@ -373,10 +517,10 @@ Use the following procedure for comparisons:
 - **CPU per operation** (`per-op: cpuUs`): pin the server when comparing a specific core type. In the
   `native-read` and `native-counters` scenarios use `--server-affinity 0xF` and
   `SERVER_DOTNET_PROCESSOR_COUNT=4` for the child, so that the runtime sizes the thread pool
-  and the GC heaps for the mask. The other scenarios ignore `--server-affinity`: start the
-  harness itself with the affinity (`start /affinity F` on Windows, `taskset -c 0-3` on
-  Linux), which the server child inherits at its start, keeping in mind that the in-process
-  client then shares those processors. On a hybrid CPU, choose a mask
+  and the GC heaps for the mask. The .NET client scenarios take `--server-affinity` and
+  `--client-affinity` on Windows and size the server runtime for its mask themselves; on
+  Linux start the harness under `taskset -c 0-3`, which the server child inherits, keeping in
+  mind that the in-process client then shares those processors. On a hybrid CPU, choose a mask
   of one core type only (all performance or all efficiency cores) to separate that core
   type's cost from scheduling across types. Use the default mixed-core placement for a
   separate deployment comparison. Measure the native scenarios at [steady state](#steady-state-parameters).
@@ -388,6 +532,18 @@ Use the following procedure for comparisons:
   Retain the paired differences as well; overlapping ranges alone do not determine whether
   a difference is statistically significant.
 - Publish every number with its [run record](#run-record) and keep the result files.
+
+### Processors with cores of different speed
+
+On a processor with two core types the CPU time per operation depends on where the server
+threads run. On a Ryzen AI 9 HX 370 (logical processors 0-7: four Zen5 cores, 8-23: eight
+Zen5c cores) the same build cost, for `events --sessions 20 --subs 15 --event-rate 400`,
+2.9 µs per notification on one Zen5 core (`--server-affinity 0x3`) and 6.8 µs on one Zen5c
+core (`0x300`); 3.1 µs on four Zen5 cores (`0xFF`) and 4.9 µs on four Zen5c cores (`0xFF00`);
+unpinned on all 24 logical processors about 6 µs. `--client-cores 22` leaves the server the
+*first* two logical processors, a Zen5 core, so a comparison of that shape with an unpinned run
+compares core types, not core counts. Compare core counts within one core type, and record
+the masks in the run record.
 
 ### Run record
 
@@ -415,19 +571,27 @@ the scenario and all arguments.
 | Metric | Line and field |
 |---|---|
 | Throughput | `client:` `req/s` (requests), `notif/s` (`sub`), `events/s` and `generated/s` (`events`), `samples/s` (`native-counters`) |
-| Delivery, completeness | `client:` `received/expected` (`sub`, `events`); `PASS`/`FAIL` for `native-counters` |
+| Delivery, completeness | `client:` `received/expected` percentage and `received` and `expected` counts (`sub`, `events`); `PASS`/`FAIL` for `native-counters` |
 | Latency | `client:` percentiles `p50`/`p90`/`p99`; `write->notify latency` (`sub`), `event->notify latency` (`events`) |
 | CPU and allocation per operation | `per-op:` `cpuUs`, `allocB` per request or notification; `per-op2:` per written value or generated event |
 | GC | `server:` `gen0`/`gen1`/`gen2` collections and `pauseMs` in the window; `client-process:` the same for the client |
-| CPU use | `server:` `cpuMs` and `cpuCores` (average busy cores) |
+| CPU use | `server:`, `client-process:` `cpuTicks`, `cpuMs` and `cpuCores` (average busy cores), `userMs` (user-mode part of `cpuMs`) |
+| Thread-pool hand-offs | `server:`, `client-process:` `workItems` (`ThreadPool.CompletedWorkItemCount` in the window); divide by the operations for the work items per operation. Thread-pool spinning shows as user-mode CPU that grows without more work items, see [Thread-pool spinning on .NET 11](../docs/ServerScalability.md#thread-pool-spinning-on-net-11) |
+
+For `sub`, `expected` is the number of successfully written values multiplied by the number of
+sessions and by the subscriptions per session. For `events`, it is the number of generated
+events multiplied by the same counts. A run with no expected notifications reports a 0 % ratio
+and does not demonstrate delivery. The percentage is rounded to one decimal place; calculate
+acceptance thresholds from the counts. Earlier result blocks include the percentage but not
+these count fields.
 
 ### Artifacts
 
 | Artifact | Produced by | Content |
 |---|---|---|
 | Result file | `run --out <file>` | `RESULT` blocks, one per run |
-| `ab-results.txt` | `ab.sh` (`OUT`) | `### side=<A/B> round=<n> <scenario>` headers with the result blocks |
-| Summary | `ab-summary.ps1` | medians per scenario, `baseline -> candidate (change)` |
+| `ab-results.txt` | `ab.sh` (`OUT`) | `### side=<A/B> round=<n> <scenario>` headers, result blocks and per-run exit statuses |
+| Summary | `ab-summary.ps1` | paired results and differences, plus medians and ranges per scenario |
 | `variants-results.txt` | `variants.sh` (`OUT`) | `### variant=<name> round=<n> <scenario>` headers with the result blocks; `<OUT>.discarded` lists the repeated runs |
 | Variant summary | `variants-summary.ps1` | median and range per scenario and variant |
 | `.nettrace` | `run --trace <file>` | `dotnet-trace` recording of the measurement window, input of `TraceAnalyzer` |

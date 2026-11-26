@@ -1,33 +1,8 @@
-/* ========================================================================
- * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Threading;
@@ -43,6 +18,7 @@ using Opc.Ua.AMB.Server.Hosting;
 using Opc.Ua.Di.Server.Hosting;
 using Opc.Ua.Server.Fluent;
 using Opc.Ua.Server.Hosting;
+using Opc.Ua.Server.TestFramework;
 
 namespace Opc.Ua.AMB.Tests
 {
@@ -247,11 +223,15 @@ namespace Opc.Ua.AMB.Tests
                 Assert.That(captured.Assets, Is.SameAs(server.AssetManagement));
                 Assert.That(resolved, Is.SameAs(server.AssetManagement));
                 Assert.That(captured.Builder, Is.Not.Null);
+                Assert.That(captured.Readiness, Is.Not.Null);
                 Assert.That(captured.GetService<IDisposable>(), Is.Null);
                 Assert.That(captured.CancellationToken.IsCancellationRequested, Is.False);
             });
         }
 
+        /// <summary>
+        /// A failing asset-management setup delegate aborts server startup.
+        /// </summary>
         [Test]
         public async Task AFailingSetupDelegateAbortsTheStartupAsync()
         {
@@ -261,20 +241,25 @@ namespace Opc.Ua.AMB.Tests
             {
                 options.ApplicationName = nameof(AFailingSetupDelegateAbortsTheStartupAsync);
                 options.ApplicationUri = "urn:localhost:" + nameof(AFailingSetupDelegateAbortsTheStartupAsync);
+                // Leave room for certificate filenames under the .NET Framework path limit.
                 options.PkiRoot = Path.Combine(
-                    TestContext.CurrentContext.WorkDirectory,
-                    nameof(AFailingSetupDelegateAbortsTheStartupAsync),
-                    Guid.NewGuid().ToString("N"));
+                    Path.GetTempPath(),
+                    "amb-hosting-" + Guid.NewGuid().ToString("N"));
                 options.AutoAcceptUntrustedCertificates = true;
+                // The tests drive the server through anonymous sessions.
+                options.AnonymousAccess = AnonymousAccess.Unrestricted;
                 options.EndpointUrls.Clear();
-                options.EndpointUrls.Add("opc.tcp://localhost:0/" + nameof(AFailingSetupDelegateAbortsTheStartupAsync));
+                string port = ServerFixtureUtils.GetNextFreeIPPort().ToString(CultureInfo.InvariantCulture);
+                options.EndpointUrls.Add(
+                    $"opc.tcp://localhost:{port}/{nameof(AFailingSetupDelegateAbortsTheStartupAsync)}");
             });
             bool ran = false;
+            var failure = new InvalidDataException("broken setup");
             builder.AddAssetManagement()
                 .ConfigureAssetManagement(_ =>
                 {
                     ran = true;
-                    throw new InvalidDataException("broken setup");
+                    throw failure;
                 });
 
             await using ServiceProvider provider = services.BuildServiceProvider();
@@ -288,17 +273,68 @@ namespace Opc.Ua.AMB.Tests
                 .ConfigureAwait(false);
             await hosted.StopAsync(CancellationToken.None).ConfigureAwait(false);
 
-            // The server reduces the cause to BadInternalError and logs it.
+            Exception? cause = execute.Exception;
+            while (cause?.InnerException is { } inner)
+            {
+                if (cause is AggregateException aggregate)
+                {
+                    Assert.That(aggregate.InnerExceptions, Has.Count.EqualTo(1),
+                        "Startup must not hide an additional failure behind the configurator cause.");
+                }
+                cause = inner;
+            }
             Assert.Multiple(() =>
             {
                 Assert.That(ran, Is.True);
                 Assert.That(finished, Is.SameAs(execute), "the startup must fail");
                 Assert.That(execute.IsFaulted, Is.True);
                 Assert.That(
-                    execute.Exception!.InnerException,
-                    Is.InstanceOf<ServiceResultException>().With.Property(nameof(ServiceResultException.StatusCode))
-                        .EqualTo((StatusCode)StatusCodes.BadInternalError));
+                    cause,
+                    Is.SameAs(failure),
+                    "Published-readiness startup failure must preserve the exact configurator cause.");
             });
+        }
+
+        /// <summary>
+        /// The fixture preserves the readiness failure and its exact cause after cleaning up the failed host.
+        /// </summary>
+        [Test]
+        [CancelAfter(30_000)]
+        public async Task HostedFixtureReportsStartupFailureAsync(CancellationToken ct)
+        {
+            var expected = new InvalidDataException("broken setup");
+            var cleanup = new Mock<IAsyncDisposable>();
+            cleanup.Setup(value => value.DisposeAsync()).Returns(default(ValueTask));
+            string? testRoot = null;
+            InvalidOperationException? exception = await Assert.ThrowsAsync<InvalidOperationException>(async () =>
+            {
+                await using AmbHostedServer server = await AmbHostedServer.StartAsync(
+                    nameof(HostedFixtureReportsStartupFailureAsync),
+                    builder =>
+                    {
+                        builder.Services.Configure<OpcUaServerOptions>(options =>
+                            testRoot = Path.GetDirectoryName(options.PkiRoot));
+                        builder.Services.AddSingleton(_ => cleanup.Object);
+                        builder.AddAssetManagement().ConfigureAssetManagement(context =>
+                        {
+                            _ = context.GetRequiredService<IAsyncDisposable>();
+                            throw expected;
+                        });
+                    },
+                    ct).ConfigureAwait(false);
+            }).ConfigureAwait(false);
+
+            Assert.That(exception!.Message, Is.EqualTo("Initial generation reconciliation failed."));
+            Assert.That(exception.InnerException, Is.TypeOf<AggregateException>());
+            var reconciliation = (AggregateException)exception.InnerException!;
+            Assert.That(reconciliation.InnerExceptions, Has.Count.EqualTo(1));
+            Assert.That(reconciliation.InnerExceptions[0], Is.TypeOf<InvalidOperationException>());
+            Exception configurator = reconciliation.InnerExceptions[0];
+            Assert.That(configurator.Message, Does.Contain("ConfigureAssetManagement delegate #0 failed."));
+            Assert.That(configurator.InnerException, Is.SameAs(expected));
+            Assert.That(testRoot, Is.Not.Null);
+            Assert.That(Directory.Exists(testRoot), Is.False);
+            cleanup.Verify(value => value.DisposeAsync(), Times.Once);
         }
 
         private static IOpcUaServerBuilder CreateServerBuilder()

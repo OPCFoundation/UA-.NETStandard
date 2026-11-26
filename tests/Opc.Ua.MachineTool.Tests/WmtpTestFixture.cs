@@ -1,35 +1,10 @@
-/* ========================================================================
- * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Moq;
@@ -109,8 +84,14 @@ namespace Opc.Ua.MachineTool.Tests
             internal RuntimeServer(ITelemetryContext telemetry, MachineToolParts parts, bool reordered)
                 : base(telemetry)
             {
-                m_parts = parts;
                 m_reordered = reordered;
+                var options = new MachineryServerOptions
+                {
+                    Parts = MachineryParts.BuildingBlocks | MachineryParts.ProcessValues |
+                        ((parts & MachineToolParts.MachineTool) != 0 ? MachineryParts.Jobs : MachineryParts.None)
+                };
+                AddNodeManager(new MachineryNodeManagerFactory(
+                    [new MachineryModelProvider(options.Parts), new MachineToolModelProvider(parts)], options));
             }
 
             /// <summary>
@@ -129,19 +110,17 @@ namespace Opc.Ua.MachineTool.Tests
                     server.NamespaceUris.GetIndexOrAppend("urn:wmtp-tests:unrelated:2");
                     server.NamespaceUris.GetIndexOrAppend(Opc.Ua.MachineTool.WMTP.Namespaces.WMTP);
                 }
-                var options = new MachineryServerOptions
-                {
-                    Parts = MachineryParts.BuildingBlocks | MachineryParts.ProcessValues |
-                        ((m_parts & MachineToolParts.MachineTool) != 0 ? MachineryParts.Jobs : MachineryParts.None)
-                };
-                Manager = new MachineryNodeManager(server, configuration,
-                    [new MachineryModelProvider(options.Parts), new MachineToolModelProvider(m_parts)], options);
-                return new ValueTask<IMasterNodeManager>(
-                    new MasterNodeManager(server, configuration, null, [Manager]));
+                return base.CreateMasterNodeManagerAsync(server, configuration, cancellationToken);
             }
 
-            /// <summary>The selected model parts.</summary>
-            private readonly MachineToolParts m_parts;
+            /// <inheritdoc/>
+            protected override async ValueTask OnNodeManagerStartedAsync(
+                IServerInternal server,
+                CancellationToken cancellationToken = default)
+            {
+                Manager = server.NodeManager.AsyncNodeManagers.OfType<MachineryNodeManager>().Single();
+                await base.OnNodeManagerStartedAsync(server, cancellationToken).ConfigureAwait(false);
+            }
 
             /// <summary>Whether unrelated namespace entries precede the models.</summary>
             private readonly bool m_reordered;

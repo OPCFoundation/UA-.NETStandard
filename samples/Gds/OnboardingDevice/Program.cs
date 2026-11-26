@@ -1,26 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person obtaining a copy
- * of this software and associated documentation files (the "Software"), to deal
- * in the Software without restriction, including without limitation the rights
- * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the Software is
- * furnished to do so, subject to the following conditions:
- *
- * The above copyright notice and this permission notice shall be included in
- * all copies or substantial portions of the Software.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
- * OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL
- * THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
- * IN THE SOFTWARE.
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using System.IO;
@@ -45,6 +24,7 @@ using Opc.Ua.Identity;
 using Opc.Ua.Security.Certificates;
 using Opc.Ua.Server;
 using Opc.Ua.Server.Hosting;
+using Opc.Ua.Server.Network;
 using Opc.Ua.Server.UserDatabase;
 using Opc.Ua.Server.UserManagement;
 
@@ -74,7 +54,7 @@ namespace OnboardingDevice
                 Directory.CreateDirectory(options.PkiRoot);
                 using var files = new PushRegistrarCheckpointFiles(Path.Combine(options.PkiRoot, "device-state"));
                 var checkpoints = new DeviceSecurityCheckpointStore(files, options.ApplicationUri);
-                Configure(builder, options, tickets, checkpoints);
+                Configure(builder, options, tickets, checkpoints, files);
                 IHost host = builder.Build();
                 try
                 {
@@ -124,10 +104,32 @@ namespace OnboardingDevice
             HostApplicationBuilder builder,
             DeviceSampleOptions options,
             ArrayOf<DeviceBootstrap.TicketInput> tickets,
-            DeviceSecurityCheckpointStore checkpoints)
+            DeviceSecurityCheckpointStore checkpoints,
+            PushRegistrarCheckpointFiles files)
         {
             builder.Services.AddSingleton(options);
             builder.Services.AddSingleton(checkpoints);
+            builder.Services.AddSingleton(files);
+            builder.Services.AddSingleton(services =>
+            {
+                IProvisionableDeviceRegistrarStore registrars =
+                    services.GetRequiredService<IProvisionableDeviceRegistrarStore>();
+                return new DevicePullJournal(
+                    files, options.ApplicationUri, options.PullRegistrarApplicationUri,
+                    services.GetRequiredService<ITelemetryContext>(),
+                    async (registrar, applicationUri, ct) =>
+                    {
+                        ArrayOf<ApplicationDescription> candidates = await registrars.ReadAsync(ct)
+                            .ConfigureAwait(false);
+                        PullDcaRegistrarSelection.RequireConfiguredEndpoint(
+                            candidates, applicationUri, registrar.EndpointUrl);
+                    },
+                    requireDispatchReservation: true);
+            });
+            builder.Services.AddSingleton<IProvisionableDevicePullInstallationJournal>(static services =>
+                new DevicePullInstallationJournal(
+                    services.GetRequiredService<DevicePullJournal>(),
+                    services.GetService<DevicePullSigningKeyStore>()));
             builder.Services.AddSingleton<ICertificateManager>(services =>
                 new CertificateManager(services.GetRequiredService<ITelemetryContext>()));
             builder.Services.AddSingleton<ISecretStore>(_ => new InMemorySecretStore());
@@ -208,13 +210,15 @@ namespace OnboardingDevice
                     services.GetRequiredService<IPendingCertificateKeyStore>(),
                     services.GetRequiredService<IServerApplicationCertificateActivator>(),
                     installerOptions, services.GetRequiredService<ITelemetryContext>(),
-                    services.GetService<IProvisionableDeviceSoftwareUpdatePolicy>())));
+                    services.GetService<IProvisionableDeviceSoftwareUpdatePolicy>(),
+                    services.GetService<IProvisionableDevicePullKeyProvider>())));
             builder.Services.Replace(ServiceDescriptor.Singleton<ProvisionableDeviceSecurity>(services =>
                 new ProvisionableDeviceSecurity(
                     checkpoints, options.ApplicationUri, options.ApplicationUri,
                     services.GetRequiredService<ICertificateManager>(),
                     services.GetRequiredService<IProvisionableDeviceSecurityInstaller>(),
-                    services.GetRequiredService<ITelemetryContext>())));
+                    services.GetRequiredService<ITelemetryContext>(),
+                    services.GetRequiredService<IProvisionableDevicePullInstallationJournal>())));
             bool isSingleton = options.ManagedApplicationUris.Count == 0;
             if (!isSingleton)
             {
@@ -223,6 +227,8 @@ namespace OnboardingDevice
                         options,
                         services.GetRequiredService<ITelemetryContext>()));
             }
+            server.AddNetworkModel(
+                new NetworkModelBuilder().Build(DateTime.UnixEpoch, StatusCodes.Good));
             server.AddProvisionableDeviceRuntime(
                 isSingleton, tickets.ToList().Select(static ticket => ticket.Id).ToArrayOf());
             if (options.PhysicalReset)
@@ -245,6 +251,18 @@ namespace OnboardingDevice
         private static void ConfigurePull(IServiceCollection services, DeviceSampleOptions options)
         {
             string user = RequiredEnvironment("ONBOARDING_PULL_USER");
+            services.AddSingleton<IPullDcaSigningJournal>(static provider =>
+                provider.GetRequiredService<DevicePullJournal>());
+            services.AddSingleton<IPullDcaCertificateReceiptStore>(static provider =>
+                provider.GetRequiredService<DevicePullJournal>());
+            services.AddSingleton<DevicePullSession>(static provider =>
+                new DevicePullSession(provider.GetRequiredService<Func<CancellationToken, Task<ManagedSession>>>()));
+            services.AddSingleton<Func<PullDcaRegistrar, CancellationToken, ValueTask<ManagedSession>>>(
+                static provider =>
+                {
+                    DevicePullSession session = provider.GetRequiredService<DevicePullSession>();
+                    return (_, ct) => new ValueTask<ManagedSession>(session.GetCurrentAsync(ct));
+                });
             services.AddSingleton<IClientIdentityProvider>(provider =>
             {
                 ISecretStore secrets = provider.GetRequiredService<ISecretStore>();
@@ -263,7 +281,8 @@ namespace OnboardingDevice
                 client.MinimumCertificateKeySize = 2048;
                 client.Session = new ManagedSessionOptions
                 {
-                    SessionName = "OnboardingDevicePull"
+                    SessionName = "OnboardingDevicePull",
+                    ValidateRediscoveredEndpoint = RequireSameRegistrarEndpointAsync
                 };
             }).AddDiscoveryAndConnect(connection =>
             {
@@ -271,15 +290,33 @@ namespace OnboardingDevice
                 connection.SecurityMode = MessageSecurityMode.SignAndEncrypt;
                 connection.SecurityPolicyUri = SecurityPolicies.Basic256Sha256;
             }).AddGdsClient().AddOnboardingClient().AddPullDcaWorkflow();
-            services.AddSingleton(provider => new OnboardingDeviceCredentials(
-                provider.GetRequiredService<IOpcUaApplicationConfigurationProvider>().Configuration,
+            services.Replace(ServiceDescriptor.Singleton<IManagedSessionFactory>(static provider =>
+                new DevicePullSessionFactory(
+                    new DefaultManagedSessionFactory(provider),
+                    provider.GetRequiredService<OpcUaClientOptions>().Session.ReconnectPolicy)));
+            services.AddSingleton<DevicePullActiveIdentity>();
+            services.AddSingleton(provider => new DevicePullSigningKeyStore(
+                provider.GetRequiredService<PushRegistrarCheckpointFiles>(),
+                provider.GetRequiredService<DevicePullJournal>(),
+                provider.GetRequiredService<ICertificateManager>(),
+                provider.GetRequiredService<ICertificateStoreResolver>(),
+                options.ApplicationUri,
+                Path.Combine(options.PkiRoot, "pull-signing-keys"),
+                CertificateStoreType.Directory,
                 provider.GetRequiredService<ITelemetryContext>(),
-                provider.GetServices<ICertificateStoreProvider>().ToArray().ToArrayOf()));
+                provider.GetService<ICertificatePasswordProvider>()));
+            services.AddSingleton<IProvisionableDevicePullKeyProvider>(static provider =>
+                provider.GetRequiredService<DevicePullSigningKeyStore>());
+            services.AddSingleton<IPullDcaSigningRecoveryProvider>(static provider =>
+                new DevicePullSigningRecovery(
+                    provider.GetRequiredService<DevicePullJournal>(),
+                    provider.GetRequiredService<DevicePullSigningKeyStore>(),
+                    provider.GetRequiredService<DevicePullSession>().GetCurrentAsync));
             services.AddSingleton(provider => new DevicePullCredentials(
-                provider.GetRequiredService<OnboardingDeviceCredentials>(),
-                provider.GetRequiredService<OnboardingDeviceCredentials>(),
+                provider.GetRequiredService<DevicePullActiveIdentity>(),
+                provider.GetRequiredService<DevicePullSigningKeyStore>(),
                 provider.GetRequiredService<IProvisionableDeviceSecurity>(),
-                provider.GetRequiredService<Func<CancellationToken, Task<ManagedSession>>>(),
+                provider.GetRequiredService<DevicePullSession>().GetCurrentAsync,
                 options.PullRegistrarApplicationUri!));
             services.AddSingleton<IPullDcaIdentityProvider>(static provider =>
                 provider.GetRequiredService<DevicePullCredentials>());
@@ -292,7 +329,32 @@ namespace OnboardingDevice
                 provider.GetRequiredService<IProvisionableDeviceRuntime>(),
                 provider.GetRequiredService<IOpcUaApplicationConfigurationProvider>(),
                 provider.GetRequiredService<PullDcaWorkflow>(),
-                provider.GetRequiredService<Func<CancellationToken, Task<ManagedSession>>>()));
+                provider.GetRequiredService<DevicePullSession>(),
+                provider.GetRequiredService<DevicePullJournal>(),
+                provider.GetRequiredService<DevicePullCredentials>(),
+                provider.GetRequiredService<DiscoveryConnectOptions>(),
+                provider.GetRequiredService<DevicePullSigningKeyStore>()));
+        }
+
+        /// <summary>
+        /// Prevents rediscovery from changing the registrar endpoint or server identity during an attempt.
+        /// </summary>
+        private static ValueTask<ServiceResult> RequireSameRegistrarEndpointAsync(
+            EndpointDescription current,
+            EndpointDescription rediscovered,
+            CancellationToken ct)
+        {
+            ct.ThrowIfCancellationRequested();
+            string? applicationUri = current.Server?.ApplicationUri;
+            bool matches = !current.ServerCertificate.IsEmpty &&
+                current.ServerCertificate == rediscovered.ServerCertificate &&
+                !string.IsNullOrEmpty(applicationUri) &&
+                string.Equals(applicationUri, rediscovered.Server?.ApplicationUri, StringComparison.Ordinal) &&
+                Uri.TryCreate(current.EndpointUrl, UriKind.Absolute, out Uri? currentEndpoint) &&
+                Uri.TryCreate(rediscovered.EndpointUrl, UriKind.Absolute, out Uri? newEndpoint) &&
+                currentEndpoint.Equals(newEndpoint);
+            return new ValueTask<ServiceResult>(
+                matches ? ServiceResult.Good : new ServiceResult(StatusCodes.BadSecurityChecksFailed));
         }
 
         /// <summary>

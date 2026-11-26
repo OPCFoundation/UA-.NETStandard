@@ -1,26 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person obtaining a
- * copy of this software and associated documentation files (the "Software"),
- * to deal in the Software without restriction, including without limitation
- * the rights to use, copy, modify, merge, publish, distribute, sublicense,
- * and/or sell copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following conditions:
- *
- * The above copyright notice and this permission notice shall be included
- * in all copies or substantial portions of the Software.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
- * OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL
- * THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR
- * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
- * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using System.Threading;
@@ -38,6 +17,33 @@ namespace Opc.Ua.Gds.Server
         /// Configure before startup; durable storage is required for completion recovery across restarts.
         /// </summary>
         public ICertificateRequestIssuanceStore? CertificateRequestIssuanceStore { get; set; }
+
+        /// <summary>
+        /// Gets or sets the request store that durably binds certificate requests to their initiating client
+        /// certificate. Direct construction uses the request store when it implements the bound-store contract.
+        /// </summary>
+        public IClientCertificateBoundCertificateRequestStore? ClientCertificateBoundRequestStore { get; set; }
+
+        /// <summary>
+        /// Gets the configured request store that enforces client-certificate binding.
+        /// </summary>
+        /// <exception cref="ServiceResultException">
+        /// Thrown with <see cref="StatusCodes.BadRequestNotAllowed"/> when the configured request store does not
+        /// support client-certificate binding.
+        /// </exception>
+        private IClientCertificateBoundCertificateRequestStore RequireClientCertificateBoundRequestStore()
+        {
+            return ClientCertificateBoundRequestStore
+                ?? throw new ServiceResultException(
+                    StatusCodes.BadRequestNotAllowed,
+                    "The certificate request store does not support client certificate binding.");
+        }
+
+        /// <summary>
+        /// Gets the request store selected for all certificate-request lifecycle operations.
+        /// </summary>
+        private ICertificateRequest CertificateRequestStore =>
+            ClientCertificateBoundRequestStore ?? m_request;
 
         /// <summary>
         /// Reads assigned certificates only after current onboarding ownership or the standard GDS grant is checked.
@@ -118,7 +124,8 @@ namespace Opc.Ua.Gds.Server
                 HasTrustListAccess(context, trustedStore);
                 return;
             }
-            for (int i = 0; i < bindings.Count; i++)
+            NodeId grantedApplication = NodeId.Null;
+            for (int i = 0; i < bindings.Count && grantedApplication.IsNull; i++)
             {
                 DeviceRegistrarApplicationBinding binding = bindings[i];
                 foreach (string certificateType in s_certificateTypeMap.Values)
@@ -132,12 +139,29 @@ namespace Opc.Ua.Gds.Server
                             await onboarding.AuthorizeApplicationAsync(
                                 context, application, cancellationToken).ConfigureAwait(false))
                         {
-                            return;
+                            grantedApplication = binding.ApplicationId;
+                            break;
                         }
                     }
                 }
             }
-            throw new ServiceResultException(StatusCodes.BadUserAccessDenied);
+
+            // The device binding is the standard rule; the server policy makes the decision.
+            ServiceResult standard = grantedApplication.IsNull
+                ? new ServiceResult(StatusCodes.BadUserAccessDenied)
+                : ServiceResult.Good;
+            ServiceResult result = await ServerAuthorizationPolicy.Resolve(context).AuthorizeAsync(
+                    context,
+                    new ServerAuthorizationRequest(
+                        ServerAuthorizationDecision.TrustListRead,
+                        grantedApplication,
+                        _ => standard),
+                    cancellationToken)
+                .ConfigureAwait(false);
+            if (ServiceResult.IsBad(result))
+            {
+                throw new ServiceResultException(result);
+            }
         }
 
         /// <summary>
@@ -231,11 +255,24 @@ namespace Opc.Ua.Gds.Server
                     await onboarding.AuthorizeApplicationAsync(
                         context, application, cancellationToken).ConfigureAwait(false))
                 {
+                    // The device binding is the standard rule; the server policy makes the decision.
+                    ServiceResult result = await ServerAuthorizationPolicy.Resolve(context).AuthorizeAsync(
+                            context,
+                            new ServerAuthorizationRequest(
+                                ServerAuthorizationDecision.CertificateManagement,
+                                applicationId,
+                                static _ => ServiceResult.Good),
+                            cancellationToken)
+                        .ConfigureAwait(false);
+                    if (ServiceResult.IsBad(result))
+                    {
+                        throw new ServiceResultException(result);
+                    }
                     return true;
                 }
             }
             AuthorizationHelper.HasAuthorization(
-                context, AuthorizationHelper.CertificateAuthorityAdminOrSelfAdminOrAppAdmin, applicationId);
+                context, ServerAuthorizationDecision.CertificateManagement, AuthorizationHelper.CertificateAuthorityAdminOrSelfAdminOrAppAdmin, applicationId);
             return false;
         }
 

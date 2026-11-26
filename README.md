@@ -1,3 +1,8 @@
+<!--
+SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+SPDX-License-Identifier: MIT
+-->
+
 # OPC UA .NET Standard Stack
 
 [![Release](https://img.shields.io/github/v/release/OPCFoundation/UA-.NETStandard?style=flat)](https://github.com/OPCFoundation/UA-.NETStandard/releases)
@@ -7,6 +12,7 @@
 [![Coverage](https://codecov.io/gh/OPCFoundation/UA-.NETStandard/branch/master/graph/badge.svg)](https://codecov.io/gh/OPCFoundation/UA-.NETStandard)
 [![Nightly](https://github.com/OPCFoundation/UA-.NETStandard/actions/workflows/nightly.yml/badge.svg?branch=master&event=schedule)](https://github.com/OPCFoundation/UA-.NETStandard/actions/workflows/nightly.yml?query=branch%3Amaster+event%3Aschedule)
 [![Stress Tests](https://github.com/OPCFoundation/UA-.NETStandard/actions/workflows/stress-test.yml/badge.svg?branch=master&event=schedule)](https://github.com/OPCFoundation/UA-.NETStandard/actions/workflows/stress-test.yml?query=branch%3Amaster+event%3Aschedule)
+[![Server Load Floors](https://github.com/OPCFoundation/UA-.NETStandard/actions/workflows/load-floors.yml/badge.svg?branch=master&event=schedule)](https://github.com/OPCFoundation/UA-.NETStandard/actions/workflows/load-floors.yml?query=branch%3Amaster+event%3Aschedule)
 [![Connection Stability](https://github.com/OPCFoundation/UA-.NETStandard/actions/workflows/stability-test.yml/badge.svg?branch=master&event=schedule)](https://github.com/OPCFoundation/UA-.NETStandard/actions/workflows/stability-test.yml?query=branch%3Amaster+event%3Aschedule)
 [![Foreign Interop](https://github.com/OPCFoundation/UA-.NETStandard/actions/workflows/interop-foreign.yml/badge.svg?branch=master&event=schedule)](https://github.com/OPCFoundation/UA-.NETStandard/actions/workflows/interop-foreign.yml?query=branch%3Amaster+event%3Aschedule)
 [![HA Long-Haul](https://github.com/OPCFoundation/UA-.NETStandard/actions/workflows/sample-ha-longhaul.yml/badge.svg?branch=master&event=schedule)](https://github.com/OPCFoundation/UA-.NETStandard/actions/workflows/sample-ha-longhaul.yml?query=branch%3Amaster+event%3Aschedule)
@@ -30,7 +36,7 @@ across industrial control, manufacturing, energy, and IoT systems.
 - **A full-stack OPC UA implementation** — Core / Client / Server /
   PubSub / GDS / LDS / Complex Types / Device Integration / Positioning libraries
   built on .NET, with UA-TCP and HTTPS transports.
-- **Cross-platform** — runs on .NET 10, .NET 9, .NET 8 (LTS),
+- **Cross-platform** — runs on .NET 11, .NET 10 (LTS),
   .NET Framework 4.8; ships
   Native-AOT-friendly assemblies.
 - **Conformance regression testing** — the reference server is tested with the
@@ -47,7 +53,9 @@ across industrial control, manufacturing, energy, and IoT systems.
   Spatial Location and Global Positioning), OPC-10030 (ISA-95 Common
   Model) with OPC-10031-4 Job Control V1/V2, OPC 30270 / OPC UA for Asset
   Administration Shell V2 and V3, OPC 10100-1
-  (WoT Connectivity), Part 200 (Industrial Automation), OPC 40001-1/-2/-3/-4/-101
+  (WoT Connectivity), Part 200
+  ([Industrial Automation stacklights, statistics and calibration information](docs/IndustrialAutomation.md)),
+  OPC 40001-1/-2/-3/-4/-101
   (Machinery with Process Values, Job Management, Energy and Result
   Transfer), OPC 34100 (Energy Consumption Management), OPC 30081
   (PA-DIM), OPC 40010-1 (Robotics), OPC 40100-1/-2
@@ -60,7 +68,8 @@ across industrial control, manufacturing, energy, and IoT systems.
   OPC 40223 (Pumps and Vacuum Pumps),
   OPC 30010 ([AutoID Devices](docs/AutoID.md)),
   OPC 30500-1 ([Laboratory and Analytical Devices](docs/LADS.md)),
-  OPC 40200 (Weighing Technology) with OPC 30050 (PackML).
+  OPC 40200 (Weighing Technology) with OPC 30050
+  ([PackML](docs/PackML.md), also available as standalone provider-backed units).
 - **Hosting and code generation** — `Microsoft.Extensions.DependencyInjection`
   hosting (`services.AddOpcUa()`), fluent server + client builders,
   source-generated NodeManagers and DataTypes, and an MCP server so
@@ -81,9 +90,9 @@ The [recycling operator console](samples/Recycling/README.md#operator-console-wa
 live browser monitoring, native companion-specification inspection, material genealogy,
 and authorized controls over the [synthetic recycling line](samples/Recycling/README.md).
 
-You need a stable [.NET SDK](https://dotnet.microsoft.com/download/dotnet/10.0)
-version **10.0.400 or later** to build the repo. `global.json` selects the
-highest installed stable SDK, including newer major versions. From the repository root:
+You need a stable [.NET 11 SDK](https://dotnet.microsoft.com/download/dotnet/11.0)
+version **11.0.100 or later** to build the repo. `global.json` selects the
+highest installed stable 11.0 SDK and excludes newer major versions. From the repository root:
 
 ```bash
 dotnet restore UA.slnx
@@ -131,6 +140,11 @@ the companion
 
 ### Developer tools
 
+- [NodeSet2 to WoT export tool](docs/WotExportTool.md) - a .NET 10 global tool.
+  Read local NodeSet2 files and write W3C WoT Thing Models with progress and diagnostic messages.
+  Export ordinary payload schemas, native type names, and separate engineering metadata.
+  Use publisher metadata for explicit names, standalone intent, and assigned CloudEvents contracts.
+  An optional mode produces identifier-safe interaction keys.
 - [UaLens](docs/UaLens.md) — NativeAOT-capable desktop engineering workspace for secure connections,
   monitoring, alarms, structured values, history, administration, PubSub, continuity diagnostics, and guided
   companion-model tasks. See [build and artifact qualification](tools/Opc.Ua.Lens/README.md#publish-and-package).
@@ -190,7 +204,7 @@ Contributors must sign the OPC Foundation
 The CLA "I AGREE" gate is presented automatically on your first PR.
 
 The project is licensed under the
-[OPC Foundation MIT License](LICENSE.txt). Report security
+[MIT License](LICENSE). Report security
 vulnerabilities via the process documented in
 [SECURITY.md](SECURITY.md).
 
@@ -198,6 +212,8 @@ vulnerabilities via the process documented in
 
 - [Documentation index](docs/README.md) — every per-feature doc with a
   one-line description.
+- [ISA-95 Job Control](docs/ISA95.md#server-independent-job-control) — reuse orders, responses,
+  conversions, and lifecycle rules without hosting an OPC UA server.
 - [What's New in 2.0](docs/WhatsNewIn2.0.md) — narrative tour of the
   1.5.378 → 2.0 changes grouped by theme and layer.
 - [OPC UA Profiles and Facets](docs/Profiles.md) — facets / transports /

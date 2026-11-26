@@ -1,31 +1,5 @@
-# ========================================================================
-# Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
-#
-# OPC Foundation MIT License 1.00
-#
-# Permission is hereby granted, free of charge, to any person
-# obtaining a copy of this software and associated documentation
-# files (the "Software"), to deal in the Software without
-# restriction, including without limitation the rights to use,
-# copy, modify, merge, publish, distribute, sublicense, and/or sell
-# copies of the Software, and to permit persons to whom the
-# Software is furnished to do so, subject to the following
-# conditions:
-#
-# The above copyright notice and this permission notice shall be
-# included in all copies or substantial portions of the Software.
-# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
-# EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
-# OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
-# NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
-# HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
-# WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
-# FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
-# OTHER DEALINGS IN THE SOFTWARE.
-#
-# The complete license agreement can be found here:
-# http://opcfoundation.org/License/MIT/1.00/
-# ========================================================================
+# SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+# SPDX-License-Identifier: MIT
 
 [CmdletBinding()]
 param(
@@ -75,90 +49,6 @@ function Invoke-CheckedNative
     {
         throw "'$FilePath' exited with code $LASTEXITCODE."
     }
-}
-
-function Get-AvailableTcpPort
-{
-    $listener = [Net.Sockets.TcpListener]::new([Net.IPAddress]::Loopback, 0)
-    $listener.Start()
-    try
-    {
-        return ([Net.IPEndPoint] $listener.LocalEndpoint).Port
-    }
-    finally
-    {
-        $listener.Stop()
-    }
-}
-
-function Start-McpHttpServer
-{
-    param(
-        [Parameter(Mandatory)]
-        [string] $Profile,
-        [Parameter(Mandatory)]
-        [string] $AssemblyPath,
-        [Parameter(Mandatory)]
-        [string] $LogPrefix
-    )
-
-    $port = Get-AvailableTcpPort
-    $stdoutPath = Join-Path $ResultsDirectory "$LogPrefix.stdout.log"
-    $stderrPath = Join-Path $ResultsDirectory "$LogPrefix.stderr.log"
-    $process = Start-Process -FilePath 'dotnet' -ArgumentList @(
-        $AssemblyPath,
-        '--transport',
-        'http',
-        '--profile',
-        $Profile,
-        '--port',
-        $port
-    ) -PassThru -RedirectStandardOutput $stdoutPath -RedirectStandardError $stderrPath
-
-    $deadline = [DateTime]::UtcNow.AddSeconds(30)
-    while ([DateTime]::UtcNow -lt $deadline)
-    {
-        if ($process.HasExited)
-        {
-            throw "MCP $Profile server exited with code $($process.ExitCode). See $stderrPath."
-        }
-
-        $client = [Net.Sockets.TcpClient]::new()
-        try
-        {
-            $client.Connect([Net.IPAddress]::Loopback, $port)
-            return @{
-                Process = $process
-                Url = "http://127.0.0.1:$port/mcp"
-            }
-        }
-        catch [Net.Sockets.SocketException]
-        {
-            Start-Sleep -Milliseconds 100
-        }
-        finally
-        {
-            $client.Dispose()
-        }
-    }
-
-    Stop-Process -Id $process.Id
-    throw "MCP $Profile server did not listen within 30 seconds. See $stderrPath."
-}
-
-function Stop-McpHttpServer
-{
-    param(
-        [Parameter(Mandatory)]
-        [Diagnostics.Process] $Process
-    )
-
-    if (-not $Process.HasExited)
-    {
-        Stop-Process -Id $Process.Id
-        $Process.WaitForExit()
-    }
-    $Process.Dispose()
 }
 
 function Invoke-McpGrade
@@ -311,16 +201,19 @@ try
         {
             throw "Invalid profile name '$profile'."
         }
-        $server = Start-McpHttpServer -Profile $profile -AssemblyPath $assemblyPath `
-            -LogPrefix "$profile-server"
+        # The catalogue depends only on the profile and enabled capabilities, not on the transport,
+        # so grade over stdio: the HTTP transport requires a bearer token mcpgrade cannot send.
+        Push-Location (Split-Path $assemblyPath)
         try
         {
-            Invoke-McpGrade -Arguments @($server.Url) `
-                -OutputPath (Join-Path $ResultsDirectory "$profile-static.json")
+            Invoke-McpGrade -Arguments @(
+                '--stdio',
+                "dotnet Opc.Ua.Mcp.dll --profile $profile"
+            ) -OutputPath (Join-Path $ResultsDirectory "$profile-static.json")
         }
         finally
         {
-            Stop-McpHttpServer -Process $server.Process
+            Pop-Location
         }
     }
 

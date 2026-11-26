@@ -1,36 +1,8 @@
-/* ========================================================================
- * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
-using System.Collections.Generic;
-using System.Security.Cryptography;
-using System.Text;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection;
@@ -39,11 +11,10 @@ using Microsoft.Extensions.Logging;
 using Opc.Ua;
 using Opc.Ua.PubSub.Configuration;
 using Opc.Ua.PubSub.Redundancy;
+using Opc.Ua.PubSub.Security;
+using Opc.Ua.PubSub.Udp;
 using Opc.Ua.Redundancy;
-using Raft;
-using Raft.Configuration;
-using Raft.Storage;
-using Raft.Transport.NanoMsg;
+using RedundancySample;
 
 namespace RedundantPubSub
 {
@@ -56,17 +27,54 @@ namespace RedundantPubSub
         /// Starts the selected role.
         /// </summary>
         /// <param name="args">Command-line arguments.</param>
-        /// <exception cref="InvalidOperationException">Thrown when the configured role is not recognized.</exception>
         public static async Task<int> Main(string[] args)
         {
-            var options = SampleOptions.Parse(args, Environment.GetEnvironmentVariable);
+            try
+            {
+                return await RunAsync(args).ConfigureAwait(false);
+            }
+            catch (Exception exception) when (exception is InvalidOperationException or FormatException
+                or ServiceResultException)
+            {
+                Console.Error.WriteLine(exception.Message);
+                return 1;
+            }
+        }
+
+        private static async Task<int> RunAsync(string[] args)
+        {
+            Func<string, string?> read = SampleOptions.CreateSettingsReader(args, Environment.GetEnvironmentVariable);
+            SampleOptions options = SampleOptions.Parse(read);
+            if (!Uri.TryCreate(options.Endpoint, UriKind.Absolute, out Uri? endpoint) ||
+                !string.Equals(endpoint.Scheme, "opc.udp", StringComparison.Ordinal) || endpoint.Port <= 0)
+            {
+                throw new InvalidOperationException("PUBSUB_ENDPOINT must be an opc.udp URL with an explicit port.");
+            }
+            if (!options.Distributed && (!options.Insecure || !endpoint.IsLoopback))
+            {
+                throw new InvalidOperationException(
+                    "Unsigned PubSub is limited to loopback demos with HA_INSECURE=true.");
+            }
+            if (options.Distributed && (options.Insecure || options.Role == SampleRole.Demo))
+            {
+                throw new InvalidOperationException("A networked Raft set cannot be started in an insecure demo.");
+            }
+            if (options.Role == SampleRole.Demo && options.Election != PubSubRedundancyElection.LeaderElection)
+            {
+                throw new InvalidOperationException("The scripted demo requires HA_ELECTION=leader-election.");
+            }
+            if (!options.Distributed && SampleFreshness.IsEnabled(read("HA_ENROLL_ONLY")))
+            {
+                throw new InvalidOperationException("HA_ENROLL_ONLY requires a networked Raft set.");
+            }
+
             using CancellationTokenSource shutdown = CreateShutdownTokenSource();
             try
             {
                 return options.Role switch
                 {
-                    SampleRole.Publisher => await RunPublisherAsync(options, shutdown.Token).ConfigureAwait(false),
-                    SampleRole.Subscriber => await RunSubscriberAsync(options, shutdown.Token).ConfigureAwait(false),
+                    SampleRole.Publisher or SampleRole.Subscriber =>
+                        await RunRoleAsync(options, read, shutdown.Token).ConfigureAwait(false),
                     SampleRole.Demo => await RunDemoAsync(options, shutdown.Token).ConfigureAwait(false),
                     _ => throw new InvalidOperationException("Unknown sample role.")
                 };
@@ -77,50 +85,104 @@ namespace RedundantPubSub
             }
         }
 
-        private static async Task<int> RunPublisherAsync(SampleOptions options, CancellationToken cancellationToken)
+        private static async Task<int> RunRoleAsync(
+            SampleOptions options,
+            Func<string, string?> read,
+            CancellationToken ct)
         {
             HostApplicationBuilder builder = Host.CreateApplicationBuilder();
             ConfigureLogging(builder);
-            AddDistributedStore(builder.Services, options);
-            AddPubSubRedundancy(builder.Services, options);
-            AddPublisher(builder.Services, options, options.OwnerId);
-            using IHost host = builder.Build();
-            LogComponentRoles(host.Services, options.OwnerId, "Publisher");
-            ILogger logger = host.Services.GetRequiredService<ILoggerFactory>().CreateLogger("RedundantPubSub.Publisher");
-            logger.PublisherStarting(options.OwnerId, options.HaMode, options.Election, options.Endpoint);
-            await host.RunAsync(cancellationToken).ConfigureAwait(false);
-            return 0;
-        }
 
-        private static async Task<int> RunSubscriberAsync(SampleOptions options, CancellationToken cancellationToken)
-        {
-            HostApplicationBuilder builder = Host.CreateApplicationBuilder();
-            ConfigureLogging(builder);
-            builder.Services.AddSingleton(options);
-            builder.Services.AddSingleton<SequenceContinuityMonitor>();
-            builder.Services.AddHostedService<RawUdpSequenceMonitor>();
-
-            // A subscriber configured with a distributed election (a Raft member set)
-            // participates in PubSub high availability: its ReaderGroup is governed by the
-            // activation coordinator, so only the elected-active replica dispatches received
-            // data sets to the sink while standby replicas stay paused until promoted.
-            bool highlyAvailable = options.RaftMembers > 1 || options.RaftPeers.Count > 0;
-            if (highlyAvailable)
+            bool publisher = options.Role == SampleRole.Publisher;
+            if (options.Distributed && options.HaMode != PubSubRedundancyMode.Cold &&
+                options.Election != PubSubRedundancyElection.LeaseStore)
             {
-                AddDistributedStore(builder.Services, options);
+                throw new InvalidOperationException(
+                    "External warm/hot PubSub requires HA_ELECTION=lease-store to fence state writes.");
+            }
+            var raft = options.Distributed ? SampleCluster.ReadRaft(read, "HA") : default;
+            if (options.Distributed)
+            {
+                _ = SampleCluster.Require(read, "OWNER_ID");
+                _ = SampleCluster.Require(read, "PUBSUB_ENDPOINT");
+            }
+            using AesCbcHmacRecordProtector? protector = options.Distributed
+                ? await SampleFreshness.AddAsync(builder.Services, read, "HA", ct).ConfigureAwait(false)
+                : null;
+            using SampleCluster? cluster = options.Distributed
+                ? await SampleCluster.LoadAsync(read, "HA", raft.Peers!.Select(peer => peer.Pin).ToArray(), ct)
+                    .ConfigureAwait(false)
+                : null;
+            (string Id, string SksUrl)? security = options.Distributed
+                ? (SampleCluster.Require(read, "PUBSUB_SECURITY_GROUP"),
+                    SampleCluster.Require(read, "PUBSUB_SKS_URL"))
+                : null;
+
+            if (options.Distributed)
+            {
+                builder.Services.AddSingleton<IRaftConsensus>(
+                    _ => cluster!.CreateRaft(raft.Id, raft.Bind!, raft.Peers!));
+                builder.Services.AddSingleton<ISharedKeyValueStore>(sp => new RaftSharedKeyValueStore(
+                    sp.GetRequiredService<IRaftConsensus>(), ownsConsensus: false));
+                if (options.Election == PubSubRedundancyElection.LeaderElection)
+                {
+                    builder.Services.AddSingleton<ILeaderElection>(sp => new RaftLeaderElection(
+                        sp.GetRequiredService<IRaftConsensus>(),
+                        sp.GetRequiredService<ILogger<RaftLeaderElection>>()));
+                }
+                AddPubSubRedundancy(builder.Services, options);
+            }
+            else if (publisher)
+            {
+                builder.Services.AddSingleton<ISharedKeyValueStore, InMemorySharedKeyValueStore>();
+                builder.Services.AddSingleton<ILeaderElection>(_ => new StaticLeaderElection(true));
                 AddPubSubRedundancy(builder.Services, options);
             }
 
-            AddSubscriber(builder.Services, options);
-            using IHost host = builder.Build();
-            if (highlyAvailable)
+            if (publisher)
             {
-                LogComponentRoles(host.Services, options.OwnerId, "Subscriber");
+                AddPublisher(builder.Services, options, options.OwnerId, security);
+            }
+            else
+            {
+                if (!options.Distributed)
+                {
+                    AddRawMonitor(builder.Services, options);
+                }
+                AddSubscriber(builder.Services, options, security);
             }
 
-            ILogger logger = host.Services.GetRequiredService<ILoggerFactory>().CreateLogger("RedundantPubSub.Subscriber");
-            logger.SubscriberStarting(options.OwnerId, highlyAvailable, options.Endpoint);
-            await host.RunAsync(cancellationToken).ConfigureAwait(false);
+            IHost host = builder.Build();
+            await using var lifetime = ((IAsyncDisposable)host).ConfigureAwait(false);
+            if (options.Distributed)
+            {
+                if (await SampleFreshness.VerifyOrEnrollAsync(host.Services, read, "HA", ct).ConfigureAwait(false))
+                {
+                    return 0;
+                }
+                if (host.Services.GetRequiredService<ISharedKeyValueStore>() is not RaftSharedKeyValueStore raftStore)
+                {
+                    throw new InvalidOperationException("The distributed PubSub sample requires a Raft payload store.");
+                }
+                await raftStore.TryGetAsync("sample/readiness", ct).ConfigureAwait(false);
+            }
+
+            if (options.Distributed || publisher)
+            {
+                LogComponentRoles(host.Services, options.OwnerId, publisher ? "Publisher" : "Subscriber");
+            }
+
+            ILogger logger = host.Services.GetRequiredService<ILoggerFactory>().CreateLogger("RedundantPubSub");
+            if (publisher)
+            {
+                logger.PublisherStarting(options.OwnerId, options.HaMode, options.Election, options.Endpoint);
+            }
+            else
+            {
+                logger.SubscriberStarting(options.OwnerId, options.Distributed, options.Endpoint);
+            }
+            await host.StartAsync(ct).ConfigureAwait(false);
+            await host.WaitForShutdownAsync(ct).ConfigureAwait(false);
             return 0;
         }
 
@@ -129,20 +191,13 @@ namespace RedundantPubSub
             const uint simulatedPostFailoverMargin = 5;
             const int simulatedPreFailoverCount = 3;
             const int simulatedPostFailoverCount = 2;
-            SampleOptions demoOptions = GetDemoOptions(options);
             using var store = new InMemorySharedKeyValueStore();
             var election = new ManualLeaderElection();
             election.SetLeader("publisher-a");
-            using IHost subscriber = BuildDemoSubscriber(demoOptions);
-            using IHost publisherA = BuildDemoPublisher(demoOptions, "publisher-a", store, election);
-            using IHost publisherB = BuildDemoPublisher(demoOptions, "publisher-b", store, election);
-            if (!string.Equals(demoOptions.Endpoint, options.Endpoint, StringComparison.OrdinalIgnoreCase))
-            {
-                Console.WriteLine(
-                    "DEMO: using local loopback UDP endpoint {0}. Override PUBSUB_ENDPOINT to use multicast or another address.",
-                    demoOptions.Endpoint);
-            }
-            if (demoOptions.HaMode == PubSubRedundancyMode.Warm)
+            using IHost subscriber = BuildDemoSubscriber(options);
+            using IHost publisherA = BuildDemoPublisher(options, "publisher-a", store, election);
+            using IHost publisherB = BuildDemoPublisher(options, "publisher-b", store, election);
+            if (options.HaMode == PubSubRedundancyMode.Warm)
             {
                 Console.WriteLine(
                     "WARM MODE: standby activation is exercised, but without hot checkpoints the promoted " +
@@ -162,30 +217,20 @@ namespace RedundantPubSub
                 count: simulatedPreFailoverCount,
                 ref simulatedLastSequence,
                 ref simulatedLastOwner);
-            await Task.Delay(demoOptions.DemoFirstActiveDuration, cancellationToken).ConfigureAwait(false);
+            await Task.Delay(options.DemoFirstActiveDuration, cancellationToken).ConfigureAwait(false);
             Console.WriteLine("FAILOVER: stopping publisher-a; publisher-b is promoted.");
             await publisherA.StopAsync(cancellationToken).ConfigureAwait(false);
             election.SetLeader("publisher-b");
             EmitSimulatedSequences(
                 ownerId: "publisher-b",
-                start: demoOptions.HaMode == PubSubRedundancyMode.Hot
+                start: options.HaMode == PubSubRedundancyMode.Hot
                     ? simulatedPreFailoverCount + simulatedPostFailoverMargin
                     : 0,
                 count: simulatedPostFailoverCount,
                 ref simulatedLastSequence,
                 ref simulatedLastOwner);
-            await Task.Delay(demoOptions.DemoSecondActiveDuration, cancellationToken).ConfigureAwait(false);
+            await Task.Delay(options.DemoSecondActiveDuration, cancellationToken).ConfigureAwait(false);
             return 0;
-        }
-
-        private static SampleOptions GetDemoOptions(SampleOptions options)
-        {
-            if (string.Equals(options.Endpoint, SampleConstants.DefaultEndpoint, StringComparison.OrdinalIgnoreCase))
-            {
-                return options with { Endpoint = SampleConstants.DefaultDemoEndpoint };
-            }
-
-            return options;
         }
 
         private static void EmitSimulatedSequences(
@@ -248,27 +293,16 @@ namespace RedundantPubSub
         {
             HostApplicationBuilder builder = Host.CreateApplicationBuilder();
             ConfigureLogging(builder);
-            builder.Services.AddSingleton(options);
-            builder.Services.AddSingleton<SequenceContinuityMonitor>();
-            builder.Services.AddHostedService<RawUdpSequenceMonitor>();
+            AddRawMonitor(builder.Services, options);
             AddSubscriber(builder.Services, options);
             return builder.Build();
         }
 
-        private static void AddDistributedStore(IServiceCollection services, SampleOptions options)
+        private static void AddRawMonitor(IServiceCollection services, SampleOptions options)
         {
-            DefaultRaftConsensus consensus = BuildRaftCluster(options);
-            services.AddSingleton<IRaftConsensus>(consensus);
-            services.AddSingleton<ISharedKeyValueStore>(sp => new RaftSharedKeyValueStore(
-                sp.GetRequiredService<IRaftConsensus>(), ownsConsensus: false));
-            services.AddSingleton<IRecordProtector>(_ => CreateRecordProtector(options));
-            services.AddHostedService<RaftLifetimeService>();
-            if (options.Election == PubSubRedundancyElection.LeaderElection)
-            {
-                services.AddSingleton<ILeaderElection>(sp => new RaftLeaderElection(
-                    sp.GetRequiredService<IRaftConsensus>(),
-                    sp.GetRequiredService<ILogger<RaftLeaderElection>>()));
-            }
+            services.AddSingleton(options);
+            services.AddSingleton<SequenceContinuityMonitor>();
+            services.AddHostedService<RawUdpSequenceMonitor>();
         }
 
         private static void AddPubSubRedundancy(IServiceCollection services, SampleOptions options)
@@ -284,31 +318,60 @@ namespace RedundantPubSub
             });
         }
 
-        private static void AddPublisher(IServiceCollection services, SampleOptions options, string ownerId)
+        private static void AddPublisher(
+            IServiceCollection services,
+            SampleOptions options,
+            string ownerId,
+            (string Id, string SksUrl)? security = null)
         {
             services.AddOpcUa().AddPubSub(pubsub => pubsub
                 .AddPublisher()
-                .AddUdpTransport()
+                .AddUdpTransport(udp => ConfigureUdp(udp, options.Insecure))
                 .AddDataSetSource(SampleConstants.DataSetName, new HaDataSetSource(ownerId))
-                .ConfigureApplication(app => app
-                    .WithApplicationId($"urn:opcfoundation:RedundantPubSub:Publisher:{ownerId}")
-                    .UseConfiguration(BuildPublisherConfiguration(options))));
+                .ConfigureApplication((sp, app) =>
+                {
+                    if (security != null)
+                    {
+                        app.AddSecurityKeyProvider(sp.GetRequiredService<IPubSubSecurityKeyProvider>());
+                    }
+                    app.WithApplicationId($"urn:opcfoundation:RedundantPubSub:Publisher:{ownerId}")
+                        .UseConfiguration(BuildPublisherConfiguration(options, security));
+                }));
         }
 
-        private static void AddSubscriber(IServiceCollection services, SampleOptions options)
+        private static void AddSubscriber(
+            IServiceCollection services,
+            SampleOptions options,
+            (string Id, string SksUrl)? security = null)
         {
             services.AddOpcUa().AddPubSub(pubsub => pubsub
                 .AddSubscriber()
-                .AddUdpTransport()
+                .AddUdpTransport(udp => ConfigureUdp(udp, options.Insecure))
                 .AddSubscribedDataSetSink(
                     SampleConstants.ReaderName,
                     sp => new HaSubscriberSink(sp.GetRequiredService<ILogger<HaSubscriberSink>>()))
-                .ConfigureApplication(app => app
-                    .WithApplicationId("urn:opcfoundation:RedundantPubSub:Subscriber")
-                    .UseConfiguration(BuildSubscriberConfiguration(options))));
+                .ConfigureApplication((sp, app) =>
+                {
+                    if (security != null)
+                    {
+                        app.AddSecurityKeyProvider(sp.GetRequiredService<IPubSubSecurityKeyProvider>());
+                    }
+                    app.WithApplicationId("urn:opcfoundation:RedundantPubSub:Subscriber")
+                        .UseConfiguration(BuildSubscriberConfiguration(options, security));
+                }));
         }
 
-        private static PubSubConfigurationDataType BuildPublisherConfiguration(SampleOptions options)
+        private static void ConfigureUdp(UdpTransportOptions options, bool insecureDemo)
+        {
+            if (insecureDemo)
+            {
+                options.WithDatagramPolicy(new LoopbackUdpPolicy());
+            }
+        }
+
+        private static PubSubConfigurationDataType BuildPublisherConfiguration(
+            SampleOptions options,
+            (string Id, string SksUrl)? security)
         {
             return PubSubConfigurationBuilder.Create()
                 .AddPublishedDataSet(SampleConstants.DataSetName, ds => ds
@@ -319,8 +382,13 @@ namespace RedundantPubSub
                     .WithPublisherId(new Variant(options.PublisherId))
                     .WithTransportProfile(Profiles.PubSubUdpUadpTransport)
                     .WithAddress(options.Endpoint)
-                    .AddWriterGroup("WriterGroup 1", group => group
-                        .WithWriterGroupId(options.WriterGroupId)
+                    .AddWriterGroup("WriterGroup 1", group =>
+                    {
+                        if (security is { } secured)
+                        {
+                            group.WithSecurity(MessageSecurityMode.SignAndEncrypt, secured.Id, secured.SksUrl);
+                        }
+                        group.WithWriterGroupId(options.WriterGroupId)
                         .WithPublishingInterval(options.IntervalMs)
                         .WithMessageSettings(new UadpWriterGroupMessageDataType
                         {
@@ -343,19 +411,27 @@ namespace RedundantPubSub
                                 DataSetMessageContentMask = (uint)(
                                     UadpDataSetMessageContentMask.Status |
                                     UadpDataSetMessageContentMask.SequenceNumber)
-                            }))))
+                            }));
+                    }))
                 .Build();
         }
 
-        private static PubSubConfigurationDataType BuildSubscriberConfiguration(SampleOptions options)
+        private static PubSubConfigurationDataType BuildSubscriberConfiguration(
+            SampleOptions options,
+            (string Id, string SksUrl)? security)
         {
             return PubSubConfigurationBuilder.Create()
                 .AddConnection("Subscriber Connection", connection => connection
                     .WithPublisherId(new Variant(options.PublisherId))
                     .WithTransportProfile(Profiles.PubSubUdpUadpTransport)
                     .WithAddress(options.Endpoint)
-                    .AddReaderGroup("ReaderGroup 1", group => group
-                        .WithMaxNetworkMessageSize(1500)
+                    .AddReaderGroup("ReaderGroup 1", group =>
+                    {
+                        if (security is { } secured)
+                        {
+                            group.WithSecurity(MessageSecurityMode.SignAndEncrypt, secured.Id, secured.SksUrl);
+                        }
+                        group.WithMaxNetworkMessageSize(1500)
                         .AddDataSetReader(SampleConstants.ReaderName, reader => reader
                             .WithFilter(new Variant(options.PublisherId), options.WriterGroupId, options.DataSetWriterId)
                             .WithFieldContentMask(DataSetFieldContentMask.RawData)
@@ -378,57 +454,9 @@ namespace RedundantPubSub
                                 .WithoutFieldIds()
                                 .AddField("Counter", (byte)DataTypes.Int64, DataTypeIds.Int64)
                                 .AddField("SourceTimestamp", (byte)DataTypes.DateTime, DataTypeIds.DateTime)
-                                .AddField("OwnerId", (byte)DataTypes.String, DataTypeIds.String)))))
+                                .AddField("OwnerId", (byte)DataTypes.String, DataTypeIds.String)));
+                    }))
                 .Build();
-        }
-
-        private static DefaultRaftConsensus BuildRaftCluster(SampleOptions options)
-        {
-            var memberIds = new List<ulong>(options.RaftMembers);
-            for (int ii = 1; ii <= options.RaftMembers; ii++)
-            {
-                memberIds.Add((ulong)ii);
-            }
-
-            var transportOptions = new NanoMsgBusTransportOptions { BindAddress = options.RaftBind };
-            foreach (string peer in options.RaftPeers)
-            {
-                transportOptions.Peers.Add(peer);
-            }
-
-#pragma warning disable CA2000
-            var transport = new NanoMsgBusTransport(transportOptions);
-            var storage = new MemoryStorage(new ConfState(memberIds));
-            return DefaultRaftConsensus.CreateCluster(
-                options.RaftId,
-                transport,
-                storage,
-                new RaftNodeOptions { TickInterval = TimeSpan.FromMilliseconds(50) },
-                config =>
-                {
-                    config.ElectionTick = 10;
-                    config.PreVote = true;
-                    config.CheckQuorum = true;
-                },
-                TimeSpan.FromSeconds(30));
-#pragma warning restore CA2000
-        }
-
-        private static AesCbcHmacRecordProtector CreateRecordProtector(SampleOptions options)
-        {
-            if (!string.IsNullOrWhiteSpace(options.RecordKeyBase64))
-            {
-                return new AesCbcHmacRecordProtector(Convert.FromBase64String(options.RecordKeyBase64));
-            }
-            if (!options.Insecure)
-            {
-                throw new InvalidOperationException(
-                    "Set HA_RECORD_KEY to a shared base64 32-byte key, or set HA_INSECURE=true for this demo.");
-            }
-
-            Console.Error.WriteLine("[HA][WARNING] HA_INSECURE=true: using a well-known non-secret demo key.");
-            byte[] demoKey = SHA256.HashData(Encoding.UTF8.GetBytes("OPCFoundation/RedundantPubSub/insecure-demo"));
-            return new AesCbcHmacRecordProtector(demoKey);
         }
 
         private static void LogComponentRoles(IServiceProvider services, string ownerId, string roleLabel)

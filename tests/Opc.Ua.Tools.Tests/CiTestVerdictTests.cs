@@ -1,33 +1,7 @@
-/* ========================================================================
- * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
-#if NET10_0
+#if NET10_0_OR_GREATER
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -46,10 +20,8 @@ namespace Opc.Ua.Tools.Tests
     /// Contract tests for Get-TestRunVerdict in .github/scripts/get-test-verdict.ps1,
     /// the rule that decides whether a continuous integration test leg reports
     /// green. It deliberately tolerates a non-zero test-host exit after a fully
-    /// green run, because the host can stall or crash during process exit once
-    /// every test and teardown has already completed. That tolerance has to stay
-    /// narrow: if it widened to cover a run that recorded real failures, a broken
-    /// suite would merge silently. Both directions are asserted here.
+    /// green run with no test-host error. Error RunInfo messages reject a crash
+    /// even when the counters record only passing tests.
     /// </summary>
     [TestFixture]
     [NonParallelizable]
@@ -210,9 +182,8 @@ namespace Opc.Ua.Tools.Tests
 
         /// <summary>
         /// Other run messages are not fixture failures. A host that crashes at
-        /// exit leaves "Test host process crashed" behind, and test output that
-        /// merely mentions a teardown must not count either; otherwise the
-        /// at-exit tolerance would no longer apply to the case it exists for.
+        /// exit is a run failure, not a fixture failure. Warning test output that
+        /// merely mentions a teardown must not count as either.
         /// </summary>
         [Test]
         public async Task OtherRunMessagesAreNotFixtureFailuresAsync()
@@ -227,6 +198,85 @@ namespace Opc.Ua.Tools.Tests
                     ])).ConfigureAwait(false);
 
             Assert.That(results.FixtureFailures, Is.Empty);
+            Assert.That(results.RunFailures, Has.Length.EqualTo(1));
+            Assert.That(results.RunFailures[0], Does.Contain("Test host process crashed"));
+        }
+
+        /// <summary>
+        /// A host-crash run error must fail even when every reported counter is passing.
+        /// </summary>
+        [TestCase(0)]
+        [TestCase(1)]
+        public async Task HostCrashRunErrorIsRejectedAsync(int exitCode)
+        {
+            const string crash = "The active test run was aborted. Reason: Test host process crashed";
+            TrxResults results = await MeasureAsync(
+                new TrxFile(
+                    "crash.trx",
+                    new Dictionary<string, int> { ["total"] = 133, ["passed"] = 132 },
+                    [("Error", crash)])).ConfigureAwait(false);
+
+            Verdict verdict = await InvokeAsync(
+                results.Files, results.Total, results.Passed, results.Failed, exitCode, timedOut: false,
+                runFailures: results.RunFailures).ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(results.FixtureFailures, Is.Empty);
+                Assert.That(results.RunFailures, Is.EqualTo(new[] { crash }));
+                Assert.That(verdict.Passed, Is.False);
+                Assert.That(verdict.Tolerated, Is.False);
+                Assert.That(verdict.Reason, Does.Contain("Test host process crashed"));
+            });
+        }
+
+        /// <summary>
+        /// Warning test output remains distinct from an error reported by the test host.
+        /// </summary>
+        [Test]
+        public async Task WarningRunMessageDoesNotFailTheRunAsync()
+        {
+            TrxResults results = await MeasureAsync(
+                new TrxFile(
+                    "warning.trx",
+                    new Dictionary<string, int> { ["total"] = 10, ["passed"] = 10 },
+                    [("Warning", "Expected failure-path test output")])).ConfigureAwait(false);
+            Verdict verdict = await InvokeAsync(
+                results.Files, results.Total, results.Passed, results.Failed, exitCode: 1, timedOut: false,
+                runFailures: results.RunFailures).ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(results.RunFailures, Is.Empty);
+                Assert.That(verdict.Passed, Is.True);
+                Assert.That(verdict.Tolerated, Is.True);
+            });
+        }
+
+        /// <summary>
+        /// Run errors remain failures even when the host omits the diagnostic message.
+        /// </summary>
+        [TestCase("")]
+        [TestCase("Data collector failed")]
+        public async Task EveryErrorRunMessageIsRejectedAsync(string message)
+        {
+            TrxResults results = await MeasureAsync(
+                new TrxFile(
+                    "error.trx",
+                    new Dictionary<string, int> { ["total"] = 10, ["passed"] = 10 },
+                    [("Error", message)])).ConfigureAwait(false);
+            Verdict verdict = await InvokeAsync(
+                results.Files, results.Total, results.Passed, results.Failed, exitCode: 0, timedOut: false,
+                runFailures: results.RunFailures).ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(results.RunFailures, Has.Length.EqualTo(1));
+                Assert.That(results.RunFailures[0], Is.Not.Empty);
+                Assert.That(verdict.Passed, Is.False);
+                Assert.That(verdict.Tolerated, Is.False);
+                Assert.That(verdict.Reason, Does.Contain(results.RunFailures[0]));
+            });
         }
 
         /// <summary>
@@ -266,6 +316,123 @@ namespace Opc.Ua.Tools.Tests
             string source = await File.ReadAllTextAsync(executor).ConfigureAwait(false);
 
             Assert.That(source, Does.Contain("-FixtureFailures $results.FixtureFailures"));
+            Assert.That(source, Does.Contain("-RunFailures $results.RunFailures"));
+        }
+
+        /// <summary>
+        /// Coverage and native-loader diagnostics preserve large selections through one runsettings delimiter.
+        /// </summary>
+        /// <exception cref="InvalidOperationException"></exception>
+        [TestCase(false, false)]
+        [TestCase(false, true)]
+        [TestCase(true, false)]
+        [TestCase(true, true)]
+        public async Task ExecutorPreservesLargeSelectionsWithAndWithoutCoverageAsync(bool coverage, bool loaderTrace)
+        {
+            string executor = Path.Combine(FindRepositoryRoot(), ".github", "scripts", "run-dotnet-tests.ps1");
+            string source = await File.ReadAllTextAsync(executor).ConfigureAwait(false);
+            int start = source.IndexOf("$testArguments = @(", StringComparison.Ordinal);
+            Assert.That(start, Is.GreaterThanOrEqualTo(0));
+            int end = source.IndexOf("$testBudget =", start, StringComparison.Ordinal);
+            Assert.That(end, Is.GreaterThan(start));
+            const string materialization = "Opc.Ua.WotCon.Tests.Materialization.";
+            await AssertSelectionAsync("Opc.Ua.Security.Pkcs11.Tests", "FullyQualifiedName~Selected", false)
+                .ConfigureAwait(false);
+            await AssertSelectionAsync(
+                "Opc.Ua.WotCon.Tests",
+                "FullyQualifiedName!~" + materialization + "&TestCategory!=Integration",
+                true).ConfigureAwait(false);
+            await AssertSelectionAsync(
+                "Opc.Ua.WotCon.Tests",
+                "FullyQualifiedName~" + materialization,
+                false).ConfigureAwait(false);
+
+            async Task AssertSelectionAsync(string stem, string filter, bool expectDetailedLogger)
+            {
+                string command =
+                    "$ErrorActionPreference = 'Stop'; " +
+                    "$project = 'selection.csproj'; $projectResults = 'results'; " +
+                    "$Configuration = 'Release'; $Framework = 'net10.0'; $CustomTestTarget = 'net10.0'; " +
+                    $"$HangTimeout = '10m'; $Filter = {Quote(filter)}; $stem = {Quote(stem)}; " +
+                    $"$Coverage = ${coverage.ToString().ToLowerInvariant()}; " +
+                    $"Set-Variable IsMacOS -Value ${loaderTrace.ToString().ToLowerInvariant()} -Force; " +
+                    "$env:OPCUA_CAPTURE_MACOS_NATIVE_LOADER_DIAGNOSTICS = 'true'; " +
+                    source[start..end] +
+                    "; ConvertTo-Json -InputObject @($testArguments) -Compress";
+                string output = await RunPowerShellAsync(command, "CI test argument construction")
+                    .ConfigureAwait(false);
+                string[] arguments = JsonSerializer.Deserialize<string[]>(output.Trim()) ??
+                    throw new InvalidOperationException("The executor emitted no test arguments.");
+                int delimiter = Array.IndexOf(arguments, "--");
+                int detailedLogger = Array.IndexOf(arguments, "console;verbosity=detailed");
+                using (Assert.EnterMultipleScope())
+                {
+                    Assert.That(arguments.Count(value => value == "--"), Is.EqualTo(1));
+                    Assert.That(delimiter, Is.GreaterThan(Array.IndexOf(arguments, "--filter")));
+                    Assert.That(arguments[delimiter + 1], Is.EqualTo("NUnit.AssemblySelectLimit=2147483647"));
+                    Assert.That(arguments.Contains("--collect:XPlat Code Coverage"), Is.EqualTo(coverage));
+                    Assert.That(arguments.Contains("--settings"), Is.EqualTo(coverage));
+                    Assert.That(
+                        arguments.Contains("RunConfiguration.EnvironmentVariables.DYLD_PRINT_LIBRARIES=1"),
+                        Is.EqualTo(loaderTrace && stem == "Opc.Ua.Security.Pkcs11.Tests"));
+                    Assert.That(arguments[Array.IndexOf(arguments, "--filter") + 1], Is.EqualTo(filter));
+                    Assert.That(
+                        arguments.Count(value => value == "console;verbosity=detailed"),
+                        Is.EqualTo(expectDetailedLogger ? 1 : 0));
+                    if (detailedLogger >= 0)
+                    {
+                        Assert.That(detailedLogger, Is.GreaterThan(0));
+                        if (detailedLogger > 0)
+                        {
+                            Assert.That(arguments[detailedLogger - 1], Is.EqualTo("--logger"));
+                        }
+                        Assert.That(detailedLogger, Is.LessThan(delimiter));
+                    }
+                    if (coverage)
+                    {
+                        Assert.That(Array.IndexOf(arguments, "--settings"), Is.LessThan(delimiter));
+                    }
+                }
+            }
+        }
+
+        /// <summary>
+        /// Direct NUnit and stress runs inherit selection settings without assigning them to TUnit applications.
+        /// </summary>
+        [TestCase("Opc.Ua.Server.Tests", true)]
+        [TestCase("Opc.Ua.Stress.Tests", true)]
+        [TestCase("Opc.Ua.Aot.Tests", false)]
+        public async Task NUnitProjectsInheritSelectionSettingsWithoutChangingAotAsync(string project, bool nunit)
+        {
+            string path = Path.Combine(FindRepositoryRoot(), "tests", project, project + ".csproj");
+            string output = await RunPowerShellAsync(
+                $"& dotnet msbuild {Quote(path)} -p:CustomTestTarget=net10.0 " +
+                "-target:_SetNUnitRunSettings -getProperty:RunSettingsFilePath; " +
+                "if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }",
+                "NUnit project settings evaluation").ConfigureAwait(false);
+            if (nunit)
+            {
+                Assert.That(Path.GetFullPath(output.Trim()),
+                    Is.EqualTo(Path.Combine(FindRepositoryRoot(), "tests", "nunit.runsettings.xml")));
+            }
+            else
+            {
+                Assert.That(output.Trim(), Is.Empty);
+            }
+        }
+
+        /// <summary>
+        /// Both default and explicitly selected coverage settings preserve the same engine selection limit.
+        /// </summary>
+        [TestCase("nunit.runsettings.xml")]
+        [TestCase("coverlet.runsettings.xml")]
+        public void NUnitSelectionLimitIsPresentInDefaultAndCoverageSettings(string file)
+        {
+            var settings = XDocument.Load(Path.Combine(FindRepositoryRoot(), "tests", file));
+            Assert.That((int?)settings.Root?.Element("NUnit")?.Element("AssemblySelectLimit"),
+                Is.EqualTo(int.MaxValue));
+            Assert.That(settings.Root?.Element("DataCollectionRunSettings") is not null,
+                Is.EqualTo(file == "coverlet.runsettings.xml"));
         }
 
         /// <summary>
@@ -414,7 +581,8 @@ namespace Opc.Ua.Tools.Tests
             int exitCode,
             bool timedOut,
             int timeoutMinutes = 30,
-            string[]? fixtureFailures = null)
+            string[]? fixtureFailures = null,
+            string[]? runFailures = null)
         {
             string script = Path.Combine(FindRepositoryRoot(), ".github", "scripts", "get-test-verdict.ps1");
 
@@ -423,7 +591,7 @@ namespace Opc.Ua.Tools.Tests
             string command = string.Format(
                 CultureInfo.InvariantCulture,
                 ". {0}; Get-TestRunVerdict -TrxFileCount {1} -Total {2} -Passed {3} -Failed {4} -ExitCode {5} " +
-                "-TimedOut ${6} -TimeoutMinutes {7}{8} | ConvertTo-Json -Compress",
+                "-TimedOut ${6} -TimeoutMinutes {7}{8}{9} | ConvertTo-Json -Compress",
                 Quote(script),
                 trxFileCount,
                 total,
@@ -434,7 +602,10 @@ namespace Opc.Ua.Tools.Tests
                 timeoutMinutes,
                 fixtureFailures == null
                     ? string.Empty
-                    : " -FixtureFailures @(" + string.Join(",", fixtureFailures.Select(Quote)) + ")");
+                    : " -FixtureFailures @(" + string.Join(",", fixtureFailures.Select(Quote)) + ")",
+                runFailures == null
+                    ? string.Empty
+                    : " -RunFailures @(" + string.Join(",", runFailures.Select(Quote)) + ")");
 
             string output = await RunPowerShellAsync(command, "Get-TestRunVerdict").ConfigureAwait(false);
             Verdict? verdict = JsonSerializer.Deserialize<Verdict>(output.Trim(), s_json);
@@ -582,7 +753,13 @@ namespace Opc.Ua.Tools.Tests
         /// <summary>
         /// The result of Measure-TestResults. Deserialized by reflection, hence public.
         /// </summary>
-        public sealed record TrxResults(int Files, int Total, int Passed, int Failed, string[] FixtureFailures);
+        public sealed record TrxResults(
+            int Files,
+            int Total,
+            int Passed,
+            int Failed,
+            string[] FixtureFailures,
+            string[] RunFailures);
 
         private static readonly JsonSerializerOptions s_json = new()
         {

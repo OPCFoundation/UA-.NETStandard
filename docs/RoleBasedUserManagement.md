@@ -237,6 +237,12 @@ accepted work. The master drains configuration shutdown work before acquiring
 the address-space teardown gate, so pending session-close notifications can
 complete without deadlocking shutdown.
 
+Only notifications raised while the provider's user-change callback is active
+belong to that change. Later notifications are tracked as external work while
+the binding is active. After disposal, a cached callback cannot start session
+teardown, even if it runs in an execution context captured during an earlier
+user change.
+
 Spec result codes honoured:
 
 | Operation | Failure codes |

@@ -1,36 +1,12 @@
-/* ========================================================================
- * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
+using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging.Abstractions;
+using Microsoft.Extensions.Time.Testing;
 using Moq;
 using NUnit.Framework;
 using Opc.Ua.Security.Certificates;
@@ -104,7 +80,8 @@ namespace Opc.Ua.Server.Tests
         private ServerSession CreateSession(
             EndpointDescription endpoint,
             string channelId = "channel-1",
-            Certificate? clientCertificate = null)
+            Certificate? clientCertificate = null,
+            CertificateCollection? clientCertificateChain = null)
         {
             OperationContext context = CreateContext(endpoint, channelId);
             return new ServerSession(
@@ -118,7 +95,7 @@ namespace Opc.Ua.Server.Tests
                 new ApplicationDescription { ApplicationUri = "urn:coverage:client" },
                 endpoint.EndpointUrl!,
                 clientCertificate!,
-                [],
+                clientCertificateChain ?? [],
                 60_000,
                 10,
                 10);
@@ -545,6 +522,26 @@ namespace Opc.Ua.Server.Tests
                 Is.EqualTo((uint)DiagnosticsMasks.AdditionalInfo));
         }
 
+        /// <summary>
+        /// Part 4 7.14: an endpoint accepts only the token types it lists, so an
+        /// endpoint without user token policies rejects an anonymous activation.
+        /// </summary>
+        [Test]
+        public async Task ValidateBeforeActivateRejectsAnonymousWhenTheEndpointListsNoTokenPolicyAsync()
+        {
+            EndpointDescription endpoint = CreateEndpoint(tokens: []);
+            using ServerSession session = CreateSession(endpoint, channelId: "channel-1");
+            OperationContext context = CreateContext(endpoint, channelId: "channel-1");
+
+            ServiceResultException? ex = await Assert.ThrowsAsync<ServiceResultException>(
+                async () => await session.ValidateBeforeActivateAsync(
+                    context,
+                    new SignatureData(),
+                    default,
+                    new SignatureData(),
+                    CancellationToken.None).ConfigureAwait(false));
+            Assert.That(ex!.StatusCode, Is.EqualTo(StatusCodes.BadIdentityTokenRejected));
+        }
         [Test]
         public async Task ValidateBeforeActivateWithClientCertificateAndEmptySignatureThrows()
         {
@@ -582,6 +579,38 @@ namespace Opc.Ua.Server.Tests
                 session.ContinuationPoints.RestoreHistory(new ByteString(first.ToByteArray())),
                 Is.Null,
                 "The oldest history continuation point should have been evicted.");
+        }
+
+        /// <summary>
+        /// Session disposal attempts independent certificate cleanup after a continuation failure.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public void DisposeAttemptsCertificatesAfterHistoryCleanupFailure(bool certificateFails)
+        {
+            var historyFailure = new InvalidOperationException("History cleanup failed.");
+            var certificateFailure = new InvalidOperationException("Certificate cleanup failed.");
+            var client = new TrackingCertificate(
+                m_serverCertificate.RawData, certificateFails ? certificateFailure : null);
+            var chain = new TrackingCertificateCollection();
+            ServerSession session = CreateSession(
+                CreateEndpoint(), clientCertificate: client, clientCertificateChain: chain);
+            var point = new Mock<IHistoryContinuationPoint>();
+            point.SetupGet(value => value.Id).Returns(Guid.NewGuid());
+            point.Setup(value => value.Dispose()).Throws(historyFailure);
+            session.ContinuationPoints.SaveHistory(point.Object);
+
+            AggregateException reported = Assert.Throws<AggregateException>(session.Dispose)!;
+
+            Assert.That(reported.Flatten().InnerExceptions, Has.Exactly(1).SameAs(historyFailure));
+            Assert.That(reported.Flatten().InnerExceptions, Has.Count.EqualTo(certificateFails ? 2 : 1));
+            if (certificateFails)
+            {
+                Assert.That(reported.Flatten().InnerExceptions, Has.Exactly(1).SameAs(certificateFailure));
+            }
+            Assert.That(client.DisposeCount, Is.EqualTo(1));
+            Assert.That(chain.DisposeCount, Is.EqualTo(1));
+            point.Verify(value => value.Dispose(), Times.Once);
         }
 
         [Test]
@@ -776,6 +805,150 @@ namespace Opc.Ua.Server.Tests
             Assert.That(session.SecureChannelId, Is.EqualTo("channel-2"));
         }
 
+        /// <summary>
+        /// OPC 10000-4 7.40.6: once the identity token has expired, requests of the
+        /// session fail with Bad_IdentityTokenInvalid until it is activated with a new
+        /// token. CloseSession is still served.
+        /// </summary>
+        [Test]
+        public async Task ValidateRequestAfterIdentityTokenExpiryRequiresReactivationAsync()
+        {
+            var timeProvider = new FakeTimeProvider(new DateTimeOffset(2026, 1, 1, 0, 0, 0, TimeSpan.Zero));
+            var tokens = new UserTokenPolicy[]
+            {
+                new() { PolicyId = "anon", TokenType = UserTokenType.Anonymous }
+            };
+            EndpointDescription endpoint = CreateEndpoint(tokens: tokens);
+            OperationContext context = CreateContext(endpoint, channelId: "channel-1");
+            using var session = new ServerSession(
+                context,
+                m_serverMock.Object,
+                m_serverCertificate,
+                new NodeId(Guid.NewGuid()),
+                ByteString.Empty,
+                Nonce.CreateNonce(SecurityPolicies.None),
+                "ExpirySession",
+                new ApplicationDescription { ApplicationUri = "urn:coverage:client" },
+                endpoint.EndpointUrl!,
+                null!,
+                [],
+                600_000,
+                10,
+                10,
+                timeProvider);
+
+            (IUserIdentityTokenHandler handler, UserTokenPolicy? _) = await session.ValidateBeforeActivateAsync(
+                context,
+                new SignatureData(),
+                default,
+                new SignatureData(),
+                CancellationToken.None).ConfigureAwait(false);
+
+            var expiring = new ExpiringIdentity(timeProvider.GetUtcNow().UtcDateTime.AddSeconds(10));
+            session.Activate(
+                context,
+                handler!,
+                expiring,
+                expiring,
+                new ArrayOf<string>(s_singlePreferredLocale),
+                Nonce.CreateNonce(SecurityPolicies.None));
+
+            var channelContext = new SecureChannelContext("channel-1", endpoint, RequestEncoding.Binary);
+            Assert.That(
+                () => session.ValidateRequest(new RequestHeader(), channelContext, RequestType.Read),
+                Throws.Nothing);
+
+            timeProvider.Advance(TimeSpan.FromSeconds(11));
+
+            ServiceResultException? ex = Assert.Throws<ServiceResultException>(
+                () => session.ValidateRequest(new RequestHeader(), channelContext, RequestType.Read));
+            Assert.That(ex!.StatusCode, Is.EqualTo(StatusCodes.BadIdentityTokenInvalid));
+            ex = Assert.Throws<ServiceResultException>(
+                () => session.ValidateRequest(new RequestHeader(), channelContext, RequestType.Publish));
+            Assert.That(ex!.StatusCode, Is.EqualTo(StatusCodes.BadIdentityTokenInvalid));
+            Assert.That(
+                () => session.ValidateRequest(new RequestHeader(), channelContext, RequestType.CloseSession),
+                Throws.Nothing);
+
+            // activation with a new token restores access.
+            var renewed = new ExpiringIdentity(timeProvider.GetUtcNow().UtcDateTime.AddSeconds(10));
+            session.Activate(
+                context,
+                handler!,
+                renewed,
+                renewed,
+                new ArrayOf<string>(s_singlePreferredLocale),
+                Nonce.CreateNonce(SecurityPolicies.None));
+            Assert.That(
+                () => session.ValidateRequest(new RequestHeader(), channelContext, RequestType.Read),
+                Throws.Nothing);
+
+            // an identity without an expiration never expires.
+            session.Activate(
+                context,
+                handler!,
+                new UserIdentity(),
+                new UserIdentity(),
+                new ArrayOf<string>(s_singlePreferredLocale),
+                Nonce.CreateNonce(SecurityPolicies.None));
+            // (within the session timeout, far past the earlier token expirations)
+            timeProvider.Advance(TimeSpan.FromMinutes(5));
+            Assert.That(
+                () => session.ValidateRequest(new RequestHeader(), channelContext, RequestType.Read),
+                Throws.Nothing);
+        }
+
+        /// <summary>
+        /// A role wrapper (such as the GDS role identity) around an identity with an
+        /// expiration keeps the expiration; when the wrapper reports its own, the
+        /// earliest applies.
+        /// </summary>
+        [Test]
+        public void CredentialsExpiryIsFoundBehindRoleWrappers()
+        {
+            var namespaces = new NamespaceTable();
+            var expiresAt = new DateTime(2026, 1, 1, 0, 0, 10, DateTimeKind.Utc);
+            var inner = new ExpiringIdentity(expiresAt);
+
+            var wrapped = new RoleBasedIdentity(inner, [Role.AuthenticatedUser], namespaces);
+            var wrappedTwice = new RoleBasedIdentity(wrapped, [Role.Observer], namespaces);
+            var earlierWrapper = new ExpiringRoleIdentity(wrapped, expiresAt.AddSeconds(-5), namespaces);
+            var laterWrapper = new ExpiringRoleIdentity(wrapped, expiresAt.AddSeconds(5), namespaces);
+
+            Assert.That(ServerSession.GetCredentialsExpiryUtcTicks(inner), Is.EqualTo(expiresAt.Ticks));
+            Assert.That(ServerSession.GetCredentialsExpiryUtcTicks(wrapped), Is.EqualTo(expiresAt.Ticks));
+            Assert.That(ServerSession.GetCredentialsExpiryUtcTicks(wrappedTwice), Is.EqualTo(expiresAt.Ticks));
+            Assert.That(
+                ServerSession.GetCredentialsExpiryUtcTicks(earlierWrapper),
+                Is.EqualTo(expiresAt.AddSeconds(-5).Ticks));
+            Assert.That(ServerSession.GetCredentialsExpiryUtcTicks(laterWrapper), Is.EqualTo(expiresAt.Ticks));
+            Assert.That(
+                ServerSession.GetCredentialsExpiryUtcTicks(
+                    new RoleBasedIdentity(new UserIdentity(), [Role.Anonymous], namespaces)),
+                Is.EqualTo(long.MaxValue));
+        }
+
+        private sealed class ExpiringRoleIdentity : RoleBasedIdentity, Opc.Ua.Identity.IIdentityExpiration
+        {
+            public ExpiringRoleIdentity(IUserIdentity identity, DateTime expiresAt, NamespaceTable namespaces)
+                : base(identity, [], namespaces)
+            {
+                ExpiresAt = expiresAt;
+            }
+
+            public DateTime? ExpiresAt { get; }
+        }
+
+        private sealed class ExpiringIdentity : UserIdentity, Opc.Ua.Identity.IIdentityExpiration
+        {
+            public ExpiringIdentity(DateTime expiresAt)
+            {
+                ExpiresAt = expiresAt;
+            }
+
+            public DateTime? ExpiresAt { get; }
+        }
+
         [Test]
         public void ProcessCreateSessionAdditionalParametersReturnsNullForNullInput()
         {
@@ -883,6 +1056,90 @@ namespace Opc.Ua.Server.Tests
             Assert.That(actualKey, Is.SameAs(key));
             session.Verify(s => s.SetUserTokenSecurityPolicy(policyUri), Times.Once);
             session.Verify(s => s.GetNewEphemeralKey(), Times.Once);
+        }
+
+        /// <summary>
+        /// A session holds one EphemeralKey: only the first ECDHPolicyUri is answered
+        /// and only one key is created, however many entries the request carries.
+        /// Other parameters are still echoed.
+        /// </summary>
+        [Test]
+        public void ProcessCreateSessionAdditionalParametersCreatesOneKeyForTheFirstEcdhPolicy()
+        {
+            var key = new EphemeralKeyType();
+            var session = new Mock<ISession>();
+            session.Setup(s => s.GetNewEphemeralKey()).Returns(key);
+            var parameters = new List<KeyValuePair>
+            {
+                new() { Key = QualifiedName.From("Existing"), Value = Variant.From("value") }
+            };
+            for (int i = 0; i < 1000; i++)
+            {
+                parameters.Add(new KeyValuePair
+                {
+                    Key = QualifiedName.From(AdditionalParameterNames.ECDHPolicyUri),
+                    Value = Variant.From(i % 2 == 0
+                        ? SecurityPolicies.ECC_nistP256
+                        : SecurityPolicies.ECC_nistP384)
+                });
+            }
+
+            AdditionalParametersType? result =
+                SessionSecurityPolicyHelper.ProcessCreateSessionAdditionalParameters(
+                    session.Object,
+                    new AdditionalParametersType { Parameters = parameters },
+                    NullLogger<SessionCoverageTests>.Instance);
+
+            Assert.That(result, Is.Not.Null);
+            Assert.That(result!.Parameters, Has.Count.EqualTo(2));
+            Assert.That(result.Parameters[0].Key, Is.EqualTo(QualifiedName.From("Existing")));
+            Assert.That(result.Parameters[1].Key, Is.EqualTo(QualifiedName.From(AdditionalParameterNames.ECDHKey)));
+            Assert.That(
+                result.Parameters[1].Value.TryGetStructure<EphemeralKeyType>(out EphemeralKeyType? actualKey),
+                Is.True);
+            Assert.That(actualKey, Is.SameAs(key));
+            session.Verify(s => s.SetUserTokenSecurityPolicy(SecurityPolicies.ECC_nistP256), Times.Once);
+            session.Verify(s => s.SetUserTokenSecurityPolicy(It.IsAny<string>()), Times.Once);
+            session.Verify(s => s.GetNewEphemeralKey(), Times.Once);
+        }
+
+        /// <summary>
+        /// When the first ECDHPolicyUri is rejected, later entries are not tried.
+        /// </summary>
+        [Test]
+        public void ProcessCreateSessionAdditionalParametersIgnoresEcdhPoliciesAfterARejectedOne()
+        {
+            var session = new Mock<ISession>();
+            session.Setup(s => s.GetNewEphemeralKey()).Returns(new EphemeralKeyType());
+            var input = new AdditionalParametersType
+            {
+                Parameters =
+                [
+                    new KeyValuePair
+                    {
+                        Key = QualifiedName.From(AdditionalParameterNames.ECDHPolicyUri),
+                        Value = Variant.From("http://example.org/UA/SecurityPolicy#Unknown")
+                    },
+                    new KeyValuePair
+                    {
+                        Key = QualifiedName.From(AdditionalParameterNames.ECDHPolicyUri),
+                        Value = Variant.From(SecurityPolicies.ECC_nistP256)
+                    }
+                ]
+            };
+
+            AdditionalParametersType? result =
+                SessionSecurityPolicyHelper.ProcessCreateSessionAdditionalParameters(
+                    session.Object,
+                    input,
+                    NullLogger<SessionCoverageTests>.Instance);
+
+            Assert.That(result, Is.Not.Null);
+            Assert.That(result!.Parameters, Has.Count.EqualTo(1));
+            Assert.That(result.Parameters[0].Value.TryGetValue(out StatusCode status), Is.True);
+            Assert.That(status.Code, Is.EqualTo(StatusCodes.BadSecurityPolicyRejected));
+            session.Verify(s => s.SetUserTokenSecurityPolicy(It.IsAny<string>()), Times.Never);
+            session.Verify(s => s.GetNewEphemeralKey(), Times.Never);
         }
 
         [Test]
@@ -1074,6 +1331,52 @@ namespace Opc.Ua.Server.Tests
             Assert.That(status.Code, Is.EqualTo(StatusCodes.BadSecurityPolicyRejected));
             session.Verify(s => s.SetUserTokenSecurityPolicy(It.IsAny<string>()), Times.Never);
             session.Verify(s => s.GetNewEphemeralKey(), Times.Never);
+        }
+
+        /// <summary>
+        /// Observes one certificate disposal and optionally reports a failure after releasing it.
+        /// </summary>
+        private sealed class TrackingCertificate(byte[] rawData, Exception? failure) : Certificate(rawData)
+        {
+            /// <summary>
+            /// Gets the number of disposal callbacks.
+            /// </summary>
+            public int DisposeCount { get; private set; }
+
+            /// <inheritdoc/>
+            protected override void Dispose(bool disposing)
+            {
+                base.Dispose(disposing);
+                if (disposing)
+                {
+                    DisposeCount++;
+                    if (failure is not null)
+                    {
+                        throw failure;
+                    }
+                }
+            }
+        }
+
+        /// <summary>
+        /// Observes disposal of an independently owned client certificate chain.
+        /// </summary>
+        private sealed class TrackingCertificateCollection : CertificateCollection
+        {
+            /// <summary>
+            /// Gets the number of disposal callbacks.
+            /// </summary>
+            public int DisposeCount { get; private set; }
+
+            /// <inheritdoc/>
+            protected override void Dispose(bool disposing)
+            {
+                base.Dispose(disposing);
+                if (disposing)
+                {
+                    DisposeCount++;
+                }
+            }
         }
     }
 }

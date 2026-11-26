@@ -1,31 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using System.Collections.Generic;
@@ -220,7 +194,7 @@ namespace Opc.Ua.Server.UserManagement
             await Task.Yield();
 
             var result = new AddUserMethodStateResult();
-            ServiceResult auth = RoleAuthorizationGate.CheckAdmin(context);
+            ServiceResult auth = RoleAuthorizationGate.Check(context, ServerAuthorizationDecision.UserManagement);
             if (ServiceResult.IsBad(auth))
             {
                 result.ServiceResult = auth;
@@ -255,7 +229,7 @@ namespace Opc.Ua.Server.UserManagement
             await Task.Yield();
 
             var result = new ModifyUserMethodStateResult();
-            ServiceResult auth = RoleAuthorizationGate.CheckAdmin(context);
+            ServiceResult auth = RoleAuthorizationGate.Check(context, ServerAuthorizationDecision.UserManagement);
             if (ServiceResult.IsBad(auth))
             {
                 result.ServiceResult = auth;
@@ -288,7 +262,7 @@ namespace Opc.Ua.Server.UserManagement
             await Task.Yield();
 
             var result = new RemoveUserMethodStateResult();
-            ServiceResult auth = RoleAuthorizationGate.CheckAdmin(context);
+            ServiceResult auth = RoleAuthorizationGate.Check(context, ServerAuthorizationDecision.UserManagement);
             if (ServiceResult.IsBad(auth))
             {
                 result.ServiceResult = auth;
@@ -354,8 +328,8 @@ namespace Opc.Ua.Server.UserManagement
             }
 
             List<Task<ServiceResult>> deactivations = [];
-            List<Task<ServiceResult>>? previous = m_currentUserChange.Value;
-            m_currentUserChange.Value = deactivations;
+            using var userChange = new NodeManagerAmbientScope<UserChangeDeactivations>(
+                m_currentUserChange, new UserChangeDeactivations(deactivations));
             try
             {
                 ServiceResult result;
@@ -369,11 +343,12 @@ namespace Opc.Ua.Server.UserManagement
                 }
                 finally
                 {
-                    m_currentUserChange.Value = previous;
                     Task<ServiceResult>[] pending;
                     lock (m_deactivationLock)
                     {
+                        userChange.Dispose();
                         pending = [.. deactivations];
+                        deactivations.Clear();
                     }
                     await Task.WhenAll(pending).ConfigureAwait(false);
                 }
@@ -412,7 +387,8 @@ namespace Opc.Ua.Server.UserManagement
             }
             lock (m_deactivationLock)
             {
-                List<Task<ServiceResult>>? userChange = m_currentUserChange.Value;
+                List<Task<ServiceResult>>? userChange =
+                    NodeManagerAmbientScope<UserChangeDeactivations>.GetValue(m_currentUserChange).Deactivations;
                 if (m_disposed && userChange == null)
                 {
                     return;
@@ -480,6 +456,12 @@ namespace Opc.Ua.Server.UserManagement
             return identity?.TokenType == UserTokenType.UserName ? identity.DisplayName : null;
         }
 
+        /// <summary>
+        /// Carries the deactivations collected by an active synchronous user-change callback.
+        /// </summary>
+        /// <param name="Deactivations">The callback's task collection, or null for an ended scope.</param>
+        private readonly record struct UserChangeDeactivations(List<Task<ServiceResult>>? Deactivations);
+
         private readonly IUserManagement m_userManagement;
         private readonly ISessionManager? m_sessionManager;
 
@@ -497,7 +479,7 @@ namespace Opc.Ua.Server.UserManagement
         /// <summary>
         /// Associates synchronous deactivation notifications with the user change that raised them.
         /// </summary>
-        private readonly AsyncLocal<List<Task<ServiceResult>>?> m_currentUserChange = new();
+        private readonly AsyncLocal<NodeManagerAmbientScope<UserChangeDeactivations>?> m_currentUserChange = new();
         private UserManagementState? m_state;
 
         /// <summary>

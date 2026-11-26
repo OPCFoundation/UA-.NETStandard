@@ -1,31 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 
@@ -137,7 +111,48 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public string? UserId => UserIdentity?.DisplayName;
+        /// <remarks>
+        /// The <see cref="ClientUserId"/> of the user (OPC 10000-5 6.4.3).
+        /// </remarks>
+        public string? UserId => ClientUserId;
+
+        /// <inheritdoc/>
+        /// <remarks>
+        /// Without a session operation context and without an assigned value, it is
+        /// derived from <see cref="UserIdentity"/>: <c>null</c> for an anonymous user,
+        /// otherwise the user name, certificate subject or issued-token issuer and
+        /// subject of its token or claims, and the display name only for an identity
+        /// that has neither.
+        /// </remarks>
+        public string? ClientUserId
+        {
+            get
+            {
+                if (OperationContext is ISessionOperationContext session)
+                {
+                    return session.ClientUserId;
+                }
+
+                SharedValues values = m_values;
+                if (values.ClientUserId != null)
+                {
+                    return values.ClientUserId;
+                }
+
+                IUserIdentity? identity = values.UserIdentity;
+                if (identity == null || identity.TokenType == UserTokenType.Anonymous)
+                {
+                    return null;
+                }
+
+                // the display name is only used for an identity without a token or claims
+                // that name its user.
+                return ClientUserIdRules.TryResolve(identity, out string? clientUserId)
+                    ? clientUserId
+                    : identity.DisplayName;
+            }
+            set => ReplaceValues().ClientUserId = value;
+        }
 
         /// <summary>
         /// The identifier for the session (null if multiple sessions are associated with the operation).
@@ -393,11 +408,13 @@ namespace Opc.Ua
         internal void SetSessionValues(
             NodeId? sessionId,
             IUserIdentity? userIdentity,
+            string? clientUserId,
             ArrayOf<string> preferredLocales)
         {
             SharedValues values = ReplaceValues();
             values.SessionId = sessionId;
             values.UserIdentity = userIdentity;
+            values.ClientUserId = clientUserId;
             values.PreferredLocales = preferredLocales;
         }
 
@@ -413,6 +430,7 @@ namespace Opc.Ua
             SharedValues values = ReplaceValues();
             values.SessionId = source.SessionId;
             values.UserIdentity = source.UserIdentity;
+            values.ClientUserId = source.m_values.ClientUserId;
             values.PreferredLocales = source.PreferredLocales;
             values.NamespaceUris = source.NamespaceUris;
             values.ServerUris = source.ServerUris;
@@ -463,6 +481,7 @@ namespace Opc.Ua
             public ArrayOf<string> PreferredLocales { get; set; }
             public string? AuditEntryId { get; set; }
             public IUserIdentity? UserIdentity { get; set; }
+            public string? ClientUserId { get; set; }
 
             public SharedValues Copy()
             {

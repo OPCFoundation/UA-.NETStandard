@@ -1,33 +1,8 @@
-/* ========================================================================
- * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System.IO;
+using System.Text;
 using System.Threading;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.Text;
@@ -87,6 +62,30 @@ namespace Opc.Ua.SourceGeneration
             Assert.That(fileSystem.Exists("a.xml"), Is.True);
             Assert.That(fileSystem.Exists("b.xml"), Is.True);
             Assert.That(fileSystem.Exists("c.xml"), Is.False);
+        }
+
+        /// <summary>
+        /// Streamed output preserves the old UTF-8 text, encoding and checksum, including its BOM.
+        /// </summary>
+        [TestCase(true)]
+        [TestCase(false)]
+        public void GeneratedSourceStreamMatchesByteArrayPath(bool includePreamble)
+        {
+            using var fileSystem = new VirtualFileSystem();
+            using (var writer = new StreamWriter(fileSystem.OpenWrite("generated.cs"), new UTF8Encoding(includePreamble)))
+            {
+                writer.Write("// \u00E9 \U0001F642\r\n");
+                writer.Write(new string('x', 100_000));
+            }
+            var expected = SourceText.From(Encoding.UTF8.GetString(fileSystem.Get("generated.cs")),
+                Encoding.UTF8);
+
+            SourceText actual = SourceGenerator.ReadGeneratedSource(fileSystem, "generated.cs");
+
+            Assert.That(actual.ToString(), Is.EqualTo(expected.ToString()));
+            Assert.That(actual.Encoding, Is.EqualTo(expected.Encoding));
+            Assert.That(actual.ChecksumAlgorithm, Is.EqualTo(expected.ChecksumAlgorithm));
+            Assert.That(actual.GetChecksum(), Is.EqualTo(expected.GetChecksum()));
         }
 
         private sealed class StubAdditionalText : AdditionalText

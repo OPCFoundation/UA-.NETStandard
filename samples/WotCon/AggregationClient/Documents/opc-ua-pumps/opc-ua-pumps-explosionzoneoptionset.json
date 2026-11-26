@@ -5,6 +5,7 @@
       "ns1": "http://opcfoundation.org/UA/Pumps/",
       "ns2": "http://opcfoundation.org/UA/Machinery/",
       "ns3": "http://opcfoundation.org/UA/DI/",
+      "qudt": "http://qudt.org/schema/qudt/",
       "ua": "http://opcfoundation.org/UA/",
       "uav": "http://opcfoundation.org/UA/WoT-Binding/"
     },
@@ -41,7 +42,9 @@
         }
       },
       "@type": "uav:variable",
-      "items": {},
+      "items": {
+        "type": "string"
+      },
       "links": [
         {
           "href": "i=68",
@@ -389,11 +392,14 @@
       {
         "browseName": "1:ExplosionZoneOptionSet",
         "definition": {
+          "baseType": "",
           "fields": [
             {
+              "arrayDimensions": "",
               "dataType": "i=24",
               "description": [
                 {
+                  "locale": "",
                   "value": "A zone in which an explosive atmosphere consisting of a mixture with air of flammable substances in the form of gas, vapour or mist is present continuously or for long periods or frequently."
                 }
               ],
@@ -402,9 +408,11 @@
               "value": 0
             },
             {
+              "arrayDimensions": "",
               "dataType": "i=24",
               "description": [
                 {
+                  "locale": "",
                   "value": "A zone in which an explosive atmosphere consisting of a mixture with air of flammable substances in the form of gas, vapour or mist is likely to occur in normal operation occasionally."
                 }
               ],
@@ -413,9 +421,11 @@
               "value": 1
             },
             {
+              "arrayDimensions": "",
               "dataType": "i=24",
               "description": [
                 {
+                  "locale": "",
                   "value": "A zone in which an explosive atmosphere consisting of a mixture with air of flammable substances in the form of gas, vapour or mist is not likely to occur in normal operation but, if it does occur, will persist for a short period only."
                 }
               ],
@@ -424,9 +434,11 @@
               "value": 2
             },
             {
+              "arrayDimensions": "",
               "dataType": "i=24",
               "description": [
                 {
+                  "locale": "",
                   "value": "A zone in which an explosive atmosphere in the form of a cloud of combustible dust in air is present continuously, for long periods or frequently."
                 }
               ],
@@ -435,9 +447,11 @@
               "value": 3
             },
             {
+              "arrayDimensions": "",
               "dataType": "i=24",
               "description": [
                 {
+                  "locale": "",
                   "value": "A zone in which an explosive atmosphere in the form of a cloud of combustible dust in air is likely to occur in normal operation occasionally."
                 }
               ],
@@ -446,9 +460,11 @@
               "value": 4
             },
             {
+              "arrayDimensions": "",
               "dataType": "i=24",
               "description": [
                 {
+                  "locale": "",
                   "value": "A zone in which an explosive atmosphere in the form of a cloud of combustible dust in air is not likely to occur in normal operation but, if it does occur, will persist for a short period only."
                 }
               ],
@@ -462,11 +478,13 @@
         },
         "description": [
           {
+            "locale": "",
             "value": "defines flags for the category of explosion zones for devices"
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "ExplosionZoneOptionSet"
           }
         ],
@@ -504,6 +522,7 @@
         "dataType": "LocalizedText",
         "displayName": [
           {
+            "locale": "",
             "value": "OptionSetValues"
           }
         ],

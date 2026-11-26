@@ -1,31 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using System.Collections.Concurrent;
@@ -98,7 +72,7 @@ namespace Opc.Ua.Redundancy.Server
         public ArrayOf<string> NamespaceUris => m_state.NamespaceUris;
 
         /// <summary>
-        /// Gets whether no incompatible peer has invalidated this replica's identity admission.
+        /// Gets whether this replica's live namespace layout has remained valid.
         /// </summary>
         public bool IsCompatible => Volatile.Read(ref m_state.Incompatible) == 0;
 
@@ -205,7 +179,7 @@ namespace Opc.Ua.Redundancy.Server
         /// Rejects a namespace table whose shared slots differ from the configured layout.
         /// </summary>
         /// <exception cref="ServiceResultException">
-        /// The replica has been rejected or the shared namespace slots differ from the configured layout.
+        /// The replica has an invalid live layout or the supplied shared slots differ from the configured layout.
         /// </exception>
         /// <exception cref="ArgumentNullException"><paramref name="namespaces"/> is <c>null</c>.</exception>
         public void ValidateNamespaces(NamespaceTable namespaces)
@@ -213,7 +187,7 @@ namespace Opc.Ua.Redundancy.Server
             if (!IsCompatible)
             {
                 throw ConfigurationError(
-                    "This replica received an incompatible identity contract and must not join the set.");
+                    "This replica's live namespace layout no longer matches its identity contract.");
             }
             if (namespaces == null)
             {
@@ -223,6 +197,11 @@ namespace Opc.Ua.Redundancy.Server
             {
                 if (namespaces.GetString((uint)(i + 2)) != NamespaceUris[i])
                 {
+                    if (m_state.Server?.TryGetTarget(out IServerContext? server) == true &&
+                        ReferenceEquals(namespaces, server.MessageContext.NamespaceUris))
+                    {
+                        MarkLocalIncompatible(server);
+                    }
                     throw ConfigurationError($"Replica namespace slot {i + 2} must contain '{NamespaceUris[i]}'.");
                 }
             }
@@ -546,11 +525,10 @@ namespace Opc.Ua.Redundancy.Server
             return ReplicaIdentityStore.VerifyAsync(store, protector, Descriptor, cancellationToken);
         }
 
-        internal void RejectPeer()
+        private void MarkLocalIncompatible(IServerContext server)
         {
             Interlocked.Exchange(ref m_state.Incompatible, 1);
-            if (m_state.Server?.TryGetTarget(out IServerContext? server) == true &&
-                server.ServerObject?.ServiceLevel is { } serviceLevel)
+            if (server.ServerObject?.ServiceLevel is { } serviceLevel)
             {
                 serviceLevel.Value = 0;
                 serviceLevel.ClearChangeMasks(server.DefaultSystemContext, false);

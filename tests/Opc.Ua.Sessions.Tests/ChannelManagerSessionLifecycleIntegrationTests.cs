@@ -1,31 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using System.Diagnostics;
@@ -187,15 +161,15 @@ namespace Opc.Ua.Sessions.Tests
 
             try
             {
-                ConfiguredEndpoint endpointA = await GetEndpointAsync(SecurityPolicies.None)
+                ConfiguredEndpoint endpointA = await GetEndpointAsync(SecurityPolicies.Basic256Sha256)
                     .ConfigureAwait(false);
                 (secondaryFixture, Uri secondaryUrl) = await StartSecondaryServerAsync()
                     .ConfigureAwait(false);
                 ConfiguredEndpoint endpointB = await GetEndpointAsync(
-                    SecurityPolicies.None,
+                    SecurityPolicies.Basic256Sha256,
                     secondaryUrl).ConfigureAwait(false);
 
-                var redundancyHandler = new FakeRedundancyHandler(endpointB);
+                var redundancyHandler = new FakeRedundancyHandler(endpointB, secondaryFixture.Config.ApplicationUri!);
                 failoverSession = await new ManagedSessionBuilder(
                         ClientFixture.Config,
                         Telemetry)
@@ -203,6 +177,12 @@ namespace Opc.Ua.Sessions.Tests
                     .WithChannelManager(manager)
                     .WithSessionName(nameof(FailoverSwapsOnlyOneLeaseWhenChannelsAreSharedAsync) + "Failover")
                     .WithServerRedundancy(redundancyHandler)
+                    .WithServerRedundancyOptions(new ServerRedundancyOptions
+                    {
+                        ExpectedServerApplicationUri = ServerFixture.Config.ApplicationUri,
+                        ProbeMemberServiceLevel = false,
+                        ServiceLevelMonitoringInterval = null
+                    })
                     .WithReconnectPolicy(p => p with
                     {
                         Strategy = BackoffStrategy.Constant,
@@ -247,7 +227,17 @@ namespace Opc.Ua.Sessions.Tests
                 IManagedTransportChannel newLease = GetManagedChannel(failoverSession);
                 Assert.That(newLease, Is.Not.SameAs(oldLease));
                 Assert.That(newLease.Key, Is.Not.EqualTo(keyA));
-                Assert.That(newLease.Key, Is.EqualTo(ManagedChannelKey.FromEndpoint(endpointB)));
+                ManagedChannelKey targetKey = ManagedChannelKey.FromEndpoint(endpointB);
+                var expectedKey = new ManagedChannelKey(
+                    targetKey.EndpointUrl,
+                    targetKey.SecurityPolicyUri,
+                    targetKey.SecurityMode,
+                    targetKey.ServerCertificateThumbprint,
+                    targetKey.EndpointConfigurationHash,
+                    keyA.ClientCertificateThumbprint,
+                    reverseConnectionIdentity: null,
+                    targetKey.TransportProfileUri);
+                Assert.That(newLease.Key, Is.EqualTo(expectedKey));
 
                 ManagedChannelDiagnostic diagnosticA = GetDiagnostic(manager, keyA);
                 ManagedChannelDiagnostic diagnosticB = GetDiagnostic(manager, newLease.Key);
@@ -349,9 +339,10 @@ namespace Opc.Ua.Sessions.Tests
 
         private sealed class FakeRedundancyHandler : IServerRedundancyHandler
         {
-            public FakeRedundancyHandler(ConfiguredEndpoint target)
+            public FakeRedundancyHandler(ConfiguredEndpoint target, string targetApplicationUri)
             {
                 m_target = target;
+                m_targetApplicationUri = targetApplicationUri;
             }
 
             public int FetchCount { get; private set; }
@@ -371,9 +362,10 @@ namespace Opc.Ua.Sessions.Tests
                         [
                             new RedundantServer
                             {
-                                ServerUri = "urn:channel-manager:secondary",
+                                ServerUri = m_targetApplicationUri,
                                 ServerState = ServerState.Running,
-                                ServiceLevel = 250
+                                ServiceLevel = 250,
+                                Endpoint = m_target
                             }
                         ]
                     });
@@ -398,6 +390,7 @@ namespace Opc.Ua.Sessions.Tests
             }
 
             private readonly ConfiguredEndpoint m_target;
+            private readonly string m_targetApplicationUri;
         }
     }
 }

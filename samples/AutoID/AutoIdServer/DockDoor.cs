@@ -1,31 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using System.Text;
@@ -57,6 +31,11 @@ namespace AutoIdSample
         public InMemoryRfidReaderProvider Hardware { get; } = new(TimeSpan.FromMilliseconds(1000));
 
         /// <summary>
+        /// Gets the sample-owned label verifier hardware.
+        /// </summary>
+        public InMemoryOpticalVerifierProvider Verifier { get; } = new();
+
+        /// <summary>
         /// Gets the reader once the address space is ready.
         /// </summary>
         public AutoIdReader? Reader { get; private set; }
@@ -80,6 +59,8 @@ namespace AutoIdSample
             Reader = await context.Runtime
                 .Reader(new QualifiedName(ReaderName, context.Manager.InstanceNamespaceIndex), Hardware)
                 .WithDeviceInfo("Dock door antenna portal")
+                .WithRuntimeParameters(enableScanControl: true)
+                .WithDiagnostics()
                 .WithDeviceLocationName("Dock 1, gate A")
                 .WithDeviceLocation(new Location { SwitchField = LocationFields.Name, Name = "Dock 1" })
                 .WithAntennaNames(
@@ -94,6 +75,27 @@ namespace AutoIdSample
                     identification.SerialNumber = "R100-0001";
                 })
                 .BuildAsync(context.CancellationToken).ConfigureAwait(false);
+
+            Verifier.Present(new OpticalVerifierScanResult
+            {
+                CodeType = "RAW:STRING",
+                ScanData = new ScanData { SwitchField = ScanDataFields.String, String = "PALLET-LABEL" },
+                Timestamp = DateTimeUtc.Now,
+                IsoGrade = "A"
+            });
+            AutoIdReader labelVerifier = await context.Runtime.Reader(
+                new QualifiedName("LabelVerifier", context.Manager.InstanceNamespaceIndex), Verifier)
+                .WithDeviceInfo("Dock door label print-quality verifier")
+                .WithImages(
+                [
+                    new AutoIdImageSlot(
+                        new QualifiedName("Label", context.Manager.InstanceNamespaceIndex), "image/x-portable-graymap")
+                ])
+                .BuildAsync(context.CancellationToken).ConfigureAwait(false);
+            await labelVerifier.ReportImageAsync(
+                new QualifiedName("Label", context.Manager.InstanceNamespaceIndex),
+                ByteString.From(Encoding.ASCII.GetBytes("P2\n2 2\n255\n0 255 255 0\n")), context.CancellationToken)
+                .ConfigureAwait(false);
         }
 
         /// <summary>
@@ -131,6 +133,7 @@ namespace AutoIdSample
         {
             // The reader owns its provider only when asked to; this sample does not ask, so it disposes it.
             Hardware.Dispose();
+            Verifier.Dispose();
             return default;
         }
     }

@@ -3,6 +3,7 @@
     "https://www.w3.org/2022/wot/td/v1.1",
     {
       "ns1": "http://opcfoundation.org/UA/DI/",
+      "qudt": "http://qudt.org/schema/qudt/",
       "ua": "http://opcfoundation.org/UA/",
       "uav": "http://opcfoundation.org/UA/WoT-Binding/"
     },
@@ -30,7 +31,7 @@
         }
       },
       "@type": "uav:variable",
-      "const": true,
+      "default": true,
       "links": [
         {
           "href": "i=68",
@@ -58,7 +59,7 @@
         }
       },
       "@type": "uav:variable",
-      "const": "//xs:element[@name='FetchResultDataType']",
+      "default": "//xs:element[@name='FetchResultDataType']",
       "links": [
         {
           "href": "i=69",
@@ -81,7 +82,7 @@
         }
       },
       "@type": "uav:variable",
-      "const": "http://opcfoundation.org/UA/DI/Types.xsd",
+      "default": "http://opcfoundation.org/UA/DI/Types.xsd",
       "links": [
         {
           "href": "i=68",
@@ -109,7 +110,7 @@
         }
       },
       "@type": "uav:variable",
-      "const": "//xs:element[@name='ParameterResultDataType']",
+      "default": "//xs:element[@name='ParameterResultDataType']",
       "links": [
         {
           "href": "i=69",
@@ -132,7 +133,7 @@
         }
       },
       "@type": "uav:variable",
-      "const": "//xs:element[@name='TransferResultDataDataType']",
+      "default": "//xs:element[@name='TransferResultDataDataType']",
       "links": [
         {
           "href": "i=69",
@@ -155,7 +156,7 @@
         }
       },
       "@type": "uav:variable",
-      "const": "//xs:element[@name='TransferResultErrorDataType']",
+      "default": "//xs:element[@name='TransferResultErrorDataType']",
       "links": [
         {
           "href": "i=69",
@@ -414,10 +415,12 @@
     ],
     "nodes": [
       {
+        "arrayDimensions": "",
         "browseName": "1:Opc.Ua.Di",
         "dataType": "ByteString",
         "displayName": [
           {
+            "locale": "",
             "value": "Opc.Ua.Di"
           }
         ],
@@ -464,10 +467,12 @@
         "valueXml": "<ByteString xmlns=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">PHhzOnNjaGVtYQ0KICB4bWxuczp4cz0iaHR0cDovL3d3dy53My5vcmcvMjAwMS9YTUxTY2hlbWEi\nDQogIHhtbG5zOnVhPSJodHRwOi8vb3BjZm91bmRhdGlvbi5vcmcvVUEvMjAwOC8wMi9UeXBlcy54\nc2QiDQogIHhtbG5zOnRucz0iaHR0cDovL29wY2ZvdW5kYXRpb24ub3JnL1VBL0RJL1R5cGVzLnhz\nZCINCiAgdGFyZ2V0TmFtZXNwYWNlPSJodHRwOi8vb3BjZm91bmRhdGlvbi5vcmcvVUEvREkvVHlw\nZXMueHNkIg0KICBlbGVtZW50Rm9ybURlZmF1bHQ9InF1YWxpZmllZCINCj4NCiAgPHhzOmFubm90\nYXRpb24+DQogICAgPHhzOmFwcGluZm8+DQogICAgICA8dWE6TW9kZWwgTW9kZWxVcmk9Imh0dHA6\nLy9vcGNmb3VuZGF0aW9uLm9yZy9VQS9ESS8iIFZlcnNpb249IjEuMDUuMCIgUHVibGljYXRpb25E\nYXRlPSIyMDI1LTExLTE1VDAwOjAwOjAwWiIgLz4NCiAgICA8L3hzOmFwcGluZm8+DQogIDwveHM6\nYW5ub3RhdGlvbj4NCiAgDQogIDx4czppbXBvcnQgbmFtZXNwYWNlPSJodHRwOi8vb3BjZm91bmRh\ndGlvbi5vcmcvVUEvMjAwOC8wMi9UeXBlcy54c2QiIC8+DQoNCiAgPHhzOnNpbXBsZVR5cGUgIG5h\nbWU9IkRldmljZUhlYWx0aEVudW1lcmF0aW9uIj4NCiAgICA8eHM6cmVzdHJpY3Rpb24gYmFzZT0i\neHM6c3RyaW5nIj4NCiAgICAgIDx4czplbnVtZXJhdGlvbiB2YWx1ZT0iTk9STUFMXzAiIC8+DQog\nICAgICA8eHM6ZW51bWVyYXRpb24gdmFsdWU9IkZBSUxVUkVfMSIgLz4NCiAgICAgIDx4czplbnVt\nZXJhdGlvbiB2YWx1ZT0iQ0hFQ0tfRlVOQ1RJT05fMiIgLz4NCiAgICAgIDx4czplbnVtZXJhdGlv\nbiB2YWx1ZT0iT0ZGX1NQRUNfMyIgLz4NCiAgICAgIDx4czplbnVtZXJhdGlvbiB2YWx1ZT0iTUFJ\nTlRFTkFOQ0VfUkVRVUlSRURfNCIgLz4NCiAgICA8L3hzOnJlc3RyaWN0aW9uPg0KICA8L3hzOnNp\nbXBsZVR5cGU+DQogIDx4czplbGVtZW50IG5hbWU9IkRldmljZUhlYWx0aEVudW1lcmF0aW9uIiB0\neXBlPSJ0bnM6RGV2aWNlSGVhbHRoRW51bWVyYXRpb24iIC8+DQoNCiAgPHhzOmNvbXBsZXhUeXBl\nIG5hbWU9Ikxpc3RPZkRldmljZUhlYWx0aEVudW1lcmF0aW9uIj4NCiAgICA8eHM6c2VxdWVuY2U+\nDQogICAgICA8eHM6ZWxlbWVudCBuYW1lPSJEZXZpY2VIZWFsdGhFbnVtZXJhdGlvbiIgdHlwZT0i\ndG5zOkRldmljZUhlYWx0aEVudW1lcmF0aW9uIiBtaW5PY2N1cnM9IjAiIG1heE9jY3Vycz0idW5i\nb3VuZGVkIiAvPg0KICAgIDwveHM6c2VxdWVuY2U+DQogIDwveHM6Y29tcGxleFR5cGU+DQogIDx4\nczplbGVtZW50IG5hbWU9Ikxpc3RPZkRldmljZUhlYWx0aEVudW1lcmF0aW9uIiB0eXBlPSJ0bnM6\nTGlzdE9mRGV2aWNlSGVhbHRoRW51bWVyYXRpb24iIG5pbGxhYmxlPSJ0cnVlIj48L3hzOmVsZW1l\nbnQ+DQoNCiAgPHhzOmNvbXBsZXhUeXBlIG5hbWU9IkZldGNoUmVzdWx0RGF0YVR5cGUiPg0KICAg\nIDx4czpzZXF1ZW5jZT4NCiAgICA8L3hzOnNlcXVlbmNlPg0KICA8L3hzOmNvbXBsZXhUeXBlPg0K\nICA8eHM6ZWxlbWVudCBuYW1lPSJGZXRjaFJlc3VsdERhdGFUeXBlIiB0eXBlPSJ0bnM6RmV0Y2hS\nZXN1bHREYXRhVHlwZSIgLz4NCg0KICA8eHM6Y29tcGxleFR5cGUgbmFtZT0iTGlzdE9mRmV0Y2hS\nZXN1bHREYXRhVHlwZSI+DQogICAgPHhzOnNlcXVlbmNlPg0KICAgICAgPHhzOmVsZW1lbnQgbmFt\nZT0iRmV0Y2hSZXN1bHREYXRhVHlwZSIgdHlwZT0idG5zOkZldGNoUmVzdWx0RGF0YVR5cGUiIG1p\nbk9jY3Vycz0iMCIgbWF4T2NjdXJzPSJ1bmJvdW5kZWQiIG5pbGxhYmxlPSJ0cnVlIiAvPg0KICAg\nIDwveHM6c2VxdWVuY2U+DQogIDwveHM6Y29tcGxleFR5cGU+DQogIDx4czplbGVtZW50IG5hbWU9\nIkxpc3RPZkZldGNoUmVzdWx0RGF0YVR5cGUiIHR5cGU9InRuczpMaXN0T2ZGZXRjaFJlc3VsdERh\ndGFUeXBlIiBuaWxsYWJsZT0idHJ1ZSI+PC94czplbGVtZW50Pg0KDQogIDx4czpjb21wbGV4VHlw\nZSBuYW1lPSJUcmFuc2ZlclJlc3VsdEVycm9yRGF0YVR5cGUiPg0KICAgIDx4czpjb21wbGV4Q29u\ndGVudCBtaXhlZD0iZmFsc2UiPg0KICAgICAgPHhzOmV4dGVuc2lvbiBiYXNlPSJ0bnM6RmV0Y2hS\nZXN1bHREYXRhVHlwZSI+DQogICAgICAgIDx4czpzZXF1ZW5jZT4NCiAgICAgICAgICA8eHM6ZWxl\nbWVudCBuYW1lPSJTdGF0dXMiIHR5cGU9InhzOmludCIgbWluT2NjdXJzPSIwIiAvPg0KICAgICAg\nICAgIDx4czplbGVtZW50IG5hbWU9IkRpYWdub3N0aWNzIiB0eXBlPSJ1YTpEaWFnbm9zdGljSW5m\nbyIgbWluT2NjdXJzPSIwIiBuaWxsYWJsZT0idHJ1ZSIgLz4NCiAgICAgICAgPC94czpzZXF1ZW5j\nZT4NCiAgICAgIDwveHM6ZXh0ZW5zaW9uPg0KICAgIDwveHM6Y29tcGxleENvbnRlbnQ+DQogIDwv\neHM6Y29tcGxleFR5cGU+DQogIDx4czplbGVtZW50IG5hbWU9IlRyYW5zZmVyUmVzdWx0RXJyb3JE\nYXRhVHlwZSIgdHlwZT0idG5zOlRyYW5zZmVyUmVzdWx0RXJyb3JEYXRhVHlwZSIgLz4NCg0KICA8\neHM6Y29tcGxleFR5cGUgbmFtZT0iTGlzdE9mVHJhbnNmZXJSZXN1bHRFcnJvckRhdGFUeXBlIj4N\nCiAgICA8eHM6c2VxdWVuY2U+DQogICAgICA8eHM6ZWxlbWVudCBuYW1lPSJUcmFuc2ZlclJlc3Vs\ndEVycm9yRGF0YVR5cGUiIHR5cGU9InRuczpUcmFuc2ZlclJlc3VsdEVycm9yRGF0YVR5cGUiIG1p\nbk9jY3Vycz0iMCIgbWF4T2NjdXJzPSJ1bmJvdW5kZWQiIG5pbGxhYmxlPSJ0cnVlIiAvPg0KICAg\nIDwveHM6c2VxdWVuY2U+DQogIDwveHM6Y29tcGxleFR5cGU+DQogIDx4czplbGVtZW50IG5hbWU9\nIkxpc3RPZlRyYW5zZmVyUmVzdWx0RXJyb3JEYXRhVHlwZSIgdHlwZT0idG5zOkxpc3RPZlRyYW5z\nZmVyUmVzdWx0RXJyb3JEYXRhVHlwZSIgbmlsbGFibGU9InRydWUiPjwveHM6ZWxlbWVudD4NCg0K\nICA8eHM6Y29tcGxleFR5cGUgbmFtZT0iVHJhbnNmZXJSZXN1bHREYXRhRGF0YVR5cGUiPg0KICAg\nIDx4czpjb21wbGV4Q29udGVudCBtaXhlZD0iZmFsc2UiPg0KICAgICAgPHhzOmV4dGVuc2lvbiBi\nYXNlPSJ0bnM6RmV0Y2hSZXN1bHREYXRhVHlwZSI+DQogICAgICAgIDx4czpzZXF1ZW5jZT4NCiAg\nICAgICAgICA8eHM6ZWxlbWVudCBuYW1lPSJTZXF1ZW5jZU51bWJlciIgdHlwZT0ieHM6aW50IiBt\naW5PY2N1cnM9IjAiIC8+DQogICAgICAgICAgPHhzOmVsZW1lbnQgbmFtZT0iRW5kT2ZSZXN1bHRz\nIiB0eXBlPSJ4czpib29sZWFuIiBtaW5PY2N1cnM9IjAiIC8+DQogICAgICAgICAgPHhzOmVsZW1l\nbnQgbmFtZT0iUGFyYW1ldGVyRGVmcyIgdHlwZT0idG5zOkxpc3RPZlBhcmFtZXRlclJlc3VsdERh\ndGFUeXBlIiBtaW5PY2N1cnM9IjAiIG5pbGxhYmxlPSJ0cnVlIiAvPg0KICAgICAgICA8L3hzOnNl\ncXVlbmNlPg0KICAgICAgPC94czpleHRlbnNpb24+DQogICAgPC94czpjb21wbGV4Q29udGVudD4N\nCiAgPC94czpjb21wbGV4VHlwZT4NCiAgPHhzOmVsZW1lbnQgbmFtZT0iVHJhbnNmZXJSZXN1bHRE\nYXRhRGF0YVR5cGUiIHR5cGU9InRuczpUcmFuc2ZlclJlc3VsdERhdGFEYXRhVHlwZSIgLz4NCg0K\nICA8eHM6Y29tcGxleFR5cGUgbmFtZT0iTGlzdE9mVHJhbnNmZXJSZXN1bHREYXRhRGF0YVR5cGUi\nPg0KICAgIDx4czpzZXF1ZW5jZT4NCiAgICAgIDx4czplbGVtZW50IG5hbWU9IlRyYW5zZmVyUmVz\ndWx0RGF0YURhdGFUeXBlIiB0eXBlPSJ0bnM6VHJhbnNmZXJSZXN1bHREYXRhRGF0YVR5cGUiIG1p\nbk9jY3Vycz0iMCIgbWF4T2NjdXJzPSJ1bmJvdW5kZWQiIG5pbGxhYmxlPSJ0cnVlIiAvPg0KICAg\nIDwveHM6c2VxdWVuY2U+DQogIDwveHM6Y29tcGxleFR5cGU+DQogIDx4czplbGVtZW50IG5hbWU9\nIkxpc3RPZlRyYW5zZmVyUmVzdWx0RGF0YURhdGFUeXBlIiB0eXBlPSJ0bnM6TGlzdE9mVHJhbnNm\nZXJSZXN1bHREYXRhRGF0YVR5cGUiIG5pbGxhYmxlPSJ0cnVlIj48L3hzOmVsZW1lbnQ+DQoNCiAg\nPHhzOmNvbXBsZXhUeXBlIG5hbWU9IlBhcmFtZXRlclJlc3VsdERhdGFUeXBlIj4NCiAgICA8eHM6\nc2VxdWVuY2U+DQogICAgICA8eHM6ZWxlbWVudCBuYW1lPSJOb2RlUGF0aCIgdHlwZT0idWE6TGlz\ndE9mUXVhbGlmaWVkTmFtZSIgbWluT2NjdXJzPSIwIiBuaWxsYWJsZT0idHJ1ZSIgLz4NCiAgICAg\nIDx4czplbGVtZW50IG5hbWU9IlN0YXR1c0NvZGUiIHR5cGU9InVhOlN0YXR1c0NvZGUiIG1pbk9j\nY3Vycz0iMCIgLz4NCiAgICAgIDx4czplbGVtZW50IG5hbWU9IkRpYWdub3N0aWNzIiB0eXBlPSJ1\nYTpEaWFnbm9zdGljSW5mbyIgbWluT2NjdXJzPSIwIiBuaWxsYWJsZT0idHJ1ZSIgLz4NCiAgICA8\nL3hzOnNlcXVlbmNlPg0KICA8L3hzOmNvbXBsZXhUeXBlPg0KICA8eHM6ZWxlbWVudCBuYW1lPSJQ\nYXJhbWV0ZXJSZXN1bHREYXRhVHlwZSIgdHlwZT0idG5zOlBhcmFtZXRlclJlc3VsdERhdGFUeXBl\nIiAvPg0KDQogIDx4czpjb21wbGV4VHlwZSBuYW1lPSJMaXN0T2ZQYXJhbWV0ZXJSZXN1bHREYXRh\nVHlwZSI+DQogICAgPHhzOnNlcXVlbmNlPg0KICAgICAgPHhzOmVsZW1lbnQgbmFtZT0iUGFyYW1l\ndGVyUmVzdWx0RGF0YVR5cGUiIHR5cGU9InRuczpQYXJhbWV0ZXJSZXN1bHREYXRhVHlwZSIgbWlu\nT2NjdXJzPSIwIiBtYXhPY2N1cnM9InVuYm91bmRlZCIgbmlsbGFibGU9InRydWUiIC8+DQogICAg\nPC94czpzZXF1ZW5jZT4NCiAgPC94czpjb21wbGV4VHlwZT4NCiAgPHhzOmVsZW1lbnQgbmFtZT0i\nTGlzdE9mUGFyYW1ldGVyUmVzdWx0RGF0YVR5cGUiIHR5cGU9InRuczpMaXN0T2ZQYXJhbWV0ZXJS\nZXN1bHREYXRhVHlwZSIgbmlsbGFibGU9InRydWUiPjwveHM6ZWxlbWVudD4NCg0KICA8eHM6c2lt\ncGxlVHlwZSAgbmFtZT0iU29mdHdhcmVDbGFzcyI+DQogICAgPHhzOnJlc3RyaWN0aW9uIGJhc2U9\nInhzOnN0cmluZyI+DQogICAgICA8eHM6ZW51bWVyYXRpb24gdmFsdWU9IkZpcm13YXJlXzAiIC8+\nDQogICAgICA8eHM6ZW51bWVyYXRpb24gdmFsdWU9IkFwcGxpY2F0aW9uXzEiIC8+DQogICAgICA8\neHM6ZW51bWVyYXRpb24gdmFsdWU9IkNvbmZpZ3VyYXRpb25fMiIgLz4NCiAgICAgIDx4czplbnVt\nZXJhdGlvbiB2YWx1ZT0iU29sdXRpb25fMyIgLz4NCiAgICA8L3hzOnJlc3RyaWN0aW9uPg0KICA8\nL3hzOnNpbXBsZVR5cGU+DQogIDx4czplbGVtZW50IG5hbWU9IlNvZnR3YXJlQ2xhc3MiIHR5cGU9\nInRuczpTb2Z0d2FyZUNsYXNzIiAvPg0KDQogIDx4czpjb21wbGV4VHlwZSBuYW1lPSJMaXN0T2ZT\nb2Z0d2FyZUNsYXNzIj4NCiAgICA8eHM6c2VxdWVuY2U+DQogICAgICA8eHM6ZWxlbWVudCBuYW1l\nPSJTb2Z0d2FyZUNsYXNzIiB0eXBlPSJ0bnM6U29mdHdhcmVDbGFzcyIgbWluT2NjdXJzPSIwIiBt\nYXhPY2N1cnM9InVuYm91bmRlZCIgLz4NCiAgICA8L3hzOnNlcXVlbmNlPg0KICA8L3hzOmNvbXBs\nZXhUeXBlPg0KICA8eHM6ZWxlbWVudCBuYW1lPSJMaXN0T2ZTb2Z0d2FyZUNsYXNzIiB0eXBlPSJ0\nbnM6TGlzdE9mU29mdHdhcmVDbGFzcyIgbmlsbGFibGU9InRydWUiPjwveHM6ZWxlbWVudD4NCg0K\nICA8eHM6c2ltcGxlVHlwZSAgbmFtZT0iTG9jYXRpb25JbmRpY2F0aW9uVHlwZSI+DQogICAgPHhz\nOnJlc3RyaWN0aW9uIGJhc2U9InhzOnVuc2lnbmVkU2hvcnQiPg0KICAgIDwveHM6cmVzdHJpY3Rp\nb24+DQogIDwveHM6c2ltcGxlVHlwZT4NCiAgPHhzOmVsZW1lbnQgbmFtZT0iTG9jYXRpb25JbmRp\nY2F0aW9uVHlwZSIgdHlwZT0idG5zOkxvY2F0aW9uSW5kaWNhdGlvblR5cGUiIC8+DQoNCiAgPHhz\nOmNvbXBsZXhUeXBlIG5hbWU9Ikxpc3RPZkxvY2F0aW9uSW5kaWNhdGlvblR5cGUiPg0KICAgIDx4\nczpzZXF1ZW5jZT4NCiAgICAgIDx4czplbGVtZW50IG5hbWU9IkxvY2F0aW9uSW5kaWNhdGlvblR5\ncGUiIHR5cGU9InRuczpMb2NhdGlvbkluZGljYXRpb25UeXBlIiBtaW5PY2N1cnM9IjAiIG1heE9j\nY3Vycz0idW5ib3VuZGVkIiAvPg0KICAgIDwveHM6c2VxdWVuY2U+DQogIDwveHM6Y29tcGxleFR5\ncGU+DQogIDx4czplbGVtZW50IG5hbWU9Ikxpc3RPZkxvY2F0aW9uSW5kaWNhdGlvblR5cGUiIHR5\ncGU9InRuczpMaXN0T2ZMb2NhdGlvbkluZGljYXRpb25UeXBlIiBuaWxsYWJsZT0idHJ1ZSI+PC94\nczplbGVtZW50Pg0KDQogIDx4czpzaW1wbGVUeXBlICBuYW1lPSJTb2Z0d2FyZVZlcnNpb25GaWxl\nVHlwZSI+DQogICAgPHhzOnJlc3RyaWN0aW9uIGJhc2U9InhzOnN0cmluZyI+DQogICAgICA8eHM6\nZW51bWVyYXRpb24gdmFsdWU9IkN1cnJlbnRfMCIgLz4NCiAgICAgIDx4czplbnVtZXJhdGlvbiB2\nYWx1ZT0iUGVuZGluZ18xIiAvPg0KICAgICAgPHhzOmVudW1lcmF0aW9uIHZhbHVlPSJGYWxsYmFj\na18yIiAvPg0KICAgIDwveHM6cmVzdHJpY3Rpb24+DQogIDwveHM6c2ltcGxlVHlwZT4NCiAgPHhz\nOmVsZW1lbnQgbmFtZT0iU29mdHdhcmVWZXJzaW9uRmlsZVR5cGUiIHR5cGU9InRuczpTb2Z0d2Fy\nZVZlcnNpb25GaWxlVHlwZSIgLz4NCg0KICA8eHM6Y29tcGxleFR5cGUgbmFtZT0iTGlzdE9mU29m\ndHdhcmVWZXJzaW9uRmlsZVR5cGUiPg0KICAgIDx4czpzZXF1ZW5jZT4NCiAgICAgIDx4czplbGVt\nZW50IG5hbWU9IlNvZnR3YXJlVmVyc2lvbkZpbGVUeXBlIiB0eXBlPSJ0bnM6U29mdHdhcmVWZXJz\naW9uRmlsZVR5cGUiIG1pbk9jY3Vycz0iMCIgbWF4T2NjdXJzPSJ1bmJvdW5kZWQiIC8+DQogICAg\nPC94czpzZXF1ZW5jZT4NCiAgPC94czpjb21wbGV4VHlwZT4NCiAgPHhzOmVsZW1lbnQgbmFtZT0i\nTGlzdE9mU29mdHdhcmVWZXJzaW9uRmlsZVR5cGUiIHR5cGU9InRuczpMaXN0T2ZTb2Z0d2FyZVZl\ncnNpb25GaWxlVHlwZSIgbmlsbGFibGU9InRydWUiPjwveHM6ZWxlbWVudD4NCg0KICA8eHM6c2lt\ncGxlVHlwZSAgbmFtZT0iVXBkYXRlQmVoYXZpb3IiPg0KICAgIDx4czpyZXN0cmljdGlvbiBiYXNl\nPSJ4czp1bnNpZ25lZEludCI+DQogICAgPC94czpyZXN0cmljdGlvbj4NCiAgPC94czpzaW1wbGVU\neXBlPg0KICA8eHM6ZWxlbWVudCBuYW1lPSJVcGRhdGVCZWhhdmlvciIgdHlwZT0idG5zOlVwZGF0\nZUJlaGF2aW9yIiAvPg0KDQogIDx4czpjb21wbGV4VHlwZSBuYW1lPSJMaXN0T2ZVcGRhdGVCZWhh\ndmlvciI+DQogICAgPHhzOnNlcXVlbmNlPg0KICAgICAgPHhzOmVsZW1lbnQgbmFtZT0iVXBkYXRl\nQmVoYXZpb3IiIHR5cGU9InRuczpVcGRhdGVCZWhhdmlvciIgbWluT2NjdXJzPSIwIiBtYXhPY2N1\ncnM9InVuYm91bmRlZCIgLz4NCiAgICA8L3hzOnNlcXVlbmNlPg0KICA8L3hzOmNvbXBsZXhUeXBl\nPg0KICA8eHM6ZWxlbWVudCBuYW1lPSJMaXN0T2ZVcGRhdGVCZWhhdmlvciIgdHlwZT0idG5zOkxp\nc3RPZlVwZGF0ZUJlaGF2aW9yIiBuaWxsYWJsZT0idHJ1ZSI+PC94czplbGVtZW50Pg0KDQo8L3hz\nOnNjaGVtYT4=</ByteString>"
       },
       {
+        "arrayDimensions": "",
         "browseName": "NamespaceUri",
         "dataType": "String",
         "displayName": [
           {
+            "locale": "",
             "value": "NamespaceUri"
           }
         ],
@@ -490,10 +495,12 @@
         "valueXml": "<String xmlns=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">http://opcfoundation.org/UA/DI/Types.xsd</String>"
       },
       {
+        "arrayDimensions": "",
         "browseName": "Deprecated",
         "dataType": "Boolean",
         "displayName": [
           {
+            "locale": "",
             "value": "Deprecated"
           }
         ],
@@ -516,10 +523,12 @@
         "valueXml": "<Boolean xmlns=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">true</Boolean>"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:FetchResultDataType",
         "dataType": "String",
         "displayName": [
           {
+            "locale": "",
             "value": "FetchResultDataType"
           }
         ],
@@ -542,10 +551,12 @@
         "valueXml": "<String xmlns=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">//xs:element[@name='FetchResultDataType']</String>"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:TransferResultErrorDataType",
         "dataType": "String",
         "displayName": [
           {
+            "locale": "",
             "value": "TransferResultErrorDataType"
           }
         ],
@@ -568,10 +579,12 @@
         "valueXml": "<String xmlns=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">//xs:element[@name='TransferResultErrorDataType']</String>"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:TransferResultDataDataType",
         "dataType": "String",
         "displayName": [
           {
+            "locale": "",
             "value": "TransferResultDataDataType"
           }
         ],
@@ -594,10 +607,12 @@
         "valueXml": "<String xmlns=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">//xs:element[@name='TransferResultDataDataType']</String>"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:ParameterResultDataType",
         "dataType": "String",
         "displayName": [
           {
+            "locale": "",
             "value": "ParameterResultDataType"
           }
         ],

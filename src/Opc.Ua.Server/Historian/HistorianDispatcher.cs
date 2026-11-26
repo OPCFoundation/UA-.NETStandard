@@ -1,35 +1,8 @@
-/* ========================================================================
- * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using System.Collections.Generic;
-using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Text;
 using System.Threading;
@@ -75,6 +48,32 @@ namespace Opc.Ua.Server.Historian
         public static BaseVariableState? GetAnnotationsParent(NodeState? node)
         {
             return (node as BaseInstanceState)?.Parent as BaseVariableState;
+        }
+
+        /// <summary>
+        /// Checks that the effective user access level of <paramref name="variable"/>
+        /// includes <paramref name="requiredAccessLevel"/>. A failure reported by the
+        /// <see cref="BaseVariableState.OnReadUserAccessLevel"/> callback is returned
+        /// as is, so a callback that cannot determine the access level denies access.
+        /// </summary>
+        internal static ServiceResult ValidateUserAccessLevel(
+            ISystemContext context,
+            BaseVariableState variable,
+            byte requiredAccessLevel)
+        {
+            byte userAccessLevel = variable.UserAccessLevel;
+            if (variable.OnReadUserAccessLevel is { } onReadUserAccessLevel)
+            {
+                ServiceResult result = onReadUserAccessLevel(context, variable, ref userAccessLevel);
+                if (ServiceResult.IsBad(result))
+                {
+                    return result;
+                }
+            }
+
+            return (userAccessLevel & requiredAccessLevel) == 0
+                ? StatusCodes.BadUserAccessDenied
+                : ServiceResult.Good;
         }
 
         /// <summary>
@@ -159,6 +158,7 @@ namespace Opc.Ua.Server.Historian
                     ? HistorianReadKind.Modified
                     : HistorianReadKind.Raw,
                 cancellationToken).ConfigureAwait(false);
+            Exception? operationFailure = null;
             try
             {
                 // A non-empty ContinuationPoint that does not resolve to a saved history
@@ -233,12 +233,14 @@ namespace Opc.Ua.Server.Historian
                     timestampsToReturn, result, claim, opContext, cancellationToken)
                     .ConfigureAwait(false);
             }
+            catch (Exception failure)
+            {
+                operationFailure = failure;
+                throw;
+            }
             finally
             {
-                if (claim != null)
-                {
-                    await claim.DisposeAsync().ConfigureAwait(false);
-                }
+                await DisposeContinuationClaimAsync(claim, operationFailure).ConfigureAwait(false);
             }
         }
 
@@ -573,9 +575,7 @@ namespace Opc.Ua.Server.Historian
         /// implement <see cref="IHistorianProcessedProvider"/>.
         /// </summary>
         /// <exception cref="ArgumentNullException"><paramref name="systemContext"/> is <c>null</c>.</exception>
-        [SuppressMessage("Reliability", "CA2000:Dispose objects before losing scope",
-            Justification = "HistorianContinuationState ownership is transferred to the session via " +
-                "ContinuationPoints.SaveHistory or disposed inline by EmitProcessedPage.")]
+#pragma warning disable CA2000 // State transfers to the session continuation or is disposed inline.
         public static async ValueTask<ServiceResult> DispatchProcessedReadAsync(
             ServerSystemContext systemContext,
             IHistorianProvider provider,
@@ -652,7 +652,8 @@ namespace Opc.Ua.Server.Historian
                 return ServiceResult.Good;
             }
 
-            if (claim == null)
+            Exception? operationFailure = null;
+            try
             {
                 return await DispatchProcessedReadCoreAsync(
                     systemContext,
@@ -666,21 +667,17 @@ namespace Opc.Ua.Server.Historian
                     claim,
                     cancellationToken).ConfigureAwait(false);
             }
-            await using (claim.ConfigureAwait(false))
+            catch (Exception failure)
             {
-                return await DispatchProcessedReadCoreAsync(
-                    systemContext,
-                    provider,
-                    node,
-                    nodeToRead,
-                    details,
-                    aggregateId,
-                    timestampsToReturn,
-                    result,
-                    claim,
-                    cancellationToken).ConfigureAwait(false);
+                operationFailure = failure;
+                throw;
+            }
+            finally
+            {
+                await DisposeContinuationClaimAsync(claim, operationFailure).ConfigureAwait(false);
             }
         }
+#pragma warning restore CA2000
 
         /// <summary>
         /// Validates aggregate inputs and pages processed history through the provider or a local aggregate calculator.
@@ -927,6 +924,17 @@ namespace Opc.Ua.Server.Historian
                 return StatusCodes.BadHistoryOperationUnsupported;
             }
 
+            // the raw values of one processing interval are held until the interval is
+            // complete, so bound how many one operation may hold.
+            int maxHeldRawValues = serverInternal.AggregateManager.MaxProcessedHistoryRawValues;
+            var standardCalculator = calculator as AggregateCalculator;
+            bool HoldsTooManyRawValues()
+            {
+                return maxHeldRawValues > 0 &&
+                    standardCalculator != null &&
+                    standardCalculator.RawValueCount > maxHeldRawValues;
+            }
+
             var values = new List<DataValue>();
             var rawRequest = new HistorianRawReadRequest
             {
@@ -1000,6 +1008,10 @@ namespace Opc.Ua.Server.Historian
                 {
                     calculator.QueueRawValue(value);
                 }
+                if (HoldsTooManyRawValues())
+                {
+                    return false;
+                }
                 return FlushCalculator(
                     calculator,
                     values,
@@ -1041,7 +1053,8 @@ namespace Opc.Ua.Server.Historian
                             calculator,
                             values,
                             partial: false,
-                            kMaxProcessedBufferedOutputs))
+                            kMaxProcessedBufferedOutputs) ||
+                        HoldsTooManyRawValues())
                     {
                         return StatusCodes.BadTooManyOperations;
                     }
@@ -1182,9 +1195,7 @@ namespace Opc.Ua.Server.Historian
         /// <see cref="IHistorianAnnotationProvider"/>; otherwise the aggregate is reported as
         /// unsupported for the node.
         /// </summary>
-        [SuppressMessage("Reliability", "CA2000:Dispose objects before losing scope",
-            Justification = "HistorianContinuationState ownership is transferred to the session via " +
-                "ContinuationPoints.SaveHistory or disposed inline by EmitProcessedPage.")]
+#pragma warning disable CA2000 // State transfers to the session continuation or is disposed inline.
         private static async ValueTask<ServiceResult> ComputeAnnotationCountAsync(
             ServerSystemContext systemContext,
             IHistorianProvider provider,
@@ -1345,6 +1356,7 @@ namespace Opc.Ua.Server.Historian
                 cancellationToken).ConfigureAwait(false);
             return ServiceResult.Good;
         }
+#pragma warning restore CA2000
 
         private const int kProcessedPageSize = 1000;
 
@@ -1360,6 +1372,60 @@ namespace Opc.Ua.Server.Historian
         /// <see cref="IHistorianProcessedProvider"/> directly.
         /// </summary>
         internal const int kMaxProcessedBufferedOutputs = 100_000;
+
+        /// <summary>
+        /// Maximum number of values one at-time HistoryRead may ask for: requested times per
+        /// node, and requested times times nodes per request (see
+        /// <see cref="StandardServer.HistoryReadAsync"/>). Every requested time is answered
+        /// with a value whatever the archive holds, so without a cap a request of a few hundred
+        /// kilobytes makes the server build millions of values. More is rejected with
+        /// <see cref="StatusCodes.BadTooManyOperations"/>.
+        /// </summary>
+        internal const int kMaxAtTimeRequestedValues = kMaxProcessedBufferedOutputs;
+
+        /// <summary>
+        /// Raw values the at-time fallback may read per requested time, on top of
+        /// <see cref="kMaxProcessedBufferedOutputs"/> for the whole operation: enough to find
+        /// the bounds of every requested time in an archive of mostly Good values. A provider
+        /// that returns far more than asked for (or an archive of Bad values that hides the
+        /// bounds) no longer scans its archive once per requested time: once the budget is
+        /// spent the remaining requested times get <see cref="StatusCodes.BadBoundNotSupported"/>,
+        /// as when the search limit of one requested time is reached (Part 11 Table 25).
+        /// </summary>
+        internal const int kAtTimeScanValuesPerRequestedTime = 64;
+
+        /// <summary>
+        /// The raw values one framework at-time read may still scan.
+        /// </summary>
+        private sealed class AtTimeScanBudget
+        {
+            public AtTimeScanBudget(long values)
+            {
+                m_remaining = values;
+            }
+
+            /// <summary>
+            /// Whether more raw values were scanned than the budget allows.
+            /// </summary>
+            public bool Exhausted => m_remaining < 0;
+
+            /// <summary>
+            /// Charges a page of scanned values.
+            /// </summary>
+            /// <exception cref="ServiceResultException">The budget is exhausted.</exception>
+            public void Charge(int count)
+            {
+                m_remaining -= count;
+                if (m_remaining < 0)
+                {
+                    throw new ServiceResultException(
+                        StatusCodes.BadBoundNotSupported,
+                        "The at-time read scanned more raw values than its requested times allow.");
+                }
+            }
+
+            private long m_remaining;
+        }
 
         /// <summary>
         /// Number of raw values the at-time fallback first reads on each side of a
@@ -1446,6 +1512,12 @@ namespace Opc.Ua.Server.Historian
                 HistoryUpdateType.Insert);
 
             ArrayOf<DateTimeUtc> reqTimes = details.ReqTimes;
+            if (reqTimes.Count > kMaxAtTimeRequestedValues)
+            {
+                result.StatusCode = StatusCodes.BadTooManyOperations;
+                result.ContinuationPoint = ByteString.Empty;
+                return StatusCodes.BadTooManyOperations;
+            }
 
             // Provider push-down
             if (provider is IHistorianAtTimeProvider atTime)
@@ -1482,24 +1554,40 @@ namespace Opc.Ua.Server.Historian
             }
 
             var produced = new List<DataValue>(reqTimes.Count);
+            var budget = new AtTimeScanBudget(
+                kMaxProcessedBufferedOutputs + ((long)kAtTimeScanValuesPerRequestedTime * reqTimes.Count));
             for (int i = 0; i < reqTimes.Count; i++)
             {
                 cancellationToken.ThrowIfCancellationRequested();
                 DateTimeUtc requestedTime = reqTimes[i];
-                List<DataValue>? samples = await CollectAtTimeSamplesAsync(
-                    opContext,
-                    raw,
-                    node.NodeId,
-                    requestedTime,
-                    details.UseSimpleBounds,
-                    capabilities.Stepped,
-                    cancellationToken)
-                    .ConfigureAwait(false);
+                List<DataValue>? samples = null;
+                if (!budget.Exhausted)
+                {
+                    try
+                    {
+                        samples = await CollectAtTimeSamplesAsync(
+                            opContext,
+                            raw,
+                            node.NodeId,
+                            requestedTime,
+                            details.UseSimpleBounds,
+                            capabilities.Stepped,
+                            budget,
+                            cancellationToken)
+                            .ConfigureAwait(false);
+                    }
+                    catch (ServiceResultException) when (budget.Exhausted)
+                    {
+                        samples = null;
+                    }
+                }
                 if (samples == null)
                 {
                     // Part 11 4.6 / 6.2.2 Table 25: the search limit was reached before a
                     // bound was found, so this requested time gets Bad_BoundNotSupported
-                    // while the other requested times are still answered.
+                    // while the other requested times are still answered. Once the scan
+                    // budget of the operation is spent, every remaining requested time is
+                    // answered so without reading the provider again.
                     produced.Add(new DataValue(
                         Variant.Null,
                         StatusCodes.BadBoundNotSupported,
@@ -1532,11 +1620,7 @@ namespace Opc.Ua.Server.Historian
         /// </summary>
         /// <exception cref="ArgumentNullException"><paramref name="systemContext"/> is <c>null</c>.</exception>
         // TODO: Remove this suppression when CA2000 recognizes the documented ownership transfer.
-        [SuppressMessage(
-            "Reliability",
-            "CA2000:Dispose objects before losing scope",
-            Justification = "SaveSuccessorOrCompleteAsync takes ownership of the initial continuation state " +
-                "on invocation and either saves it to the session or disposes it.")]
+#pragma warning disable CA2000 // Continuation state transfers to the session or is disposed inline.
         public static async ValueTask<ServiceResult> DispatchAnnotationReadAsync(
             ServerSystemContext systemContext,
             IHistorianProvider provider,
@@ -1579,6 +1663,7 @@ namespace Opc.Ua.Server.Historian
                 HistorianReadKind.Annotations,
                 cancellationToken,
                 parentVariable.NodeId).ConfigureAwait(false);
+            Exception? operationFailure = null;
             try
             {
                 if (claim == null && !nodeToRead.ContinuationPoint.IsEmpty)
@@ -1742,14 +1827,17 @@ namespace Opc.Ua.Server.Historian
 
                 return ServiceResult.Good;
             }
+            catch (Exception failure)
+            {
+                operationFailure = failure;
+                throw;
+            }
             finally
             {
-                if (claim != null)
-                {
-                    await claim.DisposeAsync().ConfigureAwait(false);
-                }
+                await DisposeContinuationClaimAsync(claim, operationFailure).ConfigureAwait(false);
             }
         }
+#pragma warning restore CA2000
 
         /// <summary>
         /// Dispatches a HistoryUpdate on an Annotations property by
@@ -2091,11 +2179,7 @@ namespace Opc.Ua.Server.Historian
         /// </summary>
         /// <exception cref="ArgumentNullException"><paramref name="systemContext"/> is <c>null</c>.</exception>
         // TODO: Remove this suppression when CA2000 recognizes the documented ownership transfer.
-        [SuppressMessage(
-            "Reliability",
-            "CA2000:Dispose objects before losing scope",
-            Justification = "SaveSuccessorOrCompleteAsync takes ownership of the initial continuation state " +
-                "on invocation and either saves it to the session or disposes it.")]
+#pragma warning disable CA2000 // Continuation state transfers to the session or is disposed inline.
         public static async ValueTask<ServiceResult> DispatchEventReadAsync(
             ServerSystemContext systemContext,
             IHistorianProvider provider,
@@ -2138,6 +2222,7 @@ namespace Opc.Ua.Server.Historian
                 nodeToRead,
                 HistorianReadKind.Events,
                 cancellationToken).ConfigureAwait(false);
+            Exception? operationFailure = null;
             try
             {
                 if (claim == null && !nodeToRead.ContinuationPoint.IsEmpty)
@@ -2196,7 +2281,9 @@ namespace Opc.Ua.Server.Historian
                             details.NumValuesPerNode,
                             capabilities.MaxReturnEventValues),
                         IsForward = isForward,
-                        Filter = (EventFilter)details.Filter.Clone()
+                        // shared read-only by every operation of the request and their
+                        // continuation points rather than copied for each of them.
+                        Filter = details.Filter
                     };
                     token = default;
                 }
@@ -2295,14 +2382,17 @@ namespace Opc.Ua.Server.Historian
                 }
                 return ServiceResult.Good;
             }
+            catch (Exception failure)
+            {
+                operationFailure = failure;
+                throw;
+            }
             finally
             {
-                if (claim != null)
-                {
-                    await claim.DisposeAsync().ConfigureAwait(false);
-                }
+                await DisposeContinuationClaimAsync(claim, operationFailure).ConfigureAwait(false);
             }
         }
+#pragma warning restore CA2000
 
         /// <summary>
         /// Keeps the stored events whose EventType and SourceNode grant
@@ -2406,26 +2496,24 @@ namespace Opc.Ua.Server.Historian
             granted = false;
             try
             {
-                (object? handle, IAsyncNodeManager? nodeManager) = await systemContext.Server.NodeManager
-                    .GetManagerHandleAsync(nodeId, cancellationToken)
-                    .ConfigureAwait(false);
-                if (handle != null && nodeManager != null)
+                bool? verdict = await TryGetReceiveEventsVerdictAsync(
+                    systemContext,
+                    operationContext,
+                    nodeId,
+                    cancellationToken).ConfigureAwait(false);
+                if (verdict == null)
                 {
-                    NodeMetadata? metadata = await nodeManager.GetNodeMetadataAsync(
+                    // A resumed page routes only to the owners its continuation retained. The EventType
+                    // and SourceNode of a stored event can belong to other owners, so a node the
+                    // retained routing cannot resolve is checked against the live routing instead.
+                    verdict = await TryGetReceiveEventsVerdictAsync(
+                        systemContext,
                         operationContext,
-                        handle,
-                        BrowseResultMask.All,
-                        cancellationToken).ConfigureAwait(false);
-                    granted = metadata != null &&
-                        !ServiceResult.IsBad(MasterNodeManager.ValidateRolePermissions(
-                            operationContext,
-                            metadata,
-                            PermissionType.ReceiveEvents)) &&
-                        !ServiceResult.IsBad(MasterNodeManager.ValidateAccessRestrictions(
-                            operationContext,
-                            metadata,
-                            PermissionType.ReceiveEvents));
+                        nodeId,
+                        cancellationToken,
+                        useLiveRouting: true).ConfigureAwait(false);
                 }
+                granted = verdict == true;
             }
             catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
             {
@@ -2438,6 +2526,44 @@ namespace Opc.Ua.Server.Historian
 
             verdicts[nodeId] = granted;
             return granted;
+        }
+
+        /// <summary>
+        /// Validates ReceiveEvents on a node through request routing or, when requested, current routing.
+        /// </summary>
+        /// <returns>The verdict, or null if the selected routing has no owner for the node.</returns>
+        private static async ValueTask<bool?> TryGetReceiveEventsVerdictAsync(
+            ServerSystemContext systemContext,
+            OperationContext operationContext,
+            NodeId nodeId,
+            CancellationToken cancellationToken,
+            bool useLiveRouting = false)
+        {
+            IMasterNodeManager master = systemContext.Server.NodeManager;
+            (object? handle, IAsyncNodeManager? nodeManager) = useLiveRouting
+                ? await master.GetManagerHandleAsync(nodeId, cancellationToken).ConfigureAwait(false)
+                : await master.ResolveManagerHandleAsync(operationContext, nodeId, cancellationToken)
+                    .ConfigureAwait(false);
+            if (handle == null || nodeManager == null)
+            {
+                return null;
+            }
+
+            NodeMetadata? metadata = await nodeManager.GetNodeMetadataAsync(
+                operationContext,
+                handle,
+                BrowseResultMask.All,
+                cancellationToken).ConfigureAwait(false);
+            return metadata != null &&
+                !ServiceResult.IsBad(MasterNodeManager.ValidateRolePermissions(
+                    systemContext.Server,
+                    operationContext,
+                    metadata,
+                    PermissionType.ReceiveEvents)) &&
+                !ServiceResult.IsBad(MasterNodeManager.ValidateAccessRestrictions(
+                    operationContext,
+                    metadata,
+                    PermissionType.ReceiveEvents));
         }
 
         /// <summary>
@@ -2914,11 +3040,7 @@ namespace Opc.Ua.Server.Historian
         }
 
         // TODO: Remove this suppression when CA2000 recognizes the documented ownership transfer.
-        [SuppressMessage(
-            "Reliability",
-            "CA2000:Dispose objects before losing scope",
-            Justification = "SaveSuccessorOrCompleteAsync takes ownership of the initial continuation state " +
-                "on invocation and either saves it to the session or disposes it.")]
+#pragma warning disable CA2000 // Continuation state transfers to the session or is disposed inline.
         private static async ValueTask<ServiceResult> ReadRawPageAsync(
             ServerSystemContext systemContext,
             IHistorianProvider provider,
@@ -2981,23 +3103,97 @@ namespace Opc.Ua.Server.Historian
                 token = default;
             }
 
-            HistorianPage<HistoricalDataValue> page = await data.ReadRawAsync(
-                opContext, request, token, cancellationToken).ConfigureAwait(false);
+            // the values kept for the response are charged against the response byte
+            // budget of the service: a page holds at most the values that fit it.
+            OperationContext? operationContext = systemContext.OperationContext;
+            long responseBytes = operationContext?.ResponseBytesRemaining ?? -1;
+            HistorianRawReadRequest pageRequest = responseBytes < 0
+                ? request
+                : LimitPageByResponseBudget(request, request.PageLimit, responseBytes);
 
-            var values = new List<DataValue>(page.Values.Count);
-            foreach (HistoricalDataValue v in page.Values)
+            HistorianPage<HistoricalDataValue> page = await data.ReadRawAsync(
+                opContext, pageRequest, token, cancellationToken).ConfigureAwait(false);
+
+            List<DataValue> filled = FillRawPage(systemContext, result, page, nodeToRead, timestampsToReturn);
+
+            bool resumeAtStart = false;
+            if (responseBytes >= 0)
             {
-                values.Add(v.Value);
+                // the values are measured with the binary encoder: a page that is sent must
+                // fit, a lower bound of its size does not show that.
+                using var meter = new EncodedSizeMeter(systemContext);
+                bool fits = false;
+                bool someFit = false;
+                for (int reads = 1; ; reads++)
+                {
+                    // every page read is checked, the last re-read as well. The last page
+                    // of the read is sent without a continuation point, so it may use the
+                    // continuation point bytes the budget reserves for its result.
+                    // Not when the reserved framing alone exceeds the limit: then the
+                    // reserve covers part of the deficit.
+                    long reserve = page.NextToken.IsEmpty && !operationContext!.ResponseBudgetExhausted
+                        ? ResponseSizeEstimator.HistoryContinuationPointSize
+                        : 0;
+                    (int count, long bytes) = meter.CountValuesThatFit(
+                        filled,
+                        operationContext!.ResponseBytesRemaining + reserve);
+                    someFit |= count > 0;
+                    if (count == filled.Count)
+                    {
+                        // the continuation point bytes the values do not use stay in the
+                        // budget for the other results of the request.
+                        if (bytes >= reserve)
+                        {
+                            fits = operationContext.TryChargeResponse(bytes - reserve);
+                        }
+                        else
+                        {
+                            operationContext.CreditResponse(reserve - bytes);
+                            fits = true;
+                        }
+                        break;
+                    }
+                    if (count == 0 || reads > kMaxResponseBudgetPageRereads)
+                    {
+                        break;
+                    }
+
+                    // read the page again with the values that fit, so the provider hands
+                    // back the position after the last of them.
+                    page = await data.ReadRawAsync(
+                        opContext,
+                        LimitPageByResponseBudget(request, (uint)count, long.MaxValue),
+                        token,
+                        cancellationToken).ConfigureAwait(false);
+                    filled = FillRawPage(systemContext, result, page, nodeToRead, timestampsToReturn);
+                }
+
+                if (!fits)
+                {
+                    // no page that fits was read. When nothing else was charged, no later
+                    // request can hold this page either.
+                    if (operationContext!.ResponseBudgetUnused)
+                    {
+                        operationContext.TryChargeResponse(long.MaxValue);
+                        throw new ServiceResultException(
+                            StatusCodes.BadResponseTooLarge,
+                            someFit
+                                ? "The history provider returned more values than the response size limit holds."
+                                : "A value of the HistoryRead exceeds the response size limit.");
+                    }
+                    // Part 11 6.3: fewer values than requested, here none, with a
+                    // continuation point that resumes where this page started.
+                    page = new HistorianPage<HistoricalDataValue>([], token);
+                    filled = FillRawPage(systemContext, result, page, nodeToRead, timestampsToReturn);
+                    resumeAtStart = true;
+                }
             }
-            FillHistoryData(
-                systemContext,
-                result,
-                values,
-                nodeToRead,
-                timestampsToReturn);
+
+            List<DataValue> values = filled;
+            bool hasMore = resumeAtStart || !page.NextToken.IsEmpty;
 
             HistorianContinuationState? initialState = null;
-            if (claim == null && !page.NextToken.IsEmpty)
+            if (claim == null && hasMore)
             {
                 initialState = new HistorianContinuationState
                 {
@@ -3018,7 +3214,7 @@ namespace Opc.Ua.Server.Historian
                 systemContext,
                 result,
                 claim,
-                hasMore: !page.NextToken.IsEmpty,
+                hasMore,
                 page.NextToken,
                 initialState,
                 bufferedProcessedOffset: null,
@@ -3026,20 +3222,250 @@ namespace Opc.Ua.Server.Historian
 
             // Per OPC UA Part 11 6.5.3.2, an interval in which no data exists (and no
             // Bounding Values were requested/returned) is reported with Good_NoData.
-            if (values.Count == 0 && page.NextToken.IsEmpty)
+            if (values.Count == 0 && !hasMore)
             {
                 result.StatusCode = StatusCodes.GoodNoData;
             }
 
             return ServiceResult.Good;
         }
+#pragma warning restore CA2000
+
+        /// <summary>
+        /// The smallest encoded size of a raw history value that a page is limited by: its
+        /// encoding mask and one timestamp, which a raw value is returned with. The limit
+        /// only shortens a page, the values of the page are charged with their own size.
+        /// </summary>
+        private const int kMinHistoryDataValueSize = 1 + 8;
+
+        /// <summary>
+        /// How often a raw page is read again with fewer values before it is returned
+        /// without values: a provider that does not honor the page limit, or whose values
+        /// grow between the reads, does not hold the read in a loop.
+        /// </summary>
+        private const int kMaxResponseBudgetPageRereads = 3;
+
+        /// <summary>
+        /// Limits the values of a raw page to <paramref name="pageLimit"/> and to the
+        /// values the rest of the response byte budget can hold at the smallest size.
+        /// </summary>
+        private static HistorianRawReadRequest LimitPageByResponseBudget(
+            HistorianRawReadRequest request,
+            uint pageLimit,
+            long responseBytes)
+        {
+            uint limit = pageLimit == 0 ? uint.MaxValue : pageLimit;
+            long byBudget = Math.Max(1, responseBytes / kMinHistoryDataValueSize);
+            if (byBudget < limit)
+            {
+                limit = (uint)byBudget;
+            }
+            return limit == request.PageLimit ? request : request with { PageLimit = limit };
+        }
+
+        /// <summary>
+        /// Measures the binary encoded size of history values, without storing the bytes.
+        /// </summary>
+        /// <remarks>
+        /// The length limits of the server's message context do not apply: the measurement
+        /// only sizes the values, the encoder of the response still enforces them. The
+        /// lengths and the written bytes are limited by the rest of the budget instead. The
+        /// nesting limit is the server's, the one the response is encoded with, which also
+        /// bounds the recursion of the measurement. A value that fails to encode does not
+        /// fit.
+        /// </remarks>
+        private sealed class EncodedSizeMeter : IDisposable
+        {
+            public EncodedSizeMeter(ServerSystemContext context)
+            {
+                m_context = new ServiceMessageContext(context.Telemetry, context.EncodeableFactory)
+                {
+                    NamespaceUris = context.NamespaceUris,
+                    ServerUris = context.ServerUris,
+                    MaxStringLength = 0,
+                    MaxByteStringLength = 0,
+                    MaxArrayLength = 0,
+                    MaxMessageSize = 0,
+                    MaxEncodingNestingLevels = context.Server.MessageContext?.MaxEncodingNestingLevels ??
+                        DefaultEncodingLimits.MaxEncodingNestingLevels
+                };
+            }
+
+            /// <summary>
+            /// Counts the leading values whose encoded size fits
+            /// <paramref name="responseBytes"/> and returns their size.
+            /// </summary>
+            public (int Count, long Bytes) CountValuesThatFit(List<DataValue> values, long responseBytes)
+            {
+                long bytes = 0;
+                for (int ii = 0; ii < values.Count; ii++)
+                {
+                    // a value whose lower bound does not fit is not encoded: encoding a
+                    // large string buffers all of its UTF-8 bytes.
+                    if (ResponseSizeEstimator.Estimate(values[ii]) > responseBytes - bytes)
+                    {
+                        return (ii, bytes);
+                    }
+                    long size = Measure(values[ii], responseBytes - bytes);
+                    if (size > responseBytes - bytes)
+                    {
+                        return (ii, bytes);
+                    }
+                    bytes += size;
+                }
+                return (values.Count, bytes);
+            }
+
+            public void Dispose()
+            {
+                DisposeEncoder();
+                m_stream.Dispose();
+            }
+
+            private void DisposeEncoder()
+            {
+                m_encoder?.Dispose();
+                m_encoder = null;
+            }
+
+            /// <summary>
+            /// Measures a value that is encoded only as far as <paramref name="limit"/>
+            /// bytes: a string, byte string or array that alone is longer (also nested in
+            /// variants), or any write past the limit, stops the encoding, so a value that
+            /// does not fit is not buffered or encoded in full.
+            /// </summary>
+            private long Measure(in DataValue value, long limit)
+            {
+                // each element of an array and each byte of a string is at least one byte.
+                int lengthLimit = (int)Math.Min(Math.Max(limit, 1), int.MaxValue);
+                m_context.MaxStringLength = lengthLimit;
+                m_context.MaxByteStringLength = lengthLimit;
+                m_context.MaxArrayLength = lengthLimit;
+                m_encoder ??= new BinaryEncoder(m_stream, m_context, true);
+                m_stream.Position = 0;
+                m_stream.Limit = limit;
+                try
+                {
+                    m_encoder.WriteDataValue(null, value);
+                    return m_stream.Position;
+                }
+                catch (ServiceResultException)
+                {
+                    // the encoder is not used after a failure.
+                    DisposeEncoder();
+                    return long.MaxValue;
+                }
+            }
+
+            private readonly ServiceMessageContext m_context;
+            private readonly ByteCountingStream m_stream = new();
+            private BinaryEncoder? m_encoder;
+        }
+
+        /// <summary>
+        /// A stream that counts the bytes written to it and discards them.
+        /// </summary>
+        private sealed class ByteCountingStream : Stream
+        {
+            public override bool CanRead => false;
+            public override bool CanSeek => true;
+            public override bool CanWrite => true;
+            public override long Length => m_length;
+
+            public override long Position
+            {
+                get => m_position;
+                set => m_position = value;
+            }
+
+            public override void Flush()
+            {
+            }
+
+            public override int Read(byte[] buffer, int offset, int count)
+            {
+                throw new NotSupportedException();
+            }
+
+            public override long Seek(long offset, SeekOrigin origin)
+            {
+                m_position = origin switch
+                {
+                    SeekOrigin.Begin => offset,
+                    SeekOrigin.Current => m_position + offset,
+                    _ => m_length + offset
+                };
+                return m_position;
+            }
+
+            public override void SetLength(long value)
+            {
+                m_length = value;
+            }
+
+            public override void Write(byte[] buffer, int offset, int count)
+            {
+                Advance(count);
+            }
+
+#if NET
+            public override void Write(ReadOnlySpan<byte> buffer)
+            {
+                Advance(buffer.Length);
+            }
+#endif
+
+            public override void WriteByte(byte value)
+            {
+                Advance(1);
+            }
+
+            /// <summary>
+            /// The position writes may not pass.
+            /// </summary>
+            public long Limit { get; set; } = long.MaxValue;
+
+            private void Advance(int count)
+            {
+                if (count > Limit - m_position)
+                {
+                    throw new ServiceResultException(
+                        StatusCodes.BadEncodingLimitsExceeded,
+                        "The value exceeds the response size limit.");
+                }
+                m_position += count;
+                if (m_position > m_length)
+                {
+                    m_length = m_position;
+                }
+            }
+
+            private long m_length;
+            private long m_position;
+        }
+
+        private static List<DataValue> FillRawPage(
+            ServerSystemContext systemContext,
+            HistoryReadResult result,
+            HistorianPage<HistoricalDataValue> page,
+            HistoryReadValueId nodeToRead,
+            TimestampsToReturn timestampsToReturn)
+        {
+            var values = new List<DataValue>(page.Values.Count);
+            foreach (HistoricalDataValue v in page.Values)
+            {
+                values.Add(v.Value);
+            }
+            return FillHistoryData(
+                systemContext,
+                result,
+                values,
+                nodeToRead,
+                timestampsToReturn);
+        }
 
         // TODO: Remove this suppression when CA2000 recognizes the documented ownership transfer.
-        [SuppressMessage(
-            "Reliability",
-            "CA2000:Dispose objects before losing scope",
-            Justification = "SaveSuccessorOrCompleteAsync takes ownership of the initial continuation state " +
-                "on invocation and either saves it to the session or disposes it.")]
+#pragma warning disable CA2000 // Continuation state transfers to the session or is disposed inline.
         private static async ValueTask<ServiceResult> ReadModifiedPageAsync(
             ServerSystemContext systemContext,
             IHistorianProvider provider,
@@ -3144,6 +3570,7 @@ namespace Opc.Ua.Server.Historian
 
             return ServiceResult.Good;
         }
+#pragma warning restore CA2000
 
         private static async ValueTask<HistorianContinuationClaim?>
             TryClaimContinuationAsync(
@@ -3164,6 +3591,7 @@ namespace Opc.Ua.Server.Historian
             {
                 return null;
             }
+            ILogger logger = systemContext.Server.Telemetry.CreateLogger(nameof(HistorianContinuationClaim));
             IHistoryContinuationPoint? raw = await continuationPoints
                 .RestoreHistoryAsync(nodeToRead.ContinuationPoint, cancellationToken)
                 .ConfigureAwait(false);
@@ -3172,12 +3600,12 @@ namespace Opc.Ua.Server.Historian
                 raw?.Dispose();
                 return null;
             }
-            HistorianContinuationClaim? claim = null;
+            var claim = new HistorianContinuationClaim(
+                continuationPoints,
+                state,
+                logger);
             try
             {
-                claim = new HistorianContinuationClaim(
-                    continuationPoints,
-                    state);
                 bool annotationProviderNodeMatches =
                     expectedKind != HistorianReadKind.Annotations ||
                     (!legacyAnnotationProviderNodeId.IsNull &&
@@ -3197,6 +3625,7 @@ namespace Opc.Ua.Server.Historian
                         !legacyAnnotationNodeMatches))
                 {
                     claim.Retire();
+                    await claim.DisposeAsync().ConfigureAwait(false);
                     return null;
                 }
                 if (legacyAnnotationNodeMatches)
@@ -3205,8 +3634,7 @@ namespace Opc.Ua.Server.Historian
                         nodeToRead.NodeId);
                 }
                 HistorianContinuationState claimedState = claim.State;
-                if (!claimedState.Ownership.HasCapturedDependencies &&
-                    !ReferenceEquals(claimedState.Provider, provider) &&
+                if (!ReferenceEquals(claimedState.Provider, provider) &&
                     (claimedState.Provider is not
                             IHistorianProviderIdentity savedIdentity ||
                         provider is not IHistorianProviderIdentity currentIdentity ||
@@ -3216,18 +3644,53 @@ namespace Opc.Ua.Server.Historian
                             StringComparison.Ordinal)))
                 {
                     claim.Retire();
+                    await claim.DisposeAsync().ConfigureAwait(false);
                     return null;
                 }
-                HistorianContinuationClaim result = claim;
-                claim = null;
-                return result;
+                return claim;
             }
-            finally
+            catch (Exception operationFailure)
             {
-                if (claim != null)
+                try
                 {
                     await claim.DisposeAsync().ConfigureAwait(false);
                 }
+                catch (Exception cleanupFailure) when (cleanupFailure is not OutOfMemoryException)
+                {
+                    throw new AggregateException(
+                        "The history operation and continuation restoration both failed.",
+                        operationFailure,
+                        cleanupFailure);
+                }
+                throw;
+            }
+        }
+
+        /// <summary>
+        /// Restores an unfinished claim without losing a failure from the operation being unwound.
+        /// </summary>
+        /// <exception cref="AggregateException">
+        /// An operation failure was supplied and disposing its continuation claim also fails.
+        /// </exception>
+        private static async ValueTask DisposeContinuationClaimAsync(
+            HistorianContinuationClaim? claim,
+            Exception? operationFailure)
+        {
+            if (claim is null)
+            {
+                return;
+            }
+            try
+            {
+                await claim.DisposeAsync().ConfigureAwait(false);
+            }
+            catch (Exception cleanupFailure) when (
+                operationFailure is not null && cleanupFailure is not OutOfMemoryException)
+            {
+                throw new AggregateException(
+                    "The history operation and continuation restoration both failed.",
+                    operationFailure,
+                    cleanupFailure);
             }
         }
 
@@ -3265,12 +3728,13 @@ namespace Opc.Ua.Server.Historian
                 {
                     throw;
                 }
-                catch (Exception exception) when (
+                catch (Exception exception) when (claim.IsActive &&
                     exception is ServiceResultException or
-                    InvalidOperationException or
-                    IOException or
-                    TimeoutException)
+                        InvalidOperationException or
+                        IOException or
+                        TimeoutException)
                 {
+                    await DisposeContinuationClaimAsync(claim, exception).ConfigureAwait(false);
                     result.StatusCode =
                         exception is ServiceResultException serviceException &&
                         serviceException.StatusCode == StatusCodes.BadSessionClosed
@@ -3308,7 +3772,10 @@ namespace Opc.Ua.Server.Historian
                 successor.Id.ToByteArray());
         }
 
-        private static async ValueTask<bool> TrySaveHistoryContinuationAsync(
+        /// <summary>
+        /// Saves an initial continuation or disposes it when admission does not transfer ownership.
+        /// </summary>
+        internal static async ValueTask<bool> TrySaveHistoryContinuationAsync(
             ServerSystemContext systemContext,
             ISessionContinuationPoints continuationPoints,
             HistorianContinuationState state,
@@ -3316,23 +3783,20 @@ namespace Opc.Ua.Server.Historian
             CancellationToken cancellationToken)
         {
             bool transferred = false;
+            Exception? operationFailure = null;
+            ServiceResult? deniedAdmission = null;
             try
             {
                 ServiceResult admission = ServiceResult.Good;
                 if (systemContext.Server?.NodeManager is MasterNodeManager master)
                 {
-                    admission = await master.CaptureHistoryContinuationAsync(state, cancellationToken)
+                    admission = await master.CaptureHistoryContinuationAsync(
+                        systemContext.OperationContext!, state, validateSource: false, cancellationToken)
                         .ConfigureAwait(false);
-                    if (ServiceResult.IsGood(admission) &&
-                        state.Ownership.HasCapturedDependencies &&
-                        continuationPoints is not SessionContinuationPoints)
-                    {
-                        admission = StatusCodes.BadNotSupported;
-                    }
                 }
                 if (ServiceResult.IsBad(admission))
                 {
-                    state.Dispose();
+                    deniedAdmission = admission;
                     result.StatusCode = admission.StatusCode;
                     result.HistoryData = default;
                     result.ContinuationPoint = ByteString.Empty;
@@ -3345,9 +3809,10 @@ namespace Opc.Ua.Server.Historian
                     cancellationToken).ConfigureAwait(false);
                 return true;
             }
-            catch (OperationCanceledException)
+            catch (OperationCanceledException failure)
                 when (cancellationToken.IsCancellationRequested)
             {
+                operationFailure = failure;
                 throw;
             }
             catch (Exception exception) when (
@@ -3356,6 +3821,7 @@ namespace Opc.Ua.Server.Historian
                 IOException or
                 TimeoutException)
             {
+                operationFailure = exception;
                 result.StatusCode = exception is ServiceResultException serviceException &&
                     serviceException.StatusCode == StatusCodes.BadSessionClosed
                         ? StatusCodes.BadSessionClosed
@@ -3363,12 +3829,52 @@ namespace Opc.Ua.Server.Historian
                 result.ContinuationPoint = ByteString.Empty;
                 return false;
             }
+            catch (Exception failure) when (failure is not OutOfMemoryException)
+            {
+                operationFailure = failure;
+                throw;
+            }
             finally
             {
                 if (!transferred)
                 {
+                    DisposeUntransferredHistoryState(
+                        continuationPoints, state, operationFailure, deniedAdmission);
+                }
+            }
+        }
+
+        /// <summary>
+        /// Releases a state whose admission failed without discarding the original failure or denial.
+        /// </summary>
+        /// <exception cref="AggregateException">
+        /// Disposing the untransferred state fails after admission failed or was denied.
+        /// </exception>
+        private static void DisposeUntransferredHistoryState(
+            ISessionContinuationPoints continuationPoints,
+            HistorianContinuationState state,
+            Exception? operationFailure,
+            ServiceResult? deniedAdmission)
+        {
+            try
+            {
+                if (continuationPoints is SessionContinuationPoints sessionPoints)
+                {
+                    sessionPoints.DisposeHistoryReadPoint(state, checkSessionOwnership: true);
+                }
+                else
+                {
                     state.Dispose();
                 }
+            }
+            catch (Exception cleanupFailure) when (
+                cleanupFailure is not OutOfMemoryException &&
+                (operationFailure is not null || deniedAdmission is not null))
+            {
+                throw new AggregateException(
+                    "History continuation admission and cleanup failed.",
+                    operationFailure ?? new ServiceResultException(deniedAdmission!),
+                    cleanupFailure);
             }
         }
 
@@ -3386,7 +3892,7 @@ namespace Opc.Ua.Server.Historian
             };
         }
 
-        private static void FillHistoryData(
+        private static List<DataValue> FillHistoryData(
             ISystemContext systemContext,
             HistoryReadResult result,
             ArrayOf<DataValue> values,
@@ -3406,6 +3912,7 @@ namespace Opc.Ua.Server.Historian
             }
             var data = new HistoryData { DataValues = filtered };
             result.HistoryData = new ExtensionObject(data);
+            return filtered;
         }
 
         private static void FillHistoryModifiedData(
@@ -3530,6 +4037,7 @@ namespace Opc.Ua.Server.Historian
             DateTimeUtc requestedTime,
             bool useSimpleBounds,
             bool stepped,
+            AtTimeScanBudget budget,
             CancellationToken cancellationToken)
         {
             var samples = new List<DataValue>();
@@ -3539,7 +4047,8 @@ namespace Opc.Ua.Server.Historian
                 raw,
                 nodeId,
                 requestedTime,
-                cancellationToken).ConfigureAwait(false);
+                cancellationToken,
+                budget).ConfigureAwait(false);
             if (samples.Count > 0)
             {
                 return samples;
@@ -3557,7 +4066,8 @@ namespace Opc.Ua.Server.Historian
                 requestedTime,
                 before: false,
                 requiredAfter,
-                cancellationToken).ConfigureAwait(false);
+                cancellationToken,
+                budget: budget).ConfigureAwait(false);
             if (foundAfter < 0)
             {
                 return null;
@@ -3574,7 +4084,8 @@ namespace Opc.Ua.Server.Historian
                 requestedTime,
                 before: true,
                 requiredBefore,
-                cancellationToken).ConfigureAwait(false);
+                cancellationToken,
+                budget: budget).ConfigureAwait(false);
             if (foundBefore < 0)
             {
                 return null;
@@ -3603,7 +4114,8 @@ namespace Opc.Ua.Server.Historian
             bool before,
             int requiredNonBad,
             CancellationToken cancellationToken,
-            Func<DataValue, bool>? isBound = null)
+            Func<DataValue, bool>? isBound = null,
+            AtTimeScanBudget? budget = null)
         {
             var nonBadTimestamps = new HashSet<DateTimeUtc>();
             int added = 0;
@@ -3649,6 +4161,7 @@ namespace Opc.Ua.Server.Historian
                         request,
                         token,
                         cancellationToken).ConfigureAwait(false);
+                    budget?.Charge(page.Values.Count);
                     // Walk the page nearest-first whatever order the provider returned it in.
                     var outside = new List<(DataValue Value, int Index)>();
                     foreach (HistoricalDataValue historicalValue in page.Values)
@@ -3709,7 +4222,8 @@ namespace Opc.Ua.Server.Historian
                 raw,
                 nodeId,
                 extreme,
-                cancellationToken).ConfigureAwait(false);
+                cancellationToken,
+                budget).ConfigureAwait(false);
             foreach (DataValue value in extremeValues)
             {
                 if (Add(value))
@@ -3725,7 +4239,8 @@ namespace Opc.Ua.Server.Historian
             IHistorianDataProvider raw,
             NodeId nodeId,
             DateTimeUtc timestamp,
-            CancellationToken cancellationToken)
+            CancellationToken cancellationToken,
+            AtTimeScanBudget? budget = null)
         {
             var request = new HistorianRawReadRequest
             {
@@ -3745,6 +4260,7 @@ namespace Opc.Ua.Server.Historian
                         request,
                         token,
                         cancellationToken).ConfigureAwait(false);
+                budget?.Charge(page.Values.Count);
                 foreach (HistoricalDataValue historicalValue in page.Values)
                 {
                     if (historicalValue.Value.SourceTimestamp == timestamp)
@@ -3860,136 +4376,6 @@ namespace Opc.Ua.Server.Historian
                 }
                 token = page.NextToken;
             }
-        }
-
-        private static async ValueTask<int> AddOuterNonBadValuesAsync(
-            List<DataValue> collected,
-            HistorianOperationContext context,
-            IHistorianDataProvider raw,
-            NodeId nodeId,
-            DateTimeUtc boundary,
-            bool before,
-            int requiredCount,
-            CancellationToken cancellationToken)
-        {
-            var existingTimestamps = new HashSet<DateTimeUtc>();
-            for (int i = 0; i < collected.Count; i++)
-            {
-                if (StatusCode.IsNotBad(collected[i].StatusCode))
-                {
-                    existingTimestamps.Add(collected[i].SourceTimestamp);
-                }
-            }
-            var request = new HistorianRawReadRequest
-            {
-                NodeId = nodeId,
-                StartTime = before ? DateTimeUtc.MinValue : boundary,
-                EndTime = before ? boundary : DateTimeUtc.MaxValue,
-                MaxValues = 0,
-                IsForward = !before,
-                ReturnBounds = false
-            };
-            int added = 0;
-            HistorianResumeToken token = default;
-            while (true)
-            {
-                HistorianPage<HistoricalDataValue> page =
-                    await raw.ReadRawAsync(
-                        context,
-                        request,
-                        token,
-                        cancellationToken).ConfigureAwait(false);
-                foreach (HistoricalDataValue historicalValue in page.Values)
-                {
-                    DataValue value = historicalValue.Value;
-                    bool outside = before
-                        ? value.SourceTimestamp < boundary
-                        : value.SourceTimestamp > boundary;
-                    if (outside &&
-                        StatusCode.IsNotBad(value.StatusCode) &&
-                        existingTimestamps.Add(value.SourceTimestamp))
-                    {
-                        collected.Add(value);
-                        added++;
-                        if (added >= requiredCount)
-                        {
-                            return added;
-                        }
-                    }
-                }
-                if (page.IsFinal)
-                {
-                    break;
-                }
-                token = page.NextToken;
-            }
-
-            DateTimeUtc extreme = before
-                ? DateTimeUtc.MinValue
-                : DateTimeUtc.MaxValue;
-            bool extremeIsOutside = before
-                ? extreme < boundary
-                : extreme > boundary;
-            if (!extremeIsOutside || added >= requiredCount)
-            {
-                return added;
-            }
-
-            var exactRequest = new HistorianRawReadRequest
-            {
-                NodeId = nodeId,
-                StartTime = extreme,
-                EndTime = extreme,
-                MaxValues = 0,
-                IsForward = true,
-                ReturnBounds = false
-            };
-            token = default;
-            while (true)
-            {
-                HistorianPage<HistoricalDataValue> page =
-                    await raw.ReadRawAsync(
-                        context,
-                        exactRequest,
-                        token,
-                        cancellationToken).ConfigureAwait(false);
-                foreach (HistoricalDataValue historicalValue in page.Values)
-                {
-                    DataValue value = historicalValue.Value;
-                    if (StatusCode.IsNotBad(value.StatusCode) &&
-                        existingTimestamps.Add(value.SourceTimestamp))
-                    {
-                        collected.Add(value);
-                        added++;
-                        if (added >= requiredCount)
-                        {
-                            return added;
-                        }
-                    }
-                }
-                if (page.IsFinal)
-                {
-                    return added;
-                }
-                token = page.NextToken;
-            }
-        }
-
-        private static int CountDistinctNonBadValuesBefore(
-            List<DataValue> values,
-            DateTimeUtc boundary)
-        {
-            var timestamps = new HashSet<DateTimeUtc>();
-            for (int i = 0; i < values.Count; i++)
-            {
-                DataValue value = values[i];
-                if (value.SourceTimestamp < boundary &&
-                    StatusCode.IsNotBad(value.StatusCode))
-                {
-                    timestamps.Add(value.SourceTimestamp);
-                }
-            }
-            return timestamps.Count;
         }
 
         private static HistoryUpdateType MapPerformUpdate(PerformUpdateType performUpdate)

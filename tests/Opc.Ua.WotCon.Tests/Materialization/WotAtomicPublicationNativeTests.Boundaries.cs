@@ -1,38 +1,18 @@
-/* ========================================================================
- * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
+
+#pragma warning disable CS0618, UA0031 // Test doubles implement or inspect the legacy IAsyncNodeManager.SyncNodeManager view.
 
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using Moq;
 using NUnit.Framework;
+using Opc.Ua.Export;
+using Opc.Ua.Server;
 using Opc.Ua.WotCon.Server.Materialization;
 using Opc.Ua.WotCon.Server.Registry;
 
@@ -43,6 +23,147 @@ namespace Opc.Ua.WotCon.Tests.Materialization
     /// </summary>
     public sealed partial class WotAtomicPublicationNativeTests
     {
+        /// <summary>
+        /// Rebuilds native reference images after a real serving-source mutation, without replaying a decision.
+        /// </summary>
+        /// <param name="conflicts">The number of reference discovery attempts invalidated by a concurrent write.</param>
+        [TestCase(0)]
+        [TestCase(1)]
+        [TestCase(2)]
+        [TestCase(3)]
+        public async Task RealReferenceReservationsRetryWithinThePredecisionBudget(int conflicts)
+        {
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(60));
+            CancellationToken ct = timeout.Token;
+            WotResource resource = await AddAsync("real-reference-conflict").ConfigureAwait(false);
+            WotRegistrySnapshot before = m_registry.Current;
+            (object? handle, _) = await m_server.CurrentInstance.NodeManager.GetManagerHandleAsync(
+                Ua.ObjectIds.ObjectsFolder, ct).ConfigureAwait(false);
+            Assert.That(handle, Is.TypeOf<NodeHandle>());
+            NodeState objects = ((NodeHandle)handle!).Node;
+            Assert.That(objects.ReferenceExists(
+                Ua.ReferenceTypeIds.Organizes, false, Ua.ObjectIds.ViewsFolder), Is.False);
+            int armed = 0;
+            int mutations = 0;
+            int attempts = 0;
+            var probe = new Mock<IAsyncNodeManager>();
+            probe.As<IDisposable>();
+            probe.Setup(owner => owner.NamespaceUris).Returns(["urn:wot:reference-conflict-probe"]);
+            probe.Setup(owner => owner.SyncNodeManager).Returns(Mock.Of<INodeManager>());
+            probe.Setup(owner => owner.CreateAddressSpaceAsync(
+                It.IsAny<IDictionary<NodeId, IList<IReference>>>(), It.IsAny<CancellationToken>()))
+                .Returns(default(ValueTask));
+            probe.Setup(owner => owner.GetManagerHandleAsync(
+                Ua.ObjectIds.ObjectsFolder, It.IsAny<CancellationToken>()))
+                .Returns((NodeId _, CancellationToken token) =>
+                {
+                    token.ThrowIfCancellationRequested();
+                    if (Interlocked.Exchange(ref armed, 0) != 0)
+                    {
+                        if (objects.ReferenceExists(
+                            Ua.ReferenceTypeIds.Organizes, false, Ua.ObjectIds.ViewsFolder))
+                        {
+                            Assert.That(objects.RemoveReference(
+                                Ua.ReferenceTypeIds.Organizes, false, Ua.ObjectIds.ViewsFolder), Is.True);
+                        }
+                        else
+                        {
+                            objects.AddReference(Ua.ReferenceTypeIds.Organizes, false, Ua.ObjectIds.ViewsFolder);
+                        }
+                        mutations++;
+                    }
+                    return new ValueTask<object?>(result: null!);
+                });
+            var factory = new Mock<IAsyncNodeManagerFactory>();
+            factory.Setup(owner => owner.CreateAsync(
+                It.IsAny<IServerInternal>(), It.IsAny<ApplicationConfiguration>(), It.IsAny<CancellationToken>()))
+                .Returns(new ValueTask<IAsyncNodeManager>(probe.Object));
+            LifecycleResult publication = await m_server.NodeManagerLifecycle.ApplyAsync(
+                [LifecycleChange.Add(factory.Object)], ct).ConfigureAwait(false);
+            Assert.That(publication.CleanupFailure, Is.Null);
+            Assert.That(publication.Registrations[0].TryGetRegistration(out NodeManagerRegistration? registration),
+                Is.True);
+            var converter = new Mock<IWotDocumentConverter>(MockBehavior.Strict);
+            converter.Setup(value => value.ConvertAsync(
+                It.IsAny<WotResource>(), It.IsAny<ByteString>(), It.IsAny<WotRegistrySnapshot>(),
+                It.IsAny<IReadOnlyDictionary<string, ByteString>>(), It.IsAny<CancellationToken>()))
+                .Returns(async (WotResource input, ByteString content, WotRegistrySnapshot snapshot,
+                    IReadOnlyDictionary<string, ByteString> contents, CancellationToken token) =>
+                {
+                    WotConversionOutput output = await m_converter.ConvertAsync(
+                        input, content, snapshot, contents, token).ConfigureAwait(false);
+                    output.NodeSet!.Items![0].References =
+                    [
+                        new Reference { ReferenceType = "i=35", IsForward = false, Value = "i=85" }
+                    ];
+                    return output;
+                });
+            var host = new PausableWotProjectionHost(new LifecycleWotProjectionHost(m_server.NodeManagerLifecycle))
+            {
+                BeforeCommit = () =>
+                {
+                    Assert.That(m_registry.Current, Is.SameAs(before));
+                    attempts++;
+                    Volatile.Write(ref armed, attempts <= conflicts ? 1 : 0);
+                    m_failDecision = attempts <= conflicts;
+                }
+            };
+            using var coordinator = new WotMaterializationCoordinator(
+                m_registry, host, documentConverter: converter.Object)
+            {
+                ServerNamespaceUris = m_server.CurrentInstance.NamespaceUris
+            };
+            try
+            {
+                if (conflicts < 3)
+                {
+                    WotRefreshResult result = await coordinator.RefreshAsync(
+                        HandoffRequest("real-reference-conflict"), ct).ConfigureAwait(false);
+                    Assert.That(result.NewGeneration, Is.EqualTo(1u));
+                    Assert.That(result.Summary.Succeeded, Is.EqualTo(1u));
+                    Assert.That(m_registry.Current.RefreshGeneration, Is.EqualTo(1u));
+                    Assert.That((await ReadNodeClassAsync(Root(resource)).ConfigureAwait(false)).StatusCode,
+                        Is.EqualTo(StatusCodes.Good));
+                }
+                else
+                {
+                    InvalidOperationException? failure = await Assert.CatchAsync<InvalidOperationException>(
+                        async () => await coordinator.RefreshAsync(
+                            HandoffRequest("real-reference-conflict"), ct).ConfigureAwait(false))
+                        .ConfigureAwait(false);
+                    Assert.That(failure!.GetType().FullName,
+                        Is.EqualTo("Opc.Ua.OptimisticPublicationConflictException"));
+                    Assert.That(failure.Message, Is.EqualTo("Serving references changed during preparation."));
+                    Assert.That(coordinator.Generation, Is.Zero);
+                    Assert.That(m_registry.Current, Is.SameAs(before));
+                    Assert.That((await ReadNodeClassAsync(Root(resource)).ConfigureAwait(false)).StatusCode,
+                        Is.EqualTo(StatusCodes.BadNodeIdUnknown));
+                }
+                Assert.That(attempts, Is.EqualTo(Math.Min(conflicts + 1, 3)));
+                Assert.That(mutations, Is.EqualTo(conflicts));
+                Assert.That(host.DisposedPublications, Is.EqualTo(attempts));
+                Assert.That(objects.ReferenceExists(
+                    Ua.ReferenceTypeIds.Organizes, false, Ua.ObjectIds.ViewsFolder),
+                    Is.EqualTo(conflicts % 2 != 0), "Publication must preserve the unrelated serving-source write.");
+            }
+            finally
+            {
+                Volatile.Write(ref armed, 0);
+                m_failDecision = false;
+                objects.RemoveReference(Ua.ReferenceTypeIds.Organizes, false, Ua.ObjectIds.ViewsFolder);
+                using var cleanup = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+                ILifecycleCapture capture = m_server.NodeManagerLifecycle.CaptureChanges();
+                await using ILifecycleWriter writer = await capture.BeginAsync(cleanup.Token).ConfigureAwait(false);
+                Assert.That(m_server.NodeManagerLifecycle.Registrations.Contains(
+                    current => ReferenceEquals(current, registration)), Is.True);
+                await using IPreparedChanges removal = await writer.PrepareAsync(
+                    [LifecycleChange.Remove(registration!.Slot)], cleanup.Token).ConfigureAwait(false);
+                LifecycleResult removed = await removal.CommitAsync(_ => default, cleanup.Token)
+                    .ConfigureAwait(false);
+                await removed.Retired.WaitAsync(cleanup.Token).ConfigureAwait(false);
+            }
+        }
+
         /// <summary>
         /// Verifies bounded conflict retries rebuild and dispose native candidates without publishing a failed attempt.
         /// </summary>
@@ -98,14 +219,76 @@ namespace Opc.Ua.WotCon.Tests.Materialization
         }
 
         /// <summary>
+        /// Verifies that an unload without activation units rebuilds its publication after a
+        /// predecision reference conflict and stops at the publication budget.
+        /// </summary>
+        /// <param name="conflicts">The number of predecision conflicts injected before success.</param>
+        [TestCase(1)]
+        [TestCase(2)]
+        [TestCase(3)]
+        public async Task UnloadPublicationRetriesPredecisionReferenceConflictsWithinThePublicationBudget(
+            int conflicts)
+        {
+            m_coordinator.Dispose();
+            var host = new PausableWotProjectionHost(new LifecycleWotProjectionHost(m_server.NodeManagerLifecycle));
+            m_coordinator = new WotMaterializationCoordinator(m_registry, host, documentConverter: m_converter)
+            {
+                ServerNamespaceUris = m_server.CurrentInstance.NamespaceUris,
+                DeletePolicy = WoTDeletePolicyEnum.Force
+            };
+            WotResource resource = await AddAsync("unload-conflict").ConfigureAwait(false);
+            WotRefreshResult loaded = await m_coordinator.RefreshAsync(HandoffRequest("unload-conflict-load"))
+                .ConfigureAwait(false);
+            Assert.That(loaded.NewGeneration, Is.EqualTo(1u));
+            WotRegistrySnapshot before = m_registry.Current;
+            int disposedBefore = host.DisposedPublications;
+            int attempts = 0;
+            host.BeforeCommit = () =>
+            {
+                if (++attempts <= conflicts)
+                {
+                    throw new InvalidOperationException("Serving references changed during preparation.");
+                }
+            };
+
+            if (conflicts < 3)
+            {
+                WotRegistryMutationResult result = await m_coordinator.SetEnabledAsync(
+                    resource.GroupId, resource.ResourceId, false).ConfigureAwait(false);
+
+                Assert.That(result.Outcome, Is.EqualTo(WoTOutcomeEnum.Success), result.Message);
+                Assert.That(m_registry.Current.FindResourceByXid(resource.Xid)!.Enabled, Is.False);
+                Assert.That((await ReadNodeClassAsync(Root(resource)).ConfigureAwait(false)).StatusCode,
+                    Is.EqualTo(StatusCodes.BadNodeIdUnknown));
+            }
+            else
+            {
+                await Assert.ThatAsync(async () => await m_coordinator.SetEnabledAsync(
+                    resource.GroupId, resource.ResourceId, false).ConfigureAwait(false),
+                    Throws.TypeOf<InvalidOperationException>()
+                    .With.Message.EqualTo("Serving references changed during preparation.")).ConfigureAwait(false);
+
+                Assert.That(m_registry.Current, Is.SameAs(before));
+                Assert.That((await ReadNodeClassAsync(Root(resource)).ConfigureAwait(false)).StatusCode,
+                    Is.EqualTo(StatusCodes.Good));
+            }
+            Assert.That(attempts, Is.EqualTo(Math.Min(conflicts + 1, 3)));
+            Assert.That(host.DisposedPublications - disposedBefore, Is.EqualTo(attempts));
+        }
+
+        /// <summary>
         /// Verifies that an unrelated publication error is propagated immediately without retry.
         /// </summary>
-        [Test]
-        public async Task UnrelatedPredecisionFailuresAreNotRetried()
+        /// <param name="message">The unrelated or similar-but-not-exact failure diagnostic.</param>
+        [TestCase("Unrelated publication failure.")]
+        [TestCase("Serving references changed during preparation. Unrelated failure.")]
+        [TestCase("Serving references changed during batch preparation. Unrelated failure.")]
+        [TestCase("serving references changed during preparation.")]
+        public async Task UnrelatedPredecisionFailuresAreNotRetried(string message)
         {
             await AddAsync("unrelated").ConfigureAwait(false);
             WotRegistrySnapshot before = m_registry.Current;
-            var failure = new InvalidOperationException("Unrelated publication failure.");
+            var failure = new InvalidOperationException(message);
             int attempts = 0;
             var host = new PausableWotProjectionHost(new LifecycleWotProjectionHost(m_server.NodeManagerLifecycle))
             {
@@ -133,11 +316,13 @@ namespace Opc.Ua.WotCon.Tests.Materialization
         /// <summary>
         /// Verifies that a conflict-shaped error after the decision cannot cause a committed publication to replay.
         /// </summary>
-        [Test]
-        public async Task ReferenceConflictAfterDecisionIsNotRetried()
+        /// <param name="message">The exact reference-conflict diagnostic raised after publication.</param>
+        [TestCase("Serving references changed during batch preparation.")]
+        [TestCase("Serving references changed during preparation.")]
+        public async Task ReferenceConflictAfterDecisionIsNotRetried(string message)
         {
             WotResource resource = await AddAsync("committed").ConfigureAwait(false);
-            var failure = new InvalidOperationException("Serving references changed during batch preparation.");
+            var failure = new InvalidOperationException(message);
             int attempts = 0;
             var host = new PausableWotProjectionHost(new LifecycleWotProjectionHost(m_server.NodeManagerLifecycle))
             {

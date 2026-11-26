@@ -1,31 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using System.Collections.Generic;
@@ -804,7 +778,7 @@ namespace Opc.Ua.Client.Tests
             item.NodeClass = NodeClass.Object;
 
             object value = item.GetFieldValue(
-                null!,
+                default,
                 ObjectTypeIds.BaseEventType,
                 QualifiedName.From(BrowseNames.EventId))!;
 
@@ -870,11 +844,10 @@ namespace Opc.Ua.Client.Tests
         {
             var notification = new MonitoredItemNotification
             {
-                Value = new DataValue(new Variant(1), StatusCodes.BadInternalError, DateTime.UtcNow),
-                Message = new NotificationMessage()
+                Value = new DataValue(new Variant(1), StatusCodes.BadInternalError, DateTime.UtcNow)
             };
 
-            ServiceResult result = MonitoredItem.GetServiceResult(notification)!;
+            ServiceResult result = MonitoredItem.GetServiceResult(notification, new NotificationMessage())!;
 
             Assert.Multiple(() =>
             {
@@ -891,7 +864,7 @@ namespace Opc.Ua.Client.Tests
                 Value = new DataValue(new Variant(1), StatusCodes.Good, DateTime.UtcNow)
             };
 
-            ServiceResult? result = MonitoredItem.GetServiceResult(notification);
+            ServiceResult? result = MonitoredItem.GetServiceResult(notification, null);
 
             Assert.That(result, Is.Null);
         }
@@ -899,15 +872,17 @@ namespace Opc.Ua.Client.Tests
         [Test]
         public void GetServiceResultReturnsNullForNonDataChange()
         {
-            ServiceResult? result = MonitoredItem.GetServiceResult(new EventFieldList());
+            ServiceResult? result = MonitoredItem.GetServiceResult(new EventFieldList(), new NotificationMessage());
 
             Assert.That(result, Is.Null);
         }
 
         [Test]
-        public void GetServiceResultWithIndexReturnsNullForNonEvent()
+        public void GetServiceResultWithIndexReturnsNullWithoutMessage()
         {
-            ServiceResult? result = MonitoredItem.GetServiceResult(new MonitoredItemNotification(), 0);
+            var eventFields = new EventFieldList { EventFields = [new Variant(new ExtensionObject(new StatusResult()))] };
+
+            ServiceResult? result = MonitoredItem.GetServiceResult(eventFields, null, 0);
 
             Assert.That(result, Is.Null);
         }
@@ -915,9 +890,9 @@ namespace Opc.Ua.Client.Tests
         [Test]
         public void GetServiceResultWithIndexReturnsNullWhenIndexOutOfRange()
         {
-            var eventFields = new EventFieldList { Message = new NotificationMessage() };
+            var eventFields = new EventFieldList();
 
-            ServiceResult? result = MonitoredItem.GetServiceResult(eventFields, 0);
+            ServiceResult? result = MonitoredItem.GetServiceResult(eventFields, new NotificationMessage(), 0);
 
             Assert.That(result, Is.Null);
         }
@@ -939,7 +914,7 @@ namespace Opc.Ua.Client.Tests
             Assert.Multiple(() =>
             {
                 Assert.That(captured, Is.Not.Null);
-                Assert.That(captured!.NotificationValue, Is.SameAs(notification));
+                Assert.That(captured!.NotificationValue, Is.EqualTo(notification));
             });
         }
 
@@ -968,16 +943,140 @@ namespace Opc.Ua.Client.Tests
             var notification = new MonitoredItemNotification
             {
                 ClientHandle = item.ClientHandle,
-                Value = new DataValue(new Variant(11), StatusCodes.Good, DateTime.UtcNow),
-                Message = message
+                Value = new DataValue(new Variant(11), StatusCodes.Good, DateTime.UtcNow)
             };
+            var diagnosticInfo = new DiagnosticInfo { AdditionalInfo = "info" };
 
-            item.SaveValueInCache(notification);
+            item.SaveValueInCache(notification, message, diagnosticInfo);
 
             Assert.Multiple(() =>
             {
-                Assert.That(item.LastValue, Is.SameAs(notification));
+                Assert.That(item.LastValue, Is.EqualTo(notification));
                 Assert.That(item.LastMessage, Is.SameAs(message));
+                Assert.That(item.GetLastServiceResult()!.AdditionalInfo, Is.EqualTo("info"));
+            });
+        }
+
+        [Test]
+        public void BoxedDataChangeIsSavedLikeTheTypedOne()
+        {
+            MonitoredItem item = CreateItem();
+            var message = new NotificationMessage();
+            var notification = new MonitoredItemNotification
+            {
+                ClientHandle = item.ClientHandle,
+                Value = new DataValue(new Variant(12), StatusCodes.Good, DateTime.UtcNow)
+            };
+
+            item.SaveValueInCache((IEncodeable)notification, message);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(item.LastValue, Is.EqualTo(notification));
+                Assert.That(item.LastMessage, Is.SameAs(message));
+                Assert.That(item.DequeueValues(), Has.Count.EqualTo(1));
+            });
+        }
+
+        [Test]
+        public void LastValueFollowsTheKindOfTheLatestNotification()
+        {
+            MonitoredItem item = CreateItem();
+            var dataChange = new MonitoredItemNotification
+            {
+                ClientHandle = item.ClientHandle,
+                Value = new DataValue(new Variant(13), StatusCodes.Good, DateTime.UtcNow)
+            };
+            var fields = new EventFieldList { ClientHandle = item.ClientHandle };
+
+            item.SaveValueInCache(dataChange, new NotificationMessage());
+            item.SaveValueInCache(fields);
+            Assert.Multiple(() =>
+            {
+                Assert.That(item.LastValue, Is.EqualTo(fields));
+                Assert.That(item.LastMessage, Is.Null);
+            });
+
+            item.SaveValueInCache(dataChange);
+            Assert.That(item.LastValue, Is.EqualTo(dataChange));
+        }
+
+#if NET
+        [Test]
+        public void SavingADataChangeDoesNotBoxIt()
+        {
+            const int kCount = 1000;
+            MonitoredItem item = CreateItem();
+            var notification = new MonitoredItemNotification
+            {
+                ClientHandle = item.ClientHandle,
+                Value = new DataValue(new Variant(14), StatusCodes.Good, DateTime.UtcNow)
+            };
+            item.SaveValueInCache(notification);
+
+            long before = GC.GetAllocatedBytesForCurrentThread();
+            for (int ii = 0; ii < kCount; ii++)
+            {
+                item.SaveValueInCache(notification);
+            }
+            long perCall = (GC.GetAllocatedBytesForCurrentThread() - before) / kCount;
+
+            // a box of the value is several times larger than this bound.
+            Assert.That(perCall, Is.LessThan(16));
+        }
+#endif
+
+        /// <summary>
+        /// The first data change is cached even when the server sends
+        /// timestamps from the future; the check only logs them.
+        /// </summary>
+        [Test]
+        public void FirstDataChangeWithFutureTimestampsIsCached()
+        {
+            MonitoredItem item = CreateItem();
+            DateTime future = DateTime.UtcNow.AddDays(1);
+
+            item.SaveValueInCache(new MonitoredItemNotification
+            {
+                ClientHandle = item.ClientHandle,
+                Value = new DataValue(new Variant(3), StatusCodes.Good, future, future)
+            });
+
+            Assert.That(item.LastValue, Is.InstanceOf<MonitoredItemNotification>());
+            Assert.That(
+                ((MonitoredItemNotification)item.LastValue!).Value.WrappedValue,
+                Is.EqualTo(new Variant(3)));
+        }
+
+        /// <summary>
+        /// A throwing Notification handler must not escape from either
+        /// SaveValueInCache overload.
+        /// </summary>
+        [Test]
+        public void ThrowingNotificationHandlerIsContained()
+        {
+            MonitoredItem dataItem = CreateItem();
+            dataItem.Notification += (_, _) => throw new InvalidOperationException("handler");
+            MonitoredItem eventItem = CreateItem();
+            eventItem.NodeClass = NodeClass.Object;
+            eventItem.Notification += (_, _) => throw new InvalidOperationException("handler");
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(
+                    () => dataItem.SaveValueInCache(new MonitoredItemNotification
+                    {
+                        ClientHandle = dataItem.ClientHandle,
+                        Value = new DataValue(new Variant(1), StatusCodes.Good, DateTime.UtcNow)
+                    }),
+                    Throws.Nothing);
+                Assert.That(
+                    () => eventItem.SaveValueInCache(new EventFieldList
+                    {
+                        ClientHandle = eventItem.ClientHandle,
+                        EventFields = [new Variant(1)]
+                    }),
+                    Throws.Nothing);
             });
         }
 
@@ -993,17 +1092,15 @@ namespace Opc.Ua.Client.Tests
             eventItem.SaveValueInCache(new MonitoredItemNotification
             {
                 ClientHandle = eventItem.ClientHandle,
-                Value = new DataValue(new Variant(1), StatusCodes.Good, DateTime.UtcNow),
-                Message = new NotificationMessage()
-            });
+                Value = new DataValue(new Variant(1), StatusCodes.Good, DateTime.UtcNow)
+            }, new NotificationMessage());
 
             MonitoredItem dataItem = CreateItem();
             dataItem.SaveValueInCache(new EventFieldList
             {
                 ClientHandle = dataItem.ClientHandle,
-                EventFields = [new Variant(1)],
-                Message = new NotificationMessage()
-            });
+                EventFields = [new Variant(1)]
+            }, new NotificationMessage());
 
             Assert.Multiple(() =>
             {
@@ -1024,9 +1121,8 @@ namespace Opc.Ua.Client.Tests
             {
                 item.SaveValueInCache(new EventFieldList
                 {
-                    EventFields = [new Variant(ii)],
-                    Message = new NotificationMessage()
-                });
+                    EventFields = [new Variant(ii)]
+                }, new NotificationMessage());
             }
 
             IList<EventFieldList> events = item.DequeueEvents();
@@ -1113,7 +1209,7 @@ namespace Opc.Ua.Client.Tests
 
             Assert.Multiple(() =>
             {
-                Assert.That(cache.LastEvent, Is.SameAs(last));
+                Assert.That(cache.LastEvent, Is.EqualTo(last));
                 Assert.That(cache.Publish(), Has.Count.EqualTo(2));
             });
         }

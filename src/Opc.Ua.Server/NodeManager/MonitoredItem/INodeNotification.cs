@@ -1,31 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System.Collections.Generic;
 
@@ -42,9 +16,11 @@ namespace Opc.Ua.Server
         ISystemContext Context { get; }
 
         /// <summary>
-        /// Gets the source emission for <c>INodeNotification</c>.
+        /// Gets the source-emission admission owned by this notification snapshot.
+        /// The consumer releases it exactly once after processing; batching transfers ownership
+        /// for each dequeued snapshot to the batch processor.
         /// </summary>
-        MasterNodeManager.NotificationDispatchLease? SourceEmission { get; }
+        MasterNodeManager.SourceEmissionAdmission? SourceEmission { get; }
     }
 
     /// <summary>
@@ -58,7 +34,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Gets or sets the source emission for <c>DataChangeSnapshot</c>.
         /// </summary>
-        public MasterNodeManager.NotificationDispatchLease? SourceEmission { get; set; }
+        public MasterNodeManager.SourceEmissionAdmission? SourceEmission { get; set; }
 
         /// <summary>
         /// Gets or sets the identifier of the node whose changes were captured.
@@ -66,17 +42,56 @@ namespace Opc.Ua.Server
         public NodeId NodeId { get; set; }
 
         /// <summary>
+        /// Gets or sets the monitored items that were subscribed when the changes were admitted.
+        /// </summary>
+        public KeyValuePair<uint, IDataChangeMonitoredItem2>[] MonitoredItems { get; set; } = [];
+
+        /// <summary>
         /// Gets or sets the node-state changes represented by this snapshot.
         /// </summary>
         public NodeStateChangeMasks Changes { get; set; }
 
         /// <summary>
-        /// Pre-read raw <see cref="DataValue"/>s keyed by attribute id, captured without
-        /// any index range or data encoding applied. Each consumer (monitored item) applies
-        /// its own <see cref="IDataChangeMonitoredItem2.IndexRange"/> and
+        /// Gets or sets whether <see cref="ValueSnapshot"/> holds the Value attribute read for
+        /// this change.
+        /// </summary>
+        public bool HasValueSnapshot { get; set; }
+
+        /// <summary>
+        /// The pre-read raw Value attribute, captured without any index range or data encoding
+        /// applied. Each consumer (monitored item) applies its own
+        /// <see cref="IDataChangeMonitoredItem2.IndexRange"/> and
         /// <see cref="IDataChangeMonitoredItem2.DataEncoding"/> at queue time.
         /// </summary>
-        public Dictionary<uint, DataValue> AttributeSnapshots { get; set; } = [];
+        public DataValue ValueSnapshot { get; set; }
+
+        /// <summary>
+        /// Pre-read raw <see cref="DataValue"/>s of the other attributes keyed by attribute id,
+        /// captured like <see cref="ValueSnapshot"/>; <c>null</c> when only the Value attribute
+        /// was read.
+        /// </summary>
+        public Dictionary<uint, DataValue>? AttributeSnapshots { get; set; }
+
+        /// <summary>
+        /// Gets the raw value captured for an attribute.
+        /// </summary>
+        /// <param name="attributeId">The attribute id.</param>
+        /// <param name="value">The captured value.</param>
+        /// <returns><c>true</c> when the attribute was read for this change.</returns>
+        public bool TryGetAttributeSnapshot(uint attributeId, out DataValue value)
+        {
+            if (attributeId == Attributes.Value)
+            {
+                value = ValueSnapshot;
+                return HasValueSnapshot;
+            }
+            if (AttributeSnapshots != null)
+            {
+                return AttributeSnapshots.TryGetValue(attributeId, out value);
+            }
+            value = default;
+            return false;
+        }
 
         /// <summary>
         /// Value snapshots read at enqueue time in the context of each Value monitored item's
@@ -113,7 +128,7 @@ namespace Opc.Ua.Server
         public ISystemContext Context { get; }
 
         /// <inheritdoc/>
-        public MasterNodeManager.NotificationDispatchLease? SourceEmission => null;
+        public MasterNodeManager.SourceEmissionAdmission? SourceEmission => null;
 
         /// <summary>
         /// Gets the exact source node that was admitted.
@@ -144,27 +159,7 @@ namespace Opc.Ua.Server
         public ISystemContext Context { get; }
 
         /// <inheritdoc/>
-        public MasterNodeManager.NotificationDispatchLease? SourceEmission => null;
-    }
-
-    /// <summary>
-    /// Marks a change that reached a cut-off source so the items it would have reached are
-    /// retired in channel order, after the snapshots captured before the cutoff.
-    /// </summary>
-    internal sealed class CutOffRetirementNotification : INodeNotification
-    {
-        /// <inheritdoc cref="INodeNotification.Context"/>
-        public ISystemContext Context { get; set; } = null!;
-
-        /// <summary>
-        /// Gets the source emission, which a cut-off retirement never holds.
-        /// </summary>
-        public MasterNodeManager.NotificationDispatchLease? SourceEmission => null;
-
-        /// <summary>
-        /// Gets or sets the change masks of the cut-off change.
-        /// </summary>
-        public NodeStateChangeMasks Changes { get; set; }
+        public MasterNodeManager.SourceEmissionAdmission? SourceEmission => null;
     }
 
     /// <summary>
@@ -178,11 +173,17 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Gets or sets the source emission for <c>EventSnapshot</c>.
         /// </summary>
-        public MasterNodeManager.NotificationDispatchLease? SourceEmission { get; set; }
+        public MasterNodeManager.SourceEmissionAdmission? SourceEmission { get; set; }
 
         /// <summary>
         /// Gets or sets the captured event fields used when evaluating event filters.
         /// </summary>
         public IFilterTarget EventTargetSnapshot { get; set; } = null!;
+
+        /// <summary>
+        /// Gets or sets the monitored items that were subscribed when the event was admitted.
+        /// </summary>
+        public IEventMonitoredItem[] MonitoredItems { get; set; } = [];
     }
+
 }

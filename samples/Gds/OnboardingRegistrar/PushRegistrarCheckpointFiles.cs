@@ -1,26 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person obtaining a copy
- * of this software and associated documentation files (the "Software"), to deal
- * in the Software without restriction, including without limitation the rights
- * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the Software is
- * furnished to do so, subject to the following conditions:
- *
- * The above copyright notice and this permission notice shall be included in
- * all copies or substantial portions of the Software.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
- * OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL
- * THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
- * IN THE SOFTWARE.
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using System.IO;
@@ -44,7 +23,14 @@ namespace OnboardingRegistrar
         /// </summary>
         public PushRegistrarCheckpointFiles(string directory, IFileSystem? fileSystem = null)
         {
-            ArgumentException.ThrowIfNullOrWhiteSpace(directory);
+            if (directory == null)
+            {
+                throw new ArgumentNullException(nameof(directory));
+            }
+            if (string.IsNullOrWhiteSpace(directory))
+            {
+                throw new ArgumentException("The path cannot be null, empty, or whitespace.", nameof(directory));
+            }
             m_directory = Path.GetFullPath(directory);
             m_fileSystem = fileSystem ?? LocalFileSystem.Instance;
             Directory.CreateDirectory(m_directory);
@@ -60,28 +46,7 @@ namespace OnboardingRegistrar
             await m_gate.WaitAsync(ct).ConfigureAwait(false);
             try
             {
-                string path = GetPath(key);
-                if (!m_fileSystem.Exists(path))
-                {
-                    return null;
-                }
-                if (m_fileSystem.GetLength(path) > MaximumBytes)
-                {
-                    throw new InvalidDataException("A public push checkpoint exceeds its size limit.");
-                }
-                using Stream input = m_fileSystem.OpenRead(path);
-                using var buffer = new MemoryStream();
-                byte[] chunk = new byte[81920];
-                int count;
-                while ((count = await input.ReadAsync(chunk.AsMemory(), ct).ConfigureAwait(false)) != 0)
-                {
-                    if (buffer.Length + count > MaximumBytes)
-                    {
-                        throw new InvalidDataException("A public push checkpoint exceeds its size limit.");
-                    }
-                    await buffer.WriteAsync(chunk.AsMemory(0, count), ct).ConfigureAwait(false);
-                }
-                return buffer.ToArray();
+                return await ReadCoreAsync(key, ct).ConfigureAwait(false);
             }
             finally
             {
@@ -94,46 +59,52 @@ namespace OnboardingRegistrar
         /// </summary>
         public async ValueTask WriteAsync(string key, ReadOnlyMemory<byte> bytes, CancellationToken ct)
         {
-            if (bytes.Length == 0 || bytes.Length > MaximumBytes)
+            byte[] snapshot = bytes.ToArray();
+            if (snapshot.Length == 0 || snapshot.Length > MaximumBytes)
             {
                 throw new InvalidDataException("A public push checkpoint has an invalid size.");
             }
             await m_gate.WaitAsync(ct).ConfigureAwait(false);
             try
             {
-                string path = GetPath(key);
-                string staging = path + "." + Guid.NewGuid().ToString("N") + ".pending";
-                ExceptionDispatchInfo? failure = null;
-                try
+                await WriteCoreAsync(key, snapshot, ct).ConfigureAwait(false);
+            }
+            finally
+            {
+                m_gate.Release();
+            }
+        }
+
+        /// <summary>
+        /// Atomically replaces a checkpoint only when its current bytes match the expected value.
+        /// </summary>
+        public async ValueTask<bool> CompareExchangeAsync(
+            string key,
+            byte[]? expected,
+            byte[] replacement,
+            CancellationToken ct)
+        {
+            if (replacement == null)
+            {
+                throw new ArgumentNullException(nameof(replacement));
+            }
+            byte[]? expectedSnapshot = expected == null ? null : (byte[])expected.Clone();
+            byte[] replacementSnapshot = (byte[])replacement.Clone();
+            if (replacementSnapshot.Length == 0 || replacementSnapshot.Length > MaximumBytes)
+            {
+                throw new InvalidDataException("A public push checkpoint has an invalid size.");
+            }
+
+            await m_gate.WaitAsync(ct).ConfigureAwait(false);
+            try
+            {
+                byte[]? current = await ReadCoreAsync(key, ct).ConfigureAwait(false);
+                if (!AreEqual(current, expectedSnapshot))
                 {
-                    using (Stream output = m_fileSystem.OpenWrite(staging))
-                    {
-                        await output.WriteAsync(bytes, ct).ConfigureAwait(false);
-                        await output.FlushAsync(ct).ConfigureAwait(false);
-                        if (output is FileStream file)
-                        {
-                            file.Flush(flushToDisk: true);
-                        }
-                    }
-                    ct.ThrowIfCancellationRequested();
-                    m_fileSystem.Replace(staging, path);
+                    return false;
                 }
-                catch (Exception error)
-                {
-                    failure = ExceptionDispatchInfo.Capture(error);
-                }
-                try
-                {
-                    if (m_fileSystem.Exists(staging))
-                    {
-                        m_fileSystem.Delete(staging);
-                    }
-                }
-                catch (Exception cleanupError) when (failure != null)
-                {
-                    throw new AggregateException(failure.SourceException, cleanupError);
-                }
-                failure?.Throw();
+                await WriteCoreAsync(key, replacementSnapshot, ct).ConfigureAwait(false);
+                return true;
             }
             finally
             {
@@ -177,8 +148,103 @@ namespace OnboardingRegistrar
         /// </summary>
         private string GetPath(string key)
         {
-            return Path.Combine(
-                m_directory, Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(key))) + ".bin");
+            byte[] digest = SHA256.HashData(Encoding.UTF8.GetBytes(key));
+            return Path.Combine(m_directory, CoreUtils.ToHexString(digest) + ".bin");
+        }
+
+        private async ValueTask<byte[]?> ReadCoreAsync(string key, CancellationToken ct)
+        {
+            string path = GetPath(key);
+            if (!m_fileSystem.Exists(path))
+            {
+                return null;
+            }
+            if (m_fileSystem.GetLength(path) > MaximumBytes)
+            {
+                throw new InvalidDataException("A public push checkpoint exceeds its size limit.");
+            }
+            using Stream input = m_fileSystem.OpenRead(path);
+            using var buffer = new MemoryStream();
+            byte[] chunk = new byte[81920];
+            int count;
+#if NETFRAMEWORK
+            while ((count = await input.ReadAsync(chunk, 0, chunk.Length, ct).ConfigureAwait(false)) != 0)
+#else
+            while ((count = await input.ReadAsync(chunk.AsMemory(), ct).ConfigureAwait(false)) != 0)
+#endif
+            {
+                if (buffer.Length + count > MaximumBytes)
+                {
+                    throw new InvalidDataException("A public push checkpoint exceeds its size limit.");
+                }
+#if NETFRAMEWORK
+                await buffer.WriteAsync(chunk, 0, count, ct).ConfigureAwait(false);
+#else
+                await buffer.WriteAsync(chunk.AsMemory(0, count), ct).ConfigureAwait(false);
+#endif
+            }
+            return buffer.ToArray();
+        }
+
+        private async ValueTask WriteCoreAsync(string key, byte[] bytes, CancellationToken ct)
+        {
+            string path = GetPath(key);
+            string staging = path + "." + Guid.NewGuid().ToString("N") + ".pending";
+            ExceptionDispatchInfo? failure = null;
+            try
+            {
+                using (Stream output = m_fileSystem.OpenWrite(staging))
+                {
+#if NETFRAMEWORK
+                    await output.WriteAsync(bytes, 0, bytes.Length, ct).ConfigureAwait(false);
+#else
+                    await output.WriteAsync(bytes.AsMemory(), ct).ConfigureAwait(false);
+#endif
+                    await output.FlushAsync(ct).ConfigureAwait(false);
+                    if (output is FileStream file)
+                    {
+                        file.Flush(flushToDisk: true);
+                    }
+                }
+                ct.ThrowIfCancellationRequested();
+                m_fileSystem.Replace(staging, path);
+            }
+            catch (Exception error)
+            {
+                failure = ExceptionDispatchInfo.Capture(error);
+            }
+            try
+            {
+                if (m_fileSystem.Exists(staging))
+                {
+                    m_fileSystem.Delete(staging);
+                }
+            }
+            catch (Exception cleanupError) when (failure != null)
+            {
+                throw new AggregateException(failure.SourceException, cleanupError);
+            }
+            failure?.Throw();
+        }
+
+        private static bool AreEqual(byte[]? left, byte[]? right)
+        {
+            if (left == null || right == null)
+            {
+                return left == null && right == null;
+            }
+            if (left.Length != right.Length)
+            {
+                return false;
+            }
+            for (int i = 0; i < left.Length; i++)
+            {
+                if (left[i] != right[i])
+                {
+                    return false;
+                }
+            }
+            return true;
         }
 
         /// <summary>The maximum size of one public checkpoint.</summary>

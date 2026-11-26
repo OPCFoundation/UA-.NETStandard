@@ -1,33 +1,7 @@
-/* ========================================================================
- * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
-#if NET10_0
+#if NET10_0_OR_GREATER
 using System;
 using System.IO;
 using System.Linq;
@@ -85,14 +59,14 @@ namespace Opc.Ua.Recycling.Operator.Tests
 
             Assert.That(
                 global.RootElement.GetProperty("sdk").GetProperty("rollForward").GetString(),
-                Is.EqualTo("latestMajor"),
+                Is.EqualTo("latestFeature"),
                 "The image version check uses the repository's minimum-SDK roll-forward policy.");
             Assert.That(global.RootElement.GetProperty("sdk").GetProperty("allowPrerelease").GetBoolean(), Is.False);
             Assert.That(UsesCompatibleSdkImage(dockerfile, Version.Parse(sdk)), Is.True,
                 "The source stage must pin a stable Azure Linux SDK at or above the repository minimum.");
             Assert.That(dockerfile, Does.Contain($"samples/Recycling/{project}/{project}.csproj"));
-            Assert.That(dockerfile, Does.Contain("-f net10.0"));
-            Assert.That(dockerfile, Does.Contain("-p:CustomTestTarget=net10.0"));
+            Assert.That(dockerfile, Does.Contain("-f net11.0"));
+            Assert.That(dockerfile, Does.Contain("-p:CustomTestTarget=net11.0"));
             Assert.That(dockerfile, Does.Contain("-p:PublishAot=false"));
             Assert.That(dockerfile, Does.Contain("-p:UseAppHost=false"));
             Assert.That(dockerfile, Does.Contain("-p:SelfContained=false"));
@@ -107,6 +81,7 @@ namespace Opc.Ua.Recycling.Operator.Tests
         [TestCase("10.0.400")]
         [TestCase("10.0.401")]
         [TestCase("10.0.402")]
+        [TestCase("10.0.403")]
         [TestCase("11.0.100")]
         public void SdkImageAcceptsMinimumAndNewerStableVersions(string sdk)
         {
@@ -180,7 +155,7 @@ namespace Opc.Ua.Recycling.Operator.Tests
             Assert.That(dockerfile, Does.Contain("ARG PUBLISH_DIR=artifacts/docker/publish"));
             Assert.That(dockerfile, Does.Contain("COPY ${PUBLISH_DIR}/ /app/publish/"));
             Assert.That(dockerfile, Does.Contain("FROM ${PUBLISH_SOURCE} AS publish"));
-            Assert.That(dockerfile, Does.Contain($"FROM mcr.microsoft.com/dotnet/{runtime}:10.0"));
+            Assert.That(dockerfile, Does.Contain($"FROM mcr.microsoft.com/dotnet/{runtime}:11.0"));
             Assert.That(dockerfile, Does.Contain("COPY --from=publish --chown=app:app /app/publish/ ./"));
             Assert.That(dockerfile, Does.Contain("USER $APP_UID"));
             Assert.That(dockerfile, Does.Contain($"EXPOSE {port}"));
@@ -336,8 +311,19 @@ namespace Opc.Ua.Recycling.Operator.Tests
         /// <summary>
         /// Finds the checkout that contains these image recipes.
         /// </summary>
+        /// <exception cref="DirectoryNotFoundException">The selected directory does not identify a checkout.</exception>
         private static string FindRepositoryRoot()
         {
+            string? configured = Environment.GetEnvironmentVariable("OPCUA_TEST_REPOSITORY_ROOT");
+            if (!string.IsNullOrWhiteSpace(configured))
+            {
+                string root = Path.GetFullPath(configured);
+                if (!File.Exists(Path.Combine(root, "UA.slnx")))
+                {
+                    throw new DirectoryNotFoundException("The configured repository root has no UA.slnx.");
+                }
+                return root;
+            }
             for (DirectoryInfo? directory = new(AppContext.BaseDirectory);
                 directory != null;
                 directory = directory.Parent)

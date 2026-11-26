@@ -1,31 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 
@@ -39,7 +13,7 @@ namespace Opc.Ua.Redundancy.Server
         /// <summary>
         /// Gets or sets a value indicating whether a standby replica may
         /// <em>restore</em> a mirrored session and let a client reconnect by
-        /// re-running <c>ActivateSession</c> on a new SecureChannel (the
+        /// re-running <c>ActivateSession</c> on a new signed SecureChannel (the
         /// OPC UA HotAndMirrored fast reconnect).
         /// </summary>
         /// <remarks>
@@ -51,7 +25,10 @@ namespace Opc.Ua.Redundancy.Server
         /// the shared store. When set to <c>true</c>, a reconnect still performs
         /// the full <c>ActivateSession</c> client-signature validation against
         /// the mirrored, single-use <c>serverNonce</c>; the token is never an
-        /// authenticator on its own.
+        /// authenticator on its own. Fast reconnect requires a committed
+        /// session store with atomic nonce rotation and durable conditional
+        /// deletion. Sessions on <see cref="MessageSecurityMode.None"/> endpoints
+        /// can still operate locally but are never restored from shared state.
         /// </remarks>
         public bool EnableFastReconnect { get; set; }
 
@@ -68,17 +45,12 @@ namespace Opc.Ua.Redundancy.Server
 
         /// <summary>
         /// Gets or sets how often the shared store is swept for the entries of timed-out
-        /// sessions and for orphaned consumed-nonce markers. Sessions of a replica that
+        /// sessions. Sessions of a replica that
         /// crashed or was shut down are never closed there, so without the sweep their
         /// records (with their nonces and client certificates) would stay in the store.
         /// Defaults to five minutes; zero or a negative value disables the sweep.
         /// </summary>
         public TimeSpan SweepInterval { get; set; } = TimeSpan.FromMinutes(5);
 
-        /// <summary>
-        /// Gets or sets the minimum age of a consumed-nonce marker that no live session
-        /// entry references before the sweep removes it. Defaults to one hour.
-        /// </summary>
-        public TimeSpan NonceMarkerRetention { get; set; } = TimeSpan.FromHours(1);
     }
 }

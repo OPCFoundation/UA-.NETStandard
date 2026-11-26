@@ -1,31 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using System.Collections.Generic;
@@ -362,32 +336,15 @@ namespace Opc.Ua.Subscriptions.Durable.Tests
                 Assert.Ignore("Timing on mac OS causes issues");
             }
 
-            ISession? transferSession = null;
-            try
-            {
-                transferSession = await TestSessionTransferInternalAsync(
-                    setSubscriptionDurable,
-                    restartServer).ConfigureAwait(false);
-            }
-            finally
-            {
-                if (transferSession != null)
-                {
-                    try
-                    {
-                        transferSession.DeleteSubscriptionsOnClose = true;
-                        TestContext.Out.WriteLine("------- Transfer session closing --------");
-                        await transferSession.CloseAsync().ConfigureAwait(false);
-                    }
-                    finally
-                    {
-                        transferSession.Dispose();
-                    }
-                }
-            }
+            await TestSessionTransferInternalAsync(
+                setSubscriptionDurable,
+                restartServer).ConfigureAwait(false);
         }
 
-        private async Task<ISession> TestSessionTransferInternalAsync(
+        /// <summary>
+        /// Exercises subscription transfer and closes the transfer session even when an assertion fails.
+        /// </summary>
+        private async Task TestSessionTransferInternalAsync(
             bool setSubscriptionDurable,
             bool restartServer)
         {
@@ -549,83 +506,94 @@ namespace Opc.Ua.Subscriptions.Durable.Tests
                 }
             }
 #endif
-            awaitingRestartData = restartServer && setSubscriptionDurable;
-            Task restartData = restartDataReceived?.Task ?? Task.CompletedTask;
-            bool result = await transferSession.TransferSubscriptionsAsync(subscriptions, true)
-                .ConfigureAwait(false);
-
-            TestContext.Out.WriteLine("------- Dispose original session --------");
-            Session.Dispose();
-            Session = null!;
-
-            bool expected = setSubscriptionDurable; // Otherwise we close the session above and then transfer fails.
-            Assert.That(
-                result,
-                Is.EqualTo(expected),
-                $"SetSubscriptionDurable = {setSubscriptionDurable} => Transfer Result: {result} != Expected {expected}");
-
-            if (restartServer && setSubscriptionDurable)
+            using (transferSession)
             {
-                await restartData.WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
-                Assert.That(
-                    valueTimeStamps.Values.Any(values => values.Count > 0),
-                    Is.True,
-                    "A transferred subscription did not deliver queued data after restart.");
-            }
-
-            if (setSubscriptionDurable && !restartServer)
-            {
-                // New Session and Transfer - consume 4 seconds of messages then turn off.
-                await Task.Delay(4000).ConfigureAwait(false);
-
-                await subscription.SetPublishingModeAsync(false).ConfigureAwait(false);
-
-                DateTimeUtc completionTime = DateTimeUtc.Now;
-
-                await Task.Delay(1000).ConfigureAwait(false); // Let last notifications trickle through
-
-                const double tolerance = 2500;
-
-                TestContext.Out.WriteLine("Session StartTime at {0}", DateTimeMs(startTime));
-                TestContext.Out.WriteLine("Session Closed at {0}", DateTimeMs(closeTime));
-                TestContext.Out.WriteLine("Restart at {0}", DateTimeMs(restartTime));
-                TestContext.Out.WriteLine("Completion at {0}", DateTimeMs(completionTime));
-
-                // Validate
-                foreach (KeyValuePair<NodeId, List<DateTimeUtc>> pair in valueTimeStamps)
+                try
                 {
-                    DateTimeUtc previous = startTime;
+                    awaitingRestartData = restartServer && setSubscriptionDurable;
+                    Task restartData = restartDataReceived?.Task ?? Task.CompletedTask;
+                    bool result = await transferSession.TransferSubscriptionsAsync(subscriptions, true)
+                        .ConfigureAwait(false);
 
-                    for (int index = 0; index < pair.Value.Count; index++)
+                    TestContext.Out.WriteLine("------- Dispose original session --------");
+                    Session.Dispose();
+                    Session = null!;
+
+                    bool expected = setSubscriptionDurable; // Otherwise we close the session above and then transfer fails.
+                    Assert.That(
+                        result,
+                        Is.EqualTo(expected),
+                        $"SetSubscriptionDurable = {setSubscriptionDurable} => Transfer Result: {result} != Expected {expected}");
+
+                    if (restartServer && setSubscriptionDurable)
                     {
-                        DateTimeUtc timestamp = pair.Value[index];
-
-                        TimeSpan timeSpan = timestamp - previous;
-                        TestContext.Out.WriteLine(
-                            $"Node: {pair.Key} Index: {index} Time: {DateTimeMs(timestamp)} " +
-                            $"Previous: {DateTimeMs(previous)} " +
-                            $"Timespan {timeSpan.TotalMilliseconds.ToString("000.", CultureInfo.InvariantCulture)}");
-
+                        await restartData.WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
                         Assert.That(
-                            Math.Abs(timeSpan.TotalMilliseconds),
-                            Is.LessThan(tolerance),
-                            $"Node: {pair.Key} Index: {index} Timespan {timeSpan.TotalMilliseconds} ");
+                            valueTimeStamps.Values.Any(values => values.Count > 0),
+                            Is.True,
+                            "A transferred subscription did not deliver queued data after restart.");
+                    }
 
-                        previous = timestamp;
+                    if (setSubscriptionDurable && !restartServer)
+                    {
+                        // New Session and Transfer - consume 4 seconds of messages then turn off.
+                        await Task.Delay(4000).ConfigureAwait(false);
 
-                        if (index == pair.Value.Count - 1)
+                        await subscription.SetPublishingModeAsync(false).ConfigureAwait(false);
+
+                        DateTimeUtc completionTime = DateTimeUtc.Now;
+
+                        await Task.Delay(1000).ConfigureAwait(false); // Let last notifications trickle through
+
+                        const double tolerance = 2500;
+
+                        TestContext.Out.WriteLine("Session StartTime at {0}", DateTimeMs(startTime));
+                        TestContext.Out.WriteLine("Session Closed at {0}", DateTimeMs(closeTime));
+                        TestContext.Out.WriteLine("Restart at {0}", DateTimeMs(restartTime));
+                        TestContext.Out.WriteLine("Completion at {0}", DateTimeMs(completionTime));
+
+                        // Validate
+                        foreach (KeyValuePair<NodeId, List<DateTimeUtc>> pair in valueTimeStamps)
                         {
-                            TimeSpan finalTimeSpan = completionTime - timestamp;
-                            Assert.That(
-                                Math.Abs(finalTimeSpan.TotalMilliseconds),
-                                Is.LessThan(tolerance * 2),
-                                $"Last Value - Node: {pair.Key} Index: {index} Timespan {finalTimeSpan.TotalMilliseconds} ");
+                            DateTimeUtc previous = startTime;
+
+                            for (int index = 0; index < pair.Value.Count; index++)
+                            {
+                                DateTimeUtc timestamp = pair.Value[index];
+
+                                TimeSpan timeSpan = timestamp - previous;
+                                TestContext.Out.WriteLine(
+                                    $"Node: {pair.Key} Index: {index} Time: {DateTimeMs(timestamp)} " +
+                                    $"Previous: {DateTimeMs(previous)} " +
+                                    $"Timespan {timeSpan.TotalMilliseconds.ToString("000.", CultureInfo.InvariantCulture)}");
+
+                                Assert.That(
+                                    Math.Abs(timeSpan.TotalMilliseconds),
+                                    Is.LessThan(tolerance),
+                                    $"Node: {pair.Key} Index: {index} Timespan {timeSpan.TotalMilliseconds} ");
+
+                                previous = timestamp;
+
+                                if (index == pair.Value.Count - 1)
+                                {
+                                    TimeSpan finalTimeSpan = completionTime - timestamp;
+                                    Assert.That(
+                                        Math.Abs(finalTimeSpan.TotalMilliseconds),
+                                        Is.LessThan(tolerance * 2),
+                                        $"Last Value - Node: {pair.Key} Index: {index} Timespan {finalTimeSpan.TotalMilliseconds} ");
+                                }
+                            }
                         }
                     }
                 }
+                finally
+                {
+                    transferSession.DeleteSubscriptionsOnClose = true;
+                    await TestContext.Out.WriteLineAsync("------- Transfer session closing --------")
+                        .ConfigureAwait(false);
+                    await transferSession.CloseAsync().ConfigureAwait(false);
+                }
             }
-
-            return transferSession;
         }
 
         private async Task<Dictionary<string, object>> ValidateDataValueAsync(

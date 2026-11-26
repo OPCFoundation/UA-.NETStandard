@@ -1,31 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using System.Collections.Generic;
@@ -51,12 +25,7 @@ namespace Opc.Ua.Server
             Task pending;
             lock (m_pendingApplyChangesLock)
             {
-                pending = m_pendingApplyChangesTask;
-            }
-
-            if (!cancellationToken.CanBeCanceled || pending.IsCompleted)
-            {
-                return pending;
+                pending = m_pendingApplyChangesTask ?? Task.CompletedTask;
             }
 
             return pending.WaitAsync(cancellationToken);
@@ -334,9 +303,11 @@ namespace Opc.Ua.Server
             // transaction whose (uncommitted) targets a snapshot would report.
             var committedEffects = new PushConfigurationApplyEffects();
             ServiceResult result;
+            bool keepRotations = false;
+            using var rotationScope = new NodeManagerAmbientScope<RotationCollector>(
+                m_activeRotationCollector, new RotationCollector(rotations));
             try
             {
-                m_activeRotationCollector.Value = rotations;
                 if (m_serverConfigurationOptions.PushAuthorization is IPushConfigurationCompletion completion)
                 {
                     if (m_coordinator is not IPushConfigurationTransactionCompletion transactionalCompletion)
@@ -359,23 +330,24 @@ namespace Opc.Ua.Server
                     result = await m_coordinator.ApplyChangesAsync(sessionId, committedEffects, cancellationToken)
                         .ConfigureAwait(false);
                 }
+                keepRotations = ServiceResult.IsGood(result);
             }
             finally
             {
-                m_activeRotationCollector.Value = null;
+                lock (m_pendingApplyChangesLock)
+                {
+                    rotationScope.Dispose();
+                }
+                if (!keepRotations)
+                {
+                    DisposeRotations(rotations);
+                }
             }
 
             UpdateTransactionDiagnostics(context);
 
-            if (!ServiceResult.IsGood(result))
+            if (!keepRotations)
             {
-                // The transaction failed and was reverse-compensated;
-                // nothing actually rotated, so any provisionally-recorded
-                // rotations must be discarded rather than scheduled.
-                foreach (PendingCertificateRotation rotation in rotations)
-                {
-                    rotation.OldCertificate?.Dispose();
-                }
                 return result;
             }
 
@@ -696,7 +668,14 @@ namespace Opc.Ua.Server
             {
                 rotation.OldCertificate?.Dispose();
             }
+            rotations.Clear();
         }
+
+        /// <summary>
+        /// Carries the certificate references collected by an active apply callback.
+        /// </summary>
+        /// <param name="Rotations">The callback's collection, or null when no scope is active.</param>
+        private readonly record struct RotationCollector(List<PendingCertificateRotation>? Rotations);
 
         /// <summary>
         /// Captured payload for a single certificate-group rotation

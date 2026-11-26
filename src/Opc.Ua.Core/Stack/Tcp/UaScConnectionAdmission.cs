@@ -1,31 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using System.Collections.Generic;
@@ -92,12 +66,24 @@ namespace Opc.Ua.Bindings
         }
 
         /// <summary>
-        /// Acquires connection and startup capacity together, reclaiming aggregate capacity at most once.
+        /// Acquires connection and startup capacity together, reclaiming local or aggregate capacity at most once.
         /// </summary>
+        /// <param name="remoteEndpoint">The peer, classified by the resource isolation provider.</param>
+        /// <param name="lease">The admitted connection.</param>
+        /// <param name="tryReclaimCapacity">Reclaims capacity of this scope whatever was exhausted.</param>
+        /// <param name="tryReclaimIdleConnection">
+        /// Closes an established idle connection of this scope. Such a connection
+        /// holds connection capacity only, so it is closed only when the startup
+        /// handshake capacity was admitted. Its argument is true when the shared
+        /// provider capacity is exhausted, which a connection admitted from a
+        /// protected floor cannot relieve, and false when only this scope's own
+        /// ceiling is reached, which any of its connections relieves.
+        /// </param>
         public bool TryAcquire(
             EndPoint? remoteEndpoint,
             [NotNullWhen(true)] out Lease? lease,
-            Func<bool>? tryReclaimCapacity = null)
+            Func<bool>? tryReclaimCapacity = null,
+            Func<bool, bool>? tryReclaimIdleConnection = null)
         {
             lease = null;
             lock (m_lock)
@@ -113,12 +99,13 @@ namespace Opc.Ua.Bindings
             {
                 IDisposable? connection = null;
                 IDisposable? handshake = null;
+                bool connectionAdmitted = true;
+                bool handshakeAdmitted = true;
                 try
                 {
-                    bool resourcesAdmitted = true;
                     if (m_provider != null)
                     {
-                        bool connectionAdmitted = m_provider.TryAcquire(
+                        connectionAdmitted = m_provider.TryAcquire(
                             ResourceIsolationStage.Connection, owner!, 1, out connection,
                             out ResourceIsolationFailure connectionFailure);
                         if (!connectionAdmitted &&
@@ -127,7 +114,7 @@ namespace Opc.Ua.Bindings
                             return false;
                         }
                         // Check both owner ceilings before permitting aggregate-capacity reclamation.
-                        bool handshakeAdmitted = m_provider.TryAcquire(
+                        handshakeAdmitted = m_provider.TryAcquire(
                             ResourceIsolationStage.Handshake, owner!, 1, out handshake,
                             out ResourceIsolationFailure handshakeFailure);
                         if (!handshakeAdmitted &&
@@ -135,9 +122,13 @@ namespace Opc.Ua.Bindings
                         {
                             return false;
                         }
-                        resourcesAdmitted = connectionAdmitted && handshakeAdmitted;
                     }
-                    if (!resourcesAdmitted && (attempt != 0 || tryReclaimCapacity == null))
+                    bool resourcesAdmitted = connectionAdmitted && handshakeAdmitted;
+                    if (!resourcesAdmitted &&
+                        (attempt != 0 ||
+                            (tryReclaimCapacity == null &&
+                                !(handshakeAdmitted &&
+                                    (tryReclaimIdleConnection != null || CanReclaimSharedCapacity())))))
                     {
                         return false;
                     }
@@ -158,22 +149,25 @@ namespace Opc.Ua.Bindings
                         lock (m_lock)
                         {
                             int counted = m_limitPendingHandshakesOnly ? m_pendingHandshakes : m_leases.Count;
-                            if (m_stopped || (m_maxChannelCount > 0 && counted >= m_maxChannelCount))
+                            if (m_stopped)
                             {
                                 return false;
                             }
-                            if (m_deadlineTimer == null)
+                            if (m_maxChannelCount <= 0 || counted < m_maxChannelCount)
                             {
-                                TimeSpan period = TimeSpan.FromMilliseconds(
-                                    Math.Max(1, Math.Min(1000, m_handshakeTimeout.TotalMilliseconds / 2)));
-                                m_deadlineTimer = m_timeProvider.CreateTimer(CheckDeadlines, null, period, period);
+                                if (m_deadlineTimer == null)
+                                {
+                                    TimeSpan period = TimeSpan.FromMilliseconds(
+                                        Math.Max(1, Math.Min(1000, m_handshakeTimeout.TotalMilliseconds / 2)));
+                                    m_deadlineTimer = m_timeProvider.CreateTimer(CheckDeadlines, null, period, period);
+                                }
+                                lease = new Lease(this, connection, handshake, m_timeProvider.GetTimestamp());
+                                m_leases.Add(lease);
+                                m_pendingHandshakes++;
+                                connection = null;
+                                handshake = null;
+                                return true;
                             }
-                            lease = new Lease(this, connection, handshake, m_timeProvider.GetTimestamp());
-                            m_leases.Add(lease);
-                            m_pendingHandshakes++;
-                            connection = null;
-                            handshake = null;
-                            return true;
                         }
                     }
                 }
@@ -196,12 +190,135 @@ namespace Opc.Ua.Bindings
                     }
                 }
                 // No partial resource leases or admission locks survive into listener cleanup.
-                if (tryReclaimCapacity == null || !tryReclaimCapacity())
+                if (attempt != 0 ||
+                    !TryReclaimCapacity(
+                        connectionAdmitted, handshakeAdmitted, tryReclaimCapacity, tryReclaimIdleConnection))
                 {
                     return false;
                 }
             }
             return false;
+        }
+
+        /// <summary>
+        /// Registers the callback that closes one reclaimable connection of
+        /// this scope for the other scopes sharing the resource isolation
+        /// provider. Registered while the scope is started.
+        /// </summary>
+        /// <remarks>
+        /// The callback closes a connection that holds connection capacity
+        /// only. It must not acquire admission itself, and it is invoked
+        /// without any admission lock held.
+        /// </remarks>
+        public void SetSharedCapacityReclaimer(Func<bool> reclaim)
+        {
+            if (reclaim == null)
+            {
+                throw new ArgumentNullException(nameof(reclaim));
+            }
+            lock (m_lock)
+            {
+                m_sharedCapacityReclaimer = reclaim;
+                // Registered under the lock so that a concurrent Start or Stop
+                // cannot leave a stopped scope registered.
+                if (!m_stopped && m_provider != null)
+                {
+                    SharedConnectionCapacity.Register(m_provider, this, reclaim);
+                }
+            }
+        }
+
+        /// <summary>
+        /// Whether another scope of the same provider could free capacity.
+        /// </summary>
+        private bool CanReclaimSharedCapacity()
+        {
+            return m_provider != null && SharedConnectionCapacity.HasOtherScopes(m_provider, this);
+        }
+
+        /// <summary>
+        /// Reclaims capacity with the scope's own callback first. Then, when
+        /// closing an established connection can make the retry succeed, an
+        /// idle connection of this scope or else of another scope.
+        /// </summary>
+        /// <param name="connectionAdmitted">
+        /// False when the provider's connection capacity is exhausted.
+        /// </param>
+        /// <param name="handshakeAdmitted">
+        /// False when the provider's handshake capacity is exhausted, which
+        /// closing an established connection does not free.
+        /// </param>
+        /// <param name="tryReclaimCapacity">The scope's own reclaim callback.</param>
+        /// <param name="tryReclaimIdleConnection">Closes an idle connection of the scope.</param>
+        private bool TryReclaimCapacity(
+            bool connectionAdmitted,
+            bool handshakeAdmitted,
+            Func<bool>? tryReclaimCapacity,
+            Func<bool, bool>? tryReclaimIdleConnection)
+        {
+            if (tryReclaimCapacity?.Invoke() == true)
+            {
+                return true;
+            }
+            if (!handshakeAdmitted)
+            {
+                return false;
+            }
+            if (connectionAdmitted)
+            {
+                // Only this scope's own ceiling is reached: any of its own
+                // connections can free it, one of another scope cannot.
+                return !m_limitPendingHandshakesOnly && tryReclaimIdleConnection?.Invoke(false) == true;
+            }
+            if (tryReclaimIdleConnection?.Invoke(true) == true)
+            {
+                return true;
+            }
+            // A connection of another scope frees provider capacity only; the
+            // retry still fails while this scope's own ceiling is reached.
+            return m_provider != null &&
+                HasOwnCeilingHeadroom() &&
+                SharedConnectionCapacity.TryReclaimFromOtherScopes(m_provider, this);
+        }
+
+        /// <summary>
+        /// Whether this scope's own ceiling admits another connection.
+        /// </summary>
+        private bool HasOwnCeilingHeadroom()
+        {
+            Func<bool>? hasListenerCapacity;
+            lock (m_lock)
+            {
+                int counted = m_limitPendingHandshakesOnly ? m_pendingHandshakes : m_leases.Count;
+                if (m_stopped || (m_maxChannelCount > 0 && counted >= m_maxChannelCount))
+                {
+                    return false;
+                }
+                hasListenerCapacity = m_hasListenerCapacity;
+            }
+            // Invoked without the admission lock: the listener takes its own lock.
+            return hasListenerCapacity?.Invoke() != false;
+        }
+
+        /// <summary>
+        /// Sets the check of a limit the listener enforces after admission,
+        /// such as its channel table, so that a connection of another listener
+        /// is not closed for a connection this listener would refuse anyway.
+        /// </summary>
+        /// <remarks>
+        /// The check must not acquire admission; it is invoked without any
+        /// admission lock held.
+        /// </remarks>
+        public void SetListenerCapacityCheck(Func<bool> hasCapacity)
+        {
+            if (hasCapacity == null)
+            {
+                throw new ArgumentNullException(nameof(hasCapacity));
+            }
+            lock (m_lock)
+            {
+                m_hasListenerCapacity = hasCapacity;
+            }
         }
 
         /// <summary>
@@ -214,6 +331,11 @@ namespace Opc.Ua.Bindings
             {
                 m_stopped = true;
                 leases = [.. m_leases];
+                // Unregistered under the lock, ordered with Start and SetSharedCapacityReclaimer.
+                if (m_provider != null)
+                {
+                    SharedConnectionCapacity.Unregister(m_provider, this);
+                }
             }
 
             List<Exception>? errors = null;
@@ -242,6 +364,10 @@ namespace Opc.Ua.Bindings
             lock (m_lock)
             {
                 m_stopped = false;
+                if (m_sharedCapacityReclaimer != null && m_provider != null)
+                {
+                    SharedConnectionCapacity.Register(m_provider, this, m_sharedCapacityReclaimer);
+                }
             }
         }
 
@@ -268,6 +394,40 @@ namespace Opc.Ua.Bindings
                 m_connection = connection;
                 m_handshake = handshake;
                 m_started = started;
+            }
+
+            /// <summary>
+            /// The admission scope that counts this lease, so that a stream of the
+            /// connection can be counted against the same capacity.
+            /// </summary>
+            internal UaScConnectionAdmission Owner => m_owner;
+
+            /// <summary>
+            /// False when the connection reservation was taken entirely from a
+            /// protected floor: closing the connection then frees no capacity
+            /// another owner can use, so it is not reclaimed for one.
+            /// </summary>
+            internal bool UsesSharedConnectionCapacity
+            {
+                get
+                {
+                    lock (m_lock)
+                    {
+                        return m_connection is not IResourceIsolationLeaseCapacity capacity ||
+                            capacity.UsesSharedCapacity;
+                    }
+                }
+            }
+
+            /// <summary>
+            /// Whether closing the connection behind a channel's transport frees
+            /// shared connection capacity. False for a transport without an
+            /// admission lease, such as an outbound reverse connection, which
+            /// holds no provider capacity.
+            /// </summary>
+            internal static bool CanRelieveSharedCapacity(IUaSCByteTransport? transport)
+            {
+                return transport is Lease lease && lease.UsesSharedConnectionCapacity;
             }
 
             /// <summary>
@@ -697,6 +857,18 @@ namespace Opc.Ua.Bindings
         /// Rejects new leases until the scope is explicitly restarted.
         /// </summary>
         private bool m_stopped;
+
+        /// <summary>
+        /// Closes one reclaimable connection of this scope for another scope
+        /// of the same provider; registered while the scope is started.
+        /// </summary>
+        private Func<bool>? m_sharedCapacityReclaimer;
+
+        /// <summary>
+        /// Checks a listener limit enforced after admission, or null when the
+        /// scope's own ceiling is the listener's only limit.
+        /// </summary>
+        private Func<bool>? m_hasListenerCapacity;
     }
 
     /// <summary>

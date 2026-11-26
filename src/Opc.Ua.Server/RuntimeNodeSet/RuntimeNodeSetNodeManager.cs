@@ -1,31 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using System.Collections.Generic;
@@ -52,8 +26,7 @@ namespace Opc.Ua.Server.RuntimeNodeSet
     /// </remarks>
     internal sealed class RuntimeNodeSetNodeManager :
         FluentNodeManagerBase,
-        INodeManagerReloadParticipant,
-        IRequestCallbackSafeNodeManager
+        INodeManagerReloadParticipant
     {
         /// <summary>
         /// Initializes the node manager.
@@ -86,10 +59,6 @@ namespace Opc.Ua.Server.RuntimeNodeSet
         /// generation; it is disposed asynchronously when the generation
         /// is torn down.
         /// </param>
-        /// <param name="allowLifecycleFromRequestCallback">
-        /// Whether lifecycle operations may be initiated from this manager's
-        /// OPC UA request callbacks.
-        /// </param>
         internal RuntimeNodeSetNodeManager(
             IServerInternal server,
             ApplicationConfiguration configuration,
@@ -98,8 +67,7 @@ namespace Opc.Ua.Server.RuntimeNodeSet
             ParsedNodeSetDocument[] documents,
             string? defaultNamespaceUri,
             Action<INodeManagerBuilder>? configure,
-            Func<INodeManagerBuilder, CancellationToken, ValueTask<IAsyncDisposable?>>? configureAsync,
-            bool allowLifecycleFromRequestCallback)
+            Func<INodeManagerBuilder, CancellationToken, ValueTask<IAsyncDisposable?>>? configureAsync)
             : base(server, configuration, logger, modelNamespaceUris)
         {
             m_documents = documents
@@ -107,11 +75,7 @@ namespace Opc.Ua.Server.RuntimeNodeSet
             m_defaultNamespaceUri = defaultNamespaceUri;
             m_configure = configure;
             m_configureAsync = configureAsync;
-            AllowLifecycleFromRequestCallback = allowLifecycleFromRequestCallback;
         }
-
-        /// <inheritdoc/>
-        public bool AllowLifecycleFromRequestCallback { get; }
 
         /// <inheritdoc/>
         public override async ValueTask CreateAddressSpaceAsync(
@@ -303,14 +267,9 @@ namespace Opc.Ua.Server.RuntimeNodeSet
         }
 
         /// <inheritdoc/>
-        protected override async ValueTask AddPredefinedNodeAsync(
-            ISystemContext context,
-            NodeState node,
-            CancellationToken cancellationToken = default)
+        protected override void OnPredefinedNodeAdded(ISystemContext context, NodeState node)
         {
-            await base.AddPredefinedNodeAsync(context, node, cancellationToken)
-                .ConfigureAwait(false);
-
+            base.OnPredefinedNodeAdded(context, node);
             m_dispatcher?.NotifyNodeAdded(context, node);
         }
 

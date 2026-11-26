@@ -1,31 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 // IDE0230: byte-array literals below are opaque binary test vectors, not text; a
 // UTF-8 "..."u8 literal would misrepresent their intent, so keep the explicit byte arrays.
@@ -484,11 +458,10 @@ namespace Opc.Ua.Server.Tests.Redundancy
         }
 
         /// <summary>
-        /// The CRDT gossip store has no compare-and-swap; conditional writes fall back
-        /// to a compare followed by a write.
+        /// A backend without compare-and-swap can only update non-authoritative metadata.
         /// </summary>
         [Test]
-        public async Task ConditionalWritesWorkOverAStoreWithoutCompareAndSwapAsync()
+        public async Task StoreWithoutCompareAndSwapRejectsAuthoritativeWritesAsync()
         {
             using var inner = new InMemorySharedKeyValueStore();
             var kv = new NoCompareAndSwapStore(inner);
@@ -498,11 +471,14 @@ namespace Opc.Ua.Server.Tests.Redundancy
 
             SharedSessionEntry stale = (await store.TryGetAsync(entry.AuthenticationToken))!;
             SharedSessionEntry read = (await store.TryGetAsync(entry.AuthenticationToken))!;
-            Assert.That(await store.TryReplaceAsync(read, read with { OwnerId = "b" }), Is.True);
-            Assert.That(await store.TryReplaceAsync(stale, stale with { OwnerId = "a" }), Is.False);
+            await Assert.ThrowsAsync<NotSupportedException>(async () =>
+                await store.TryReplaceAsync(read, read with { OwnerId = "b" }));
+            await Assert.ThrowsAsync<NotSupportedException>(async () => await store.TryRemoveAsync(read));
+            Assert.That(await store.TryReplaceMetadataAsync(read, read with { OwnerId = "b" }, default), Is.True);
+            Assert.That(await store.TryReplaceMetadataAsync(stale, stale with { OwnerId = "a" }, default), Is.False);
 
             SharedSessionEntry current = (await store.TryGetAsync(entry.AuthenticationToken))!;
-            Assert.That(await store.TryRemoveAsync(current), Is.True);
+            Assert.That(await store.TryRemoveMetadataAsync(current, default), Is.True);
             Assert.That(await store.TryGetAsync(entry.AuthenticationToken), Is.Null);
         }
 

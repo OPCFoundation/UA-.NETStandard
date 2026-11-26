@@ -1,31 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System.Collections.Generic;
 using System.Threading;
@@ -37,20 +11,24 @@ namespace Opc.Ua.Redundancy.Server
     /// <summary>
     /// Shares session context across server replicas keyed by the session
     /// <c>AuthenticationToken</c>, enabling fast active/passive reconnect:
-    /// after a failover a client re-activates against the promoted replica
-    /// using only its token, without a full re-handshake.
+    /// after a failover a client establishes a signed SecureChannel and
+    /// re-activates against the promoted replica with its token and proof.
     /// </summary>
     /// <remarks>
     /// Analogous to <see cref="ISubscriptionStore"/> for subscriptions. The
     /// default implementation
     /// (<see cref="SharedKeyValueSessionStore"/>) persists entries in the
-    /// same shared key/value backend as the distributed address space.
+    /// configured key/value backend. Fast reconnect requires a store whose
+    /// reads and atomic writes represent an authenticated, current committed
+    /// generation, including durable conditional deletion.
     /// </remarks>
     public interface ISharedSessionStore
     {
         /// <summary>
         /// Stores or replaces a session entry (keyed by its
-        /// <see cref="SharedSessionEntry.AuthenticationToken"/>).
+        /// <see cref="SharedSessionEntry.AuthenticationToken"/>). Session managers
+        /// use this only for an initial entry with a newly minted token; subsequent
+        /// transitions and close must be conditional.
         /// </summary>
         /// <param name="entry">The session entry.</param>
         /// <param name="ct">Cancellation token.</param>
@@ -87,6 +65,7 @@ namespace Opc.Ua.Redundancy.Server
         /// <c>true</c> when the entry was replaced; <c>false</c> when it changed or was
         /// removed since <paramref name="current"/> was read.
         /// </returns>
+        /// <exception cref="System.NotSupportedException">The store cannot compare and swap atomically.</exception>
         ValueTask<bool> TryReplaceAsync(
             SharedSessionEntry current,
             SharedSessionEntry replacement,
@@ -102,6 +81,7 @@ namespace Opc.Ua.Redundancy.Server
         /// <c>true</c> when the entry was removed; <c>false</c> when it changed or was
         /// already removed.
         /// </returns>
+        /// <exception cref="System.NotSupportedException">The store cannot compare and swap atomically.</exception>
         ValueTask<bool> TryRemoveAsync(SharedSessionEntry current, CancellationToken ct = default);
 
         /// <summary>

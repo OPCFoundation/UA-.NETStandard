@@ -1,31 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using System.Threading;
@@ -58,8 +32,7 @@ namespace Opc.Ua.WotCon.Tests.RuntimeNodeSet
         [TestCase(true)]
         public async Task StoredRegistryMaterializesBeforeRegistrationReturnsAsync(bool populated)
         {
-            await m_server.NodeManagerLifecycle.RemoveAsync(
-                m_registryRegistration, callerContext: null).ConfigureAwait(false);
+            await RemoveRegistryAndRetireAsync(m_registryRegistration, CancellationToken.None).ConfigureAwait(false);
             m_coordinator.Dispose();
             m_registry.Dispose();
             int registrationsBefore = m_server.NodeManagerLifecycle.Registrations.Count;
@@ -91,8 +64,8 @@ namespace Opc.Ua.WotCon.Tests.RuntimeNodeSet
                 m_registry, host, documentConverter: new SensorConverter());
             var factory = new WotRegistryNodeManagerFactory(m_options, m_registry, m_coordinator);
             using var cancellation = new CancellationTokenSource(TimeSpan.FromSeconds(20));
-            m_registryRegistration = await m_server.NodeManagerLifecycle
-                .AddAsync(factory, callerContext: null, cancellation.Token).ConfigureAwait(false);
+            m_registryRegistration = RequireStartupRegistration(await m_server.NodeManagerLifecycle
+                .ApplyAsync([LifecycleChange.Add(factory)], cancellation.Token).ConfigureAwait(false));
 
             Assert.That(host.DeadlineExpired, Is.False,
                 "Startup must not wait for its own lifecycle registration gate.");
@@ -111,10 +84,19 @@ namespace Opc.Ua.WotCon.Tests.RuntimeNodeSet
             }
         }
 
+        /// <summary>
+        /// Deadline the projection host wrappers put on each projection call to turn a lifecycle self-wait into
+        /// a <c>DeadlineExpired</c> failure instead of a hang. A self-wait never completes, so the deadline only
+        /// has to fire before the tests' 20 s budgets. It must not be tight: the wrapped commit includes the
+        /// registry store's write-through flush, which .NET Framework queues to the thread pool, and that took
+        /// more than 5 s on a loaded CI runner and was cancelled mid-commit.
+        /// </summary>
+        private static readonly TimeSpan s_projectionDeadline = TimeSpan.FromSeconds(15);
+
         private NodeManagerRegistration m_registryRegistration = null!;
         private FileWotRegistryStore? m_startupStore;
 
-        private sealed class DeadlineProjectionHost(IWotInvocationProjectionHost inner) : IWotInvocationProjectionHost
+        private sealed class DeadlineProjectionHost(IWotReadinessProjectionHost inner) : IWotReadinessProjectionHost
         {
             public int AddCalls => Volatile.Read(ref m_addCalls);
 
@@ -133,6 +115,11 @@ namespace Opc.Ua.WotCon.Tests.RuntimeNodeSet
             public IWotProjectionPublicationCapture CapturePublication()
             {
                 return new DeadlineCapture(this, inner.CapturePublication());
+            }
+
+            public IWotProjectionPublicationCapture CapturePublication(NodeManagerReadinessContext readiness)
+            {
+                return new DeadlineCapture(this, inner.CapturePublication(readiness));
             }
 
             /// <summary>
@@ -198,7 +185,8 @@ namespace Opc.Ua.WotCon.Tests.RuntimeNodeSet
             /// </summary>
             /// <param name="handle">The WoT projection handle.</param>
             /// <param name="cancellationToken">The cancellation token supplied by the caller.</param>
-            public ValueTask RemoveAsync(WotProjectionHandle handle, CancellationToken cancellationToken = default)
+            public ValueTask<LifecycleResult?> RemoveAsync(
+                WotProjectionHandle handle, CancellationToken cancellationToken = default)
             {
                 return inner.RemoveAsync(handle, cancellationToken);
             }
@@ -218,7 +206,7 @@ namespace Opc.Ua.WotCon.Tests.RuntimeNodeSet
                 Func<CancellationToken, ValueTask<T>> action, CancellationToken cancellationToken)
             {
                 using var deadline = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-                deadline.CancelAfter(TimeSpan.FromSeconds(5));
+                deadline.CancelAfter(s_projectionDeadline);
                 try
                 {
                     return await action(deadline.Token).ConfigureAwait(false);
@@ -322,8 +310,13 @@ namespace Opc.Ua.WotCon.Tests.RuntimeNodeSet
             }
 
             private sealed class DeadlinePublication(
-                DeadlineProjectionHost owner, IWotPreparedProjectionPublication inner) : IWotPreparedProjectionPublication
+                DeadlineProjectionHost owner, IWotPreparedProjectionPublication inner)
+                : IWotPreparedProjectionPublication, IWotPreparedProjectionNamespaceSource
             {
+                /// <inheritdoc/>
+                public ArrayOf<string> CapturedNamespaceUris =>
+                    (inner as IWotPreparedProjectionNamespaceSource)?.CapturedNamespaceUris ?? [];
+
                 /// <summary>
                 /// Gets the projections for <c>DeadlinePublication</c>.
                 /// </summary>
@@ -343,6 +336,9 @@ namespace Opc.Ua.WotCon.Tests.RuntimeNodeSet
                 /// Gets the cleanup failure for <c>DeadlinePublication</c>.
                 /// </summary>
                 public Exception? CleanupFailure => inner.CleanupFailure;
+
+                /// <inheritdoc/>
+                public Task Retired => inner.Retired;
 
                 public void BindReadImages(ArrayOf<INodeManagerReadImage> images)
                 {

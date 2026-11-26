@@ -1,32 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using System.Collections.Generic;
@@ -62,7 +35,6 @@ namespace Opc.Ua.WotCon.Tests.Materialization
     [Category("WoT")]
     [Category("WotCon")]
     [Category("Integration")]
-    [NonParallelizable]
     public sealed class WotProjectionViewCanonicalLiveTests
     {
         /// <summary>
@@ -637,12 +609,12 @@ namespace Opc.Ua.WotCon.Tests.Materialization
         }
 
         /// <summary>
-        /// Verifies that canonical batch retirement honors the captured browse image.
+        /// Verifies that canonical batch retirement invalidates the captured browse continuation.
         /// </summary>
         /// <param name="immediate">The immediate flag for this test case.</param>
         [TestCase(false)]
         [TestCase(true)]
-        public async Task CanonicalBatchRetirementHonorsTheCapturedBrowseImageAsync(bool immediate)
+        public async Task CanonicalBatchRetirementInvalidatesTheCapturedBrowseContinuationAsync(bool immediate)
         {
             await using NativeHarness harness = await NativeHarness.CreateAsync(withGraphResources: true)
                 .ConfigureAwait(false);
@@ -658,33 +630,16 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             BrowseResult first = await harness.BrowseInViewAsync(child, child, 1, 1).ConfigureAwait(false);
             Assert.That(first.StatusCode, Is.EqualTo(StatusCodes.Good));
             Assert.That(first.ContinuationPoint.IsNull, Is.False);
-            var retained = new List<NodeId>(first.References.ToArray()!.Select(harness.Target));
             WotCanonicalViewState changed = WotProjectionViewBuilder.PrepareCanonicalGraph(context, initial,
                 [harness.GraphRequest("child", child, [number, product], [])], []).State;
 
             await harness.PublishCanonicalBatchAsync(changed, registration, immediate).ConfigureAwait(false);
 
-            ByteString continuation = first.ContinuationPoint;
-            do
-            {
-                BrowseNextResponse response = await harness.Session.BrowseNextAsync(
-                    null, false, [continuation], CancellationToken.None).ConfigureAwait(false);
-                BrowseResult next = response.Results[0];
-                if (immediate)
-                {
-                    Assert.That(next.StatusCode, Is.EqualTo(StatusCodes.BadContinuationPointInvalid));
-                    Assert.That(next.References.IsEmpty, Is.True);
-                    break;
-                }
-                Assert.That(next.StatusCode, Is.EqualTo(StatusCodes.Good));
-                retained.AddRange(next.References.ToArray()!.Select(harness.Target));
-                continuation = next.ContinuationPoint;
-            }
-            while (!continuation.IsNull && continuation.Length != 0);
-            if (!immediate)
-            {
-                Assert.That(retained, Is.EquivalentTo(new[] { reading, number, product }));
-            }
+            BrowseNextResponse response = await harness.Session.BrowseNextAsync(
+                null, false, [first.ContinuationPoint], CancellationToken.None).ConfigureAwait(false);
+            BrowseResult next = response.Results[0];
+            Assert.That(next.StatusCode, Is.EqualTo(StatusCodes.BadContinuationPointInvalid));
+            Assert.That(next.References.IsEmpty, Is.True);
             BrowseResult current = await harness.BrowseInViewAsync(child, child, 2).ConfigureAwait(false);
             Assert.That(current.StatusCode, Is.EqualTo(StatusCodes.Good));
             Assert.That(current.References.ToArray()!.Select(harness.Target),
@@ -1026,7 +981,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             WotRegistrySnapshot snapshot = harness.Registry.Current;
             var factory = new BlockingSourceFactory();
             var views = new Mock<IWotPreparedViewPublication>();
-            ArrayOf<NodeManagerBatchChange> changes = [NodeManagerBatchChange.Add(factory)];
+            ArrayOf<LifecycleChange> changes = [LifecycleChange.Add(factory)];
             views.SetupGet(value => value.Changes).Returns(changes);
 
             await Assert.ThatAsync(async () =>
@@ -1138,7 +1093,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             ByteString expected = ByteString.From(Enumerable.Range(0, 32).Select(value => (byte)value).ToArray());
             var factory = new CapturedDigestFactory(
                 resource, expected, separateNamespace ? "urn:c2:custom-views" : Namespaces.WotCon);
-            await harness.Lifecycle.AddAsync(factory, callerContext: null).ConfigureAwait(false);
+            await harness.Lifecycle.ApplyAsync([LifecycleChange.Add(factory)]).ConfigureAwait(false);
             NodeId property = harness.Target((await harness.BrowseAsync(resource, Ua.ReferenceTypeIds.HasProperty)
                 .ConfigureAwait(false)).ToList().Single(reference => reference.BrowseName ==
                     new QualifiedName("ProjectionMembershipDigest", harness.NamespaceIndex)));
@@ -1312,7 +1267,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             ushort oldNamespace;
             await using (NativeHarness harness = await NativeHarness.CreateAsync(
                 withGraphResources: true, retirementPolicy: immediate
-                    ? WotProjectionRetirementPolicy.Immediate : WotProjectionRetirementPolicy.Graceful)
+                    ? WotProjectionRetirementPolicy.Invalidate : WotProjectionRetirementPolicy.Migrate)
                 .ConfigureAwait(false))
             {
                 NodeId child = harness.Identity("urn:c2:native-views", "Child");
@@ -1703,7 +1658,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 m_directory = Path.Combine(
                     Path.GetTempPath(), "UaWotC2", Guid.NewGuid().ToString("N"));
                 m_storage = new PreparedWotTestStorage(Path.Combine(m_directory, "registry"));
-                m_fixture = new ServerFixture<ReferenceServer>(context => new ReferenceServer(context))
+                m_fixture = new ServerFixture<StandardServer>(context => new StandardServer(context))
                 {
                     UriScheme = Utils.UriSchemeOpcTcp,
                     AutoAccept = true,
@@ -1760,7 +1715,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             /// <param name="retirementPolicy">The retirement policy.</param>
             public static async Task<NativeHarness> CreateAsync(
                 bool withGraphResources = false, bool rebaseNamespaces = false,
-                WotProjectionRetirementPolicy retirementPolicy = WotProjectionRetirementPolicy.Graceful)
+                WotProjectionRetirementPolicy retirementPolicy = WotProjectionRetirementPolicy.Migrate)
             {
                 var harness = new NativeHarness();
                 try
@@ -1822,7 +1777,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             public async Task<BlockingSource> AddBlockingSourceAsync()
             {
                 var factory = new BlockingSourceFactory();
-                await Lifecycle.AddAsync(factory, callerContext: null).ConfigureAwait(false);
+                await Lifecycle.ApplyAsync([LifecycleChange.Add(factory)]).ConfigureAwait(false);
                 return factory.Created;
             }
 
@@ -1948,10 +1903,22 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             public async Task<NodeManagerRegistration> PublishCanonicalAsync(
                 WotCanonicalViewState state, NodeManagerRegistration? previous = null)
             {
-                IAsyncNodeManagerFactory factory = WotProjectionViewBuilder.CreateCanonicalNodeManagerFactory(state, previous);
-                return previous is null
-                    ? await m_server!.NodeManagerLifecycle.AddAsync(factory, callerContext: null).ConfigureAwait(false)
-                    : await m_server!.NodeManagerLifecycle.ShadowReloadAsync(previous, factory).ConfigureAwait(false);
+                IAsyncNodeManagerFactory factory = WotProjectionViewBuilder.CreateCanonicalNodeManagerFactory(
+                    state, previous);
+                ILifecycleCapture capture = m_server!.NodeManagerLifecycle.CaptureChanges();
+                await using ILifecycleWriter writer = await capture.BeginAsync().ConfigureAwait(false);
+                if (previous is not null && !IsCurrent(previous))
+                {
+                    throw new InvalidOperationException("The canonical owner is stale.");
+                }
+                await using IPreparedChanges prepared = await writer.PrepareAsync(
+                    [previous is null ? LifecycleChange.Add(factory) : LifecycleChange.Reload(previous.Slot, factory)])
+                    .ConfigureAwait(false);
+                LifecycleResult result = await prepared.CommitAsync().ConfigureAwait(false);
+                Assert.That(result.CleanupFailure, Is.Null);
+                Assert.That(result.Registrations[0].TryGetRegistration(out NodeManagerRegistration? registration),
+                    Is.True);
+                return registration!;
             }
 
             /// <summary>
@@ -1959,11 +1926,16 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             /// </summary>
             /// <param name="state">The WoT canonical view state.</param>
             /// <param name="previous">The node manager registration.</param>
-            public ValueTask<NodeManagerRegistration> AddCanonicalAsync(
+            public async ValueTask<NodeManagerRegistration> AddCanonicalAsync(
                 WotCanonicalViewState state, NodeManagerRegistration previous)
             {
-                return m_server!.NodeManagerLifecycle.AddAsync(
-                    WotProjectionViewBuilder.CreateCanonicalNodeManagerFactory(state, previous), callerContext: null);
+                LifecycleResult result = await m_server!.NodeManagerLifecycle.ApplyAsync(
+                    [LifecycleChange.Add(WotProjectionViewBuilder.CreateCanonicalNodeManagerFactory(state, previous))])
+                    .ConfigureAwait(false);
+                Assert.That(result.CleanupFailure, Is.Null);
+                Assert.That(result.Registrations[0].TryGetRegistration(out NodeManagerRegistration? registration),
+                    Is.True);
+                return registration!;
             }
 
             /// <summary>
@@ -1974,11 +1946,11 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             public async Task PrepareCanonicalAdditionAsync(
                 WotCanonicalViewState state, NodeManagerRegistration previous)
             {
-                var lifecycle = (INodeManagerBatchLifecycle)m_server!.NodeManagerLifecycle;
+                INodeManagerLifecycle lifecycle = m_server!.NodeManagerLifecycle;
                 IAsyncNodeManagerFactory factory = WotProjectionViewBuilder.CreateCanonicalNodeManagerFactory(
                     state, previous);
-                IPreparedNodeManagerBatch prepared = await lifecycle.PrepareAsync(
-                    [NodeManagerBatchChange.Add(factory)]).ConfigureAwait(false);
+                IPreparedChanges prepared = await lifecycle.PrepareAsync(
+                    [LifecycleChange.Add(factory)]).ConfigureAwait(false);
                 await prepared.DisposeAsync().ConfigureAwait(false);
             }
 
@@ -1991,14 +1963,21 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             public async Task PublishCanonicalBatchAsync(
                 WotCanonicalViewState state, NodeManagerRegistration previous, bool immediate)
             {
-                var lifecycle = (INodeManagerBatchLifecycle)m_server!.NodeManagerLifecycle;
-                IPreparedNodeManagerBatch prepared = await lifecycle.PrepareAsync(
-                    [NodeManagerBatchChange.Replace(previous,
-                        WotProjectionViewBuilder.CreateCanonicalNodeManagerFactory(state, previous), immediate)])
+                ILifecycleCapture capture = m_server!.NodeManagerLifecycle.CaptureChanges();
+                await using ILifecycleWriter writer = await capture.BeginAsync().ConfigureAwait(false);
+                if (!IsCurrent(previous))
+                {
+                    throw new InvalidOperationException("The canonical owner is stale.");
+                }
+                IPreparedChanges prepared = await writer.PrepareAsync(
+                    [LifecycleChange.Reload(previous.Slot,
+                        WotProjectionViewBuilder.CreateCanonicalNodeManagerFactory(state, previous),
+                        immediate ? NodeManagerMonitoredItemTransitionMode.Invalidate
+                            : NodeManagerMonitoredItemTransitionMode.Migrate)])
                     .ConfigureAwait(false);
                 await using (prepared.ConfigureAwait(false))
                 {
-                    NodeManagerBatchResult result = await prepared.CommitAsync(_ => default).ConfigureAwait(false);
+                    LifecycleResult result = await prepared.CommitAsync(_ => default).ConfigureAwait(false);
                     Assert.That(result.CleanupFailure, Is.Null);
                 }
             }
@@ -2192,6 +2171,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 TestContext.Out.WriteLine(
                     $"C2_RUNTIME framework={RuntimeInformation.FrameworkDescription};clr={Environment.Version};" +
                     $"serverGC={GCSettings.IsServerGC};architecture={RuntimeInformation.ProcessArchitecture}");
+                await WotTestPki.SeedAsync<StandardServer>(m_directory, telemetry => new StandardServer(telemetry), 0).ConfigureAwait(false);
                 m_server = await m_fixture.StartAsync(m_directory).ConfigureAwait(false);
                 if (rebaseNamespaces)
                 {
@@ -2215,9 +2195,13 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                         RequiredRoleId = Ua.ObjectIds.WellKnownRole_Anonymous
                     }
                 };
-                RegistryRegistration = await m_server.NodeManagerLifecycle.AddAsync(
-                    new WotRegistryNodeManagerFactory(options, m_registry, m_coordinator), callerContext: null)
+                LifecycleResult registry = await m_server.NodeManagerLifecycle.ApplyAsync(
+                    [LifecycleChange.Add(new WotRegistryNodeManagerFactory(options, m_registry, m_coordinator))])
                     .ConfigureAwait(false);
+                Assert.That(registry.CleanupFailure, Is.Null);
+                Assert.That(registry.Registrations[0].TryGetRegistration(out NodeManagerRegistration? registration),
+                    Is.True);
+                RegistryRegistration = registration!;
                 if (withGraphResources)
                 {
                     foreach (string resource in new[] { "child", "left", "right" })
@@ -2241,6 +2225,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 }
                 Views = new LifecycleWotViewProjectionHost(m_server.NodeManagerLifecycle, retirementPolicy);
                 m_client = new ClientFixture(false, false, NUnitTelemetryContext.Create());
+                await WotTestPki.SeedAsync(m_directory).ConfigureAwait(false);
                 await m_client.LoadClientConfigurationAsync(m_directory).ConfigureAwait(false);
                 Session = await m_client.ConnectAsync(
                     new Uri($"{Utils.UriSchemeOpcTcp}://localhost:{m_fixture.Port}"),
@@ -2252,9 +2237,9 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             }
 
             private readonly string m_directory;
-            private readonly ServerFixture<ReferenceServer> m_fixture;
+            private readonly ServerFixture<StandardServer> m_fixture;
             private readonly PreparedWotTestStorage m_storage;
-            private ReferenceServer? m_server;
+            private StandardServer? m_server;
             private ClientFixture? m_client;
             private WotRegistryService? m_registry;
             private FileWotRegistryStore? m_store;

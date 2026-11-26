@@ -1,31 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using System.Collections.Generic;
@@ -80,6 +54,11 @@ namespace Opc.Ua.Gds.Server.Database.Linq
         public string? SubjectName { get; set; }
         public string[]? DomainNames { get; set; }
         public string? PrivateKeyFormat { get; set; }
+
+        /// <summary>
+        /// Gets or sets the SHA-256 fingerprint of the client certificate that started this request.
+        /// </summary>
+        public byte[]? ClientCertificateFingerprint { get; set; }
 
         /// <summary>
         /// OPC 10000-12 §7.9.4: the CertificateManager shall not persist the
@@ -146,7 +125,9 @@ namespace Opc.Ua.Gds.Server.Database.Linq
     }
 
     [Serializable]
-    public class LinqApplicationsDatabase : ApplicationsDatabaseBase, ICertificateRequest
+    public class LinqApplicationsDatabase :
+        ApplicationsDatabaseBase,
+        IClientCertificateBoundCertificateRequestStore
     {
         public override void Initialize()
         {
@@ -160,7 +141,7 @@ namespace Opc.Ua.Gds.Server.Database.Linq
 
             string capabilities = ServerCapabilities(application);
 
-            lock (Lock)
+            lock (m_lock)
             {
                 bool existingApplication = (
                     from ii in Applications
@@ -227,7 +208,7 @@ namespace Opc.Ua.Gds.Server.Database.Linq
             Guid applicationId = GetNodeIdGuid(application.ApplicationId);
             string capabilities = ServerCapabilities(application);
 
-            lock (Lock)
+            lock (m_lock)
             {
                 Application? record =
                         (from ii in Applications
@@ -309,7 +290,7 @@ namespace Opc.Ua.Gds.Server.Database.Linq
 
             var certificates = new List<ByteString>();
 
-            lock (Lock)
+            lock (m_lock)
             {
                 Application application =
                     (from ii in Applications where ii.ApplicationId == id select ii)
@@ -358,7 +339,7 @@ namespace Opc.Ua.Gds.Server.Database.Linq
         {
             Guid id = GetNodeIdGuid(applicationId);
 
-            lock (Lock)
+            lock (m_lock)
             {
                 IEnumerable<Application> results = from x in Applications
                                                    where x
@@ -420,7 +401,7 @@ namespace Opc.Ua.Gds.Server.Database.Linq
         {
             base.FindApplications(applicationUri);
 
-            lock (Lock)
+            lock (m_lock)
             {
                 // OPC 10000-12 §6.5.4: the result holds at most the one
                 // application with this ApplicationUri; an empty
@@ -512,7 +493,7 @@ namespace Opc.Ua.Gds.Server.Database.Linq
             nextRecordId = 0;
             var records = new List<ApplicationDescription>();
 
-            lock (Lock)
+            lock (m_lock)
             {
                 IOrderedEnumerable<Application> results =
                     from x in Applications
@@ -657,7 +638,7 @@ namespace Opc.Ua.Gds.Server.Database.Linq
                     productUri,
                     serverCapabilities);
 
-            lock (Lock)
+            lock (m_lock)
             {
                 lastCounterResetTime = QueryCounterResetTime;
                 if (AssignServerEndpointIds())
@@ -752,7 +733,7 @@ namespace Opc.Ua.Gds.Server.Database.Linq
         {
             Guid id = GetNodeIdGuid(applicationId);
 
-            lock (Lock)
+            lock (m_lock)
             {
                 IEnumerable<Application> results = from x in Applications
                                                    where x
@@ -783,7 +764,7 @@ namespace Opc.Ua.Gds.Server.Database.Linq
 
             Guid id = GetNodeIdGuid(applicationId);
 
-            lock (Lock)
+            lock (m_lock)
             {
                 Application application =
                     (from ii in Applications where ii.ApplicationId == id select ii)
@@ -808,7 +789,7 @@ namespace Opc.Ua.Gds.Server.Database.Linq
         {
             Guid id = GetNodeIdGuid(applicationId);
 
-            lock (Lock)
+            lock (m_lock)
             {
                 Application? result = (from x in Applications where x.ApplicationId == id select x)
                     .SingleOrDefault();
@@ -835,7 +816,7 @@ namespace Opc.Ua.Gds.Server.Database.Linq
             trustListId = null;
             Guid id = GetNodeIdGuid(applicationId);
 
-            lock (Lock)
+            lock (m_lock)
             {
                 Application? result = (from x in Applications where x.ApplicationId == id select x)
                     .SingleOrDefault();
@@ -855,9 +836,36 @@ namespace Opc.Ua.Gds.Server.Database.Linq
             ByteString certificateRequest,
             string authorityId)
         {
+            return StartSigningRequestCore(
+                applicationId, certificateGroupId, certificateTypeId, certificateRequest, default, authorityId);
+        }
+
+        /// <inheritdoc/>
+        public NodeId StartBoundSigningRequest(
+            NodeId applicationId,
+            string certificateGroupId,
+            string certificateTypeId,
+            ByteString certificateRequest,
+            ByteString clientCertificateFingerprint,
+            string authorityId)
+        {
+            ValidateClientCertificateFingerprint(clientCertificateFingerprint);
+            return StartSigningRequestCore(
+                applicationId, certificateGroupId, certificateTypeId, certificateRequest,
+                clientCertificateFingerprint, authorityId);
+        }
+
+        private NodeId StartSigningRequestCore(
+            NodeId applicationId,
+            string certificateGroupId,
+            string certificateTypeId,
+            ByteString certificateRequest,
+            ByteString clientCertificateFingerprint,
+            string authorityId)
+        {
             Guid id = GetNodeIdGuid(applicationId);
 
-            lock (Lock)
+            lock (m_lock)
             {
                 Application application =
                     (from x in Applications where x.ApplicationId == id select x).SingleOrDefault()
@@ -867,6 +875,7 @@ namespace Opc.Ua.Gds.Server.Database.Linq
                     id,
                     certificateGroupId,
                     certificateTypeId,
+                    clientCertificateFingerprint,
                     authorityId);
 
                 request.SubjectName = null;
@@ -892,9 +901,43 @@ namespace Opc.Ua.Gds.Server.Database.Linq
             ReadOnlySpan<char> privateKeyPassword,
             string authorityId)
         {
+            return StartNewKeyPairRequestCore(
+                applicationId, certificateGroupId, certificateTypeId, subjectName, domainNames, privateKeyFormat,
+                privateKeyPassword, default, authorityId);
+        }
+
+        /// <inheritdoc/>
+        public NodeId StartBoundNewKeyPairRequest(
+            NodeId applicationId,
+            string certificateGroupId,
+            string certificateTypeId,
+            string subjectName,
+            ArrayOf<string> domainNames,
+            string privateKeyFormat,
+            ReadOnlySpan<char> privateKeyPassword,
+            ByteString clientCertificateFingerprint,
+            string authorityId)
+        {
+            ValidateClientCertificateFingerprint(clientCertificateFingerprint);
+            return StartNewKeyPairRequestCore(
+                applicationId, certificateGroupId, certificateTypeId, subjectName, domainNames, privateKeyFormat,
+                privateKeyPassword, clientCertificateFingerprint, authorityId);
+        }
+
+        private NodeId StartNewKeyPairRequestCore(
+            NodeId applicationId,
+            string certificateGroupId,
+            string certificateTypeId,
+            string subjectName,
+            ArrayOf<string> domainNames,
+            string privateKeyFormat,
+            ReadOnlySpan<char> privateKeyPassword,
+            ByteString clientCertificateFingerprint,
+            string authorityId)
+        {
             Guid id = GetNodeIdGuid(applicationId);
 
-            lock (Lock)
+            lock (m_lock)
             {
                 Application application =
                     (from x in Applications where x.ApplicationId == id select x).SingleOrDefault()
@@ -904,6 +947,7 @@ namespace Opc.Ua.Gds.Server.Database.Linq
                     id,
                     certificateGroupId,
                     certificateTypeId,
+                    clientCertificateFingerprint,
                     authorityId);
 
                 request.SubjectName = subjectName;
@@ -923,7 +967,7 @@ namespace Opc.Ua.Gds.Server.Database.Linq
         {
             Guid id = GetNodeIdGuid(requestId);
 
-            lock (Lock)
+            lock (m_lock)
             {
                 CertificateRequest request =
                     (from x in CertificateRequests where x.RequestId == id select x)
@@ -950,7 +994,7 @@ namespace Opc.Ua.Gds.Server.Database.Linq
         {
             Guid id = GetNodeIdGuid(requestId);
 
-            lock (Lock)
+            lock (m_lock)
             {
                 CertificateRequest request =
                     (from x in CertificateRequests where x.RequestId == id select x)
@@ -978,6 +1022,37 @@ namespace Opc.Ua.Gds.Server.Database.Linq
             out ByteString signedCertificate,
             out ByteString privateKey)
         {
+            return FinishRequestCore(
+                applicationId, requestId, default, enforceClientCertificateBinding: false,
+                out certificateGroupId, out certificateTypeId, out signedCertificate, out privateKey);
+        }
+
+        /// <inheritdoc/>
+        public CertificateRequestState FinishBoundRequest(
+            NodeId applicationId,
+            NodeId requestId,
+            ByteString clientCertificateFingerprint,
+            out string? certificateGroupId,
+            out string? certificateTypeId,
+            out ByteString signedCertificate,
+            out ByteString privateKey)
+        {
+            ValidateClientCertificateFingerprint(clientCertificateFingerprint);
+            return FinishRequestCore(
+                applicationId, requestId, clientCertificateFingerprint, enforceClientCertificateBinding: true,
+                out certificateGroupId, out certificateTypeId, out signedCertificate, out privateKey);
+        }
+
+        private CertificateRequestState FinishRequestCore(
+            NodeId applicationId,
+            NodeId requestId,
+            ByteString clientCertificateFingerprint,
+            bool enforceClientCertificateBinding,
+            out string? certificateGroupId,
+            out string? certificateTypeId,
+            out ByteString signedCertificate,
+            out ByteString privateKey)
+        {
             certificateGroupId = null;
             certificateTypeId = null;
             signedCertificate = default;
@@ -985,9 +1060,19 @@ namespace Opc.Ua.Gds.Server.Database.Linq
             Guid reqId = GetNodeIdGuid(requestId);
             Guid appId = GetNodeIdGuid(applicationId);
 
-            lock (Lock)
+            lock (m_lock)
             {
                 CertificateRequest request = FindApplicationRequest(reqId, appId);
+                if (enforceClientCertificateBinding)
+                {
+                    VerifyClientCertificateBinding(request, clientCertificateFingerprint);
+                }
+                else if (request.ClientCertificateFingerprint != null)
+                {
+                    throw new ServiceResultException(
+                        StatusCodes.BadUserAccessDenied,
+                        "A certificate-bound request must be finished with its initiating client certificate.");
+                }
 
                 switch (request.State)
                 {
@@ -1031,7 +1116,7 @@ namespace Opc.Ua.Gds.Server.Database.Linq
             Guid reqId = GetNodeIdGuid(requestId);
             Guid appId = GetNodeIdGuid(applicationId);
 
-            lock (Lock)
+            lock (m_lock)
             {
                 CertificateRequest request = FindApplicationRequest(reqId, appId);
 
@@ -1064,8 +1149,36 @@ namespace Opc.Ua.Gds.Server.Database.Linq
             }
         }
 
+        /// <summary>
+        /// Saves a complete database while excluding concurrent changes to its records.
+        /// </summary>
         public virtual void Save()
         {
+            lock (m_lock)
+            {
+                SaveCore();
+            }
+        }
+
+        /// <summary>
+        /// Writes the complete database to its backing store.
+        /// </summary>
+        protected virtual void SaveCore()
+        {
+        }
+
+        /// <summary>
+        /// Assigns missing endpoint identifiers and saves the database if identifiers were added.
+        /// </summary>
+        internal void MigrateServerEndpointIds()
+        {
+            lock (m_lock)
+            {
+                if (AssignServerEndpointIds())
+                {
+                    Save();
+                }
+            }
         }
 
         /// <summary>
@@ -1079,6 +1192,7 @@ namespace Opc.Ua.Gds.Server.Database.Linq
             Guid applicationId,
             string certificateGroupId,
             string certificateTypeId,
+            ByteString clientCertificateFingerprint,
             string authorityId)
         {
             CertificateRequest? request = (
@@ -1105,7 +1219,33 @@ namespace Opc.Ua.Gds.Server.Database.Linq
             request.RequestId = Guid.NewGuid();
             request.State = (int)CertificateRequestState.New;
             request.Certificate = null;
+            request.ClientCertificateFingerprint = clientCertificateFingerprint.IsEmpty
+                ? null
+                : clientCertificateFingerprint.Span.ToArray();
             return request;
+        }
+
+        private static void ValidateClientCertificateFingerprint(ByteString clientCertificateFingerprint)
+        {
+            if (clientCertificateFingerprint.Length != 32)
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadSecurityChecksFailed,
+                    "A valid SHA-256 client certificate fingerprint is required.");
+            }
+        }
+
+        private static void VerifyClientCertificateBinding(
+            CertificateRequest request,
+            ByteString clientCertificateFingerprint)
+        {
+            if (request.ClientCertificateFingerprint is not { Length: 32 } fingerprint ||
+                !fingerprint.AsSpan().SequenceEqual(clientCertificateFingerprint.Span))
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadUserAccessDenied,
+                    "The certificate request belongs to a different client certificate.");
+            }
         }
 
         /// <summary>
@@ -1138,7 +1278,7 @@ namespace Opc.Ua.Gds.Server.Database.Linq
 
         private void SaveChanges()
         {
-            lock (Lock)
+            lock (m_lock)
             {
                 QueryCounterResetTime = DateTime.UtcNow;
                 // assign IDs to new apps
@@ -1167,7 +1307,7 @@ namespace Opc.Ua.Gds.Server.Database.Linq
         /// identifier. Identifiers are not reused after an endpoint is removed.
         /// </summary>
         /// <returns><c>true</c> if an identifier was assigned.</returns>
-        internal bool AssignServerEndpointIds()
+        private bool AssignServerEndpointIds()
         {
             uint endpointMax = LastServerEndpointId;
             bool unassigned = false;
@@ -1197,15 +1337,15 @@ namespace Opc.Ua.Gds.Server.Database.Linq
             return pattern == null || (!string.IsNullOrEmpty(value) && pattern.IsMatch(value));
         }
 
+        /// <summary>
+        /// Restores nonserialized database state before the deserialized database is used.
+        /// </summary>
         [OnDeserialized]
-        internal void OnDeserializedMethod(StreamingContext context)
+        private void OnDeserializedMethod(StreamingContext context)
         {
-            Lock = new object();
+            m_lock = new System.Threading.Lock();
             QueryCounterResetTime = DateTime.UtcNow;
         }
-
-        [NonSerialized]
-        internal object Lock = new();
 
         [NonSerialized]
         internal DateTime QueryCounterResetTime = DateTime.UtcNow;
@@ -1231,5 +1371,9 @@ namespace Opc.Ua.Gds.Server.Database.Linq
 
         [JsonInclude]
         internal ICollection<CertificateStore> CertificateStores = new HashSet<CertificateStore>();
+
+        /// <summary>The private owner of synchronization for database records and persistence.</summary>
+        [NonSerialized]
+        private System.Threading.Lock m_lock = new();
     }
 }

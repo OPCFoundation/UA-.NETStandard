@@ -1,31 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using System.Threading;
@@ -59,6 +33,11 @@ namespace Opc.Ua.Gds.Client
         public int MaximumFinishAttempts { get; set; } = 3;
 
         /// <summary>
+        /// Gets or sets the maximum new key-pair requests started after FinishRequest reports Bad_InvalidArgument.
+        /// </summary>
+        public int MaximumNewKeyPairRestarts { get; set; } = 1;
+
+        /// <summary>
         /// Gets or sets the delay between pending certificate request checks and retries of transport failures.
         /// </summary>
         public TimeSpan FinishRetryDelay { get; set; } = TimeSpan.FromSeconds(1);
@@ -85,6 +64,11 @@ namespace Opc.Ua.Gds.Client
     /// <summary>
     /// The registrar's native identity selection.
     /// </summary>
+    /// <remarks>
+    /// The pull workflow copies standard device and composite tickets and their authorities.
+    /// It rejects derived ticket or authority types with <see cref="StatusCodes.BadNotSupported"/>
+    /// before activating the selected identity.
+    /// </remarks>
     public sealed record PullDcaIdentitySelection(
         ByteString SelectedIdentity,
         BaseTicketType MatchingTicket,
@@ -102,7 +86,29 @@ namespace Opc.Ua.Gds.Client
     public sealed record PullDcaManagedApplication(
         ApplicationRecordDataType Application,
         string ProtocolUri,
-        PullDcaCertificateProfile CertificateProfile);
+        PullDcaCertificateProfile CertificateProfile)
+    {
+        /// <summary>
+        /// Gets the certificate request mode for this application.
+        /// </summary>
+        public PullDcaCertificateRequestMode CertificateRequestMode { get; init; }
+    }
+
+    /// <summary>
+    /// Selects whether the registrar signs a locally generated key or creates a new key pair.
+    /// </summary>
+    public enum PullDcaCertificateRequestMode
+    {
+        /// <summary>
+        /// Signs a CSR for a private key retained by the host.
+        /// </summary>
+        SigningRequest,
+
+        /// <summary>
+        /// Creates a new key pair at the certificate manager and returns its PFX from FinishRequest.
+        /// </summary>
+        NewKeyPairRequest
+    }
 
     /// <summary>
     /// Inputs for one pull onboarding operation; no lifecycle state is implicitly persisted.
@@ -110,7 +116,13 @@ namespace Opc.Ua.Gds.Client
     public sealed record PullDcaRequest(
         PullDcaIdentityOffer IdentityOffer,
         PullDcaCertificateProfile DcaCertificateProfile,
-        ArrayOf<PullDcaManagedApplication> ManagedApplications);
+        ArrayOf<PullDcaManagedApplication> ManagedApplications)
+    {
+        /// <summary>
+        /// Gets the certificate request mode for the DCA.
+        /// </summary>
+        public PullDcaCertificateRequestMode DcaCertificateRequestMode { get; init; }
+    }
 
     /// <summary>
     /// A locally generated key's issued certificate, issuer chain and downloaded trust list.
@@ -299,11 +311,208 @@ namespace Opc.Ua.Gds.Client
         /// <summary>
         /// Installs and validates issued credentials and trust through the host's certificate stores.
         /// For the DCA, updates the application configuration used by the borrowed managed session.
+        /// Validates the issued certificate and issuer chain against the complete trust list in
+        /// <paramref name="credentials"/> before installing that same credential set. Prior validation
+        /// of a recovered assignment does not validate the trust list supplied for installation.
         /// Returns only after installation; a receipt without installation is not success.
         /// </summary>
         ValueTask InstallAsync(
             NodeId applicationId,
             PullDcaCredentials credentials,
+            CancellationToken cancellationToken = default);
+    }
+
+    /// <summary>
+    /// Installs a private key pair returned by OPC 10000-12 StartNewKeyPairRequest.
+    /// </summary>
+    /// <remarks>
+    /// The private key is supplied as the PFX returned by FinishRequest, without a password. Implementations must
+    /// validate that it contains the supplied certificate and matching private key, then retain it only through the
+    /// configured certificate-store infrastructure. They must not persist it through a signing receipt, log it, or
+    /// write it to an unprotected temporary file. The workflow does not retry this operation after failure.
+    /// </remarks>
+    public interface IPullDcaNewKeyPairCredentialProvider
+    {
+        /// <summary>
+        /// Validates and installs the issued certificate and returned private key through host-owned stores.
+        /// Returns only after verifying that the installed certificate and private key are available for use.
+        /// Repeating the operation for the same certificate and private key must be safe.
+        /// </summary>
+        ValueTask InstallNewKeyPairAsync(
+            NodeId applicationId,
+            PullDcaCertificateProfile profile,
+            PullDcaCredentials credentials,
+            ByteString privateKeyPfx,
+            CancellationToken cancellationToken = default);
+    }
+
+    /// <summary>
+    /// Identifies the registrar channel and application scope of a new key-pair recovery attempt.
+    /// </summary>
+    public sealed record PullDcaNewKeyPairRecoveryScope(
+        PullDcaRegistrar Registrar,
+        NodeId ApplicationId,
+        PullDcaCertificateProfile Profile,
+        ByteString ClientChannelCertificate,
+        ByteString RegistrarChannelCertificate,
+        string RegistrarApplicationUri,
+        ArrayOf<string> NamespaceUris);
+
+    /// <summary>
+    /// Identifies one new key-pair request. A null <see cref="RequestId"/> is valid only before dispatch returns.
+    /// </summary>
+    public sealed record PullDcaNewKeyPairRecoveryBinding(
+        PullDcaNewKeyPairRecoveryScope Scope,
+        NodeId RequestId,
+        Guid AttemptId);
+
+    /// <summary>
+    /// Durable state of a new key-pair request.
+    /// </summary>
+    public enum PullDcaNewKeyPairRecoveryState
+    {
+        /// <summary>
+        /// The attempt was durably recorded before dispatch, but the request identifier was not durably recorded.
+        /// The dispatch outcome is unknown and the request must not be sent again automatically.
+        /// </summary>
+        Dispatching,
+
+        /// <summary>
+        /// The request identifier was durably recorded and the registrar has not returned credentials.
+        /// </summary>
+        Started,
+
+        /// <summary>
+        /// The certificate, issuer chain, and protected private-key PFX were durably received.
+        /// </summary>
+        Received
+    }
+
+    /// <summary>
+    /// A detached snapshot of one recoverable new key-pair attempt.
+    /// </summary>
+    public sealed record PullDcaNewKeyPairRecoveryAttempt(
+        PullDcaNewKeyPairRecoveryBinding Binding,
+        PullDcaNewKeyPairRecoveryState State,
+        ByteString Certificate,
+        ArrayOf<ByteString> IssuerCertificates,
+        ByteString PrivateKeyPfx)
+    {
+        /// <summary>
+        /// Returns a diagnostic representation without exposing private-key material.
+        /// </summary>
+        public override string ToString()
+        {
+            return $"{nameof(PullDcaNewKeyPairRecoveryAttempt)} {{ State = {State}, PrivateKeyPfx = [REDACTED] }}";
+        }
+    }
+
+    /// <summary>
+    /// Persists request-bound recovery for OPC 10000-12 new key-pair provisioning.
+    /// </summary>
+    /// <remarks>
+    /// Implementations must provide atomic, durable transitions and enforce a single active writer for their scope
+    /// within the host process. A plain <see cref="ISecretStore"/> is not sufficient unless the selected store and
+    /// adapter provide those guarantees. The private-key PFX must be protected secret material, never a signing
+    /// receipt, log entry, or unprotected temporary file. Implementations must return detached snapshots.
+    /// </remarks>
+    public interface IPullDcaNewKeyPairRecoveryProvider
+    {
+        /// <summary>
+        /// Returns the active attempt for the exact recovery scope, or null when no attempt exists.
+        /// A scope mismatch or ambiguous state must throw rather than appear as an empty scope.
+        /// </summary>
+        ValueTask<PullDcaNewKeyPairRecoveryAttempt?> GetPendingAsync(
+            PullDcaNewKeyPairRecoveryScope scope,
+            CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Atomically records a new attempt before StartNewKeyPairRequest is dispatched.
+        /// The request identifier must be null and the attempt identifier must be non-empty.
+        /// </summary>
+        ValueTask RecordDispatchAsync(
+            PullDcaNewKeyPairRecoveryBinding binding,
+            CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Durably records the request identifier returned by StartNewKeyPairRequest.
+        /// </summary>
+        ValueTask RecordStartedAsync(
+            PullDcaNewKeyPairRecoveryBinding binding,
+            CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Durably retains the complete FinishRequest response and private-key PFX before trust retrieval or install.
+        /// </summary>
+        ValueTask RecordReceivedAsync(
+            PullDcaNewKeyPairRecoveryBinding binding,
+            ByteString certificate,
+            ArrayOf<ByteString> issuerCertificates,
+            ByteString privateKeyPfx,
+            CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Retires a started attempt after Part 12 reports that its accepted FinishRequest response was lost,
+        /// allowing the workflow to issue a fresh key-pair request.
+        /// </summary>
+        ValueTask RetireLostRequestAsync(
+            PullDcaNewKeyPairRecoveryBinding binding,
+            CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Marks installation verified and retires the stored private-key PFX.
+        /// The installed certificate must match the attempt's received certificate.
+        /// </summary>
+        ValueTask CompleteAsync(
+            PullDcaNewKeyPairRecoveryBinding binding,
+            ByteString installedCertificate,
+            CancellationToken cancellationToken = default);
+    }
+
+    /// <summary>
+    /// Installs credentials only for the exact signing attempt retained by the host.
+    /// </summary>
+    public interface IPullDcaBoundCredentialProvider
+    {
+        /// <summary>
+        /// Verifies the supplied signing binding and validates the issued certificate and issuer chain
+        /// against the complete trust list in <paramref name="credentials"/> before installing that same
+        /// credential set, including when resuming a journaled request.
+        /// </summary>
+        ValueTask InstallAsync(
+            PullDcaSigningBinding binding,
+            PullDcaCredentials credentials,
+            CancellationToken cancellationToken = default);
+    }
+
+    /// <summary>
+    /// Executes the installed DCA's manager request within a host-owned deployment operation.
+    /// </summary>
+    public interface IPullDcaInstalledManagerOperation
+    {
+        /// <summary>
+        /// Validates the installed attempt, invokes the supplied manager request once, and returns its result.
+        /// </summary>
+        ValueTask<ArrayOf<ManagerDescription>> ExecuteAsync(
+            PullDcaSigningBinding binding,
+            ByteString installedCertificate,
+            Func<CancellationToken, ValueTask<ArrayOf<ManagerDescription>>> getManagers,
+            CancellationToken cancellationToken = default);
+    }
+
+    /// <summary>
+    /// Returns public evidence identifying the private key used for a generated signing request.
+    /// </summary>
+    public interface IPullDcaSigningKeyEvidenceProvider
+    {
+        /// <summary>
+        /// Returns the certificate containing the public key for the specified request.
+        /// An unknown application, profile, or request must cause an error.
+        /// </summary>
+        ValueTask<ByteString> GetSigningKeyCertificateAsync(
+            NodeId applicationId,
+            PullDcaCertificateProfile profile,
+            ByteString signingRequest,
             CancellationToken cancellationToken = default);
     }
 
@@ -314,7 +523,7 @@ namespace Opc.Ua.Gds.Client
     public interface IPullDcaSigningRecoveryProvider
     {
         /// <summary>
-        /// Proves that a currently assigned certificate belongs to the original signing request.
+        /// Validates whether a currently assigned certificate can be accepted for the original signing request.
         /// Implementations verify the retained request's registrar, application, group and type, possession of its
         /// private key, application URI, certificate validity and trust. They must reject stale assignments;
         /// matching a reused public key alone does not prove that the certificate resulted from this request.
@@ -328,6 +537,24 @@ namespace Opc.Ua.Gds.Client
             NodeId requestId,
             PullDcaCertificateProfile profile,
             PullDcaCredentials credentials,
+            CancellationToken cancellationToken = default);
+    }
+
+    /// <summary>
+    /// Records assigned certificates before a signing request is sent.
+    /// </summary>
+    public interface IPullDcaSigningAssignmentsObserver
+    {
+        /// <summary>
+        /// Retains the parallel certificate types and certificates for the supplied dispatch binding.
+        /// The arrays can include other certificate groups when the requested group is not yet assigned.
+        /// A failure prevents the signing request from being sent. A baseline can exclude earlier assignments;
+        /// it cannot establish which remote request produced a later certificate.
+        /// </summary>
+        ValueTask RecordAssignmentsAsync(
+            PullDcaSigningBinding binding,
+            ArrayOf<NodeId> certificateTypes,
+            ArrayOf<ByteString> certificates,
             CancellationToken cancellationToken = default);
     }
 
@@ -349,6 +576,95 @@ namespace Opc.Ua.Gds.Client
             PullDcaCertificateProfile profile,
             ByteString signingRequest,
             CancellationToken cancellationToken = default);
+    }
+
+    /// <summary>
+    /// Identifies a signing request and the channel used to send it.
+    /// Namespace indexes refer to <see cref="NamespaceUris"/>. <see cref="AttemptId"/> distinguishes
+    /// otherwise identical requests across resets and is not sent to the registrar.
+    /// </summary>
+    public sealed record PullDcaSigningBinding(
+        PullDcaRegistrar Registrar,
+        NodeId ApplicationId,
+        NodeId RequestId,
+        PullDcaCertificateProfile Profile,
+        ByteString SigningRequest,
+        ByteString SigningKeyCertificate,
+        ByteString ClientChannelCertificate,
+        ByteString RegistrarChannelCertificate,
+        string RegistrarApplicationUri,
+        ArrayOf<string> NamespaceUris,
+        Guid AttemptId);
+
+    /// <summary>
+    /// Retains signing dispatch and installation evidence for a host that supports recovery.
+    /// This interface does not provide synchronization between implementations or storage scopes.
+    /// </summary>
+    public interface IPullDcaSigningJournal
+    {
+        /// <summary>
+        /// Conditionally records a request before dispatch. The request identifier is null because the
+        /// registrar has not returned it. Only one competing caller may record a request for the same scope.
+        /// A recorded request must not be sent again when its dispatch outcome is unknown.
+        /// </summary>
+        ValueTask RecordDispatchAsync(
+            PullDcaSigningBinding binding,
+            CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Records the registrar's request identifier after StartSigningRequest returns.
+        /// A failure leaves the dispatch outcome unknown and prevents another StartSigningRequest.
+        /// </summary>
+        ValueTask RecordStartedAsync(
+            PullDcaSigningBinding binding,
+            CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Resolves a retained request against the selected session's namespace table.
+        /// An absent namespace, different registrar, application, or request must cause an error.
+        /// </summary>
+        ValueTask<PullDcaSigningBinding> ResolveAsync(
+            PullDcaRegistrar registrar,
+            NodeId applicationId,
+            NodeId requestId,
+            ArrayOf<string> namespaceUris,
+            CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Returns detached received credentials when they were recorded before an interrupted installation.
+        /// Returns null when the complete credentials have not yet been received.
+        /// </summary>
+        ValueTask<PullDcaCredentials?> GetReceivedAsync(
+            PullDcaSigningBinding binding,
+            CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Retains detached certificate, issuer, and complete trust-list data before installation begins.
+        /// </summary>
+        ValueTask RecordReceivedAsync(
+            PullDcaSigningBinding binding,
+            PullDcaCredentials credentials,
+            CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Records completed installation without removing the retained request or received credentials.
+        /// </summary>
+        ValueTask RecordInstalledAsync(
+            PullDcaSigningBinding binding,
+            CancellationToken cancellationToken = default);
+    }
+
+    /// <summary>
+    /// Receives the end of a local signing dispatch, including a failed or cancelled recording.
+    /// </summary>
+    public interface IPullDcaStartDispatchObserver
+    {
+        /// <summary>
+        /// Reports that the Start call and any request identifier publication have finished.
+        /// This notification is sent even if recording fails or the caller cancels the operation.
+        /// An implementation ignores an attempt that did not start a local dispatch.
+        /// </summary>
+        ValueTask OnStartCompletedAsync(Guid attemptId);
     }
 
     /// <summary>

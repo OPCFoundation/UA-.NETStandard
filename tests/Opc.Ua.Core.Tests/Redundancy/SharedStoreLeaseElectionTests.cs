@@ -1,34 +1,9 @@
-/* ========================================================================
- * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using System.Collections.Generic;
+using System.Security.Cryptography;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
@@ -132,6 +107,41 @@ namespace Opc.Ua.Core.Tests.Redundancy
 
             Assert.That(renewed, Is.True);
             Assert.That(a.IsLeader, Is.True);
+        }
+
+        /// <summary>
+        /// The captured writer grant follows renewals, but never a subsequent acquisition.
+        /// </summary>
+        [Test]
+        public async Task WriterFenceFollowsRenewalButNotReacquisitionAsync()
+        {
+            var time = new FakeTimeProvider();
+            using var store = new InMemorySharedKeyValueStore();
+            using var otherStore = new InMemorySharedKeyValueStore();
+            await using SharedStoreLeaseElection a = CreateElection(store, "A", time);
+            await using SharedStoreLeaseElection b = CreateElection(store, "B", time);
+            Assert.That(await a.TryAcquireOrRenewAsync().ConfigureAwait(false), Is.True);
+            Assert.That(a.TryCaptureWriteFence(otherStore, out _, out _), Is.False);
+            Assert.That(a.TryCaptureWriteFence(store, out string key, out Func<SharedStoreWriteGrant>? firstGrant),
+                Is.True);
+            Assert.That(key, Is.EqualTo(LeaseKey));
+            SharedStoreWriteGrant original = firstGrant!();
+            Assert.That(original.Value, Is.EqualTo((await store.TryGetAsync(key).ConfigureAwait(false)).Value));
+            Assert.That(original.Deadline, Is.EqualTo(time.GetUtcNow() + s_leaseDuration));
+
+            time.Advance(s_renewInterval);
+            Assert.That(await a.TryAcquireOrRenewAsync().ConfigureAwait(false), Is.True);
+            Assert.That(firstGrant!().Value, Is.EqualTo((await store.TryGetAsync(key).ConfigureAwait(false)).Value));
+            Assert.That(firstGrant!().Deadline, Is.EqualTo(original.Deadline + s_renewInterval));
+
+            time.Advance(s_leaseDuration);
+            Assert.That(await b.TryAcquireOrRenewAsync().ConfigureAwait(false), Is.True);
+            Assert.That(firstGrant!().Value.IsNull, Is.True);
+            time.Advance(s_leaseDuration);
+            Assert.That(await a.TryAcquireOrRenewAsync().ConfigureAwait(false), Is.True);
+            Assert.That(a.TryCaptureWriteFence(store, out _, out Func<SharedStoreWriteGrant>? secondGrant), Is.True);
+            Assert.That(secondGrant!().Value, Is.EqualTo((await store.TryGetAsync(key).ConfigureAwait(false)).Value));
+            Assert.That(firstGrant!().Value.IsNull, Is.True);
         }
 
         [Test]
@@ -527,11 +537,11 @@ namespace Opc.Ua.Core.Tests.Redundancy
             Assert.That(await election.TryAcquireOrRenewAsync().ConfigureAwait(false), Is.True);
             Assert.That(election.IsLeader, Is.True);
             Assert.That(transitions, Is.EqualTo(s_acquired));
-            TimeSpan remaining = renewedInStore ? s_leaseDuration : s_leaseDuration - s_renewInterval;
+            TimeSpan remaining = s_leaseDuration - s_renewInterval;
             time.Advance(remaining - TimeSpan.FromTicks(1));
             Assert.That(election.IsLeader, Is.True);
             time.Advance(TimeSpan.FromTicks(1));
-            Assert.That(election.IsLeader, Is.False, "A failed CAS cannot invent a later stored expiry.");
+            Assert.That(election.IsLeader, Is.False, "A failed CAS cannot extend the confirmed expiry.");
             Assert.That(transitions, Is.EqualTo(s_acquireThenLoss));
         }
 
@@ -590,53 +600,134 @@ namespace Opc.Ua.Core.Tests.Redundancy
         }
 
         [Test]
-        public async Task AcquireTakesOverWhenStoredLeaseIsTooShortAsync()
+        public async Task UnrecognizedStoredLeaseIsNotVacantAsync()
         {
             var time = new FakeTimeProvider();
             using var store = new InMemorySharedKeyValueStore();
-            // Fewer than four bytes: the lease parser rejects it at the length guard.
-            await store.SetAsync(LeaseKey, new ByteString(new byte[] { 1, 2 })).ConfigureAwait(false);
+            ByteString unrelatedRecord = ByteString.From(new byte[] { 1, 2 });
+            await store.SetAsync(LeaseKey, unrelatedRecord).ConfigureAwait(false);
             await using SharedStoreLeaseElection election = CreateElection(store, "A", time);
 
-            bool acquired = await election.TryAcquireOrRenewAsync().ConfigureAwait(false);
+            Assert.That(await election.TryAcquireOrRenewAsync().ConfigureAwait(false), Is.False);
+            Assert.That(election.IsLeader, Is.False);
+            Assert.That(await store.TryGetAsync(LeaseKey).ConfigureAwait(false), Is.EqualTo((true, unrelatedRecord)));
+        }
 
-            Assert.That(acquired, Is.True);
-            Assert.That(election.IsLeader, Is.True);
+        [TestCase("retired", 30, 0)]
+        [TestCase("B", 300, 0)]
+        [TestCase("B", 30, 300)]
+        public async Task UnknownOrOutOfBoundsLeaseDoesNotPermitTakeoverAsync(
+            string owner, int leaseSeconds, int clockAheadSeconds)
+        {
+            var time = new FakeTimeProvider();
+            using var payload = new InMemorySharedKeyValueStore();
+            using var authority = new InMemorySharedKeyValueStore();
+            using AesCbcHmacRecordProtector protector = CreateProtector();
+            FreshnessProtectedKeyValueStore store = CreateProtectedStore(payload, authority, protector);
+            await store.EnrollAsync().ConfigureAwait(false);
+            var otherTime = new FakeTimeProvider(time.GetUtcNow().AddSeconds(clockAheadSeconds));
+            await using var other = new SharedStoreLeaseElection(store, LeaseKey, owner, ["A", owner],
+                TimeSpan.FromSeconds(leaseSeconds), s_renewInterval, otherTime);
+            await using var election = new SharedStoreLeaseElection(
+                store, LeaseKey, "A", ["A", "B"], s_leaseDuration, s_renewInterval, time);
+            Assert.That(await other.TryAcquireOrRenewAsync().ConfigureAwait(false), Is.True);
+            var original = await store.TryGetAsync(LeaseKey).ConfigureAwait(false);
+
+            Assert.That(await election.TryAcquireOrRenewAsync().ConfigureAwait(false), Is.False);
+            if (clockAheadSeconds == 0)
+            {
+                time.Advance(TimeSpan.FromSeconds(leaseSeconds + 1));
+                Assert.That(await election.TryAcquireOrRenewAsync().ConfigureAwait(false), Is.False);
+            }
+            Assert.That(await store.TryGetAsync(LeaseKey).ConfigureAwait(false), Is.EqualTo(original));
         }
 
         [Test]
-        public async Task AcquireTakesOverWhenStoredLeaseHasInvalidOwnerLengthAsync()
+        public async Task LostAuthorityReplyDoesNotGrantLeadershipAsync()
         {
             var time = new FakeTimeProvider();
-            using var store = new InMemorySharedKeyValueStore();
-            // Declares a 16-byte owner but carries no owner/expiry payload, so the
-            // parser rejects it on the trailing-length guard.
-            await store.SetAsync(LeaseKey, new ByteString(new byte[] { 0x10, 0x00, 0x00, 0x00 })).ConfigureAwait(false);
-            await using SharedStoreLeaseElection election = CreateElection(store, "A", time);
+            using var payload = new InMemorySharedKeyValueStore();
+            using var authority = new InMemorySharedKeyValueStore();
+            using AesCbcHmacRecordProtector protector = CreateProtector();
+            bool loseReply = false;
+            FreshnessProtectedKeyValueStore store =
+                CreateProtectedStore(payload, authority, protector, () => loseReply);
+            await store.EnrollAsync().ConfigureAwait(false);
+            await using var election = new SharedStoreLeaseElection(
+                store, LeaseKey, "A", ["A"], s_leaseDuration, s_renewInterval, time);
+            await using var replacement = new SharedStoreLeaseElection(
+                store, LeaseKey, "A", ["A"], s_leaseDuration, s_renewInterval, time);
+            loseReply = true;
 
-            bool acquired = await election.TryAcquireOrRenewAsync().ConfigureAwait(false);
-
-            Assert.That(acquired, Is.True);
-            Assert.That(election.IsLeader, Is.True);
+            await Assert.ThatAsync(async () => await election.TryAcquireOrRenewAsync().ConfigureAwait(false),
+                Throws.TypeOf<TimeoutException>()).ConfigureAwait(false);
+            loseReply = false;
+            Assert.That(election.IsLeader, Is.False);
+            Assert.That((await store.TryGetAsync(LeaseKey).ConfigureAwait(false)).Found, Is.True);
+            Assert.That(await replacement.TryAcquireOrRenewAsync().ConfigureAwait(false), Is.False);
+            Assert.That(await election.TryAcquireOrRenewAsync().ConfigureAwait(false), Is.True);
         }
 
         [Test]
-        public async Task AcquireTakesOverWhenStoredLeaseOwnerLengthOverflowsAsync()
+        public async Task UnavailableCommittedPayloadIsNotVacantAsync()
         {
             var time = new FakeTimeProvider();
-            using var store = new InMemorySharedKeyValueStore();
-            // An owner length near int.MaxValue must be rejected as unparseable
-            // rather than overflowing the length check and throwing.
-            await store.SetAsync(
-                LeaseKey,
-                new ByteString(new byte[] { 0xF8, 0xFF, 0xFF, 0x7F, 0, 0, 0, 0, 0, 0, 0, 0 }))
-                .ConfigureAwait(false);
-            await using SharedStoreLeaseElection election = CreateElection(store, "A", time);
+            using var payload = new InMemorySharedKeyValueStore();
+            using var authority = new InMemorySharedKeyValueStore();
+            using AesCbcHmacRecordProtector protector = CreateProtector();
+            FreshnessProtectedKeyValueStore store = CreateProtectedStore(payload, authority, protector);
+            await store.EnrollAsync().ConfigureAwait(false);
+            await using var a = new SharedStoreLeaseElection(
+                store, LeaseKey, "A", ["A", "B"], s_leaseDuration, s_renewInterval, time);
+            await using var b = new SharedStoreLeaseElection(
+                store, LeaseKey, "B", ["A", "B"], s_leaseDuration, s_renewInterval, time);
+            Assert.That(await a.TryAcquireOrRenewAsync().ConfigureAwait(false), Is.True);
+            var payloadKeys = new List<string>();
+            await foreach (KeyValuePair<string, ByteString> item in payload.ScanAsync(string.Empty)
+                .ConfigureAwait(false))
+            {
+                payloadKeys.Add(item.Key);
+            }
+            Assert.That(payloadKeys, Has.Count.EqualTo(1));
+            Assert.That(await payload.DeleteAsync(payloadKeys[0]).ConfigureAwait(false), Is.True);
 
-            bool acquired = await election.TryAcquireOrRenewAsync().ConfigureAwait(false);
+            await Assert.ThatAsync(async () => await b.TryAcquireOrRenewAsync().ConfigureAwait(false),
+                Throws.TypeOf<ServiceResultException>()).ConfigureAwait(false);
+            await Assert.ThatAsync(async () => await a.TryAcquireOrRenewAsync().ConfigureAwait(false),
+                Throws.TypeOf<ServiceResultException>()).ConfigureAwait(false);
+            Assert.That(a.IsLeader || b.IsLeader, Is.False);
+        }
 
-            Assert.That(acquired, Is.True);
-            Assert.That(election.IsLeader, Is.True);
+        private static FreshnessProtectedKeyValueStore CreateProtectedStore(
+            ISharedKeyValueStore payload,
+            InMemorySharedKeyValueStore authority,
+            IRecordProtector protector,
+            Func<bool>? loseReply = null)
+        {
+            var shared = new Mock<ISharedKeyValueStore>(MockBehavior.Strict);
+            shared.As<ISharedKeyValueStoreConsistency>()
+                .Setup(store => store.IsLinearizable(It.IsAny<string>())).Returns(true);
+            shared.As<ISharedKeyValueStoreConsistency>()
+                .Setup(store => store.IsProcessLocal(It.IsAny<string>())).Returns(false);
+            shared.Setup(store => store.TryGetAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+                .Returns((string key, CancellationToken ct) => authority.TryGetAsync(key, ct));
+            shared.Setup(store => store.CompareAndSwapAsync(
+                    It.IsAny<string>(), It.IsAny<ByteString>(), It.IsAny<ByteString>(), It.IsAny<CancellationToken>()))
+                .Returns(async (string key, ByteString expected, ByteString value, CancellationToken ct) =>
+                {
+                    bool applied = await authority.CompareAndSwapAsync(key, expected, value, ct).ConfigureAwait(false);
+                    return loseReply?.Invoke() == true ? throw new TimeoutException("Authority reply lost.") : applied;
+                });
+            return new FreshnessProtectedKeyValueStore(
+                payload, shared.Object, protector, Guid.NewGuid(), Guid.NewGuid());
+        }
+
+        private static AesCbcHmacRecordProtector CreateProtector()
+        {
+            using var random = RandomNumberGenerator.Create();
+            var key = new byte[32];
+            random.GetBytes(key);
+            return new AesCbcHmacRecordProtector(key);
         }
 
         [Test]
@@ -1253,8 +1344,10 @@ namespace Opc.Ua.Core.Tests.Redundancy
                 nodeId,
                 s_leaseDuration,
                 renewInterval ?? s_renewInterval,
+                default,
                 timeProvider,
-                logger);
+                logger,
+                isolated: true);
         }
 
         private static async Task WaitWithTimeoutAsync(Task task, string message)

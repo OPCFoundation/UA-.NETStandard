@@ -1,32 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using System.Collections.Generic;
@@ -765,6 +738,106 @@ namespace Opc.Ua.Types.Tests.Wot
                     ("HasComponent", true, "ns=1;i=101")
                 }));
             Assert.That(WotTestData.Serialize(nodeSet), Is.EqualTo(original));
+        }
+
+        /// <summary>
+        /// Nested affordances preserve their actual ownership ReferenceType.
+        /// </summary>
+        [TestCase("HasProperty", false, false)]
+        [TestCase("i=46", false, false)]
+        [TestCase("HasProperty", true, false)]
+        [TestCase("HasProperty", false, true)]
+        [TestCase("HasComponent", false, false)]
+        [TestCase("HasOrderedComponent", false, false)]
+        public void NestedAffordanceDoesNotInventComponentOwnership(
+            string referenceType,
+            bool methodOwner,
+            bool inverseOnly)
+        {
+            bool isProperty = referenceType is "HasProperty" or "i=46";
+            UAInstance owner = methodOwner
+                ? new UAMethod { NodeId = "ns=1;i=101", BrowseName = "1:Start" }
+                : new UAVariable
+                {
+                    NodeId = "ns=1;i=101",
+                    BrowseName = "1:Flow",
+                    DataType = "i=11"
+                };
+            owner.References = inverseOnly ? [] :
+            [
+                new Reference
+                {
+                    ReferenceType = referenceType,
+                    Value = "ns=1;i=102"
+                }
+            ];
+            var child = new UAVariable
+            {
+                NodeId = "ns=1;i=102",
+                BrowseName = "1:Version",
+                ParentNodeId = owner.NodeId,
+                DataType = "i=12",
+                References =
+                [
+                    new Reference
+                    {
+                        ReferenceType = "HasTypeDefinition",
+                        Value = isProperty ? "i=68" : "i=63"
+                    }
+                ]
+            };
+            if (inverseOnly)
+            {
+                child.References =
+                [
+                    .. child.References,
+                    new Reference
+                    {
+                        ReferenceType = referenceType,
+                        IsForward = false,
+                        Value = owner.NodeId
+                    }
+                ];
+            }
+            var nodeSet = new UANodeSet
+            {
+                NamespaceUris = ["http://example.com/demo/pump"],
+                Items =
+                [
+                    TypeWithVariable("ns=1;i=100", "1:PumpType", "ns=1;i=101", "1:Owner"),
+                    owner,
+                    child
+                ]
+            };
+
+            using WotDocument document = WotNodeSetConverter.FromNodeSet(nodeSet);
+            JsonElement property = document.Properties["Version"];
+            Assert.That(property.GetProperty("uav:id").GetString(),
+                Is.EqualTo("nsu=http://example.com/demo/pump;i=102"));
+            Assert.That(property.TryGetProperty("uav:componentOf", out _), Is.EqualTo(!isProperty));
+            if (isProperty)
+            {
+                Assert.That(property.GetProperty("links").EnumerateArray().Any(link =>
+                    link.GetProperty("rel").GetString() == "ua:PropertyOf" &&
+                    link.GetProperty("href").GetString() == "nsu=http://example.com/demo/pump;i=101" &&
+                    link.GetProperty("uav:refId").GetString() == "i=46"), Is.True);
+            }
+
+            using WotDocument readable = StripProjection(document);
+            UANodeSet back = WotNodeSetConverter.ToNodeSet(readable);
+            UAVariable restored = back.Items!.OfType<UAVariable>()
+                .Single(variable => variable.NodeId == child.NodeId);
+            string expectedReferenceType = isProperty ? "HasProperty" : referenceType;
+            Assert.That(restored.ParentNodeId, Is.EqualTo(owner.NodeId));
+            Assert.That(restored.References!.Where(reference => reference.ReferenceType != "HasTypeDefinition")
+                .Select(reference => (reference.ReferenceType, reference.IsForward, reference.Value)),
+                Is.EquivalentTo(new[] { (expectedReferenceType, false, owner.NodeId) }));
+            UANode restoredOwner = back.Items!.Single(node => node.NodeId == owner.NodeId);
+            Assert.That(restoredOwner.References!.Where(reference =>
+                reference.IsForward && reference.Value == child.NodeId)
+                .Select(reference => reference.ReferenceType), Is.EqualTo(new[] { expectedReferenceType }));
+            UAObjectType root = back.Items!.OfType<UAObjectType>().Single();
+            Assert.That(root.References!.Any(reference => reference.Value == child.NodeId), Is.False);
         }
 
         private static WotDocument StripProjection(WotDocument document)

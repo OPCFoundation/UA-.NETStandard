@@ -1,31 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using System.Collections.Generic;
@@ -85,11 +59,6 @@ namespace MemoryBuffer
         public IServerInternal Server { get; private set; } = null!;
 
         /// <summary>
-        /// The node manager that the buffer belongs to.
-        /// </summary>
-        public INodeManager NodeManager { get; private set; } = null!;
-
-        /// <summary>
         /// The built-in type for the values stored in the buffer.
         /// </summary>
         public BuiltInType ElementType { get; private set; }
@@ -108,8 +77,19 @@ namespace MemoryBuffer
         protected override void OnAfterDelete(ISystemContext context)
         {
             base.OnAfterDelete(context);
-            m_scanTimer?.Dispose();
-            m_scanTimer = null;
+            StopScanning();
+        }
+
+        /// <summary>
+        /// Stops the buffer scan.
+        /// </summary>
+        public void StopScanning()
+        {
+            lock (m_dataLock)
+            {
+                m_scanTimer?.Dispose();
+                m_scanTimer = null;
+            }
         }
 
         /// <summary>
@@ -377,151 +357,77 @@ namespace MemoryBuffer
         }
 
         /// <summary>
-        /// Initializes the instance with the context for the node being monitored.
+        /// Initializes the instance with the server that owns the buffer.
         /// </summary>
-        public void InitializeMonitoring(IServerInternal server, INodeManager nodeManager)
+        public void InitializeMonitoring(IServerInternal server)
         {
             lock (m_dataLock)
             {
                 Server = server;
-                NodeManager = nodeManager;
-                m_nonValueMonitoredItems = [];
             }
         }
 
         /// <summary>
-        /// Creates a new data change monitored item.
+        /// Reads the current value of the element at the specified offset.
         /// </summary>
-        public MemoryBufferMonitoredItem CreateDataChangeItem(
-            ServerSystemContext context,
-            MemoryTagState tag,
-            uint subscriptionId,
-            uint monitoredItemId,
-            ReadValueId itemToMonitor,
-            DiagnosticsMasks diagnosticsMasks,
-            TimestampsToReturn timestampsToReturn,
-            MonitoringMode monitoringMode,
-            uint clientHandle,
-            double samplingInterval,
-            bool createDurable)
-        /*
-        ISystemContext context,
-        MemoryTagState tag,
-        uint monitoredItemId,
-        uint attributeId,
-        DiagnosticsMasks diagnosticsMasks,
-        TimestampsToReturn timestampsToReturn,
-        MonitoringMode monitoringMode,
-        uint clientHandle,
-        double samplingInterval)*/
+        public DataValue ReadDataValue(uint offset)
         {
             lock (m_dataLock)
             {
-                var monitoredItem = new MemoryBufferMonitoredItem(
-                    Server,
-                    NodeManager.ToAsyncNodeManager(),
-                    this,
-                    tag.Offset,
-                    0,
-                    monitoredItemId,
-                    itemToMonitor,
-                    diagnosticsMasks,
-                    timestampsToReturn,
-                    monitoringMode,
-                    clientHandle,
-                    null,
-                    null,
-                    null,
-                    samplingInterval,
-                    0,
-                    false,
-                    0,
-                    createDurable);
-
-                /*
-                MemoryBufferMonitoredItem monitoredItem = new MemoryBufferMonitoredItem(
-                    this,
-                    monitoredItemId,
-                    tag.Offset,
-                    attributeId,
-                    diagnosticsMasks,
-                    timestampsToReturn,
-                    monitoringMode,
-                    clientHandle,
-                    samplingInterval);
-                */
-
-                AddMonitoredItemInternal(monitoredItem, tag);
-
-                return monitoredItem;
+                return new DataValue(
+                    GetValueAtOffset((int)offset),
+                    StatusCodes.Good,
+                    m_lastScanTime,
+                    DateTimeUtc.Now);
             }
         }
 
         /// <summary>
-        /// Restores data change monitored item after a server restart.
+        /// Adds a value monitored item for the element at the specified offset
+        /// to the buffer scan.
         /// </summary>
-        public MemoryBufferMonitoredItem RestoreDataChangeItem(
-            ServerSystemContext context,
-            MemoryTagState tag,
-            IStoredMonitoredItem storedMonitoredItem)
+        public void AddMonitoredItem(ISampledDataChangeMonitoredItem monitoredItem, uint offset)
         {
             lock (m_dataLock)
             {
-                var monitoredItem = new MemoryBufferMonitoredItem(
-                    Server,
-                    NodeManager.ToAsyncNodeManager(),
-                    this,
-                    tag.Offset,
-                    storedMonitoredItem);
+                int elementCount = (int)(SizeInBytes!.Value / ElementSize);
 
-                AddMonitoredItemInternal(monitoredItem, tag);
+                if (m_monitoringTable == null)
+                {
+                    m_monitoringTable = new ISampledDataChangeMonitoredItem[elementCount][];
+                    TimeProvider timeProvider = (Server as ITimeProviderProvider)?.TimeProvider
+                        ?? TimeProvider.System;
+                    m_scanTimer?.Dispose();
+                    m_scanTimer = timeProvider.CreateTimer(
+                        DoScan,
+                        null,
+                        TimeSpan.FromMilliseconds(100),
+                        TimeSpan.FromMilliseconds(100));
+                }
 
-                return monitoredItem;
+                int elementOffet = (int)(offset / ElementSize);
+
+                ISampledDataChangeMonitoredItem[]? monitoredItems = m_monitoringTable[elementOffet];
+
+                if (monitoredItems == null)
+                {
+                    monitoredItems = new ISampledDataChangeMonitoredItem[1];
+                }
+                else
+                {
+                    if (Array.IndexOf(monitoredItems, monitoredItem) >= 0)
+                    {
+                        return;
+                    }
+
+                    monitoredItems = new ISampledDataChangeMonitoredItem[monitoredItems.Length + 1];
+                    m_monitoringTable[elementOffet]!.CopyTo(monitoredItems, 0);
+                }
+
+                monitoredItems[^1] = monitoredItem;
+                m_monitoringTable[elementOffet] = monitoredItems;
+                m_itemCount++;
             }
-        }
-
-        private void AddMonitoredItemInternal(
-            MemoryBufferMonitoredItem monitoredItem,
-            MemoryTagState tag)
-        {
-            if (monitoredItem.AttributeId != Attributes.Value)
-            {
-                m_nonValueMonitoredItems!.Add(monitoredItem.Id, monitoredItem);
-                return;
-            }
-
-            int elementCount = (int)(SizeInBytes!.Value / ElementSize);
-
-            if (m_monitoringTable == null)
-            {
-                m_monitoringTable = new MemoryBufferMonitoredItem[elementCount][];
-                TimeProvider timeProvider = (Server as ITimeProviderProvider)?.TimeProvider
-                    ?? TimeProvider.System;
-                m_scanTimer?.Dispose();
-                m_scanTimer = timeProvider.CreateTimer(
-                    DoScan,
-                    null,
-                    TimeSpan.FromMilliseconds(100),
-                    TimeSpan.FromMilliseconds(100));
-            }
-
-            int elementOffet = (int)(tag.Offset / ElementSize);
-
-            MemoryBufferMonitoredItem[]? monitoredItems = m_monitoringTable![elementOffet];
-
-            if (monitoredItems == null)
-            {
-                monitoredItems = new MemoryBufferMonitoredItem[1];
-            }
-            else
-            {
-                monitoredItems = new MemoryBufferMonitoredItem[monitoredItems.Length + 1];
-                m_monitoringTable[elementOffet]!.CopyTo(monitoredItems, 0);
-            }
-
-            monitoredItems[^1] = monitoredItem;
-            m_monitoringTable[elementOffet] = monitoredItems;
-            m_itemCount++;
         }
 
         /// <summary>
@@ -555,69 +461,45 @@ namespace MemoryBuffer
         }
 
         /// <summary>
-        /// Deletes the monitored item.
+        /// Removes a value monitored item from the buffer scan.
         /// </summary>
-        public void DeleteItem(MemoryBufferMonitoredItem monitoredItem)
+        public void RemoveMonitoredItem(ISampledDataChangeMonitoredItem monitoredItem, uint offset)
         {
             lock (m_dataLock)
             {
-                if (monitoredItem.AttributeId != Attributes.Value)
+                if (m_monitoringTable == null)
                 {
-                    m_nonValueMonitoredItems!.Remove(monitoredItem.Id);
                     return;
                 }
 
-                if (m_monitoringTable != null)
+                int elementOffet = (int)(offset / ElementSize);
+
+                ISampledDataChangeMonitoredItem[]? monitoredItems = m_monitoringTable[elementOffet];
+
+                if (monitoredItems == null)
                 {
-                    int elementOffet = (int)(monitoredItem.Offset / ElementSize);
-
-                    MemoryBufferMonitoredItem[]? monitoredItems = m_monitoringTable[elementOffet];
-
-                    if (monitoredItems != null)
-                    {
-                        int index = -1;
-
-                        for (int ii = 0; ii < monitoredItems.Length; ii++)
-                        {
-                            if (ReferenceEquals(monitoredItems[ii], monitoredItem))
-                            {
-                                index = ii;
-                                break;
-                            }
-                        }
-
-                        if (index >= 0)
-                        {
-                            m_itemCount--;
-
-                            if (monitoredItems.Length == 1)
-                            {
-                                monitoredItems = null;
-                            }
-                            else
-                            {
-                                monitoredItems = new MemoryBufferMonitoredItem[monitoredItems
-                                    .Length -
-                                    1];
-
-                                Array.Copy(
-                                    m_monitoringTable[elementOffet]!,
-                                    0,
-                                    monitoredItems,
-                                    0,
-                                    index);
-                                Array.Copy(
-                                    m_monitoringTable[elementOffet]!,
-                                    index + 1,
-                                    monitoredItems,
-                                    index,
-                                    monitoredItems.Length - index);
-                            }
-
-                            m_monitoringTable[elementOffet] = monitoredItems;
-                        }
-                    }
+                    return;
                 }
+
+                int index = Array.IndexOf(monitoredItems, monitoredItem);
+
+                if (index < 0)
+                {
+                    return;
+                }
+
+                m_itemCount--;
+
+                if (monitoredItems.Length == 1)
+                {
+                    m_monitoringTable[elementOffet] = null;
+                    return;
+                }
+
+                var remaining = new ISampledDataChangeMonitoredItem[monitoredItems.Length - 1];
+                Array.Copy(monitoredItems, 0, remaining, 0, index);
+                Array.Copy(monitoredItems, index + 1, remaining, index, remaining.Length - index);
+                m_monitoringTable[elementOffet] = remaining;
             }
         }
 
@@ -632,7 +514,7 @@ namespace MemoryBuffer
                 {
                     int elementOffet = (int)(offset / ElementSize);
 
-                    MemoryBufferMonitoredItem[]? monitoredItems = m_monitoringTable[elementOffet];
+                    ISampledDataChangeMonitoredItem[]? monitoredItems = m_monitoringTable[elementOffet];
 
                     if (monitoredItems != null)
                     {
@@ -687,8 +569,7 @@ namespace MemoryBuffer
 
         private readonly ILogger m_logger;
         private readonly Lock m_dataLock = new();
-        private MemoryBufferMonitoredItem[]?[]? m_monitoringTable;
-        private Dictionary<uint, MemoryBufferMonitoredItem>? m_nonValueMonitoredItems;
+        private ISampledDataChangeMonitoredItem[]?[]? m_monitoringTable;
         private int m_elementSize;
         private DateTimeUtc m_lastScanTime;
         private byte[] m_buffer = null!;

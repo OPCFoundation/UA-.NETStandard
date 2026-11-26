@@ -1,31 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using System.Collections.Generic;
@@ -36,7 +10,9 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Opc.Ua;
 using Opc.Ua.Client;
+using Opc.Ua.Client.Historian;
 using Opc.Ua.Client.Subscriptions;
+using Opc.Ua.Client.Subscriptions.Streaming;
 using Opc.Ua.Pumps;
 using Opc.Ua.Pumps.Client;
 using PumpsSample.Client;
@@ -116,7 +92,32 @@ Console.WriteLine(
     $"Polled {polled.Count} measurements with PumpReadOptions.ValuesOnly; " +
     $"MassFlow = {Format(polled[BrowseNames.MassFlow])}");
 
-if (options.WatchSeconds > 0 && watchList.Count > 0)
+if (options.History && polled[BrowseNames.MassFlow] is { } flow)
+{
+    HistoryClient history = pumps.Session.Historian();
+    DateTime end = DateTime.UtcNow;
+    DateTime start = end.AddMinutes(-5);
+    await foreach (DataValue sample in history.ReadRawAsync(
+        flow.NodeId, start, end, cancellationToken: ct).ConfigureAwait(false))
+    {
+        Console.WriteLine($"History {sample.SourceTimestamp}: {sample.WrappedValue} ({sample.StatusCode})");
+    }
+    await foreach (DataValue sample in history.ReadProcessedAsync(
+        flow.NodeId, Opc.Ua.ObjectIds.AggregateFunction_Average, start, end,
+        processingInterval: 60_000, cancellationToken: ct).ConfigureAwait(false))
+    {
+        Console.WriteLine($"Minute average {sample.SourceTimestamp}: {sample.WrappedValue} ({sample.StatusCode})");
+    }
+    var filter = new EventFilter();
+    filter.AddSelectClause(Opc.Ua.Types.ObjectTypeIds.BaseEventType, Opc.Ua.BrowseNames.Message, Attributes.Value);
+    await foreach (HistoryEventFieldList recorded in history.ReadEventsAsync(
+        firstPump, start, end, filter, cancellationToken: ct).ConfigureAwait(false))
+    {
+        Console.WriteLine($"Recorded condition: {recorded.EventFields[0]}");
+    }
+}
+
+if (options.WatchSeconds > 0 && (watchList.Count > 0 || options.Conditions))
 {
     Console.WriteLine();
     Console.WriteLine(
@@ -129,6 +130,10 @@ if (options.WatchSeconds > 0 && watchList.Count > 0)
     foreach ((string label, NodeId nodeId) in watchList)
     {
         watchers.Add(WatchAsync(connection, label, nodeId, window.Token));
+    }
+    if (options.Conditions)
+    {
+        watchers.Add(WatchConditionsAsync(connection, firstPump, window.Token));
     }
     await Task.WhenAll(watchers).ConfigureAwait(false);
 }
@@ -270,6 +275,27 @@ static async Task WatchAsync(
         }
     }
     catch (OperationCanceledException)
+    {
+        // The watch window elapsed or the user pressed Ctrl+C.
+    }
+}
+
+static async Task WatchConditionsAsync(SampleSession connection, NodeId pump, CancellationToken ct)
+{
+    var filter = new EventFilter();
+    filter.AddSelectClause(Opc.Ua.Types.ObjectTypeIds.BaseEventType, Opc.Ua.BrowseNames.SourceNode, Attributes.Value);
+    filter.AddSelectClause(Opc.Ua.Types.ObjectTypeIds.BaseEventType, Opc.Ua.BrowseNames.Message, Attributes.Value);
+    filter.AddSelectClause(Opc.Ua.Types.ObjectTypeIds.BaseEventType, Opc.Ua.BrowseNames.Time, Attributes.Value);
+    try
+    {
+        await foreach (EventNotification notification in connection.Streaming
+            .SubscribeEventsWithRefreshAsync(pump, filter, ct: ct).ConfigureAwait(false))
+        {
+            Console.WriteLine(
+                $"Condition {notification.Fields[2]} {notification.Fields[0]}: {notification.Fields[1]}");
+        }
+    }
+    catch (OperationCanceledException) when (ct.IsCancellationRequested)
     {
         // The watch window elapsed or the user pressed Ctrl+C.
     }

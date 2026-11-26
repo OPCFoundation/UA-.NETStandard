@@ -29,17 +29,27 @@ await foreach (AutoIdScanEventTypeRecord e in
   `LockTagAsync`, `SetTagPasswordAsync`; the status a device reports for a tag is
   returned, not thrown.
 - RTLS `GetLocationAsync` and `GetSupportedLocationTypesAsync`.
+- `EnumerateImagesAsync` discovers optional OCR/optical image files with MIME
+  metadata and returns detached `UaFileInfo` objects for standard asynchronous
+  FileType reads. No server-wide file-system root is required.
 - `ReadDeviceAsync` with `AutoIdReadOptions` (`Default`, `StatusOnly`), one
   Browse and one Read per call; the snapshot also carries the NodeIds of the
   variables to monitor and the methods the device publishes.
   `RefreshDeviceAsync` re-reads the status, last scan and location of a snapshot
   in one Read without browsing.
 - Asynchronous streams of scan, access, presence and logbook entry events.
+- `ReadScanParametersAsync` and `WriteScanParametersAsync` explicitly browse
+  nested runtime settings and preserve individual statuses. `ReadScanActiveAsync`
+  and `SetScanActiveAsync` operate the Data Access control variable.
+  `ObserveScanActiveAsync` observes it through a caller-owned subscription.
+  `ReadLastScanAsync` checks matching acquisition timestamps, including available
+  RFID antenna/RSSI values, with bounded retries; ordinary refreshes stay lightweight.
 
 A browse the server rejects throws `ServiceResultException` instead of yielding an
 empty list, cancellation is honoured by every asynchronous member, and the
-session is borrowed, never closed. `ScanAsync` refuses an optical verifier (the
-NodeSet types its `Scan` results as `WGS84Coordinate`); use `ScanStartAsync` and
-the scan events.
+session is borrowed, never closed. Optical-verifier `ScanAsync` returns
+`OpticalVerifierScanResult[]` as specified by OPC 30010 6.4.3.1; the imported
+model corrects the published NodeSet's conflicting result type. Asynchronous
+scanning and scan events remain available for verifiers.
 
 See the [AutoID guide](https://github.com/OPCFoundation/UA-.NETStandard/blob/master/docs/AutoID.md).

@@ -1,31 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using System.Collections.Generic;
@@ -40,9 +14,9 @@ namespace Opc.Ua.Server
     public interface IMonitoredItem : IDisposable
     {
         /// <summary>
-        /// The node manager that created the item.
+        /// The currently bound node manager, or null while the item is unresolved.
         /// </summary>
-        IAsyncNodeManager NodeManager { get; }
+        IAsyncNodeManager? NodeManager { get; }
 
         /// <summary>
         /// The session that owns the monitored item.
@@ -81,9 +55,9 @@ namespace Opc.Ua.Server
         ISubscription SubscriptionCallback { get; set; }
 
         /// <summary>
-        /// The handle assigned by the NodeManager.
+        /// The handle assigned by the bound NodeManager, or null while the item is unresolved.
         /// </summary>
-        object ManagerHandle { get; }
+        object? ManagerHandle { get; }
 
         /// <summary>
         /// A bit mask that indicates what the monitored item is.
@@ -199,7 +173,7 @@ namespace Opc.Ua.Server
         /// <returns>True if the caller should re-queue the item for publishing after the next interval elaspses.</returns>
         bool Publish(
             OperationContext context,
-            Queue<EventFieldList> notifications,
+            Queue<QueuedEvent> notifications,
             uint maxNotificationsPerPublish);
 
         /// <summary>

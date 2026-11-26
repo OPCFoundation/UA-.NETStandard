@@ -1,32 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using System.Collections.Concurrent;
@@ -35,6 +8,7 @@ using System.Diagnostics.Metrics;
 using System.IO;
 using System.Linq;
 using System.Security.Cryptography;
+using System.Security.Cryptography.X509Certificates;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
@@ -467,12 +441,31 @@ namespace Opc.Ua.Core.Tests.Stack.Client
             }
         }
 
-        [TestCase(false)]
-        [TestCase(true)]
-        public async Task ReconnectUsesLatestCertificateForEachEntryTypeAsync(bool reusableTransport)
+        /// <summary>
+        /// Changed certificate bytes replace transport settings even when renewal preserves the RSA key.
+        /// </summary>
+        /// <param name="reusableTransport">Whether the transport supports reconnect.</param>
+        /// <param name="sameKey">Whether the replacement RSA certificate retains the original key.</param>
+        [TestCase(false, false)]
+        [TestCase(true, false)]
+        [TestCase(false, true)]
+        [TestCase(true, true)]
+        public async Task ReconnectUsesLatestCertificateForEachEntryTypeAsync(bool reusableTransport, bool sameKey)
         {
             using Certificate oldRsa = s_factory.CreateCertificate("CN=old-rsa").CreateForRSA();
-            using Certificate newRsa = s_factory.CreateCertificate("CN=new-rsa").CreateForRSA();
+            using RSA rsaKey = oldRsa.GetRSAPrivateKey()!;
+            using Certificate newRsa = sameKey
+                ? ReissueCertificateWithSameKey(oldRsa, rsaKey)
+                : s_factory.CreateCertificate("CN=new-rsa").CreateForRSA();
+            using RSA replacementKey = newRsa.GetRSAPublicKey()!;
+            Assert.That(newRsa.RawData, Is.Not.EqualTo(oldRsa.RawData));
+            if (sameKey)
+            {
+                Assert.That(replacementKey.ExportParameters(false).Modulus,
+                    Is.EqualTo(rsaKey.ExportParameters(false).Modulus));
+                Assert.That(replacementKey.ExportParameters(false).Exponent,
+                    Is.EqualTo(rsaKey.ExportParameters(false).Exponent));
+            }
             using Certificate oldEcc = s_factory.CreateCertificate("CN=old-ecc")
                 .SetECCurve(ECCurve.NamedCurves.nistP256).CreateForECDsa();
             using Certificate newEcc = s_factory.CreateCertificate("CN=new-ecc")
@@ -507,6 +500,8 @@ namespace Opc.Ua.Core.Tests.Stack.Client
                 {
                     Assert.That(settings.Last(value => value.Description?.EndpointUrl == rsa.Key.EndpointUrl)
                         .ClientCertificate!.Thumbprint, Is.EqualTo(newRsa.Thumbprint));
+                    Assert.That(settings.Last(value => value.Description?.EndpointUrl == rsa.Key.EndpointUrl)
+                        .ClientCertificate!.RawData, Is.EqualTo(newRsa.RawData));
                     Assert.That(settings.Last(value => value.Description?.EndpointUrl == ecc.Key.EndpointUrl)
                         .ClientCertificate!.Thumbprint, Is.EqualTo(newEcc.Thumbprint));
                     Assert.That(manager.GetChannelDiagnostics().Select(value => value.Refcount), Is.All.EqualTo(1));
@@ -940,6 +935,18 @@ namespace Opc.Ua.Core.Tests.Stack.Client
             byte[] signature = key.SignHash(hash, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
             Assert.That(
                 verifier.VerifyHash(hash, signature, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1), Is.True);
+        }
+
+        /// <summary>
+        /// Issues distinct certificate bytes for the original RSA key without changing transport test infrastructure.
+        /// </summary>
+        private static Certificate ReissueCertificateWithSameKey(Certificate original, RSA key)
+        {
+            X509SignatureGenerator generator = X509SignatureGenerator.CreateForRSA(key, RSASignaturePadding.Pkcs1);
+            using Certificate issued = s_factory.CreateCertificate("CN=new-rsa")
+                .SetRSAPublicKey(key)
+                .CreateForRSA(generator);
+            return s_factory.CreateWithPrivateKey(issued, original);
         }
 
         private static ClientChannelManager CreateSut(

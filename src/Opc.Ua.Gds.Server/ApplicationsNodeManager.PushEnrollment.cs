@@ -1,26 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person obtaining a copy
- * of this software and associated documentation files (the "Software"), to deal
- * in the Software without restriction, including without limitation the rights
- * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the Software is
- * furnished to do so, subject to the following conditions:
- *
- * The above copyright notice and this permission notice shall be included in
- * all copies or substantial portions of the Software.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
- * OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL
- * THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
- * IN THE SOFTWARE.
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using System.Linq;
@@ -88,7 +67,7 @@ namespace Opc.Ua.Gds.Server
                 .ConfigureAwait(false);
             if (!requestId.IsNull)
             {
-                CertificateRequestState state = m_request.ReadRequest(
+                CertificateRequestState state = CertificateRequestStore.ReadRequest(
                     applicationId, requestId, out string? requestedGroup, out string? requestedType,
                     out ByteString requestedCsr, out _, out _, out _, out _);
                 if (state is not (CertificateRequestState.New or CertificateRequestState.Approved) ||
@@ -120,7 +99,7 @@ namespace Opc.Ua.Gds.Server
             {
                 await group.VerifySigningRequestAsync(application, certificateTypeId, certificateRequest, ct)
                     .ConfigureAwait(false);
-                NodeId requestId = m_request.StartSigningRequest(
+                NodeId requestId = CertificateRequestStore.StartSigningRequest(
                     applicationId, group.Configuration.Id!, m_certTypeMap[certificateTypeId],
                     certificateRequest, "OnboardingRegistrarPush");
                 return requestId;
@@ -171,13 +150,13 @@ namespace Opc.Ua.Gds.Server
                     throw new ServiceResultException(StatusCodes.BadNotFound);
                 await group.VerifySigningRequestAsync(application, certificateTypeId, certificateRequest, ct)
                     .ConfigureAwait(false);
-                CertificateRequestState state = m_request.ReadRequest(
+                CertificateRequestState state = CertificateRequestStore.ReadRequest(
                     applicationId, requestId, out string? requestedGroup, out string? requestedType,
                     out ByteString requestedCsr, out _, out _, out _, out _);
                 if (state == CertificateRequestState.New && m_autoApprove)
                 {
-                    m_request.ApproveRequest(requestId, false);
-                    state = m_request.ReadRequest(
+                    CertificateRequestStore.ApproveRequest(requestId, false);
+                    state = CertificateRequestStore.ReadRequest(
                         applicationId, requestId, out requestedGroup, out requestedType,
                         out requestedCsr, out _, out _, out _, out _);
                 }
@@ -292,20 +271,102 @@ namespace Opc.Ua.Gds.Server
             ByteString encodedCertificate,
             CancellationToken ct)
         {
+            // UnregisterApplication revokes the issued certificates and
+            // removes the record under the same lock, so a certificate is
+            // either published to a registered application or revoked.
+            // The wait is not cancelled with the request, so a cancelled
+            // request cannot skip that decision.
+            await m_publicationLock.WaitAsync(CancellationToken.None).ConfigureAwait(false);
+            try
+            {
+                if (m_database.GetApplication(applicationId) == null)
+                {
+                    await RevokeUnpublishedCertificateAsync(applicationId, encodedCertificate).ConfigureAwait(false);
+                    throw new ServiceResultException(
+                        StatusCodes.BadNotFound,
+                        "The application was unregistered while the certificate was issued.");
+                }
+                await PublishCertificateIssuanceCoreAsync(
+                    applicationId, requestId, certificateGroup, certificateTypeId, encodedCertificate, ct)
+                    .ConfigureAwait(false);
+            }
+            finally
+            {
+                m_publicationLock.Release();
+            }
+        }
+
+        private async ValueTask PublishCertificateIssuanceCoreAsync(
+            NodeId applicationId,
+            NodeId requestId,
+            ICertificateGroup certificateGroup,
+            NodeId certificateTypeId,
+            ByteString encodedCertificate,
+            CancellationToken ct)
+        {
             using Certificate certificate = Certificate.FromRawData(encodedCertificate);
             var identifier = new CertificateStoreIdentifier(
                 m_globalDiscoveryServerConfiguration.ApplicationCertificatesStorePath!);
             using ICertificateStore store = identifier.OpenStore(Server.Telemetry);
             using CertificateCollection existing = await store.FindByThumbprintAsync(certificate.Thumbprint, ct)
                 .ConfigureAwait(false);
-            if (existing.Count == 0)
+            string certificateTypeName = m_certTypeMap[certificateTypeId];
+            if (!m_database.GetApplicationCertificate(applicationId, certificateTypeName, out ByteString previous))
             {
-                await store.AddAsync(certificate, null, ct).ConfigureAwait(false);
+                previous = default;
             }
-            m_database.SetApplicationCertificate(applicationId, m_certTypeMap[certificateTypeId], encodedCertificate);
-            m_database.SetApplicationTrustLists(
-                applicationId, m_certTypeMap[certificateTypeId], certificateGroup.Configuration.TrustedListPath);
-            m_request.AcceptRequest(requestId, encodedCertificate);
+            bool replacesPrevious = !previous.IsEmpty && !Utils.IsEqual(previous, encodedCertificate);
+
+            // The request is accepted only after the certificate is in the
+            // application store and in the record, so an accepted request was
+            // published completely before. If the record holds another
+            // certificate now, this is a retried FinishRequest of an older
+            // request: the newer certificate stays and the older one is not
+            // made current again. A request that is not accepted yet is an
+            // issuance that stopped part way and is published completely.
+            // The record decides which certificate acts for the application
+            // (ApplicationSelfAdmin); the replaced certificates stay in the
+            // application store, so RevokeCertificate and UnregisterApplication
+            // can still revoke them. They are not revoked here, because the
+            // application still uses the replaced certificate until it has
+            // installed the new one.
+            if (!replacesPrevious || !IsRequestAccepted(applicationId, requestId))
+            {
+                if (existing.Count == 0)
+                {
+                    await store.AddAsync(certificate, null, ct).ConfigureAwait(false);
+                }
+                m_database.SetApplicationCertificate(applicationId, certificateTypeName, encodedCertificate);
+                m_database.SetApplicationTrustLists(
+                    applicationId, certificateTypeName, certificateGroup.Configuration.TrustedListPath);
+            }
+            CertificateRequestStore.AcceptRequest(requestId, encodedCertificate);
+        }
+
+        /// <summary>
+        /// Checks whether the request was accepted, which is the last step of
+        /// publishing its certificate.
+        /// </summary>
+        private bool IsRequestAccepted(NodeId applicationId, NodeId requestId)
+        {
+            try
+            {
+                return CertificateRequestStore.ReadRequest(
+                    applicationId,
+                    requestId,
+                    out _,
+                    out _,
+                    out _,
+                    out _,
+                    out _,
+                    out _,
+                    out _) == CertificateRequestState.Accepted;
+            }
+            catch (Exception ex) when (ex is ServiceResultException or ArgumentException or NotSupportedException)
+            {
+                // No readable state: publish completely.
+                return false;
+            }
         }
 
         /// <summary>

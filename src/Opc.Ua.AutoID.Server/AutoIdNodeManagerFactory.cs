@@ -1,31 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System.Collections.Generic;
 using System.Threading;
@@ -67,10 +41,23 @@ namespace Opc.Ua.AutoID.Server
             IDiPostSetupRunner? runner,
             IOptions<AutoIdServerOptions>? options,
             ArrayOf<IDiModelProvider> providers)
+            : this(runner, options, providers, null)
+        {
+        }
+
+        /// <summary>
+        /// Creates a factory with an injectable image FileType binder.
+        /// </summary>
+        public AutoIdNodeManagerFactory(
+            IDiPostSetupRunner? runner,
+            IOptions<AutoIdServerOptions>? options,
+            ArrayOf<IDiModelProvider> providers,
+            Opc.Ua.Server.FileSystem.IFileTypeBinder? fileBinder)
         {
             m_runner = runner;
             m_options = options;
             m_providers = providers;
+            m_fileBinder = fileBinder;
         }
 
         /// <inheritdoc/>
@@ -104,7 +91,7 @@ namespace Opc.Ua.AutoID.Server
         {
 #pragma warning disable CA2000 // ownership transferred to the server
             IAsyncNodeManager manager = new AutoIdNodeManager(
-                server, configuration, m_runner, m_options, m_providers);
+                server, configuration, m_runner, m_options, m_providers, m_fileBinder);
 #pragma warning restore CA2000
             return new ValueTask<IAsyncNodeManager>(manager);
         }
@@ -117,5 +104,8 @@ namespace Opc.Ua.AutoID.Server
 
         /// <summary>Additional companion providers loaded by the owner.</summary>
         private readonly ArrayOf<IDiModelProvider> m_providers;
+
+        /// <summary>The image file binder supplied by hosting.</summary>
+        private readonly Opc.Ua.Server.FileSystem.IFileTypeBinder? m_fileBinder;
     }
 }

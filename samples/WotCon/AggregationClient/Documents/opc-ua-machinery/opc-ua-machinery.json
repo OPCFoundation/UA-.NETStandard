@@ -5,6 +5,7 @@
       "@language": "en",
       "ns1": "http://opcfoundation.org/UA/Machinery/",
       "ns2": "http://opcfoundation.org/UA/DI/",
+      "qudt": "http://qudt.org/schema/qudt/",
       "ua": "http://opcfoundation.org/UA/",
       "uav": "http://opcfoundation.org/UA/WoT-Binding/"
     },
@@ -65,6 +66,9 @@
     }
   },
   "title": "IMachineTagNameplateType",
+  "tm:optional": [
+    "/properties/Location"
+  ],
   "uav:bindingVersion": "1.1",
   "uav:browseName": "ns1:IMachineTagNameplateType",
   "uav:id": "nsu=http://opcfoundation.org/UA/Machinery/;i=1011",
@@ -178,6 +182,7 @@
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "IMachineTagNameplateType"
           }
         ],
@@ -205,6 +210,7 @@
       },
       {
         "accessLevel": 3,
+        "arrayDimensions": "",
         "browseName": "1:Location",
         "dataType": "String",
         "description": [
@@ -215,6 +221,7 @@
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "Location"
           }
         ],

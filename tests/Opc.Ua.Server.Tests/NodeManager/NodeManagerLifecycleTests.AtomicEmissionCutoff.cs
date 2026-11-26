@@ -1,31 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using System.Collections.Generic;
@@ -34,6 +8,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using Opc.Ua.Server.TestFramework;
+using static Opc.Ua.Server.Tests.NodeManager.LifecycleInspection;
 
 namespace Opc.Ua.Server.Tests.NodeManager
 {
@@ -46,7 +21,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
     public sealed partial class NodeManagerLifecycleTests
     {
         /// <summary>
-        /// Verifies that prepared batch publication stops every immediate data source.
+        /// Verifies that retiring sources stop at publication and replacement items use the new generation.
         /// </summary>
         /// <param name="reverse">The reverse flag for this test case.</param>
         /// <param name="replace">The replace flag for this test case.</param>
@@ -65,15 +40,19 @@ namespace Opc.Ua.Server.Tests.NodeManager
             using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(60));
             IServerInternal server = m_server.CurrentInstance;
             var master = (MasterNodeManager)server.NodeManager;
-            var lifecycle = (INodeManagerBatchLifecycle)m_server.NodeManagerLifecycle;
+            INodeManagerLifecycle lifecycle = m_server.NodeManagerLifecycle;
             TrackingLifecycleNodeManager? first = null;
             TrackingLifecycleNodeManager? second = null;
-            NodeManagerRegistration firstRegistration = await lifecycle.AddAsync(
-                CreateTrackingNodeManagementFactory(101, manager => first = manager),
-                null, timeout.Token).ConfigureAwait(false);
-            NodeManagerRegistration secondRegistration = await lifecycle.AddAsync(
-                CreateTrackingNodeManagementFactory(202, manager => second = manager, kSecondModelNamespaceUri),
-                null, timeout.Token).ConfigureAwait(false);
+            LifecycleResult publicationResult1 = await CommitChangeAsync(
+                lifecycle, LifecycleChange.Add(
+                CreateTrackingNodeManagementFactory(
+                101, manager => first = manager)), timeout.Token).ConfigureAwait(false);
+            NodeManagerRegistration firstRegistration = RequireRegistration(publicationResult1.Registrations[0]);
+            LifecycleResult publicationResult2 = await CommitChangeAsync(
+                lifecycle, LifecycleChange.Add(
+                CreateTrackingNodeManagementFactory(
+                202, manager => second = manager, kSecondModelNamespaceUri)), timeout.Token).ConfigureAwait(false);
+            NodeManagerRegistration secondRegistration = RequireRegistration(publicationResult2.Registrations[0]);
             AssertLifecycleValue(first);
             AssertLifecycleValue(second);
             BaseVariableState firstNode = RequireLifecycleValue(
@@ -122,22 +101,30 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 entered.TrySetResult(true);
                 await release.Task.WaitAsync(token).ConfigureAwait(false);
             };
-            NodeManagerBatchChange firstChange = replace
-                ? NodeManagerBatchChange.Replace(firstRegistration,
-                    CreateTrackingNodeManagementFactory(301, _ => { }), immediate)
-                : NodeManagerBatchChange.Remove(firstRegistration, immediate);
-            NodeManagerBatchChange secondChange = replace
-                ? NodeManagerBatchChange.Replace(secondRegistration,
-                    CreateTrackingNodeManagementFactory(302, _ => { }, kSecondModelNamespaceUri), immediate)
-                : NodeManagerBatchChange.Remove(secondRegistration, immediate);
-            await using IPreparedNodeManagerBatch prepared = await lifecycle.PrepareAsync(
+            LifecycleChange firstChange = replace
+                ? LifecycleChange.Replace(
+                    firstRegistration.Slot, CreateTrackingNodeManagementFactory(
+                    301, _ => { }),
+                    immediate
+                        ? NodeManagerMonitoredItemTransitionMode.Invalidate
+                        : NodeManagerMonitoredItemTransitionMode.Migrate)
+                : LifecycleChange.Remove(firstRegistration.Slot);
+            LifecycleChange secondChange = replace
+                ? LifecycleChange.Replace(
+                    secondRegistration.Slot, CreateTrackingNodeManagementFactory(
+                    302, _ => { }, kSecondModelNamespaceUri),
+                    immediate
+                        ? NodeManagerMonitoredItemTransitionMode.Invalidate
+                        : NodeManagerMonitoredItemTransitionMode.Migrate)
+                : LifecycleChange.Remove(secondRegistration.Slot);
+            await using IPreparedChanges prepared = await lifecycle.PrepareAsync(
                 reverse ? [secondChange, firstChange] : [firstChange, secondChange], timeout.Token)
                 .ConfigureAwait(false);
             ISession session = RequireLifecycleValue(
                 server.SessionManager.GetSession(m_requestHeader.AuthenticationToken));
             using var context = new OperationContext(session, DiagnosticsMasks.None);
             Task dispatch = master.ConditionRefreshAsync(context, [eventItem], timeout.Token).AsTask();
-            Task<NodeManagerBatchResult>? commit = null;
+            Task<LifecycleResult>? commit = null;
             try
             {
                 await entered.Task.WaitAsync(timeout.Token).ConfigureAwait(false);
@@ -165,16 +152,17 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     services, subscriptionId, initial.Acknowledgements, timeout.Token).ConfigureAwait(false);
                 using (Assert.EnterMultipleScope())
                 {
+                    bool migrated = replace && !immediate;
                     foreach (uint handle in new uint[] { 1, 2, 3 })
                     {
                         DataValue value = delivered.Values[handle];
                         Assert.That(value.StatusCode,
-                            Is.EqualTo(immediate ? StatusCodes.BadNodeIdUnknown : StatusCodes.Good),
-                            $"Source for client handle {handle} sampled after the joint publication while A was held.");
-                        if (!immediate)
+                            Is.EqualTo(migrated ? StatusCodes.Good : StatusCodes.BadNodeIdUnknown),
+                            $"Retired-source data for client handle {handle} crossed the publication boundary.");
+                        if (migrated)
                         {
-                            Assert.That(value.WrappedValue, Is.EqualTo(new Variant(handle == 1 ? 501 : 602)));
-                            Assert.That(value.SourceTimestamp, Is.EqualTo(producedAt));
+                            Assert.That(value.WrappedValue, Is.EqualTo(new Variant(handle == 1 ? 301 : 302)),
+                                "A migrated item must report the replacement generation, not an old sample.");
                         }
                     }
                     Assert.That(dispatch.IsCompleted, Is.False);
@@ -188,7 +176,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 await dispatch.WaitAsync(timeout.Token).ConfigureAwait(false);
                 if (commit is not null)
                 {
-                    NodeManagerBatchResult result = await commit.WaitAsync(timeout.Token).ConfigureAwait(false);
+                    LifecycleResult result = await commit.WaitAsync(timeout.Token).ConfigureAwait(false);
                     Assert.That(result.CleanupFailure, Is.Null);
                 }
                 await DeleteSubscriptionAsync(services, subscriptionId).ConfigureAwait(false);
@@ -196,118 +184,123 @@ namespace Opc.Ua.Server.Tests.NodeManager
         }
 
         /// <summary>
-        /// Verifies that a node-wide change notification after an immediate cutoff retires only the cut-off
-        /// Value items with BadNodeIdUnknown and without any pre-poll. A surviving source keeps delivering, a
-        /// change whose mask does not reach the Value attribute retires nothing, a Disabled item queues nothing
-        /// until it is re-enabled, and a non-immediate removal keeps delivering the value.
+        /// Verifies that removal invalidates its Value items once with BadNodeIdUnknown while a surviving source
+        /// continues delivering. A Disabled item queues nothing until it is re-enabled.
         /// </summary>
-        /// <param name="immediate">The immediate flag for this test case.</param>
-        [TestCase(false)]
-        [TestCase(true)]
-        public async Task NodeWideChangeAfterCutoffRetiresDataItemAsync(bool immediate)
+        [Test]
+        public async Task NodeWideChangeAfterCutoffRetiresDataItemAsync()
         {
-            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(60));
-            IServerInternal server = m_server.CurrentInstance;
-            var master = (MasterNodeManager)server.NodeManager;
-            var lifecycle = (INodeManagerBatchLifecycle)m_server.NodeManagerLifecycle;
-            TrackingLifecycleNodeManager? first = null;
-            TrackingLifecycleNodeManager? survivor = null;
-            NodeManagerRegistration registration = await lifecycle.AddAsync(
-                CreateTrackingNodeManagementFactory(101, manager => first = manager),
-                null, timeout.Token).ConfigureAwait(false);
-            await lifecycle.AddAsync(CreateTrackingNodeManagementFactory(
-                303, manager => survivor = manager, kReadinessProbeNamespaceUri), null, timeout.Token)
-                .ConfigureAwait(false);
-            AssertLifecycleValue(first);
-            AssertLifecycleValue(survivor);
-            BaseVariableState node = RequireLifecycleValue(
-                first.Find(new NodeId(kValueNodeId, first.NamespaceIndexes[0])) as BaseVariableState);
-            BaseVariableState survivorNode = RequireLifecycleValue(
-                survivor.Find(new NodeId(kValueNodeId, survivor.NamespaceIndexes[0])) as BaseVariableState);
-            node.StatusCode = StatusCodes.Good;
-            survivorNode.StatusCode = StatusCodes.Good;
-            var services = new ServerTestServices(m_server, m_secureChannelContext);
-            (uint subscriptionId, _) = await CreateSubscriptionAndMonitoredItemAsync(
-                services, node.NodeId, 1).ConfigureAwait(false);
-            RequestHeader header = m_requestHeader;
-            header.Timestamp = DateTimeUtc.Now;
-            CreateMonitoredItemsResponse created = await services.CreateMonitoredItemsAsync(
-                header, subscriptionId, TimestampsToReturn.Both,
-                [
-                    CreateEmissionDataRequest(survivorNode.NodeId, 2),
-                    CreateEmissionDataRequest(node.NodeId, 3)
-                ], timeout.Token).ConfigureAwait(false);
-            Assert.That(created.Results.Count, Is.EqualTo(2));
-            uint disabledItemId = created.Results[1].MonitoredItemId;
-            uint eventItemId = await CreateEventMonitoredItemAsync(
-                services, subscriptionId, ObjectIds.Server, 4).ConfigureAwait(false);
-            IEventMonitoredItem eventItem = server.EventManager.GetMonitoredItems()
-                .Single(item => item.Id == eventItemId);
-            MonitoredNode2 source = first.GetEmissionSource(node.NodeId);
-            MonitoredNode2 survivorSource = survivor.GetEmissionSource(survivorNode.NodeId);
-            var initial = await PublishEmissionDataAsync(services, subscriptionId, default, timeout.Token)
-                .ConfigureAwait(false);
-            Assert.That(initial.Values.Values.Select(value => value.StatusCode),
-                Is.All.EqualTo(StatusCodes.Good));
-            header.Timestamp = DateTimeUtc.Now;
-            SetMonitoringModeResponse disabled = await services.SetMonitoringModeAsync(
-                header, subscriptionId, MonitoringMode.Disabled, [disabledItemId], timeout.Token)
-                .ConfigureAwait(false);
-            Assert.That(disabled.Results[0], Is.EqualTo(StatusCodes.Good));
-            var entered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
-            var release = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
-            var published = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
-            first.ConditionRefreshCallback = async (_, token) =>
-            {
-                entered.TrySetResult(true);
-                await release.Task.WaitAsync(token).ConfigureAwait(false);
-            };
-            await using IPreparedNodeManagerBatch prepared = await lifecycle.PrepareAsync(
-                [NodeManagerBatchChange.Remove(registration, immediate)], timeout.Token).ConfigureAwait(false);
-            ISession session = RequireLifecycleValue(
-                server.SessionManager.GetSession(m_requestHeader.AuthenticationToken));
-            using var context = new OperationContext(session, DiagnosticsMasks.None);
-            Task dispatch = master.ConditionRefreshAsync(context, [eventItem], timeout.Token).AsTask();
-            Task<NodeManagerBatchResult>? commit = null;
+            Task exactWriter1Disposal = Task.CompletedTask;
             try
             {
-                await entered.Task.WaitAsync(timeout.Token).ConfigureAwait(false);
-                commit = prepared.CommitAsync(
-                    _ => default, () => published.TrySetResult(true), timeout.Token).AsTask();
-                await published.Task.WaitAsync(timeout.Token).ConfigureAwait(false);
+                using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(60));
+                IServerInternal server = m_server.CurrentInstance;
+                var master = (MasterNodeManager)server.NodeManager;
+                INodeManagerLifecycle lifecycle = m_server.NodeManagerLifecycle;
+                TrackingLifecycleNodeManager? first = null;
+                TrackingLifecycleNodeManager? survivor = null;
+                LifecycleResult publicationResult3 = await CommitChangeAsync(
+                    lifecycle, LifecycleChange.Add(
+                    CreateTrackingNodeManagementFactory(
+                    101, manager => first = manager)), timeout.Token).ConfigureAwait(false);
+                NodeManagerRegistration registration = RequireRegistration(publicationResult3.Registrations[0]);
+                RequireRegistration(
+                    (await CommitChangeAsync(lifecycle, LifecycleChange.Add(CreateTrackingNodeManagementFactory(
+                    303, manager => survivor = manager, kReadinessProbeNamespaceUri)), timeout.Token)
+                        .ConfigureAwait(false)).Registrations[0]);
+                AssertLifecycleValue(first);
+                AssertLifecycleValue(survivor);
+                BaseVariableState node = RequireLifecycleValue(
+                    first.Find(new NodeId(kValueNodeId, first.NamespaceIndexes[0])) as BaseVariableState);
+                BaseVariableState survivorNode = RequireLifecycleValue(
+                    survivor.Find(new NodeId(kValueNodeId, survivor.NamespaceIndexes[0])) as BaseVariableState);
+                node.StatusCode = StatusCodes.Good;
+                survivorNode.StatusCode = StatusCodes.Good;
+                var services = new ServerTestServices(m_server, m_secureChannelContext);
+                (uint subscriptionId, _) = await CreateSubscriptionAndMonitoredItemAsync(
+                    services, node.NodeId, 1).ConfigureAwait(false);
+                RequestHeader header = m_requestHeader;
+                header.Timestamp = DateTimeUtc.Now;
+                CreateMonitoredItemsResponse created = await services.CreateMonitoredItemsAsync(
+                    header, subscriptionId, TimestampsToReturn.Both,
+                    [
+                        CreateEmissionDataRequest(survivorNode.NodeId, 2),
+                        CreateEmissionDataRequest(node.NodeId, 3)
+                    ], timeout.Token).ConfigureAwait(false);
+                Assert.That(created.Results.Count, Is.EqualTo(2));
+                uint disabledItemId = created.Results[1].MonitoredItemId;
+                uint eventItemId = await CreateEventMonitoredItemAsync(
+                    services, subscriptionId, ObjectIds.Server, 4).ConfigureAwait(false);
+                IEventMonitoredItem eventItem = server.EventManager.GetMonitoredItems()
+                    .Single(item => item.Id == eventItemId);
+                MonitoredNode2 source = first.GetEmissionSource(node.NodeId);
+                MonitoredNode2 survivorSource = survivor.GetEmissionSource(survivorNode.NodeId);
+                (Dictionary<uint, DataValue> Values, ArrayOf<SubscriptionAcknowledgement> Acknowledgements) initial =
+                    await PublishEmissionDataAsync(services, subscriptionId, default, timeout.Token)
+                    .ConfigureAwait(false);
+                Assert.That(initial.Values.Values.Select(value => value.StatusCode),
+                    Is.All.EqualTo(StatusCodes.Good));
+                header.Timestamp = DateTimeUtc.Now;
+                SetMonitoringModeResponse disabled = await services.SetMonitoringModeAsync(
+                    header, subscriptionId, MonitoringMode.Disabled, [disabledItemId], timeout.Token)
+                    .ConfigureAwait(false);
+                Assert.That(disabled.Results[0], Is.EqualTo(StatusCodes.Good));
+                var entered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+                var release = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+                var published = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+                first.ConditionRefreshCallback = async (_, token) =>
+                {
+                    entered.TrySetResult(true);
+                    await release.Task.WaitAsync(token).ConfigureAwait(false);
+                };
+                await using ILifecycleWriter exactWriter1 = await Capture(
+                    m_server.NodeManagerLifecycle, registration).BeginAsync(timeout.Token).ConfigureAwait(false);
+                await using IPreparedChanges prepared = await exactWriter1.PrepareAsync(
+                    [LifecycleChange.Remove(registration.Slot)], timeout.Token).ConfigureAwait(false);
+                ISession session = RequireLifecycleValue(
+                    server.SessionManager.GetSession(m_requestHeader.AuthenticationToken));
+                using var context = new OperationContext(session, DiagnosticsMasks.None);
+                Task dispatch = master.ConditionRefreshAsync(context, [eventItem], timeout.Token).AsTask();
+                Task<LifecycleResult>? commit = null;
+                try
+                {
+                    await entered.Task.WaitAsync(timeout.Token).ConfigureAwait(false);
+                    commit = prepared.CommitAsync(
+                        _ => default, () => published.TrySetResult(true), timeout.Token).AsTask();
+                    exactWriter1Disposal = exactWriter1.DisposeAsync().AsTask();
+                    await published.Task.WaitAsync(timeout.Token).ConfigureAwait(false);
 
-                DateTimeUtc producedAt = DateTimeUtc.Now;
-                node.Value = 501;
-                node.Timestamp = producedAt;
-                survivorNode.Value = 702;
-                survivorNode.Timestamp = producedAt;
-                await survivorSource.OnMonitoredNodeChangedAsync(
-                    server.DefaultSystemContext, survivorNode, NodeStateChangeMasks.Value, timeout.Token)
-                    .ConfigureAwait(false);
-                await source.OnMonitoredNodeChangedAsync(
-                    server.DefaultSystemContext, node, NodeStateChangeMasks.NonValue, timeout.Token)
-                    .ConfigureAwait(false);
-                // The helper requires exactly the expected handles, so a retired item 1 or 3 would fail here.
-                (Dictionary<uint, DataValue> survivorOnly, ArrayOf<SubscriptionAcknowledgement> acknowledgements) =
-                    await PublishEmissionDataAsync(
-                        services, subscriptionId, initial.Acknowledgements, timeout.Token, [2])
+                    DateTimeUtc producedAt = DateTimeUtc.Now;
+                    node.Value = 501;
+                    node.Timestamp = producedAt;
+                    survivorNode.Value = 702;
+                    survivorNode.Timestamp = producedAt;
+                    await survivorSource.OnMonitoredNodeChangedAsync(
+                        server.DefaultSystemContext, survivorNode, NodeStateChangeMasks.Value, timeout.Token)
                         .ConfigureAwait(false);
-                Assert.That(survivorOnly[2].StatusCode, Is.EqualTo(StatusCodes.Good));
-                Assert.That(survivorOnly[2].WrappedValue, Is.EqualTo(new Variant(702)));
-                await source.OnMonitoredNodeChangedAsync(
-                    server.DefaultSystemContext, node, NodeStateChangeMasks.Value, timeout.Token)
-                    .ConfigureAwait(false);
-                (Dictionary<uint, DataValue> delivered, acknowledgements) = await PublishEmissionDataAsync(
-                    services, subscriptionId, acknowledgements, timeout.Token, [1]).ConfigureAwait(false);
-                DataValue value = delivered[1];
-                Assert.That(value.StatusCode,
-                    Is.EqualTo(immediate ? StatusCodes.BadNodeIdUnknown : StatusCodes.Good));
-                if (!immediate)
-                {
-                    Assert.That(value.WrappedValue, Is.EqualTo(new Variant(501)));
-                }
-                else
-                {
+                    await source.OnMonitoredNodeChangedAsync(
+                        server.DefaultSystemContext, node, NodeStateChangeMasks.NonValue, timeout.Token)
+                        .ConfigureAwait(false);
+                    // Publication invalidates the reporting item once with BadNodeIdUnknown; the retired source's
+                    // own change after the swap delivers nothing. The helper requires exactly the expected handles.
+                    (Dictionary<uint, DataValue> first1, ArrayOf<SubscriptionAcknowledgement> acknowledgements) =
+                        await PublishEmissionDataAsync(
+                            services, subscriptionId, initial.Acknowledgements, timeout.Token, [1, 2])
+                            .ConfigureAwait(false);
+                    Assert.That(first1[1].StatusCode, Is.EqualTo(StatusCodes.BadNodeIdUnknown));
+                    Assert.That(first1[2].StatusCode, Is.EqualTo(StatusCodes.Good));
+                    Assert.That(first1[2].WrappedValue, Is.EqualTo(new Variant(702)));
+                    await source.OnMonitoredNodeChangedAsync(
+                        server.DefaultSystemContext, node, NodeStateChangeMasks.Value, timeout.Token)
+                        .ConfigureAwait(false);
+                    survivorNode.Value = 703;
+                    survivorNode.Timestamp = DateTimeUtc.Now;
+                    await survivorSource.OnMonitoredNodeChangedAsync(
+                        server.DefaultSystemContext, survivorNode, NodeStateChangeMasks.Value, timeout.Token)
+                        .ConfigureAwait(false);
+                    (Dictionary<uint, DataValue> survivorOnly, acknowledgements) = await PublishEmissionDataAsync(
+                        services, subscriptionId, acknowledgements, timeout.Token, [2]).ConfigureAwait(false);
+                    Assert.That(survivorOnly[2].WrappedValue, Is.EqualTo(new Variant(703)));
                     header.Timestamp = DateTimeUtc.Now;
                     SetMonitoringModeResponse reporting = await services.SetMonitoringModeAsync(
                         header, subscriptionId, MonitoringMode.Reporting, [disabledItemId], timeout.Token)
@@ -317,21 +310,25 @@ namespace Opc.Ua.Server.Tests.NodeManager
                         services, subscriptionId, acknowledgements, timeout.Token, [3]).ConfigureAwait(false);
                     Assert.That(reenabled[3].StatusCode, Is.EqualTo(StatusCodes.BadNodeIdUnknown));
                 }
+                finally
+                {
+                    release.TrySetResult(true);
+                    await dispatch.WaitAsync(timeout.Token).ConfigureAwait(false);
+                    if (commit is not null)
+                    {
+                        await commit.WaitAsync(timeout.Token).ConfigureAwait(false);
+                    }
+                    await DeleteSubscriptionAsync(services, subscriptionId).ConfigureAwait(false);
+                }
             }
             finally
             {
-                release.TrySetResult(true);
-                await dispatch.WaitAsync(timeout.Token).ConfigureAwait(false);
-                if (commit is not null)
-                {
-                    await commit.WaitAsync(timeout.Token).ConfigureAwait(false);
-                }
-                await DeleteSubscriptionAsync(services, subscriptionId).ConfigureAwait(false);
+                await exactWriter1Disposal.ConfigureAwait(false);
             }
         }
 
         /// <summary>
-        /// Verifies that prepared batch publication stops every immediate event source.
+        /// Verifies that prepared batch publication prevents retired generations from delivering events.
         /// </summary>
         /// <param name="reverse">The reverse flag for this test case.</param>
         /// <param name="replace">The replace flag for this test case.</param>
@@ -350,19 +347,24 @@ namespace Opc.Ua.Server.Tests.NodeManager
             using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(60));
             IServerInternal server = m_server.CurrentInstance;
             var master = (MasterNodeManager)server.NodeManager;
-            var lifecycle = (INodeManagerBatchLifecycle)m_server.NodeManagerLifecycle;
+            INodeManagerLifecycle lifecycle = m_server.NodeManagerLifecycle;
             TrackingLifecycleNodeManager? first = null;
             TrackingLifecycleNodeManager? second = null;
             TrackingLifecycleNodeManager? survivor = null;
-            NodeManagerRegistration firstRegistration = await lifecycle.AddAsync(
-                CreateTrackingNodeManagementFactory(101, manager => first = manager),
-                null, timeout.Token).ConfigureAwait(false);
-            NodeManagerRegistration secondRegistration = await lifecycle.AddAsync(
-                CreateTrackingNodeManagementFactory(202, manager => second = manager, kSecondModelNamespaceUri),
-                null, timeout.Token).ConfigureAwait(false);
-            await lifecycle.AddAsync(CreateTrackingNodeManagementFactory(
-                303, manager => survivor = manager, kReadinessProbeNamespaceUri), null, timeout.Token)
-                .ConfigureAwait(false);
+            LifecycleResult publicationResult4 = await CommitChangeAsync(
+                lifecycle, LifecycleChange.Add(
+                CreateTrackingNodeManagementFactory(
+                101, manager => first = manager)), timeout.Token).ConfigureAwait(false);
+            NodeManagerRegistration firstRegistration = RequireRegistration(publicationResult4.Registrations[0]);
+            LifecycleResult publicationResult5 = await CommitChangeAsync(
+                lifecycle, LifecycleChange.Add(
+                CreateTrackingNodeManagementFactory(
+                202, manager => second = manager, kSecondModelNamespaceUri)), timeout.Token).ConfigureAwait(false);
+            NodeManagerRegistration secondRegistration = RequireRegistration(publicationResult5.Registrations[0]);
+            RequireRegistration(
+                (await CommitChangeAsync(lifecycle, LifecycleChange.Add(CreateTrackingNodeManagementFactory(
+                303, manager => survivor = manager, kReadinessProbeNamespaceUri)), timeout.Token)
+                    .ConfigureAwait(false)).Registrations[0]);
             AssertLifecycleValue(first);
             AssertLifecycleValue(second);
             AssertLifecycleValue(survivor);
@@ -399,22 +401,30 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 entered.TrySetResult(true);
                 await release.Task.WaitAsync(token).ConfigureAwait(false);
             };
-            NodeManagerBatchChange firstChange = replace
-                ? NodeManagerBatchChange.Replace(firstRegistration,
-                    CreateTrackingNodeManagementFactory(401, _ => { }), immediate)
-                : NodeManagerBatchChange.Remove(firstRegistration, immediate);
-            NodeManagerBatchChange secondChange = replace
-                ? NodeManagerBatchChange.Replace(secondRegistration,
-                    CreateTrackingNodeManagementFactory(402, _ => { }, kSecondModelNamespaceUri), immediate)
-                : NodeManagerBatchChange.Remove(secondRegistration, immediate);
-            await using IPreparedNodeManagerBatch prepared = await lifecycle.PrepareAsync(
+            LifecycleChange firstChange = replace
+                ? LifecycleChange.Replace(
+                    firstRegistration.Slot, CreateTrackingNodeManagementFactory(
+                    401, _ => { }),
+                    immediate
+                        ? NodeManagerMonitoredItemTransitionMode.Invalidate
+                        : NodeManagerMonitoredItemTransitionMode.Migrate)
+                : LifecycleChange.Remove(firstRegistration.Slot);
+            LifecycleChange secondChange = replace
+                ? LifecycleChange.Replace(
+                    secondRegistration.Slot, CreateTrackingNodeManagementFactory(
+                    402, _ => { }, kSecondModelNamespaceUri),
+                    immediate
+                        ? NodeManagerMonitoredItemTransitionMode.Invalidate
+                        : NodeManagerMonitoredItemTransitionMode.Migrate)
+                : LifecycleChange.Remove(secondRegistration.Slot);
+            await using IPreparedChanges prepared = await lifecycle.PrepareAsync(
                 reverse ? [secondChange, firstChange] : [firstChange, secondChange], timeout.Token)
                 .ConfigureAwait(false);
             ISession session = RequireLifecycleValue(
                 server.SessionManager.GetSession(m_requestHeader.AuthenticationToken));
             using var context = new OperationContext(session, DiagnosticsMasks.None);
             Task dispatch = master.ConditionRefreshAsync(context, [allEvents], timeout.Token).AsTask();
-            Task<NodeManagerBatchResult>? commit = null;
+            Task<LifecycleResult>? commit = null;
             try
             {
                 await entered.Task.WaitAsync(timeout.Token).ConfigureAwait(false);
@@ -449,13 +459,18 @@ namespace Opc.Ua.Server.Tests.NodeManager
                         }
                     }
                 }
-                string[] expectedGlobal = immediate
-                    ? ["before-A", "before-B", "survivor-fence-804"]
-                    : ["before-A", "before-B", "after-B-602", "after-A-501", "survivor-fence-804"];
-                string[] expectedLocal = immediate ? ["before-local"] : ["before-local", "after-local-703"];
+                string[] expectedGlobal = ["before-A", "before-B", "survivor-fence-804"];
+                string[] expectedLocal = replace && !immediate
+                    ? ["before-local", "after-local-703"]
+                    : ["before-local"];
                 using (Assert.EnterMultipleScope())
                 {
-                    Assert.That(messages[1], Is.EqualTo(expectedGlobal));
+                    Assert.That(messages[1]
+                        .Where(message => message != "A live NodeManager was batch."),
+                        Is.EqualTo(expectedGlobal));
+                    Assert.That(
+                        messages[1].Count(message => message == "A live NodeManager was batch."),
+                        Is.EqualTo(1));
                     Assert.That(messages[2], Is.EqualTo(expectedLocal));
                     Assert.That(dispatch.IsCompleted, Is.False);
                     Assert.That(first.AllEventsUnsubscribeCount, Is.Zero);
@@ -468,11 +483,16 @@ namespace Opc.Ua.Server.Tests.NodeManager
             {
                 release.TrySetResult(true);
                 await dispatch.WaitAsync(timeout.Token).ConfigureAwait(false);
+                context.Dispose();
                 if (commit is not null)
                 {
-                    NodeManagerBatchResult result = await commit.WaitAsync(timeout.Token).ConfigureAwait(false);
+                    LifecycleResult result = await commit.WaitAsync(timeout.Token).ConfigureAwait(false);
                     Assert.That(result.CleanupFailure, Is.Null);
                 }
+                await Task.WhenAll(first.DisposalCompleted, second.DisposalCompleted)
+                    .WaitAsync(timeout.Token).ConfigureAwait(false);
+                Assert.That(first.AllEventsUnsubscribeCount, Is.EqualTo(1));
+                Assert.That(second.AllEventsUnsubscribeCount, Is.EqualTo(1));
                 await DeleteSubscriptionAsync(services, subscriptionId).ConfigureAwait(false);
             }
 

@@ -1,31 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using System.Collections.Generic;
@@ -48,12 +22,8 @@ namespace RedundantPubSub
     /// <param name="WriterGroupId">The WriterGroup id used by the writer and reader filter.</param>
     /// <param name="DataSetWriterId">The DataSetWriter id used by the writer and reader filter.</param>
     /// <param name="IntervalMs">The publishing interval in milliseconds.</param>
-    /// <param name="RaftId">This instance's Raft member id.</param>
-    /// <param name="RaftMembers">The total number of Raft members in the set.</param>
-    /// <param name="RaftBind">The local Raft transport bind address.</param>
-    /// <param name="RaftPeers">The Raft transport addresses of the peer members.</param>
-    /// <param name="Insecure">When true, permits a well-known demo record-protection key.</param>
-    /// <param name="RecordKeyBase64">Optional shared base64 record-protection key.</param>
+    /// <param name="Distributed">Whether a networked Raft cluster was requested.</param>
+    /// <param name="Insecure">Whether unsigned loopback-only demo traffic was explicitly enabled.</param>
     /// <param name="LeaseDuration">The lease duration used by lease-store election.</param>
     /// <param name="DemoFirstActiveDuration">How long the first publisher stays active in the demo.</param>
     /// <param name="DemoSecondActiveDuration">How long the promoted publisher runs in the demo.</param>
@@ -67,12 +37,8 @@ namespace RedundantPubSub
         ushort WriterGroupId,
         ushort DataSetWriterId,
         int IntervalMs,
-        ulong RaftId,
-        int RaftMembers,
-        string RaftBind,
-        IReadOnlyList<string> RaftPeers,
+        bool Distributed,
         bool Insecure,
-        string? RecordKeyBase64,
         TimeSpan LeaseDuration,
         TimeSpan DemoFirstActiveDuration,
         TimeSpan DemoSecondActiveDuration)
@@ -85,6 +51,14 @@ namespace RedundantPubSub
         /// <param name="getEnvironment">Callback used to read environment variables.</param>
         /// <returns>The parsed <see cref="SampleOptions"/>.</returns>
         public static SampleOptions Parse(string[] args, Func<string, string?> getEnvironment)
+        {
+            return Parse(CreateSettingsReader(args, getEnvironment));
+        }
+
+        /// <summary>
+        /// Combines CLI settings and the environment for transport and application options.
+        /// </summary>
+        internal static Func<string, string?> CreateSettingsReader(string[] args, Func<string, string?> getEnvironment)
         {
             var cli = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
             for (int ii = 0; ii < args.Length; ii++)
@@ -101,24 +75,28 @@ namespace RedundantPubSub
                     : "true";
             }
 
-            string Read(string key, string fallback) => cli.TryGetValue(key, out string? value) ? value : getEnvironment(key) ?? fallback;
+            return key => cli.TryGetValue(key, out string? value) ? value : getEnvironment(key);
+        }
 
+        /// <summary>
+        /// Parses the application settings from the common settings reader.
+        /// </summary>
+        internal static SampleOptions Parse(Func<string, string?> read)
+        {
+            string Read(string key, string fallback) => read(key) ?? fallback;
             return new SampleOptions(
                 ParseRole(Read("ROLE", "demo")),
                 ParseMode(Read("HA_MODE", "hot")),
                 ParseElection(Read("HA_ELECTION", "leader-election")),
                 Read("OWNER_ID", Dns.GetHostName()),
-                Read("PUBSUB_ENDPOINT", SampleConstants.DefaultEndpoint),
+                Read("PUBSUB_ENDPOINT", SampleConstants.DefaultDemoEndpoint),
                 ParseUShort(Read("PUBLISHER_ID", SampleConstants.DefaultPublisherId.ToString(CultureInfo.InvariantCulture))),
                 ParseUShort(Read("WRITER_GROUP_ID", SampleConstants.DefaultWriterGroupId.ToString(CultureInfo.InvariantCulture))),
                 ParseUShort(Read("DATA_SET_WRITER_ID", SampleConstants.DefaultDataSetWriterId.ToString(CultureInfo.InvariantCulture))),
                 int.Parse(Read("PUBLISH_INTERVAL_MS", "1000"), CultureInfo.InvariantCulture),
-                ulong.Parse(Read("HA_RAFT_ID", "1"), CultureInfo.InvariantCulture),
-                int.Parse(Read("HA_RAFT_MEMBERS", "1"), CultureInfo.InvariantCulture),
-                Read("HA_RAFT_BIND", "tcp://0.0.0.0:6560"),
-                ReadList(Read("HA_RAFT_PEERS", string.Empty)),
+                read("HA_RAFT_ID") != null || read("HA_RAFT_MEMBERS") != null ||
+                    read("HA_RAFT_BIND") != null || read("HA_RAFT_PEERS") != null,
                 bool.TryParse(Read("HA_INSECURE", "false"), out bool insecure) && insecure,
-                EmptyToNull(Read("HA_RECORD_KEY", string.Empty)),
                 TimeSpan.FromSeconds(double.Parse(Read("HA_LEASE_SECONDS", "15"), CultureInfo.InvariantCulture)),
                 TimeSpan.FromSeconds(double.Parse(Read("DEMO_FIRST_SECONDS", "6"), CultureInfo.InvariantCulture)),
                 TimeSpan.FromSeconds(double.Parse(Read("DEMO_SECOND_SECONDS", "6"), CultureInfo.InvariantCulture)));
@@ -161,17 +139,6 @@ namespace RedundantPubSub
             return ushort.Parse(value, CultureInfo.InvariantCulture);
         }
 
-        private static string? EmptyToNull(string value)
-        {
-            return string.IsNullOrWhiteSpace(value) ? null : value;
-        }
-
-        private static string[] ReadList(string value)
-        {
-            return string.IsNullOrWhiteSpace(value)
-                ? []
-                : value.Split([',', ';'], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
-        }
     }
 
     /// <summary>
@@ -209,11 +176,6 @@ namespace RedundantPubSub
         /// The data-set reader name.
         /// </summary>
         public const string ReaderName = "Reader 1";
-
-        /// <summary>
-        /// The default PubSub endpoint for multi-process publisher/subscriber roles.
-        /// </summary>
-        public const string DefaultEndpoint = "opc.udp://239.0.0.1:4840";
 
         /// <summary>
         /// The default PubSub endpoint for the single-process local demo.

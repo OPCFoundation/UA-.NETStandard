@@ -1,31 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using System.Threading;
@@ -85,6 +59,22 @@ namespace Opc.Ua.Server
                 return m_factories.ContainsKey(aggregateId);
             }
         }
+
+        /// <summary>
+        /// The maximum number of raw values that the calculator of an aggregate monitored item
+        /// keeps for its current processing interval (zero or less for no limit). See
+        /// <see cref="ServerConfiguration.MaxMonitoredItemAggregateRawValues"/>.
+        /// </summary>
+        public int MaxMonitoredItemRawValues { get; set; } =
+            ServerConfiguration.DefaultMaxMonitoredItemAggregateRawValues;
+
+        /// <summary>
+        /// The maximum number of raw values kept for one processing interval when processed
+        /// history is calculated from raw history (zero or less for no limit). See
+        /// <see cref="ServerConfiguration.MaxProcessedHistoryRawValues"/>.
+        /// </summary>
+        public int MaxProcessedHistoryRawValues { get; set; } =
+            ServerConfiguration.DefaultMaxProcessedHistoryRawValues;
 
         /// <summary>
         /// The minimum processing interval for any aggregate calculation.
@@ -187,6 +177,33 @@ namespace Opc.Ua.Server
                 stepped,
                 configuration,
                 m_server.Telemetry);
+        }
+
+        /// <summary>
+        /// Registers every aggregate function the core model declares
+        /// (<see cref="AggregateFunctionIds.All"/>, OPC 10000-13) with the standard
+        /// calculator of <see cref="Aggregators"/>, in model order, which is the
+        /// Browse order of the server's AggregateFunctions folders.
+        /// </summary>
+        /// <remarks>
+        /// Every declared aggregate function must have a standard calculator;
+        /// AggregatorsTests checks that, so a model update that adds one fails a
+        /// test instead of the server advertising an aggregate it cannot calculate.
+        /// </remarks>
+        /// <param name="cancellationToken">A cancellation token.</param>
+        internal async ValueTask RegisterStandardAggregatesAsync(CancellationToken cancellationToken = default)
+        {
+            // Indexed: the span enumerator of ArrayOf cannot cross an await.
+            ArrayOf<(NodeId AggregateId, string BrowseName)> aggregates = AggregateFunctionIds.All;
+            for (int ii = 0; ii < aggregates.Count; ii++)
+            {
+                (NodeId aggregateId, string aggregateName) = aggregates[ii];
+                await RegisterFactoryAsync(
+                    aggregateId,
+                    aggregateName,
+                    Aggregators.CreateStandardCalculator,
+                    cancellationToken).ConfigureAwait(false);
+            }
         }
 
         /// <summary>

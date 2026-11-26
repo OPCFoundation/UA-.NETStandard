@@ -1,35 +1,10 @@
-/* ========================================================================
- * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using System.IO;
 using System.Security.Cryptography;
+using System.Threading;
 using Net.Pkcs11Interop.Common;
 using Net.Pkcs11Interop.HighLevelAPI;
 using Net.Pkcs11Interop.HighLevelAPI.MechanismParams;
@@ -74,14 +49,22 @@ namespace Opc.Ua.Security.Pkcs11
             IObjectHandle privateKey,
             RSAParameters publicParameters)
         {
-            m_token = (token ?? throw new ArgumentNullException(nameof(token))).AddRef();
+            m_token = token ?? throw new ArgumentNullException(nameof(token));
             m_privateKey = privateKey ?? throw new ArgumentNullException(nameof(privateKey));
             m_publicParameters = publicParameters;
-
             m_publicKey = CreatePublicKey(publicParameters);
 
-            KeySizeValue = m_publicKey.KeySize;
-            LegalKeySizesValue = [new KeySizes(1024, 8192, 8)];
+            try
+            {
+                KeySizeValue = m_publicKey.KeySize;
+                LegalKeySizesValue = [new KeySizes(1024, 8192, 8)];
+                m_sessionReference = token.AddRef();
+            }
+            catch
+            {
+                m_publicKey.Dispose();
+                throw;
+            }
         }
 
         /// <summary>
@@ -159,6 +142,8 @@ namespace Opc.Ua.Security.Pkcs11
             HashAlgorithmName hashAlgorithm,
             RSASignaturePadding padding)
         {
+            ThrowIfDisposed();
+
             if (hash == null)
             {
                 throw new ArgumentNullException(nameof(hash));
@@ -225,6 +210,8 @@ namespace Opc.Ua.Security.Pkcs11
         /// </exception>
         public override byte[] Decrypt(byte[] data, RSAEncryptionPadding padding)
         {
+            ThrowIfDisposed();
+
             if (data == null)
             {
                 throw new ArgumentNullException(nameof(data));
@@ -281,20 +268,34 @@ namespace Opc.Ua.Security.Pkcs11
         /// <inheritdoc/>
         protected override void Dispose(bool disposing)
         {
-            if (disposing)
+            if (disposing && Interlocked.Exchange(ref m_disposed, 1) == 0)
             {
-                m_publicKey.Dispose();
-
-                // Releases this key's reference; the session closes with the last.
-                m_token.Dispose();
+                try
+                {
+                    m_publicKey.Dispose();
+                }
+                finally
+                {
+                    m_sessionReference.Dispose();
+                }
             }
 
             base.Dispose(disposing);
+        }
+
+        private void ThrowIfDisposed()
+        {
+            if (Volatile.Read(ref m_disposed) != 0)
+            {
+                throw new ObjectDisposedException(nameof(Pkcs11Rsa));
+            }
         }
 
         private readonly Pkcs11Token m_token;
         private readonly IObjectHandle m_privateKey;
         private readonly RSAParameters m_publicParameters;
         private readonly RSA m_publicKey;
+        private readonly IDisposable m_sessionReference;
+        private int m_disposed;
     }
 }

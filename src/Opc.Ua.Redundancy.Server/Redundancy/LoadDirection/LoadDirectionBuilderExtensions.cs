@@ -1,31 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using Microsoft.Extensions.DependencyInjection;
@@ -46,8 +20,10 @@ namespace Opc.Ua.Redundancy.Server
         /// Registers <c>GetEndpoints</c> load direction: peers publish their health <c>ServiceLevel</c>, load weight,
         /// and endpoints to the shared store, and a request on the configured balancing discovery URL is answered with
         /// the best peer's endpoints. Requires a shared store (register <c>UseReplicatedAddressSpace</c> /
-        /// <c>UseRedundancyConsistency</c>); pair with <c>AddServerServiceLevel(...)</c> for a real health signal and
-        /// register an <see cref="ILoadWeightProvider"/> for load-aware balancing. It complements — and never
+        /// <c>UseRedundancyConsistency</c>) and an authenticated <see cref="IRecordProtector"/> for nonlocal stores.
+        /// Only statically configured application URIs are eligible; without them discovery stays local.
+        /// Pair with <c>AddServerServiceLevel(...)</c> for a real health signal and register an
+        /// <see cref="ILoadWeightProvider"/> for load-aware balancing. It complements — and never
         /// replaces — the standard client-driven <c>RedundantServerArray</c> / <c>ServiceLevel</c> Failover.
         /// </summary>
         /// <param name="builder">The server builder.</param>
@@ -77,7 +53,8 @@ namespace Opc.Ua.Redundancy.Server
                 ResolveServiceLevelProvider(sp),
                 sp.GetRequiredService<ILoadWeightProvider>(),
                 options,
-                sp.GetService<ILogger<ServerLoadDirector>>()));
+                sp.GetService<ILogger<ServerLoadDirector>>(),
+                ResolveTimeProvider(sp)));
             builder.Services.AddSingleton<IGetEndpointsDirector>(
                 sp => sp.GetRequiredService<ServerLoadDirector>());
 
@@ -86,7 +63,9 @@ namespace Opc.Ua.Redundancy.Server
                 ResolveProtector(sp),
                 options,
                 sp.GetRequiredService<ServerLoadDirector>(),
-                ResolveTimeProvider(sp)));
+                ResolveTimeProvider(sp),
+                ResolvePeerApplicationUris(sp, options),
+                useHostedPublishing: true));
             builder.Services.AddSingleton<IServerStartupTask>(sp => new PeerDirectionPublishStartupTask(
                 sp.GetRequiredService<ISharedKeyValueStore>(),
                 ResolveProtector(sp),
@@ -111,6 +90,19 @@ namespace Opc.Ua.Redundancy.Server
         private static TimeProvider ResolveTimeProvider(IServiceProvider serviceProvider)
         {
             return serviceProvider.GetService<TimeProvider>() ?? TimeProvider.System;
+        }
+
+        private static ArrayOf<string> ResolvePeerApplicationUris(
+            IServiceProvider serviceProvider,
+            LoadDirectionOptions options)
+        {
+            if (!options.PeerApplicationUris.IsNull)
+            {
+                return options.PeerApplicationUris;
+            }
+
+            ServerRedundancyOptions? configured = serviceProvider.GetService<ServerRedundancyOptions>();
+            return configured == null ? [] : configured.GetPeerApplicationUris();
         }
     }
 }

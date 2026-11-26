@@ -1,34 +1,9 @@
-/* ========================================================================
- * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using System.Threading;
+using System.Threading.Channels;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Opc.Ua.Server;
@@ -37,12 +12,10 @@ using Opc.Ua.Server.Hosting;
 namespace Opc.Ua.Redundancy.Server
 {
     /// <summary>
-    /// Server startup task that publishes the local Server's direction signals to the shared store: the health
-    /// <c>ServiceLevel</c> immediately whenever it changes, and the load weight coalesced to at most one write per
-    /// <see cref="LoadDirectionOptions.LoadPublishInterval"/>. Peers read these through an
-    /// <see cref="IPeerDirectionView"/> to direct Clients to the best Server.
+    /// Publishes the local server's health and endpoints at startup and before they expire, independently of
+    /// discovery requests. Health changes also trigger publication; load changes remain coalesced.
     /// </summary>
-    public sealed class PeerDirectionPublishStartupTask : IServerStartupTask, IDisposable
+    public sealed class PeerDirectionPublishStartupTask : IServerStartupTask, IDisposable, IAsyncDisposable
     {
         /// <summary>
         /// Creates the task.
@@ -62,7 +35,7 @@ namespace Opc.Ua.Redundancy.Server
             TimeProvider timeProvider)
         {
             m_store = store ?? throw new ArgumentNullException(nameof(store));
-            m_protector = protector ?? throw new ArgumentNullException(nameof(protector));
+            m_protector = LoadDirectionRecordValidation.RequireProtection(m_store, protector);
             m_options = options ?? throw new ArgumentNullException(nameof(options));
             m_serviceLevelProvider = serviceLevelProvider
                 ?? throw new ArgumentNullException(nameof(serviceLevelProvider));
@@ -81,93 +54,176 @@ namespace Opc.Ua.Redundancy.Server
 
             string? localServerUri = ResolveLocalServerUri(server);
             m_logger = server.DefaultSystemContext.Telemetry.CreateLogger<PeerDirectionPublishStartupTask>();
-            if (string.IsNullOrEmpty(localServerUri))
+            if (localServerUri is not { Length: > 0 })
             {
                 m_logger.LoadDirectionDisabledLocalServerUriUnavailableForPeerDirection();
                 return;
             }
 
             m_publisher = new SharedPeerDirectionPublisher(
-                m_store, server.MessageContext, m_protector, m_options, m_timeProvider, localServerUri!);
+                m_store, server.MessageContext, m_protector, m_options, m_timeProvider, localServerUri);
+            if (server is IServerEndpointRegistryProvider registry)
+            {
+                m_endpointRegistry = registry;
+                m_endpointPublisher = new SharedPeerEndpointPublisher(
+                    m_store, server.MessageContext, m_protector, m_options, localServerUri, m_timeProvider);
+            }
 
-            // Publish the current values once, then react to changes.
-            await PublishServiceLevelSafeAsync(
-                m_serviceLevelProvider.GetServiceLevel(), cancellationToken).ConfigureAwait(false);
-
-            byte initialLoad = m_loadWeightProvider.GetLoadWeight();
-            Volatile.Write(ref m_latestLoad, initialLoad);
-            m_lastPublishedLoad = initialLoad;
-            await PublishLoadSafeAsync(initialLoad, cancellationToken).ConfigureAwait(false);
-
+            var lifetime = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+            m_lifetime = lifetime;
+            CancellationToken ct = lifetime.Token;
             m_serviceLevelProvider.ServiceLevelChanged += OnServiceLevelChanged;
-            m_loadWeightProvider.LoadWeightChanged += OnLoadWeightChanged;
+            await PublishServiceLevelSafeAsync(ct).ConfigureAwait(false);
+            await PublishEndpointsSafeAsync(localServerUri, ct).ConfigureAwait(false);
+            await PublishLoadSafeAsync(ct).ConfigureAwait(false);
+
+            if (m_options.StalenessWindow > TimeSpan.Zero)
+            {
+                long ticks = Math.Max(TimeSpan.TicksPerMillisecond,
+                    Math.Min(m_options.StalenessWindow.Ticks / 2, TimeSpan.TicksPerDay));
+                TimeSpan interval = TimeSpan.FromTicks(ticks);
+                m_refreshTimer = m_timeProvider.CreateTimer(OnRefreshTick, null, interval, interval);
+            }
 
             if (m_options.LoadPublishInterval > TimeSpan.Zero)
             {
-                m_loadTimer = new Timer(
+                m_loadTimer = m_timeProvider.CreateTimer(
                     OnLoadTick, null, m_options.LoadPublishInterval, m_options.LoadPublishInterval);
             }
+            m_publishLoop = PublishPendingAsync(localServerUri, ct);
         }
 
         /// <inheritdoc/>
         public void Dispose()
         {
+            _ = StopPublishingAsync();
+        }
+
+        /// <inheritdoc/>
+        public ValueTask DisposeAsync()
+        {
+            return new ValueTask(StopPublishingAsync());
+        }
+
+        private async Task StopPublishingAsync()
+        {
+            if (Interlocked.Exchange(ref m_disposed, 1) != 0)
+            {
+                return;
+            }
+
             m_serviceLevelProvider.ServiceLevelChanged -= OnServiceLevelChanged;
-            m_loadWeightProvider.LoadWeightChanged -= OnLoadWeightChanged;
             m_loadTimer?.Dispose();
-            m_loadTimer = null;
+            m_refreshTimer?.Dispose();
+            m_lifetime?.Cancel();
+            m_pending.Writer.TryComplete();
+            try
+            {
+                if (m_publishLoop is Task loop)
+                {
+                    await loop.ConfigureAwait(false);
+                }
+            }
+            finally
+            {
+                m_lifetime?.Dispose();
+            }
         }
 
         private void OnServiceLevelChanged(byte serviceLevel)
         {
-            _ = PublishServiceLevelSafeAsync(serviceLevel, CancellationToken.None);
-        }
-
-        private void OnLoadWeightChanged(byte loadWeight)
-        {
-            Volatile.Write(ref m_latestLoad, loadWeight);
+            Volatile.Write(ref m_healthPending, 1);
+            m_pending.Writer.TryWrite(true);
         }
 
         private void OnLoadTick(object? state)
         {
-            int latest = Volatile.Read(ref m_latestLoad);
-            if (latest == m_lastPublishedLoad)
-            {
-                return;
-            }
-            m_lastPublishedLoad = latest;
-            _ = PublishLoadSafeAsync((byte)latest, CancellationToken.None);
+            Volatile.Write(ref m_loadPending, 1);
+            m_pending.Writer.TryWrite(true);
         }
 
-        private async Task PublishServiceLevelSafeAsync(byte serviceLevel, CancellationToken cancellationToken)
+        private void OnRefreshTick(object? state)
         {
-            IPeerDirectionPublisher? publisher = m_publisher;
-            if (publisher == null)
-            {
-                return;
-            }
+            Volatile.Write(ref m_refreshPending, 1);
+            m_pending.Writer.TryWrite(true);
+        }
+
+        private async Task PublishPendingAsync(string localServerUri, CancellationToken ct)
+        {
             try
             {
-                await publisher.PublishServiceLevelAsync(serviceLevel, cancellationToken).ConfigureAwait(false);
+                await foreach (bool _ in m_pending.Reader.ReadAllAsync(ct).ConfigureAwait(false))
+                {
+                    ct.ThrowIfCancellationRequested();
+                    bool refresh = Interlocked.Exchange(ref m_refreshPending, 0) != 0;
+                    if (Interlocked.Exchange(ref m_healthPending, 0) != 0 || refresh)
+                    {
+                        await PublishServiceLevelSafeAsync(ct).ConfigureAwait(false);
+                    }
+                    if (refresh)
+                    {
+                        await PublishEndpointsSafeAsync(localServerUri, ct).ConfigureAwait(false);
+                    }
+                    if (Interlocked.Exchange(ref m_loadPending, 0) != 0)
+                    {
+                        await PublishLoadSafeAsync(ct).ConfigureAwait(false);
+                    }
+                }
             }
-            catch (Exception ex) when (ex is not OperationCanceledException)
+            catch (OperationCanceledException) when (ct.IsCancellationRequested)
+            {
+                // The server or publisher stopped.
+            }
+        }
+
+        private async Task PublishServiceLevelSafeAsync(CancellationToken cancellationToken)
+        {
+            try
+            {
+                await m_publisher!.PublishServiceLevelAsync(m_serviceLevelProvider.GetServiceLevel(), cancellationToken)
+                    .ConfigureAwait(false);
+            }
+            catch (Exception ex) when (
+                ex is not OperationCanceledException || !cancellationToken.IsCancellationRequested)
             {
                 m_logger?.FailedToPublishHealthServiceLevelDirectionSignal(ex);
             }
         }
 
-        private async Task PublishLoadSafeAsync(byte loadWeight, CancellationToken cancellationToken)
+        private async Task PublishEndpointsSafeAsync(string localServerUri, CancellationToken cancellationToken)
         {
-            IPeerDirectionPublisher? publisher = m_publisher;
-            if (publisher == null)
-            {
-                return;
-            }
             try
             {
-                await publisher.PublishLoadWeightAsync(loadWeight, cancellationToken).ConfigureAwait(false);
+                if (m_endpointRegistry is not null &&
+                    m_endpointPublisher is SharedPeerEndpointPublisher publisher)
+                {
+                    ArrayOf<EndpointDescription> endpoints = m_endpointRegistry.ServerEndpoints;
+                    if (LoadDirectionRecordValidation.MatchesMember(endpoints, localServerUri))
+                    {
+                        await publisher.PublishAsync(endpoints, cancellationToken).ConfigureAwait(false);
+                    }
+                }
             }
-            catch (Exception ex) when (ex is not OperationCanceledException)
+            catch (Exception ex) when (
+                ex is not OperationCanceledException || !cancellationToken.IsCancellationRequested)
+            {
+                m_logger?.FailedToPublishLocalEndpointSnapshot(ex);
+            }
+        }
+
+        private async Task PublishLoadSafeAsync(CancellationToken cancellationToken)
+        {
+            try
+            {
+                byte load = m_loadWeightProvider.GetLoadWeight();
+                if (load != m_lastPublishedLoad)
+                {
+                    await m_publisher!.PublishLoadWeightAsync(load, cancellationToken).ConfigureAwait(false);
+                    m_lastPublishedLoad = load;
+                }
+            }
+            catch (Exception ex) when (
+                ex is not OperationCanceledException || !cancellationToken.IsCancellationRequested)
             {
                 m_logger?.FailedToPublishLoadWeightDirectionSignal(ex);
             }
@@ -186,10 +242,23 @@ namespace Opc.Ua.Redundancy.Server
         private readonly ILoadWeightProvider m_loadWeightProvider;
         private readonly TimeProvider m_timeProvider;
         private ILogger? m_logger;
-        private IPeerDirectionPublisher? m_publisher;
-        private Timer? m_loadTimer;
-        private int m_latestLoad;
-        private int m_lastPublishedLoad;
+        private readonly Channel<bool> m_pending = Channel.CreateBounded<bool>(new BoundedChannelOptions(1)
+        {
+            SingleReader = true,
+            FullMode = BoundedChannelFullMode.DropWrite
+        });
+        private SharedPeerDirectionPublisher? m_publisher;
+        private IServerEndpointRegistryProvider? m_endpointRegistry;
+        private SharedPeerEndpointPublisher? m_endpointPublisher;
+        private CancellationTokenSource? m_lifetime;
+        private Task? m_publishLoop;
+        private ITimer? m_loadTimer;
+        private ITimer? m_refreshTimer;
+        private byte? m_lastPublishedLoad;
+        private int m_healthPending;
+        private int m_loadPending;
+        private int m_refreshPending;
+        private int m_disposed;
     }
 
     /// <summary>
@@ -216,6 +285,11 @@ namespace Opc.Ua.Redundancy.Server
         public static partial void FailedToPublishLoadWeightDirectionSignal(
             this ILogger logger,
             Exception exception);
+
+        [LoggerMessage(EventId = RedundancyServerEventIds.PeerDirectionPublishStartupTask + 3,
+            Level = LogLevel.Debug,
+            Message = "Failed to publish the local endpoint snapshot for load direction.")]
+        public static partial void FailedToPublishLocalEndpointSnapshot(this ILogger logger, Exception exception);
     }
 
 }

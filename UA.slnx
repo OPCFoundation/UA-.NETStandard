@@ -61,9 +61,23 @@
     <Project Path="samples/Pumps/PumpsServer/PumpsServer.csproj" />
     <Project Path="samples/Pumps/PumpsClient/PumpsClient.csproj" />
   </Folder>
+  <Folder Name="/samples/ECM/">
+    <Project Path="samples/ECM/EcmServer/EcmServer.csproj" />
+    <Project Path="samples/ECM/EcmClient/EcmClient.csproj" />
+  </Folder>
+  <Folder Name="/samples/PADIM/">
+    <Project Path="samples/PADIM/PadimDemo/PadimDemo.csproj" />
+  </Folder>
   <Folder Name="/samples/Scales/">
     <Project Path="samples/Scales/ScalesServer/ScalesServer.csproj" />
     <Project Path="samples/Scales/ScalesClient/ScalesClient.csproj" />
+  </Folder>
+  <Folder Name="/samples/PackML/">
+    <Project Path="samples/PackML/PackMLSample/PackMLSample.csproj" />
+  </Folder>
+  <Folder Name="/samples/IA/">
+    <File Path="samples/IA/README.md" />
+    <Project Path="samples/IA/IndustrialAutomationSample.csproj" />
   </Folder>
   <Folder Name="/samples/ISA95/">
     <File Path="samples/ISA95/README.md" />
@@ -77,6 +91,9 @@
     <Project Path="samples/MinimalApi/MinimalBoilerServer/MinimalBoilerServer.csproj" />
     <Project Path="samples/MinimalApi/MinimalCalcServer/MinimalCalcServer.csproj" />
     <Project Path="samples/MinimalApi/MinimalClient/MinimalClient.csproj" />
+  </Folder>
+  <Folder Name="/samples/Network/">
+    <Project Path="samples/Network/NetworkModelSample/NetworkModelSample.csproj" />
   </Folder>
   <Folder Name="/samples/OpenUsd/">
     <Project Path="samples/OpenUsd/GeneratorServer/GeneratorServer.csproj" />
@@ -172,10 +189,18 @@
     <Project Path="src/Opc.Ua.GMS.Client/Opc.Ua.GMS.Client.csproj" />
     <Project Path="src/Opc.Ua.GMS.Server/Opc.Ua.GMS.Server.csproj" />
     <Project Path="src/Opc.Ua.GMS/Opc.Ua.GMS.csproj" />
+    <Project Path="src/Opc.Ua.IA.Client/Opc.Ua.IA.Client.csproj" />
+    <Project Path="src/Opc.Ua.IA.Server/Opc.Ua.IA.Server.csproj" />
     <Project Path="src/Opc.Ua.IA/Opc.Ua.IA.csproj" />
     <Project Path="src/Opc.Ua.ECM/Opc.Ua.ECM.csproj" />
+    <Project Path="src/Opc.Ua.ECM.Client/Opc.Ua.ECM.Client.csproj" />
+    <Project Path="src/Opc.Ua.ECM.Server/Opc.Ua.ECM.Server.csproj" />
     <Project Path="src/Opc.Ua.PADIM/Opc.Ua.PADIM.csproj" />
+    <Project Path="src/Opc.Ua.PADIM.Client/Opc.Ua.PADIM.Client.csproj" />
+    <Project Path="src/Opc.Ua.PADIM.Server/Opc.Ua.PADIM.Server.csproj" />
     <Project Path="src/Opc.Ua.PackML/Opc.Ua.PackML.csproj" />
+    <Project Path="src/Opc.Ua.PackML.Client/Opc.Ua.PackML.Client.csproj" />
+    <Project Path="src/Opc.Ua.PackML.Server/Opc.Ua.PackML.Server.csproj" />
     <Project Path="src/Opc.Ua.Machinery/Opc.Ua.Machinery.csproj" />
     <Project Path="src/Opc.Ua.Machinery.Jobs/Opc.Ua.Machinery.Jobs.csproj" />
     <Project Path="src/Opc.Ua.Machinery.Result/Opc.Ua.Machinery.Result.csproj" />
@@ -347,6 +372,7 @@
     <File Path="docs/WhatsNewIn2.0.md" />
     <File Path="docs/WotCon.md" />
     <File Path="docs/WotNodeSetConversion.md" />
+    <File Path="docs/WotExportTool.md" />
   </Folder>
   <Folder Name="/Solution Items/docs/migrate/" />
   <Folder Name="/Solution Items/docs/migrate/2.0.x/">
@@ -365,6 +391,10 @@
     <File Path="docs/migrate/2.0.x/timeprovider.md" />
     <File Path="docs/migrate/2.0.x/types.md" />
   </Folder>
+  <Folder Name="/Solution Items/docs/migrate/2.0.3/">
+    <File Path="docs/migrate/2.0.3/node-managers.md" />
+    <File Path="docs/migrate/2.0.3/README.md" />
+  </Folder>
   <Folder Name="/Solution Items/docs/perf/">
     <File Path="docs/perf/PooledNotificationBenchmarks.md" />
   </Folder>
@@ -372,6 +402,7 @@
     <File Path=".github/agents/coverage-test-generator.agent.md" />
   </Folder>
   <Folder Name="/tests/">
+    <Project Path="tests/Opc.Ua.Wot.Exporter.Tests/Opc.Ua.Wot.Exporter.Tests.csproj" />
     <Project Path="tests/Opc.Ua.Lens.Artifacts.Tests/Opc.Ua.Lens.Artifacts.Tests.csproj" />
     <Project Path="tests/Opc.Ua.Lens.Desktop.Tests/Opc.Ua.Lens.Desktop.Tests.csproj" />
     <Project Path="tests/Opc.Ua.Lens.Tests/Opc.Ua.Lens.Tests.csproj" />
@@ -402,6 +433,7 @@
     <Project Path="tests/Opc.Ua.Features.Tests/Opc.Ua.Features.Tests.csproj" />
     <Project Path="tests/Opc.Ua.GMS.Tests/Opc.Ua.GMS.Tests.csproj" />
     <Project Path="tests/Opc.Ua.History.Tests/Opc.Ua.History.Tests.csproj" />
+    <Project Path="tests/Opc.Ua.IA.Tests/Opc.Ua.IA.Tests.csproj" />
     <Project Path="tests/Opc.Ua.InformationModel.Tests/Opc.Ua.InformationModel.Tests.csproj" />
     <Project Path="tests/Opc.Ua.Interop.Tests/Opc.Ua.Interop.Tests.csproj" />
     <Project Path="tests/Opc.Ua.Lds.Tests/Opc.Ua.Lds.Tests.csproj" />
@@ -428,7 +460,11 @@
     <Project Path="tests/Opc.Ua.PlasticsRubber.Tests/Opc.Ua.PlasticsRubber.Tests.csproj" />
     <Project Path="tests/Opc.Ua.Positioning.Tests/Opc.Ua.Positioning.Tests.csproj" />
     <Project Path="tests/Opc.Ua.Pumps.Tests/Opc.Ua.Pumps.Tests.csproj" />
+    <Project Path="tests/Opc.Ua.ECM.Tests/Opc.Ua.ECM.Tests.csproj" />
+    <Project Path="tests/Opc.Ua.ECM.IntegrationTests/Opc.Ua.ECM.Integration.Tests.csproj" />
+    <Project Path="tests/Opc.Ua.PADIM.Tests/Opc.Ua.PADIM.Tests.csproj" />
     <Project Path="tests/Opc.Ua.Scales.Tests/Opc.Ua.Scales.Tests.csproj" />
+    <Project Path="tests/Opc.Ua.PackML.Tests/Opc.Ua.PackML.Tests.csproj" />
     <Project Path="tests/Opc.Ua.AMB.Tests/Opc.Ua.AMB.Tests.csproj" />
     <Project Path="tests/Opc.Ua.AutoID.Tests/Opc.Ua.AutoID.Tests.csproj" />
     <Project Path="tests/Opc.Ua.LADS.Tests/Opc.Ua.LADS.Tests.csproj" />
@@ -463,6 +499,7 @@
     <Project Path="tools/Opc.Ua.Lens.AppHost/Opc.Ua.Lens.AppHost.csproj" />
     <Project Path="tools/Opc.Ua.Lens/Opc.Ua.Lens.csproj" />
     <Project Path="tools/Opc.Ua.Mcp/Opc.Ua.Mcp.csproj" />
+    <Project Path="tools/Opc.Ua.Wot.Exporter/Opc.Ua.Wot.Exporter.csproj" />
     <Project Path="tools/Opc.Ua.Mcp.AMB/Opc.Ua.Mcp.AMB.csproj" />
     <Project Path="tools/Opc.Ua.Mcp.AutoID/Opc.Ua.Mcp.AutoID.csproj" />
     <Project Path="tools/Opc.Ua.Mcp.Core/Opc.Ua.Mcp.Core.csproj" />

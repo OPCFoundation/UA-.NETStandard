@@ -1,31 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using System.Linq;
@@ -975,15 +949,38 @@ namespace Opc.Ua.Gds.Client
             }
 
             uint versionToUpdate = await ReadConfigurationFileVersionAsync(session, file, ct).ConfigureAwait(false);
+            int chunkSize = await ReadConfigurationFileTransferLimitAsync(session, file, ct).ConfigureAwait(false);
             byte mode = (byte)(OpenFileMode.Read | OpenFileMode.Write);
             uint fileHandle = await file.OpenAsync(mode, ct).ConfigureAwait(false);
             bool closeAndUpdateInvoked = false;
             try
             {
+                ulong existingLength = 0;
+                while (true)
+                {
+                    ByteString existing = await file.ReadAsync(fileHandle, chunkSize, ct).ConfigureAwait(false);
+                    if (existing.IsNull || existing.Length > chunkSize)
+                    {
+                        throw new ServiceResultException(StatusCodes.BadUnexpectedError,
+                            "The ConfigurationFile returned an invalid read response.");
+                    }
+                    if (existing.IsEmpty)
+                    {
+                        break;
+                    }
+                    existingLength += (uint)existing.Length;
+                    if (existingLength > (ulong)configuration.Length)
+                    {
+                        throw new ServiceResultException(StatusCodes.BadNotSupported,
+                            "A shorter ConfigurationFile replacement cannot be uploaded without truncation support.");
+                    }
+                }
+                await file.SetPositionAsync(fileHandle, 0, ct).ConfigureAwait(false);
+
                 byte[] content = configuration.ToArray();
                 for (int offset = 0; offset < content.Length;)
                 {
-                    int count = Math.Min(4096, content.Length - offset);
+                    int count = Math.Min(chunkSize, content.Length - offset);
                     await file.WriteAsync(
                         fileHandle,
                         ByteString.From(content.AsSpan(offset, count)),
@@ -1508,6 +1505,91 @@ namespace Opc.Ua.Gds.Client
             {
                 m_logger.ErrorRevertingToNormalPermissions(e);
             }
+        }
+
+        /// <summary>
+        /// Uses the file limit or optional server limit within local and configured transfer bounds.
+        /// </summary>
+        private async ValueTask<int> ReadConfigurationFileTransferLimitAsync(
+            ISession session, ApplicationConfigurationFileTypeClient file, CancellationToken ct)
+        {
+            TranslateBrowsePathsToNodeIdsResponse translated = await session.TranslateBrowsePathsToNodeIdsAsync(
+                null,
+                [new BrowsePath
+                {
+                    StartingNode = file.ObjectId,
+                    RelativePath = new RelativePath
+                    {
+                        Elements = [new RelativePathElement
+                        {
+                            ReferenceTypeId = ReferenceTypeIds.HasProperty,
+                            IncludeSubtypes = true,
+                            TargetName = new QualifiedName(Opc.Ua.BrowseNames.MaxByteStringLength)
+                        }]
+                    }
+                }], ct).ConfigureAwait(false);
+            uint fileLimit = 0;
+            if (translated.Results.Count == 1)
+            {
+                BrowsePathResult result = translated.Results[0];
+                if (StatusCode.IsGood(result.StatusCode) && result.Targets.Count == 1 &&
+                    result.Targets[0].RemainingPathIndex == uint.MaxValue)
+                {
+                    NodeId id = ExpandedNodeId.ToNodeId(result.Targets[0].TargetId, session.NamespaceUris);
+                    DataValue value = await session.ReadValueAsync(id, ct).ConfigureAwait(false);
+                    if (StatusCode.IsBad(value.StatusCode))
+                    {
+                        throw new ServiceResultException(value.StatusCode);
+                    }
+                    if (!value.WrappedValue.TryGetValue(out fileLimit))
+                    {
+                        throw new ServiceResultException(StatusCodes.BadTypeMismatch);
+                    }
+                }
+                else if (result.StatusCode != StatusCodes.BadNoMatch)
+                {
+                    throw new ServiceResultException(StatusCode.IsBad(result.StatusCode)
+                        ? result.StatusCode : StatusCodes.BadUnexpectedError);
+                }
+            }
+            else
+            {
+                throw new ServiceResultException(StatusCodes.BadUnexpectedError);
+            }
+            uint advertisedLimit = fileLimit;
+            if (advertisedLimit == 0)
+            {
+                var (values, _) = await session.ReadValuesAsync(
+                    [Ua.VariableIds.Server_ServerCapabilities_MaxByteStringLength], ct).ConfigureAwait(false);
+                if (values.Count != 1)
+                {
+                    throw new ServiceResultException(StatusCodes.BadUnexpectedError);
+                }
+                DataValue serverValue = values[0];
+                if (serverValue.StatusCode != StatusCodes.BadNodeIdUnknown)
+                {
+                    if (StatusCode.IsBad(serverValue.StatusCode))
+                    {
+                        throw new ServiceResultException(serverValue.StatusCode);
+                    }
+                    if (!serverValue.WrappedValue.TryGetValue(out advertisedLimit))
+                    {
+                        throw new ServiceResultException(StatusCodes.BadTypeMismatch);
+                    }
+                }
+            }
+            int localLimit = session.MessageContext.MaxByteStringLength;
+            if (localLimit <= 0)
+            {
+                localLimit = DefaultEncodingLimits.MaxByteStringLength;
+            }
+            uint limit = advertisedLimit > 0 ? Math.Min(advertisedLimit, (uint)localLimit) : (uint)localLimit;
+            int chunkSize = (int)Math.Min(limit, (uint)Math.Max(0, m_options.FileTransferChunkSize));
+            if (chunkSize <= 0)
+            {
+                throw new ServiceResultException(StatusCodes.BadEncodingLimitsExceeded);
+            }
+            return chunkSize;
         }
 
         private void Session_KeepAlive(ISession session, KeepAliveEventArgs e)

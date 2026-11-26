@@ -1,36 +1,9 @@
-/* ========================================================================
- * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
-using System.Runtime.CompilerServices;
 using System.Threading;
 
 namespace Opc.Ua.Server
@@ -65,11 +38,22 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
-        /// Associates the precise pooled notification instance, never the potentially duplicated client handle.
+        /// Associates the notification just added to <paramref name="notifications"/> by its
+        /// position in the publish pass, never by the potentially duplicated client handle.
+        /// Called by the monitored item under the subscription lock while it publishes.
         /// </summary>
-        internal void TrackValuePublication(MonitoredValuePublication publication)
+        internal bool TrackValuePublication(
+            MonitoredValuePublication publication,
+            Queue<MonitoredItemNotification> notifications)
         {
-            m_valuePublicationNotifications.TryAdd(publication.Notification!, publication);
+            // only the queue of the publish pass ends up in a message of this subscription.
+            if (!ReferenceEquals(notifications, m_publishDataChanges))
+            {
+                return false;
+            }
+            publication.NotificationOrdinal = m_publishDataChangeOrdinal + notifications.Count - 1;
+            m_trackedValuePublications.TryAdd(publication, 0);
+            return true;
         }
 
         /// <summary>
@@ -78,12 +62,29 @@ namespace Opc.Ua.Server
         internal void UnregisterValuePublication(MonitoredValuePublication publication)
         {
             m_valuePublications.TryRemove(publication, out _);
-            if (publication.Notification != null)
+            m_trackedValuePublications.TryRemove(publication, out _);
+        }
+
+        /// <summary>
+        /// Takes <paramref name="count"/> data changes out of the publish queue for
+        /// <paramref name="message"/> and assigns the observations tracked among them.
+        /// Called under the subscription lock.
+        /// </summary>
+        private void AdvanceDataChangeOrdinal(NotificationMessage? message, int count)
+        {
+            long first = m_publishDataChangeOrdinal;
+            m_publishDataChangeOrdinal += count;
+            if (message == null || m_trackedValuePublications.IsEmpty)
             {
-                ((ICollection<KeyValuePair<MonitoredItemNotification, MonitoredValuePublication>>)
-                    m_valuePublicationNotifications).Remove(
-                        new KeyValuePair<MonitoredItemNotification, MonitoredValuePublication>(
-                            publication.Notification, publication));
+                return;
+            }
+            foreach (MonitoredValuePublication publication in m_trackedValuePublications.Keys)
+            {
+                if (publication.NotificationOrdinal >= first &&
+                    publication.NotificationOrdinal < m_publishDataChangeOrdinal)
+                {
+                    publication.Message = message;
+                }
             }
         }
 
@@ -97,22 +98,16 @@ namespace Opc.Ua.Server
         /// </summary>
         internal void CompleteValuePublications(NotificationMessage message)
         {
-            if (m_valuePublicationNotifications.IsEmpty)
+            if (m_trackedValuePublications.IsEmpty)
             {
                 return;
             }
-            foreach (ExtensionObject extension in message.NotificationData)
+            foreach (MonitoredValuePublication publication in m_trackedValuePublications.Keys)
             {
-                if (!extension.TryGetValue(out DataChangeNotification? notification))
+                if (ReferenceEquals(publication.Message, message) &&
+                    m_trackedValuePublications.TryRemove(publication, out _))
                 {
-                    continue;
-                }
-                foreach (MonitoredItemNotification item in notification.MonitoredItems)
-                {
-                    if (m_valuePublicationNotifications.TryRemove(item, out MonitoredValuePublication? publication))
-                    {
-                        publication.Complete(published: true);
-                    }
+                    publication.Complete(published: true);
                 }
             }
         }
@@ -135,21 +130,13 @@ namespace Opc.Ua.Server
         /// <summary>Observations waiting for either publication or subscriber teardown.</summary>
         private readonly ConcurrentDictionary<MonitoredValuePublication, byte> m_valuePublications = new();
 
-        /// <summary>Exact notification identities retained only while their bounded observations are pending.</summary>
-        private readonly ConcurrentDictionary<MonitoredItemNotification, MonitoredValuePublication>
-            m_valuePublicationNotifications = new(new NotificationIdentityComparer());
+        /// <summary>Observations whose final notification is queued for, or already in, a message.</summary>
+        private readonly ConcurrentDictionary<MonitoredValuePublication, byte> m_trackedValuePublications = new();
 
-        private sealed class NotificationIdentityComparer : IEqualityComparer<MonitoredItemNotification>
-        {
-            public bool Equals(MonitoredItemNotification? x, MonitoredItemNotification? y)
-            {
-                return ReferenceEquals(x, y);
-            }
-
-            public int GetHashCode(MonitoredItemNotification obj)
-            {
-                return RuntimeHelpers.GetHashCode(obj);
-            }
-        }
+        /// <summary>
+        /// Ordinal of the next data change taken out of the publish queue. It only grows, so
+        /// the ordinal of a queued notification is unique for the subscription.
+        /// </summary>
+        private long m_publishDataChangeOrdinal;
     }
 }

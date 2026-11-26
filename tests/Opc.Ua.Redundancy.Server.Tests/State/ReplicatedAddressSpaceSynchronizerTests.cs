@@ -1,31 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 // CA2007: tests run without a SynchronizationContext.
 #pragma warning disable CA2007
@@ -274,11 +248,12 @@ QualifiedName dataEncoding,
         }
 
         /// <summary>
-        /// A rejected live policy withdraws previously open nodes and value-only updates cannot reopen them.
+        /// A rejected policy from a watch or its checkpoint withdraws previously open nodes.
         /// </summary>
-        [Test]
+        [TestCase(false)]
+        [TestCase(true)]
         [Category("SecurityRegression")]
-        public async Task SecurityF07InvalidLivePolicyWithdrawsExistingTreeUntilRepairedAsync()
+        public async Task SecurityF07InvalidLivePolicyWithdrawsExistingTreeUntilRepairedAsync(bool liveWatch)
         {
             await using var serverA = new AuthorizationServer();
             await using var serverB = new AuthorizationServer();
@@ -290,7 +265,12 @@ QualifiedName dataEncoding,
             await using var reader = new AddressSpaceSynchronizer(store, serverB.Space, () => false);
             await writer.SeedOrHydrateAsync().ConfigureAwait(false);
             await reader.SeedOrHydrateAsync().ConfigureAwait(false);
-            reader.Start();
+            if (liveWatch)
+            {
+                reader.Start();
+                await AssertEventuallyAsync(
+                    () => reader.IsReady, "the reader should verify its initial state").ConfigureAwait(false);
+            }
             var childId = new NodeId("secure-child", NamespaceIndex);
             DataValue before = await serverB.ReadAsync(
                 childId, ObjectIds.WellKnownRole_AuthenticatedUser).ConfigureAwait(false);
@@ -301,9 +281,20 @@ QualifiedName dataEncoding,
             ByteString complete = NodeStateSerializer.Serialize(serverA.Space.Context, protectedSource);
             byte[] bytes = complete.ToArray();
             Array.Resize(ref bytes, bytes.Length - 1);
-            Task<bool> rejected = WaitForStoreApplyAsync(reader, NodeStateChangeKind.Upsert, source.NodeId);
-            await store.UpsertNodeAsync(new StoredNode(source.NodeId, new ByteString(bytes))).ConfigureAwait(false);
-            await AwaitWithTimeoutAsync(rejected).ConfigureAwait(false);
+            var invalid = new ByteString(bytes);
+            Task<bool> rejected = WaitForStoreApplyAsync(reader, source.NodeId, invalid);
+            await store.UpsertNodeAsync(new StoredNode(source.NodeId, invalid)).ConfigureAwait(false);
+            if (!liveWatch)
+            {
+                reader.Start();
+            }
+            var grandchildId = new NodeId("secure-grandchild", NamespaceIndex);
+            await AssertEventuallyAsync(
+                () => !serverB.Space.TryGetNode(source.NodeId, out _) &&
+                    !serverB.Space.TryGetNode(childId, out _) &&
+                    !serverB.Space.TryGetNode(grandchildId, out _),
+                "the rejected policy should withdraw the live tree").ConfigureAwait(false);
+            Assert.That(reader.IsReady, Is.False);
 
             foreach (string id in new[] { "secure-root", "secure-child", "secure-grandchild" })
             {
@@ -314,16 +305,17 @@ QualifiedName dataEncoding,
                 Assert.That(denied.StatusCode, Is.EqualTo(StatusCodes.BadNodeIdUnknown), id);
             }
 
-            Task<bool> valueApplied = WaitForStoreApplyAsync(reader, NodeStateChangeKind.Value, childId);
             await store.WriteValueAsync(childId, new DataValue(new Variant(99.0))).ConfigureAwait(false);
-            await AwaitWithTimeoutAsync(valueApplied).ConfigureAwait(false);
             DataValue stillDenied = await serverB.ReadAsync(
                 childId, ObjectIds.WellKnownRole_AuthenticatedUser).ConfigureAwait(false);
             Assert.That(stillDenied.StatusCode, Is.EqualTo(StatusCodes.BadNodeIdUnknown));
 
-            Task<bool> repaired = WaitForStoreApplyAsync(reader, NodeStateChangeKind.Upsert, source.NodeId);
             await store.UpsertNodeAsync(new StoredNode(source.NodeId, complete)).ConfigureAwait(false);
-            await AwaitWithTimeoutAsync(repaired).ConfigureAwait(false);
+            await AssertEventuallyAsync(
+                () => reader.IsReady && serverB.Space.TryGetNode(childId, out _),
+                "a verified checkpoint should restore the repaired tree and its latest stored value")
+                .ConfigureAwait(false);
+            Assert.That(rejected.IsCompleted, Is.False, "rejected topology must not be reported as applied");
 
             DataValue restricted = await serverB.ReadAsync(
                 childId, ObjectIds.WellKnownRole_AuthenticatedUser).ConfigureAwait(false);
@@ -817,13 +809,14 @@ QualifiedName dataEncoding,
         /// </summary>
         private static Task<bool> WaitForStoreApplyAsync(
             AddressSpaceSynchronizer synchronizer,
-            NodeStateChangeKind kind,
-            NodeId nodeId)
+            NodeId nodeId,
+            ByteString payload)
         {
             var completion = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
             void OnApplied(NodeStateChange change)
             {
-                if (change.Kind == kind && change.NodeId == nodeId)
+                if (change.Kind == NodeStateChangeKind.Upsert && change.NodeId == nodeId &&
+                    change.Node is { } stored && stored.Payload == payload)
                 {
                     synchronizer.InboundApplied -= OnApplied;
                     completion.TrySetResult(true);
@@ -1002,11 +995,13 @@ QualifiedName dataEncoding,
                 factory.Setup(value => value.CreateCoreNodeManager(It.IsAny<ushort>())).Returns(coreManager.Object);
                 server.Setup(value => value.MainNodeManagerFactory).Returns(factory.Object);
                 var nodeManager = new AuthorizationNodeManager(server.Object);
+#pragma warning disable CS0618 // Standalone fixture; TODO: replace when the compatibility constructor is removed.
                 m_dispatcher = new MasterNodeManager(
                     server.Object,
                     new ApplicationConfiguration { ServerConfiguration = new ServerConfiguration() },
                     null,
                     [nodeManager]);
+#pragma warning restore CS0618
                 server.Setup(value => value.NodeManager).Returns(m_dispatcher);
                 Space = ((ILocalAddressSpaceSource)nodeManager).CreateLocalAddressSpace();
             }

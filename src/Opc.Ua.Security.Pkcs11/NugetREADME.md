@@ -1,3 +1,8 @@
+<!--
+SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+SPDX-License-Identifier: MIT
+-->
+
 # OPC UA .NET Standard — PKCS#11 certificate store
 
 `OPCFoundation.NetStandard.Opc.Ua.Security.Pkcs11` delegates private-key signing and decryption to a PKCS#11 module. Its RSA/ECDSA wrappers do not export private key parameters. Hardware-backed modules can keep key material inside the device when provisioned with appropriate key attributes; software modules such as SoftHSM do not provide that hardware-isolation guarantee. Verify the module's key-generation, storage and export policies for the deployment.
@@ -36,6 +41,16 @@ pkcs11:token=opcua;object=server?module-path=/usr/lib/softhsm/libsofthsm2.so&pin
 ```
 
 Prefer `Pkcs11TokenOptions.PinProvider` over `pin-value` so the PIN comes from a secret store rather than a configuration file.
+
+Use the module's file path. Stores with the same resolved module path share
+its initialization, but each store opens its own session. While a token has
+active sessions, new stores for that token must supply the same PIN, or all
+omit it. PKCS#11 applies login to every session on a token, so public and
+authenticated stores cannot overlap on the same token. A loaded private key
+keeps its session and login alive until the certificate releases the key,
+even if its original store has already closed.
+Close those stores and release their keys before changing the token PIN.
+This coordination does not cover other PKCS#11 consumers in the same process.
 
 ## What is supported
 
@@ -83,7 +98,7 @@ This is a property of the interop library, not of this package, and applies to a
 
 ## Target frameworks
 
-`net48`, `net8.0`, `net9.0`, `net10.0`.
+`net48`, `net10.0`, `net11.0`.
 
 ## NativeAOT
 

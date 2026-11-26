@@ -1,31 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 namespace Opc.Ua.AutoID.Server
 {
@@ -35,10 +9,9 @@ namespace Opc.Ua.AutoID.Server
     /// </summary>
     /// <remarks>
     /// A server advertises a facet only when a reader it hosts implements
-    /// every mandatory conformance unit of that facet. The
-    /// <c>AutoID Device Parameters</c> and <c>AutoID Simple Sync Access Control</c>
-    /// units are not implemented, so the Full AutoID Server Facet is never
-    /// advertised.
+    /// every mandatory conformance unit of that facet. The Full facet requires
+    /// synchronous scans, asynchronous scan control and runtime parameters on
+    /// the same reader; it does not require every optional method on every reader kind.
     /// </remarks>
     public static class AutoIdProfiles
     {
@@ -90,5 +63,15 @@ namespace Opc.Ua.AutoID.Server
         /// Conformance unit: the <c>ScanStart</c> and <c>ScanStop</c> methods.
         /// </summary>
         public const string AsyncAccessControlUnit = "AutoID Async Access Control";
+
+        /// <summary>
+        /// Conformance unit: provider-backed runtime configuration parameters.
+        /// </summary>
+        public const string DeviceParametersUnit = "AutoID Device Parameters";
+
+        /// <summary>
+        /// Conformance unit: ScanActive with its ScanSettings functional group.
+        /// </summary>
+        public const string SimpleSyncAccessControlUnit = "AutoID Simple Sync Access Control";
     }
 }

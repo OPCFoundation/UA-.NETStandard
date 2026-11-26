@@ -1,31 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using System.Collections.Generic;
@@ -639,6 +613,47 @@ namespace Opc.Ua.SourceGeneration
         }
 
         /// <summary>
+        /// Regression for #5082: an assembly that produces a model and re-exports it without version
+        /// metadata as a dependency of another of its models must not report a collision with itself.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public void SameAssemblyReexportOfOwnModelDoesNotReportTieBreak(bool reexportFirst)
+        {
+            string payload = new ModelDependencyV1
+            {
+                ModelUri = DemoModelUri,
+                FluentAccessorsEmitted = false
+            }.ToBase64Payload();
+            string producerAttribute = CreateModelDependencyAttributeSource(
+                "\"1.0\"", "\"2099-01-01\"", "\"" + payload + "\"");
+            string reexportAttribute = CreateModelDependencyAttributeSource("null", "null", "null");
+            CSharpCompilation producer = CreateStackCompilation("SelfReexportingProducer")
+                .AddCode(new Dictionary<string, string>
+                {
+                    ["ModelMetadata.cs"] = reexportFirst
+                        ? reexportAttribute + Environment.NewLine + producerAttribute
+                        : producerAttribute + Environment.NewLine + reexportAttribute
+                }, LanguageVersion.CSharp11);
+            Assert.That(
+                producer.GetDiagnostics().Where(d => d.Severity == DiagnosticSeverity.Error),
+                Is.Empty,
+                string.Join(Environment.NewLine, producer.GetDiagnostics()));
+
+            (GeneratorRunResult result, _, ImmutableArray<Diagnostic> diagnostics) = RunFluentAccessorsOnly(
+                producer,
+                fluentAccessorsOnly: false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(diagnostics.Where(diagnostic => diagnostic.Id != "MODELGEN013"), Is.Empty,
+                    string.Join(Environment.NewLine, diagnostics));
+                Assert.That(result.GeneratedSources, Is.Empty,
+                    "The payload-bearing producer entry must be selected and suppress duplicate generation.");
+            });
+        }
+
+        /// <summary>
         /// Selecting among actual model producers still reports the chosen and rejected versions.
         /// </summary>
         [TestCase(false)]
@@ -1111,11 +1126,22 @@ namespace Opc.Ua.SourceGeneration
 
         private static string FindRepositoryRoot()
         {
+            string? configuredRoot = Environment.GetEnvironmentVariable("OPCUA_TEST_REPOSITORY_ROOT");
+            if (!string.IsNullOrEmpty(configuredRoot))
+            {
+                if (File.Exists(Path.Combine(configuredRoot, "UA.slnx")))
+                {
+                    return configuredRoot;
+                }
+                throw new InvalidOperationException(
+                    $"OPCUA_TEST_REPOSITORY_ROOT does not contain UA.slnx: '{configuredRoot}'.");
+            }
+
             string assemblyDirectory =
                 Path.GetDirectoryName(typeof(ModelDependencyScannerTests).Assembly.Location)
                 ?? throw new InvalidOperationException("Test assembly directory was not found.");
             var directory = new DirectoryInfo(assemblyDirectory);
-            for (int i = 0; i < 5; i++)
+            while (!File.Exists(Path.Combine(directory.FullName, "UA.slnx")))
             {
                 directory = directory.Parent
                     ?? throw new InvalidOperationException("Repository root was not found.");
@@ -1208,6 +1234,20 @@ namespace Opc.Ua.SourceGeneration
             return compilation;
         }
 
+        private static string CreateModelDependencyAttributeSource(
+            string versionLiteral,
+            string publicationDateLiteral,
+            string payloadLiteral)
+        {
+            return "[assembly: global::Opc.Ua.ModelDependencyAttribute(" +
+                "\"" + DemoModelUri + "\", " +
+                "\"DemoModel\", " +
+                versionLiteral + ", " +
+                publicationDateLiteral + ", " +
+                "\"DemoModel\", " +
+                payloadLiteral + ")]";
+        }
+
         private static CSharpCompilation CreateGeneratedDiProducer()
         {
             CSharpCompilation compilation = CreateStackCompilation("DiProducer");
@@ -1286,21 +1326,27 @@ namespace Opc.Ua.SourceGeneration
                 Path.GetDirectoryName(typeof(ModelDependencyScannerTests).Assembly.Location)
                 ?? throw new InvalidOperationException("Test assembly directory was not found.");
             var directory = new DirectoryInfo(assemblyDirectory);
-            string targetFramework = directory.Name;
-            string configuration = directory.Parent?.Name
-                ?? throw new InvalidOperationException("Test configuration directory was not found.");
-            for (int i = 0; i < 5; i++)
+            string serverOutput;
+            if (directory.Parent?.Name == "Opc.Ua.SourceGeneration.Tests")
             {
-                directory = directory.Parent
-                    ?? throw new InvalidOperationException("Repository root was not found.");
+                string artifactsBin = directory.Parent.Parent?.FullName
+                    ?? throw new InvalidOperationException("Artifacts output directory was not found.");
+                serverOutput = Path.Combine(artifactsBin, "Opc.Ua.Server", directory.Name);
+                if (!File.Exists(Path.Combine(serverOutput, "Opc.Ua.Server.dll")))
+                {
+                    throw new InvalidOperationException(
+                        $"Opc.Ua.Server output was not found at '{serverOutput}'. "
+                        + "Build Opc.Ua.Server with the same artifacts path and output pivot.");
+                }
             }
-            string serverBin = Path.Combine(
-                directory.FullName,
-                "src",
-                "Opc.Ua.Server",
-                "bin",
-                configuration);
-            string serverOutput = ResolveServerOutputFolder(serverBin, targetFramework);
+            else
+            {
+                string configuration = directory.Parent?.Name
+                    ?? throw new InvalidOperationException("Test configuration directory was not found.");
+                string serverBin = Path.Combine(
+                    FindRepositoryRoot(), "src", "Opc.Ua.Server", "bin", configuration);
+                serverOutput = ResolveServerOutputFolder(serverBin, directory.Name);
+            }
             return Directory.EnumerateFiles(serverOutput, "Opc.Ua*.dll")
                 .Where(path => !string.Equals(
                     Path.GetFileName(path),

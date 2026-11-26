@@ -1,31 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using System.Collections.Generic;
@@ -57,6 +31,16 @@ namespace Opc.Ua.Server.FileSystem
         public bool AllowMoveOrCopy { get; set; } = true;
 
         /// <summary>
+        /// Gets or sets a value indicating whether anonymous sessions may modify the bound
+        /// directory (open for writing, create, delete, move or copy). Defaults to
+        /// <c>false</c>: only sessions with a non-anonymous user identity may modify it.
+        /// The nodes materialised below the bound directory carry no RolePermissions of
+        /// their own, so enable this only when the directory is meant to be writable by
+        /// every client.
+        /// </summary>
+        public bool AllowAnonymousWrite { get; set; }
+
+        /// <summary>
         /// Gets or sets the maximum number of entries materialised per directory.
         /// </summary>
         public int MaxEntries { get; set; } = DefaultMaxEntries;
@@ -66,7 +50,34 @@ namespace Opc.Ua.Server.FileSystem
         /// </summary>
         public int MaxDepth { get; set; } = 8;
 
+        /// <summary>
+        /// Gets or sets the files one Session can keep open below the bound directory through
+        /// <c>FileType.Open</c>, 64 by default; zero means no limit. An open beyond it fails
+        /// with <see cref="StatusCodes.BadTooManyOperations"/>.
+        /// </summary>
+        public int MaxOpenFilesPerSession { get; set; } = FileOpenQuota.DefaultMaxOpenFilesPerSession;
+
+        /// <summary>
+        /// Gets or sets the files all Sessions together can keep open below the bound directory
+        /// through <c>FileType.Open</c>, 1024 by default; zero means no limit. An open beyond it
+        /// fails with <see cref="StatusCodes.BadTooManyOperations"/>.
+        /// </summary>
+        public int MaxOpenFiles { get; set; } = FileOpenQuota.DefaultMaxOpenFiles;
+
+        /// <summary>
+        /// Gets or sets the lifecycle wait limit. Active provider operations and their reservations remain
+        /// owned after this limit; a subsequent disposal can observe their eventual cleanup outcome.
+        /// </summary>
+        public TimeSpan CloseTimeout
+        {
+            get => m_closeTimeout;
+            set => m_closeTimeout = FileHandle.ValidateCloseTimeout(value);
+        }
+
         internal const int DefaultMaxEntries = 1024;
+
+        /// <summary>Bounds lifecycle waiting without shortening provider operation ownership.</summary>
+        private TimeSpan m_closeTimeout = TimeSpan.FromSeconds(10);
     }
 
     /// <summary>
@@ -195,6 +206,11 @@ namespace Opc.Ua.Server.FileSystem
                 m_context = context;
                 m_logger = context.Telemetry.CreateLogger<FileDirectoryBinder>();
                 m_options = ValidateOptions(options);
+                m_openQuota = new FileOpenQuota
+                {
+                    MaxOpenFilesPerSession = m_options.MaxOpenFilesPerSession,
+                    MaxOpenFiles = m_options.MaxOpenFiles
+                };
                 m_registerNode = registerNode;
                 m_deregisterNode = deregisterNode;
                 m_nodeIdPrefix = "FileDirectoryBinding:" + directory.NodeId;
@@ -217,6 +233,26 @@ namespace Opc.Ua.Server.FileSystem
 
             /// <inheritdoc/>
             public bool UsesVirtualDirectoryBrowsing => false;
+
+            /// <inheritdoc/>
+            public void RegisterDirectoryCursor(DirectoryCursorOwnership ownership)
+            {
+                throw new InvalidOperationException("Materialized bindings do not create directory cursors.");
+            }
+
+            /// <inheritdoc/>
+            public void CompleteDirectoryCursor(DirectoryCursorOwnership ownership)
+            {
+                throw new InvalidOperationException("Materialized bindings do not create directory cursors.");
+            }
+
+            /// <inheritdoc/>
+            /// <remarks>
+            /// Materialized bindings never create virtual directory cursors, so there is nothing to join.
+            /// </remarks>
+            public void TrackCursorCleanup(Task cleanup)
+            {
+            }
 
             /// <inheritdoc/>
             public async ValueTask RefreshAsync(CancellationToken cancellationToken = default)
@@ -253,7 +289,49 @@ namespace Opc.Ua.Server.FileSystem
             /// </summary>
             public async ValueTask DisposeAsync()
             {
-                if (!TryTrackOperation())
+                Task cleanup;
+                FileHandle[] handles = [];
+                TaskCompletionSource<bool>? completion = null;
+                lock (m_lock)
+                {
+                    if (m_disposal == null)
+                    {
+                        completion = new(TaskCreationOptions.RunContinuationsAsynchronously);
+                        m_disposal = completion.Task;
+                        handles = [.. m_handles.Values];
+                    }
+                    cleanup = m_disposal;
+                }
+                if (completion != null)
+                {
+                    foreach (FileHandle handle in handles)
+                    {
+                        _ = handle.RequestShutdown();
+                    }
+                    _ = CompleteDisposalAsync(completion);
+                }
+                if (await FileHandle.CompletesWithinAsync(cleanup, m_options.CloseTimeout).ConfigureAwait(false))
+                {
+                    await cleanup.ConfigureAwait(false);
+                }
+            }
+
+            private async Task CompleteDisposalAsync(TaskCompletionSource<bool> completion)
+            {
+                try
+                {
+                    await DisposeCoreAsync().ConfigureAwait(false);
+                    completion.TrySetResult(true);
+                }
+                catch (Exception exception)
+                {
+                    completion.TrySetException(exception);
+                }
+            }
+
+            private async ValueTask DisposeCoreAsync()
+            {
+                if (!TryTrackOperation(disposing: true))
                 {
                     return;
                 }
@@ -282,11 +360,26 @@ namespace Opc.Ua.Server.FileSystem
                     {
                         DetachCallbacks(entry.Node);
                     }
+                    List<Task> cleanup = [];
                     foreach (FileHandle handle in handles)
                     {
-                        handle.Dispose();
+                        cleanup.Add(handle.RequestShutdown());
+                    }
+                    Task all = Task.WhenAll(cleanup);
+                    Exception? cleanupError = null;
+                    try
+                    {
+                        await all.ConfigureAwait(false);
+                    }
+                    catch
+                    {
+                        cleanupError = all.Exception ?? new AggregateException("File cleanup failed.");
                     }
                     await RemoveStaleNodesAsync([], CancellationToken.None).ConfigureAwait(false);
+                    if (cleanupError != null)
+                    {
+                        throw cleanupError;
+                    }
                 }
                 finally
                 {
@@ -325,7 +418,7 @@ namespace Opc.Ua.Server.FileSystem
                 {
                     return NodeId.Null;
                 }
-                int slash = providerPath.LastIndexOf('/');
+                int slash = providerPath.LastIndexOf('/', StringComparison.Ordinal);
                 string parent = slash < 0 ? string.Empty : providerPath[..slash];
                 return string.IsNullOrEmpty(parent) ? Directory.NodeId : BuildDirectoryNodeId(parent);
             }
@@ -341,7 +434,7 @@ namespace Opc.Ua.Server.FileSystem
                 string identity = FileSystemDirectoryOperations.GetPathIdentity(Provider, providerPath);
                 lock (m_lock)
                 {
-                    if (m_disposed)
+                    if (m_disposed || m_disposal != null)
                     {
                         return null;
                     }
@@ -350,7 +443,11 @@ namespace Opc.Ua.Server.FileSystem
                         return handle;
                     }
 
-                    handle = new FileHandle(Provider, providerPath, IsSessionTerminated);
+                    handle = new FileHandle(Provider, providerPath, IsSessionTerminated)
+                    {
+                        CloseTimeout = m_options.CloseTimeout,
+                        OpenQuota = m_openQuota
+                    };
                     FileSystemDirectoryOperations.BlockForRunningMutations(Provider, m_mutations, handle);
                     m_handles.Add(identity, handle);
                     return handle;
@@ -363,7 +460,8 @@ namespace Opc.Ua.Server.FileSystem
                 string identity = FileSystemDirectoryOperations.GetPathIdentity(Provider, providerPath);
                 lock (m_lock)
                 {
-                    return !m_disposed && m_handles.TryGetValue(identity, out FileHandle? handle) ? handle : null;
+                    return !m_disposed && m_disposal == null &&
+                        m_handles.TryGetValue(identity, out FileHandle? handle) ? handle : null;
                 }
             }
 
@@ -422,12 +520,14 @@ namespace Opc.Ua.Server.FileSystem
 
             /// <inheritdoc/>
             /// <remarks>
-            /// The bound directory lives in the integrator's address space, which
-            /// controls user access through its RolePermissions and the binding options.
+            /// The bound directory lives in the integrator's address space, but the
+            /// nodes materialised below it carry no RolePermissions, so anonymous
+            /// sessions are denied unless the binding options allow them.
             /// </remarks>
             public bool CanUserWrite(ISystemContext context)
             {
-                return true;
+                return m_options.AllowAnonymousWrite ||
+                    FileSystemDirectoryOperations.IsNonAnonymousOrInternal(context);
             }
 
             /// <inheritdoc/>
@@ -595,11 +695,13 @@ namespace Opc.Ua.Server.FileSystem
                 }
             }
 
-            private bool TryTrackOperation()
+            private Task? m_disposal;
+
+            private bool TryTrackOperation(bool disposing = false)
             {
                 lock (m_lock)
                 {
-                    if (m_disposed)
+                    if (m_disposed || (!disposing && m_disposal != null))
                     {
                         return false;
                     }
@@ -701,7 +803,7 @@ namespace Opc.Ua.Server.FileSystem
 
             private static string GetParentPath(string path)
             {
-                int slash = path.LastIndexOf('/');
+                int slash = path.LastIndexOf('/', StringComparison.Ordinal);
                 return slash < 0 ? string.Empty : path[..slash];
             }
 
@@ -986,6 +1088,10 @@ namespace Opc.Ua.Server.FileSystem
                 {
                     throw new ArgumentOutOfRangeException(nameof(options), "MaxDepth must be non-negative.");
                 }
+                if (options.MaxOpenFilesPerSession < 0 || options.MaxOpenFiles < 0)
+                {
+                    throw new ArgumentOutOfRangeException(nameof(options), "Open file limits must be non-negative.");
+                }
 
                 return options;
             }
@@ -1002,6 +1108,7 @@ namespace Opc.Ua.Server.FileSystem
             private readonly ISystemContext m_context;
             private readonly ILogger m_logger;
             private readonly FileDirectoryBindingOptions m_options;
+            private readonly FileOpenQuota m_openQuota;
             private readonly Func<NodeState, CancellationToken, ValueTask>? m_registerNode;
             private readonly Func<NodeState, CancellationToken, ValueTask>? m_deregisterNode;
             private readonly Lock m_lock = new();

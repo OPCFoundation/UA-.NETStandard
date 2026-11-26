@@ -1,31 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using System.Threading;
@@ -233,7 +207,7 @@ namespace Opc.Ua.Client.Tests.ManagedSession
                         RefreshTimeout = Timeout.InfiniteTimeSpan,
                         PeerDiscoveryTimeout = Timeout.InfiniteTimeSpan
                     }.Validate(),
-                    Throws.Nothing);
+                    Throws.TypeOf<ArgumentOutOfRangeException>());
                 Assert.That(new ServerRedundancyOptions().RefreshTimeout,
                     Is.EqualTo(ServerRedundancyOptions.DefaultTimeout));
             });
@@ -581,6 +555,37 @@ namespace Opc.Ua.Client.Tests.ManagedSession
                 info, CreateCurrentEndpoint("urn:current"));
 
             Assert.That(decision.IsFailoverWarranted, Is.False);
+        }
+
+        /// <summary>
+        /// A failed probe cannot win a ranking based on its previously reported Healthy level.
+        /// </summary>
+        [Test]
+        public void FailedProbeIsExcludedEvenWithPreviouslyReportedHealthyLevel()
+        {
+            ConfiguredEndpoint rejected = CreateCurrentEndpoint("urn:failed-probe");
+            var info = new ServerRedundancyInfo
+            {
+                Mode = RedundancySupport.Warm,
+                ServiceLevel = ServiceLevels.DegradedMaximum,
+                ServiceLevelAccessible = true,
+                RedundantServers =
+                [
+                    new RedundantServer
+                    {
+                        ServerUri = "urn:failed-probe",
+                        Endpoint = rejected,
+                        ServerState = ServerState.Running,
+                        ServiceLevel = ServiceLevels.Maximum,
+                        ResolutionError = new ServiceResult(StatusCodes.BadNotReadable)
+                    },
+                    CreateServerInfo("urn:degraded", 150, ServerState.Running)
+                ]
+            };
+            ConfiguredEndpoint current = CreateCurrentEndpoint("urn:current");
+            Assert.That(m_handler.ShouldFailover(info, current).IsFailoverWarranted, Is.False);
+            Assert.That(m_handler.SelectFailoverTarget(info, current)?.Description.Server.ApplicationUri,
+                Is.EqualTo("urn:degraded"));
         }
 
         /// <summary>
@@ -942,14 +947,28 @@ namespace Opc.Ua.Client.Tests.ManagedSession
         }
 
         /// <summary>
-        /// Verifies that a ServiceLevel monitoring interval must be positive and is off by default.
+        /// Verifies the bounded opt-in redundancy defaults and explicit disable switches.
         /// </summary>
         [Test]
-        public void ServiceLevelMonitoringIntervalMustBePositive()
+        public void SelectionDefaultsAreEnabledAndBoundsMustBeFinite()
         {
             var defaults = new ServerRedundancyOptions();
-            Assert.That(defaults.ServiceLevelMonitoringInterval, Is.Null);
-            Assert.That(defaults.ProbeMemberServiceLevel, Is.False);
+            Assert.That(defaults.ServiceLevelMonitoringInterval,
+                Is.EqualTo(ServerRedundancyOptions.DefaultMonitoringInterval));
+            Assert.That(defaults.ProbeMemberServiceLevel, Is.True);
+            Assert.That(
+                () => new ServerRedundancyOptions
+                {
+                    ServiceLevelMonitoringInterval = null,
+                    ProbeMemberServiceLevel = false
+                }.Validate(),
+                Throws.Nothing);
+            Assert.That(
+                () => new ServerRedundancyOptions { MaxConcurrentPeerProbes = 33 }.Validate(),
+                Throws.TypeOf<ArgumentOutOfRangeException>());
+            Assert.That(
+                () => new ServerRedundancyOptions { PeerDiscoveryTimeout = TimeSpan.MaxValue }.Validate(),
+                Throws.TypeOf<ArgumentOutOfRangeException>());
             Assert.That(
                 () => new ServerRedundancyOptions { ServiceLevelMonitoringInterval = TimeSpan.Zero }.Validate(),
                 Throws.TypeOf<ArgumentOutOfRangeException>());

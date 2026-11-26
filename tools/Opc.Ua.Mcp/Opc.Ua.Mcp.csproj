@@ -1,11 +1,11 @@
 <Project Sdk="Microsoft.NET.Sdk.Web">
   <PropertyGroup>
-    <TargetFramework>net10.0</TargetFramework>
+    <TargetFrameworks>$(ModernTargetFrameworks)</TargetFrameworks>
     <AssemblyName>Opc.Ua.Mcp</AssemblyName>
     <OutputType>Exe</OutputType>
     <Company>OPC Foundation</Company>
     <Description>MCP Server exposing OPC UA Part 4 services as tools for LLM integration (Claude, Copilot, VS Code, etc.)</Description>
-    <Copyright>Copyright © 2004-2026 OPC Foundation, Inc</Copyright>
+    <Copyright>Copyright © 2005-2026, OPC Federation AISBL</Copyright>
     <RootNamespace>Opc.Ua.Mcp</RootNamespace>
     <ImplicitUsings>disable</ImplicitUsings>
     <!-- Opt into the root Directory.Build.targets no-op shape on

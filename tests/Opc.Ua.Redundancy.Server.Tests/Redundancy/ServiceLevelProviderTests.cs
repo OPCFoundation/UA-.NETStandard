@@ -1,37 +1,12 @@
-/* ========================================================================
- * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 // CA2007: tests run without a SynchronizationContext; ConfigureAwait(false)
 // adds noise without a behavioural benefit. Disabled file-level for the suite.
 #pragma warning disable CA2007
 
 using System;
+using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
@@ -188,16 +163,45 @@ namespace Opc.Ua.Server.Tests.Redundancy
         }
 
         [Test]
-        public async Task LeaderProviderManualOverrideClearsOnTransitionAsync()
+        public async Task LeaderProviderRetainsMaintenanceAcrossElectionsUntilClearedAsync()
         {
             await using var election = new MutableLeaderElection();
-            using var provider = new LeaderServiceLevelProvider(election, leaderLevel: 255, standbyLevel: 200);
-            provider.SetServiceLevel(ServiceLevels.DegradedMaximum);
-            Assert.That(provider.GetServiceLevel(), Is.EqualTo(ServiceLevels.DegradedMaximum));
+            using var provider = new LeaderServiceLevelProvider(election, RedundancySupport.Warm);
+            List<byte> published = [];
+            provider.ServiceLevelChanged += published.Add;
+            provider.SetServiceLevel(ServiceLevels.Maintenance);
 
             election.Set(true);
+            Assert.That(provider.GetServiceLevel(), Is.EqualTo(ServiceLevels.Maintenance));
+            election.Set(false);
+            Assert.That(provider.GetServiceLevel(), Is.EqualTo(ServiceLevels.Maintenance));
 
-            Assert.That(provider.GetServiceLevel(), Is.EqualTo(255));
+            provider.ClearServiceLevelOverride();
+            Assert.That(provider.GetServiceLevel(), Is.EqualTo(ServiceLevels.DegradedMaximum));
+            Assert.That(published, Is.EqualTo(new byte[] { ServiceLevels.Maintenance, ServiceLevels.DegradedMaximum }));
+        }
+
+        [TestCase(RedundancySupport.Cold, ServiceLevels.NoData)]
+        [TestCase(RedundancySupport.Warm, ServiceLevels.DegradedMaximum)]
+        [TestCase(RedundancySupport.Hot, ServiceLevels.Maximum)]
+        [TestCase(RedundancySupport.HotAndMirrored, ServiceLevels.Maximum)]
+        public async Task LeaderProviderCapsUnverifiedRolesAtNoDataAsync(RedundancySupport mode, byte standbyLevel)
+        {
+            await using var election = new MutableLeaderElection();
+            bool? verifiedWriter = null;
+            using var provider = new LeaderServiceLevelProvider(
+                election, mode, null, null, isLeader => verifiedWriter == isLeader);
+
+            Assert.That(provider.GetServiceLevel(), Is.EqualTo(ServiceLevels.NoData));
+            verifiedWriter = false;
+            Assert.That(provider.GetServiceLevel(), Is.EqualTo(standbyLevel));
+
+            election.Set(true);
+            Assert.That(provider.GetServiceLevel(), Is.EqualTo(ServiceLevels.NoData));
+            verifiedWriter = true;
+            Assert.That(provider.GetServiceLevel(), Is.EqualTo(ServiceLevels.Maximum));
+            election.Set(false);
+            Assert.That(provider.GetServiceLevel(), Is.EqualTo(ServiceLevels.NoData));
         }
 
         [Test]
@@ -214,7 +218,7 @@ namespace Opc.Ua.Server.Tests.Redundancy
                 while (!cts.IsCancellationRequested)
                 {
                     provider.SetServiceLevel(ServiceLevels.DegradedMaximum);
-                    election.Set(true);
+                    provider.ClearServiceLevelOverride();
                 }
             });
             var reader = Task.Run(() =>
@@ -238,7 +242,7 @@ namespace Opc.Ua.Server.Tests.Redundancy
             Assert.That(
                 Volatile.Read(ref invalidLevel),
                 Is.EqualTo(-1),
-                "Concurrent SetServiceLevel/leadership clear must not expose torn ServiceLevel values.");
+                "Concurrent set and clear must not expose torn ServiceLevel values.");
         }
 
         [Test]

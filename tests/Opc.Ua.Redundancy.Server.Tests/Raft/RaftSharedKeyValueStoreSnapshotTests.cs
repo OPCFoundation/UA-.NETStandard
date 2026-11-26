@@ -1,31 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 // CA2007: tests run without a SynchronizationContext; ConfigureAwait(false)
 // adds noise without a behavioural benefit. Disabled file-level for the suite.
@@ -288,7 +262,7 @@ namespace Opc.Ua.Server.Tests.Redundancy
                 "utf8" => Encode(version: 1, position: 1, keyBytes: [0xC3, 0x28], kind: 1, value: [1]),
                 "boolean" => Encode(version: 1, position: 1, ("a", 2, [1])),
                 "nullPayload" => Encode(version: 1, position: 1, ("a", 0, [1])),
-                "duplicate" => Encode(version: 1, position: 1, ("a", 1, [1]), ("a", 1, [2])),
+                "duplicate" => Encode(version: 1, position: 2, ("a", 1, [1]), ("a", 1, [2])),
                 "trailing" => [.. Encode(version: 1, position: 1, ("a", 1, [1])), 0],
                 _ => throw new ArgumentOutOfRangeException(nameof(corruption))
             };
@@ -309,6 +283,37 @@ namespace Opc.Ua.Server.Tests.Redundancy
 
             Assert.That(found, Is.True);
             Assert.That(value.ToArray(), Is.EqualTo(new byte[] { 1 }));
+        }
+
+        [Test]
+        public async Task SnapshotSizeLimitPreservesRecoverableStateAsync()
+        {
+            await using var source = new RaftSharedKeyValueStore();
+            await using var restored = new RaftSharedKeyValueStore();
+            byte[] payload = new byte[RaftSharedKeyValueStore.MaxCommandBytes - 35];
+            var large = new ByteString(payload);
+            await source.SetAsync("a", large);
+            await source.SetAsync("b", large);
+            // Thirteen header bytes plus three ten-byte entry headers leaves 27 bytes in the last entry.
+            await source.SetAsync("c", new ByteString(new byte[27]));
+            RaftKeyValueSnapshot atLimit = await source.CreateSnapshotAsync();
+
+            Assert.That(atLimit.Data.Length, Is.EqualTo(RaftSharedKeyValueStore.MaxSnapshotBytes));
+            await restored.RestoreSnapshotAsync(atLimit.Data);
+            (bool found, ByteString value) = await restored.TryGetAsync("c");
+            Assert.That(found, Is.True);
+            Assert.That(value.Length, Is.EqualTo(27));
+
+            await source.SetAsync("c", new ByteString(new byte[28]));
+            Assert.That(async () => await source.CreateSnapshotAsync(), Throws.InvalidOperationException);
+            Assert.That(source.IsLinearizable("c"), Is.True, "a rejected capture need not stop the store");
+
+            byte[] oversized = Encode(version: 1, position: 3,
+                ("a", 1, payload), ("b", 1, payload), ("c", 1, new byte[28]));
+            await using var empty = new RaftSharedKeyValueStore();
+            Assert.That(async () => await empty.RestoreSnapshotAsync(new ByteString(oversized)),
+                Throws.TypeOf<FormatException>());
+            Assert.That((await empty.TryGetAsync("c")).Found, Is.False);
         }
 
         private static byte[] Encode(byte version, long position, params (string Key, byte Kind, byte[] Value)[] entries)

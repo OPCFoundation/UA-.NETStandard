@@ -1,32 +1,7 @@
-/* ========================================================================
- * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
+#pragma warning disable CS0618, UA0031 // Covers the deprecated synchronous node manager API on purpose.
 
 using System;
 using System.Collections.Generic;
@@ -92,6 +67,87 @@ namespace Opc.Ua.Server.Tests.NodeManager
             IAsyncNodeManager result = manager.Object.ToAsyncNodeManager();
 
             Assert.That(result, Is.SameAs(manager.Object));
+        }
+
+        /// <summary>
+        /// Every server surface shares the same wrapper and generation for a synchronous manager.
+        /// </summary>
+        [Test]
+        public void FactoryPreservesOneFacadeAndGenerationPerSynchronousManager()
+        {
+            var manager = new Mock<INodeManager>();
+            IAsyncNodeManager first = manager.Object.ToAsyncNodeManager();
+            IAsyncNodeManager second = manager.Object.ToAsyncNodeManager();
+
+            Assert.That(second, Is.SameAs(first));
+            Assert.That(
+                NodeManagerGenerationRegistry.GetOrCreate(second),
+                Is.SameAs(NodeManagerGenerationRegistry.GetOrCreate(first)));
+            Assert.That(new Mock<INodeManager>().Object.ToAsyncNodeManager(), Is.Not.SameAs(first));
+        }
+
+        /// <summary>
+        /// Concurrent first use cannot split a synchronous manager across facade identities.
+        /// </summary>
+        [Test]
+        public async Task FactorySharesOneFacadeWithConcurrentCallersAsync()
+        {
+            INodeManager manager = new Mock<INodeManager>().Object;
+            var calls = new Task<IAsyncNodeManager>[16];
+            for (int ii = 0; ii < calls.Length; ii++)
+            {
+                calls[ii] = Task.Run(() => manager.ToAsyncNodeManager());
+            }
+            IAsyncNodeManager[] facades = await Task.WhenAll(calls).ConfigureAwait(false);
+
+            foreach (IAsyncNodeManager facade in facades)
+            {
+                Assert.That(facade, Is.SameAs(facades[0]));
+            }
+        }
+
+        /// <summary>
+        /// Explicit public wrappers cannot split the generation or bypass its serving view and retirement gate.
+        /// </summary>
+        [TestCase(false, false)]
+        [TestCase(true, false)]
+        [TestCase(true, true)]
+        public void ExplicitSyncFacadesShareGenerationAndViewIdentity(bool prepared, bool replacement)
+        {
+            INodeManager manager = new Mock<INodeManager>().Object;
+            using var first = new AsyncNodeManagerAdapter(manager);
+            using var second = new AsyncNodeManagerAdapter(manager);
+            NodeManagerGeneration current = NodeManagerGenerationRegistry.GetOrCreate(
+                new Mock<IAsyncNodeManager>().Object);
+            NodeManagerGeneration generation = replacement
+                ? NodeManagerGenerationRegistry.CreateReplacement(current, first)
+                : prepared
+                    ? NodeManagerGenerationRegistry.CreateAddition(first)
+                    : NodeManagerGenerationRegistry.GetOrCreate(first);
+            NodeManagerGeneration alias = replacement
+                ? NodeManagerGenerationRegistry.CreateReplacement(current, second)
+                : prepared
+                    ? NodeManagerGenerationRegistry.CreateAddition(second)
+                    : NodeManagerGenerationRegistry.GetOrCreate(second);
+
+            Assert.That(alias, Is.SameAs(generation));
+            Assert.That(generation.NodeManager, Is.SameAs(first));
+            var view = new NodeManagerRoutingTable.RoutingSnapshot(
+                [first], new Dictionary<int, IReadOnlyList<IAsyncNodeManager>>(), []);
+            Assert.That(view.TryGetGeneration(manager.ToAsyncNodeManager(), out NodeManagerGeneration? canonical),
+                Is.True);
+            Assert.That(canonical, Is.SameAs(generation));
+            Assert.That(view.TryGetGeneration(second, out NodeManagerGeneration? explicitAlias), Is.True);
+            Assert.That(explicitAlias, Is.SameAs(generation));
+            IAsyncNodeManager unregistered = new Mock<IAsyncNodeManager>().Object;
+            Assert.That(view.TryGetGeneration(unregistered, out _), Is.False);
+            Assert.That(NodeManagerGenerationRegistry.TryGet(unregistered, out _), Is.False);
+
+            generation.Gate.Retire();
+            Assert.That(NodeManagerGenerationRegistry.GetOrCreate(second).Gate.State,
+                Is.EqualTo(NodeManagerGenerationState.Retiring));
+            Assert.That(alias.Gate.TryEnter(out GenerationGate.Lease? admission), Is.False);
+            admission?.Dispose();
         }
 
         [Test]
@@ -549,7 +605,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             manager.Setup(m => m.DeleteAddressSpaceAsync(It.IsAny<CancellationToken>()))
                 .Returns(default(ValueTask));
             manager.Setup(m => m.GetManagerHandleAsync(values.NodeId, It.IsAny<CancellationToken>()))
-                .Returns(new ValueTask<object>(values.Handle));
+                .Returns(new ValueTask<object?>(values.Handle));
             manager.Setup(m => m.AddReferencesAsync(values.References, It.IsAny<CancellationToken>()))
                 .Returns(default(ValueTask));
             manager.Setup(m => m.DeleteReferenceAsync(
@@ -565,7 +621,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     values.Handle,
                     BrowseResultMask.All,
                     It.IsAny<CancellationToken>()))
-                .Returns(new ValueTask<NodeMetadata>(values.Metadata));
+                .Returns(new ValueTask<NodeMetadata?>(values.Metadata));
             manager.Setup(m => m.BrowseAsync(
                     values.Context,
                     values.ContinuationPoint,

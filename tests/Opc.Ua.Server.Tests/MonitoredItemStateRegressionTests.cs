@@ -1,31 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 // CA2000: test code; the monitored items and queue factories are disposed by the tests.
 #pragma warning disable CA2000
@@ -198,9 +172,9 @@ namespace Opc.Ua.Server.Tests
             Assert.That(PublishData(harness, item), Has.Count.EqualTo(1));
 
             item.SetMonitoringMode(MonitoringMode.Disabled);
-            ((IDetachableMonitoredItem)item).MarkNodeDeleted();
+            ((IMonitoredItemGenerationBinding)item).Invalidate(terminal: false);
             Assert.That(item.ItemsInQueue, Is.Zero);
-            Assert.That(((IDetachableMonitoredItem)item).IsDeleted, Is.True);
+            Assert.That(((IMonitoredItemGenerationBinding)item).IsDeleted, Is.True);
 
             item.SetMonitoringMode(monitoringMode);
             if (monitoringMode == MonitoringMode.Sampling)
@@ -264,7 +238,7 @@ namespace Opc.Ua.Server.Tests
                 Assert.That(PublishData(harness, item), Has.Count.EqualTo(1));
 
                 item.SetMonitoringMode(MonitoringMode.Disabled);
-                ((IDetachableMonitoredItem)item).MarkNodeDeleted();
+                ((IMonitoredItemGenerationBinding)item).Invalidate(terminal: false);
 
                 (ServiceResult result, MonitoringMode? previousMode) = await manager.SetMonitoringModeAsync(
                     context, item, MonitoringMode.Reporting, handle).ConfigureAwait(false);
@@ -476,7 +450,7 @@ namespace Opc.Ua.Server.Tests
             };
             ModifyEventItem(item, modified, clientHandle: 9);
 
-            List<EventFieldList> published = PublishEvents(item);
+            List<QueuedEvent> published = PublishEvents(item);
 
             Assert.That(published, Has.Count.EqualTo(1));
             Assert.That(published[0].ClientHandle, Is.EqualTo(9u));
@@ -504,7 +478,7 @@ namespace Opc.Ua.Server.Tests
 
             ModifyEventItem(item, filter, clientHandle: 11);
 
-            List<EventFieldList> published = PublishEvents(item);
+            List<QueuedEvent> published = PublishEvents(item);
             Assert.That(published, Has.Count.EqualTo(1));
             Assert.That(published[0].ClientHandle, Is.EqualTo(11u));
             Assert.That(published[0].EventFields.ToArray(), Is.EqualTo(new[] { Variant.From("A") }));
@@ -543,7 +517,7 @@ namespace Opc.Ua.Server.Tests
             };
             ModifyEventItem(item, modified, clientHandle: 7);
 
-            List<EventFieldList> published = PublishEvents(item);
+            List<QueuedEvent> published = PublishEvents(item);
             Assert.That(published, Has.Count.EqualTo(1));
             Assert.That(published[0].ClientHandle, Is.EqualTo(7u));
             Assert.That(
@@ -578,7 +552,7 @@ namespace Opc.Ua.Server.Tests
             };
             ModifyEventItem(item, modified, clientHandle: 5);
 
-            List<EventFieldList> published = PublishEvents(item);
+            List<QueuedEvent> published = PublishEvents(item);
             Assert.That(published, Has.Count.EqualTo(1));
             Assert.That(published[0].Handle, Is.AssignableTo<EventQueueOverflowEventState>());
             Assert.That(published[0].EventFields.Count, Is.EqualTo(2));
@@ -610,7 +584,7 @@ namespace Opc.Ua.Server.Tests
 
             Assert.That(item.ClientHandle, Is.EqualTo(9u));
             Assert.That(item.Filter, Is.SameAs(modified));
-            List<EventFieldList> published = PublishEvents(item);
+            List<QueuedEvent> published = PublishEvents(item);
             Assert.That(published, Has.Count.EqualTo(1));
             Assert.That(published[0].Handle, Is.AssignableTo<EventQueueOverflowEventState>());
             Assert.That(published[0].ClientHandle, Is.EqualTo(9u));
@@ -658,7 +632,7 @@ namespace Opc.Ua.Server.Tests
             }
 
             Assert.That(failedValidations, Is.EqualTo(1));
-            List<EventFieldList> published = PublishEvents(item);
+            List<QueuedEvent> published = PublishEvents(item);
             Assert.That(published, Has.Count.EqualTo(5));
             Assert.That(
                 published[4].EventFields.ToArray(),
@@ -750,9 +724,9 @@ namespace Opc.Ua.Server.Tests
             return [.. notifications];
         }
 
-        private static List<EventFieldList> PublishEvents(MonitoredItem item)
+        private static List<QueuedEvent> PublishEvents(MonitoredItem item)
         {
-            var notifications = new Queue<EventFieldList>();
+            var notifications = new Queue<QueuedEvent>();
             _ = item.Publish(new OperationContext(item), notifications, 100);
             return [.. notifications];
         }

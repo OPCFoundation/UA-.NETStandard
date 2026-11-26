@@ -1,38 +1,14 @@
-/* ========================================================================
- * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
+using System.Runtime.ExceptionServices;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
+using Opc.Ua.Identity;
 using Opc.Ua.Redaction;
 using Opc.Ua.Security.Certificates;
 
@@ -148,6 +124,7 @@ namespace Opc.Ua.Server
             }
 
             m_server = server ?? throw new ArgumentNullException(nameof(server));
+            m_authenticationToken = authenticationToken;
             m_timeProvider = timeProvider
                 ?? (server as ITimeProviderProvider)?.TimeProvider
                 ?? TimeProvider.System;
@@ -181,6 +158,7 @@ namespace Opc.Ua.Server
 
             // use anonymous the default identity.
             Identity = new UserIdentity();
+            m_identityState = new IdentityState(Identity, 0, 0);
 
             // initialize diagnostics.
             DateTime now = m_timeProvider.GetUtcNow().UtcDateTime;
@@ -293,6 +271,9 @@ namespace Opc.Ua.Server
         /// <summary>
         /// An overrideable version of the Dispose.
         /// </summary>
+        /// <exception cref="AggregateException">
+        /// Managed-resource disposal was requested and more than one session resource cleanup fails.
+        /// </exception>
         protected virtual void Dispose(bool disposing)
         {
             if (disposing)
@@ -306,15 +287,41 @@ namespace Opc.Ua.Server
                     retired = ReplaceUserTokenNonce(null);
                     prepared = TakePreparedUserTokenNonce();
                 }
-                retired?.Dispose();
-                prepared?.Dispose();
-                m_continuationPoints.Clear();
-
+                List<Exception>? failures = null;
+                Cleanup(() => retired?.Dispose());
+                Cleanup(() => prepared?.Dispose());
+                Cleanup(m_continuationPoints.Clear);
                 IdentityToken = null!;
+                Cleanup(() => ClientCertificate?.Dispose());
+                Cleanup(() => m_clientIssuerCertificates?.Dispose());
+                try
+                {
+                    m_serverCertificate.Dispose();
+                }
+                catch (Exception failure) when (failure is not OutOfMemoryException)
+                {
+                    (failures ??= []).Add(failure);
+                }
+                if (failures is { Count: 1 })
+                {
+                    ExceptionDispatchInfo.Capture(failures[0]).Throw();
+                }
+                if (failures is { Count: > 1 })
+                {
+                    throw new AggregateException("Session disposal failed.", failures);
+                }
 
-                ClientCertificate?.Dispose();
-                m_clientIssuerCertificates?.Dispose();
-                m_serverCertificate.Dispose();
+                void Cleanup(Action action)
+                {
+                    try
+                    {
+                        action();
+                    }
+                    catch (Exception failure) when (failure is not OutOfMemoryException)
+                    {
+                        (failures ??= []).Add(failure);
+                    }
+                }
             }
         }
 
@@ -322,6 +329,14 @@ namespace Opc.Ua.Server
         /// Gets the identifier assigned to the session when it was created.
         /// </summary>
         public NodeId Id { get; private set; }
+
+        /// <summary>
+        /// Checks exact membership in the stock manager without publishing the private session token.
+        /// </summary>
+        internal bool IsRegisteredWith(SessionManager manager)
+        {
+            return ReferenceEquals(manager.GetSession(m_authenticationToken), this);
+        }
 
         /// <summary>
         /// The SessionId <see cref="InitializeAsync"/> asks the diagnostics node manager
@@ -357,11 +372,12 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Captures a request's effective identity and notification epoch together.
         /// </summary>
-        internal (IUserIdentity Identity, NotificationAuthorization? Authorization) CaptureNotificationContext()
+        internal (IUserIdentity Identity, NotificationAuthorization? Authorization, string? ClientUserId)
+            CaptureNotificationContext()
         {
             lock (m_lock)
             {
-                return (EffectiveIdentity, m_notificationAuthorization);
+                return (EffectiveIdentity, m_notificationAuthorization, m_clientUserId);
             }
         }
 
@@ -372,10 +388,45 @@ namespace Opc.Ua.Server
         /// <typeparam name="T">The operation's result type.</typeparam>
         internal T ExecuteNotificationOperation<T>(Func<T> operation)
         {
-            lock (m_notificationAuthorizationLock)
+            // Subscriptions of one session publish and acknowledge in parallel, each under its
+            // own subscription lock; only an identity commit excludes them.
+            m_notificationAuthorizationLock.EnterReadLock();
+            try
             {
                 return operation();
             }
+            finally
+            {
+                m_notificationAuthorizationLock.ExitReadLock();
+            }
+        }
+
+        /// <summary>
+        /// Enters an identity commit: no notification operation of the session's subscriptions
+        /// runs until the returned scope is disposed.
+        /// </summary>
+        private IdentityCommitScope EnterIdentityCommit()
+        {
+            m_notificationAuthorizationLock.EnterWriteLock();
+            return new IdentityCommitScope(m_notificationAuthorizationLock);
+        }
+
+        /// <summary>
+        /// Leaves an identity commit entered by <see cref="EnterIdentityCommit"/>.
+        /// </summary>
+        private readonly ref struct IdentityCommitScope
+        {
+            public IdentityCommitScope(ReaderWriterLockSlim gate)
+            {
+                m_gate = gate;
+            }
+
+            public void Dispose()
+            {
+                m_gate.ExitWriteLock();
+            }
+
+            private readonly ReaderWriterLockSlim m_gate;
         }
 
         /// <inheritdoc/>
@@ -383,33 +434,62 @@ namespace Opc.Ua.Server
         {
             get
             {
-                lock (m_lock)
-                {
-                    return m_identityRefreshGeneration != m_identityGeneration;
-                }
+                // Every monitored item checks this per delivery; the published state avoids the lock.
+                IdentityState state = Volatile.Read(ref m_identityState);
+                return state.RefreshGeneration != state.Generation;
             }
         }
 
         /// <inheritdoc/>
         public IdentityRefreshSnapshot CaptureIdentityRefreshSnapshot()
         {
-            lock (m_lock)
-            {
-                return new IdentityRefreshSnapshot(Identity, m_identityGeneration);
-            }
+            // One published object carries the identity and its generation, so the pair stays atomic.
+            IdentityState state = Volatile.Read(ref m_identityState);
+            return new IdentityRefreshSnapshot(state.Identity, state.Generation);
         }
 
         /// <inheritdoc/>
         public void MarkIdentityStale()
         {
-            lock (m_notificationAuthorizationLock)
+            using (EnterIdentityCommit())
             {
                 lock (m_lock)
                 {
                     m_identityGeneration++;
+                    PublishIdentityStateLocked();
                     Volatile.Write(ref m_notificationAuthorization, null);
                 }
             }
+        }
+
+        /// <summary>
+        /// Publishes the identity, its generation and its refresh generation after a change under
+        /// <see cref="m_lock"/>, so the lock-free readers see them change together.
+        /// </summary>
+        private void PublishIdentityStateLocked()
+        {
+            Volatile.Write(
+                ref m_identityState,
+                new IdentityState(Identity, m_identityGeneration, m_identityRefreshGeneration));
+        }
+
+        /// <summary>
+        /// The identity state the lock-free readers see; replaced, never changed.
+        /// </summary>
+        private sealed class IdentityState
+        {
+            public IdentityState(IUserIdentity identity, long generation, long refreshGeneration)
+            {
+                Identity = identity;
+                Generation = generation;
+                RefreshGeneration = refreshGeneration;
+            }
+
+            public IUserIdentity Identity { get; }
+
+            public long Generation { get; }
+
+            public long RefreshGeneration { get; }
         }
 
         /// <inheritdoc/>
@@ -420,13 +500,14 @@ namespace Opc.Ua.Server
                 throw new ArgumentNullException(nameof(effectiveIdentity));
             }
 
-            lock (m_notificationAuthorizationLock)
+            using (EnterIdentityCommit())
             {
                 lock (m_lock)
                 {
                     UpdateNotificationAuthorization(IdentityToken, Identity, effectiveIdentity);
                     EffectiveIdentity = effectiveIdentity;
                     m_identityRefreshGeneration = m_identityGeneration;
+                    PublishIdentityStateLocked();
                 }
             }
         }
@@ -446,7 +527,7 @@ namespace Opc.Ua.Server
                 throw new ArgumentNullException(nameof(effectiveIdentity));
             }
 
-            lock (m_notificationAuthorizationLock)
+            using (EnterIdentityCommit())
             {
                 lock (m_lock)
                 {
@@ -460,6 +541,7 @@ namespace Opc.Ua.Server
                     UpdateNotificationAuthorization(IdentityToken, Identity, effectiveIdentity);
                     EffectiveIdentity = effectiveIdentity;
                     m_identityRefreshGeneration = m_identityGeneration;
+                    PublishIdentityStateLocked();
                     return true;
                 }
             }
@@ -481,6 +563,12 @@ namespace Opc.Ua.Server
         /// The user identity token provided by the client.
         /// </summary>
         public IUserIdentityTokenHandler IdentityToken { get; private set; } = null!;
+
+        /// <summary>
+        /// The ClientUserId of the activated user (OPC 10000-5 6.4.3), or <c>null</c>
+        /// for an anonymous user.
+        /// </summary>
+        internal string? ClientUserId => Volatile.Read(ref m_clientUserId);
 
         /// <summary>
         /// Applies an update to the session diagnostics while holding the session's
@@ -876,6 +964,20 @@ namespace Opc.Ua.Server
                 throw new ServiceResultException(StatusCodes.BadSessionClosed);
             }
 
+            // OPC 10000-4 7.40.6: the credentials of an identity token with an
+            // expiration are invalid once it has expired. The Session stays open, and
+            // requests fail until the Client activates it with a new token. Identities
+            // without an expiration skip the clock read.
+            // A Publish request that parks re-checks before it delivers notifications
+            // (SubscriptionManager.PublishAsync).
+            if (requestType != RequestType.CloseSession && HaveCredentialsExpired())
+            {
+                UpdateDiagnosticCounters(requestType, true, false);
+                throw new ServiceResultException(
+                    StatusCodes.BadIdentityTokenInvalid,
+                    "The user identity token has expired. Activate the session with a new token.");
+            }
+
             // request accepted.
             UpdateDiagnosticCounters(requestType, false, false);
         }
@@ -1205,8 +1307,10 @@ namespace Opc.Ua.Server
             ArrayOf<string> localeIds,
             Nonce serverNonce)
         {
-            return ExecuteNotificationOperation(() =>
-                ActivateCore(context, identityToken, identity, effectiveIdentity, localeIds, serverNonce, null));
+            using (EnterIdentityCommit())
+            {
+                return ActivateCore(context, identityToken, identity, effectiveIdentity, localeIds, serverNonce, null);
+            }
         }
 
         /// <summary>
@@ -1221,9 +1325,11 @@ namespace Opc.Ua.Server
             Nonce serverNonce,
             long expectedIdentityGeneration)
         {
-            return ExecuteNotificationOperation(() =>
-                ActivateCore(context, identityToken, identity, effectiveIdentity, localeIds, serverNonce,
-                    expectedIdentityGeneration));
+            using (EnterIdentityCommit())
+            {
+                return ActivateCore(context, identityToken, identity, effectiveIdentity, localeIds, serverNonce,
+                    expectedIdentityGeneration);
+            }
         }
 
         /// <summary>
@@ -1254,11 +1360,15 @@ namespace Opc.Ua.Server
                 if (rolesChanged)
                 {
                     m_identityGeneration++;
+                    PublishIdentityStateLocked();
                     Volatile.Write(ref m_notificationAuthorization, null);
                 }
 
-                // update local ids.
-                if (UpdateLocaleIds(localeIds))
+                // update local ids. Part 4 §5.7.3.2: a null or empty list keeps
+                // the LocaleIds the Session already has; the first activation
+                // always initializes them.
+                if ((!localeIds.IsEmpty || PreferredLocales == null) &&
+                    UpdateLocaleIds(localeIds))
                 {
                     changed = true;
                 }
@@ -1428,54 +1538,53 @@ namespace Opc.Ua.Server
                 identityToken.TryGetValue(out anonymousToken))
             {
                 // check if an anonymous login is permitted.
-                if (!EndpointDescription.UserIdentityTokens.IsEmpty)
-                {
-                    bool found = false;
+                // Part 4 7.14: the endpoint accepts only the listed token types, so an
+                // empty list accepts none, anonymous included.
+                bool found = false;
 
+                for (int ii = 0; ii < EndpointDescription.UserIdentityTokens.Count; ii++)
+                {
+                    if (EndpointDescription.UserIdentityTokens[ii]
+                        .TokenType == UserTokenType.Anonymous)
+                    {
+                        found = true;
+                        policy = EndpointDescription.UserIdentityTokens[ii];
+                        break;
+                    }
+                }
+
+                if (!found)
+                {
+                    throw ServiceResultException.Create(
+                        StatusCodes.BadIdentityTokenRejected,
+                        "Anonymous user token policy not supported.");
+                }
+
+                // a token that names its policy must conform to that policy
+                // (Part 4 7.40.3); only an omitted token or PolicyId falls back
+                // to the first anonymous policy of the endpoint.
+                if (!string.IsNullOrEmpty(anonymousToken?.PolicyId))
+                {
+                    policy = null;
                     for (int ii = 0; ii < EndpointDescription.UserIdentityTokens.Count; ii++)
                     {
-                        if (EndpointDescription.UserIdentityTokens[ii]
-                            .TokenType == UserTokenType.Anonymous)
+                        UserTokenPolicy candidate = EndpointDescription.UserIdentityTokens[ii];
+                        if (candidate.TokenType == UserTokenType.Anonymous &&
+                            string.Equals(
+                                candidate.PolicyId,
+                                anonymousToken!.PolicyId,
+                                StringComparison.Ordinal))
                         {
-                            found = true;
-                            policy = EndpointDescription.UserIdentityTokens[ii];
+                            policy = candidate;
                             break;
                         }
                     }
 
-                    if (!found)
+                    if (policy == null)
                     {
                         throw ServiceResultException.Create(
-                            StatusCodes.BadIdentityTokenRejected,
-                            "Anonymous user token policy not supported.");
-                    }
-
-                    // a token that names its policy must conform to that policy
-                    // (Part 4 7.40.3); only an omitted token or PolicyId falls back
-                    // to the first anonymous policy of the endpoint.
-                    if (!string.IsNullOrEmpty(anonymousToken?.PolicyId))
-                    {
-                        policy = null;
-                        for (int ii = 0; ii < EndpointDescription.UserIdentityTokens.Count; ii++)
-                        {
-                            UserTokenPolicy candidate = EndpointDescription.UserIdentityTokens[ii];
-                            if (candidate.TokenType == UserTokenType.Anonymous &&
-                                string.Equals(
-                                    candidate.PolicyId,
-                                    anonymousToken!.PolicyId,
-                                    StringComparison.Ordinal))
-                            {
-                                policy = candidate;
-                                break;
-                            }
-                        }
-
-                        if (policy == null)
-                        {
-                            throw ServiceResultException.Create(
-                                StatusCodes.BadIdentityTokenInvalid,
-                                "The anonymous identity token does not match an anonymous user token policy.");
-                        }
+                            StatusCodes.BadIdentityTokenInvalid,
+                            "The anonymous identity token does not match an anonymous user token policy.");
                     }
                 }
 
@@ -1576,6 +1685,17 @@ namespace Opc.Ua.Server
             }
 
             token.UpdatePolicy(policy);
+
+            // Part 4 §7.40.4 Table 189: a clear-text secret over a Sign channel is
+            // an invalid configuration, even when a custom server publishes it.
+            if (ServerBase.IsCleartextTokenPolicyOnSignChannel(
+                EndpointDescription.SecurityMode, policy))
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadIdentityTokenRejected,
+                    "A {0} token with SecurityPolicy None is not accepted on a Sign channel.",
+                    policy.TokenType);
+            }
 
             // determine the security policy uri.
             string? securityPolicyUri = policy.SecurityPolicyUri;
@@ -1822,6 +1942,49 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
+        /// The UTC ticks after which the credentials of the identity are invalid, or
+        /// <see cref="long.MaxValue"/> when the identity has no expiration.
+        /// </summary>
+        /// <remarks>
+        /// Role wrappers (<see cref="RoleBasedIdentity"/> and subclasses such as the GDS
+        /// role identity) are unwrapped, so an expiration of the authenticated identity
+        /// behind them is not lost. When several layers report one, the earliest applies.
+        /// </remarks>
+        internal static long GetCredentialsExpiryUtcTicks(IUserIdentity identity)
+        {
+            long earliest = long.MaxValue;
+            IUserIdentity? current = identity;
+            while (current != null)
+            {
+                if (current is IIdentityExpiration { ExpiresAt: DateTime expiresAt })
+                {
+                    long ticks = expiresAt.Kind == DateTimeKind.Local
+                        ? expiresAt.ToUniversalTime().Ticks
+                        : expiresAt.Ticks;
+                    // DateTime.MaxValue means no practical expiration.
+                    if (ticks < DateTime.MaxValue.Ticks && ticks < earliest)
+                    {
+                        earliest = ticks;
+                    }
+                }
+                current = (current as RoleBasedIdentity)?.InnerIdentity;
+            }
+            return earliest;
+        }
+
+        /// <summary>
+        /// Whether the credentials of the current identity have expired (OPC 10000-4
+        /// 7.40.6). One volatile read when the identity has no expiration; otherwise
+        /// one clock read and a comparison. Does not allocate.
+        /// </summary>
+        internal bool HaveCredentialsExpired()
+        {
+            long credentialsExpiryUtcTicks = Volatile.Read(ref m_credentialsExpiryUtcTicks);
+            return credentialsExpiryUtcTicks != long.MaxValue &&
+                m_timeProvider.GetUtcNow().UtcDateTime.Ticks > credentialsExpiryUtcTicks;
+        }
+
+        /// <summary>
         /// Updates the user identity.
         /// </summary>
         /// <returns>true if the new identity is different from the old identity.</returns>
@@ -1851,9 +2014,11 @@ namespace Opc.Ua.Server
                 // always save the new identity since it may have additional information that does not affect equality.
                 IdentityToken = identityToken;
                 Identity = identity;
+                Volatile.Write(ref m_credentialsExpiryUtcTicks, GetCredentialsExpiryUtcTicks(identity));
                 m_identityGeneration++;
                 m_identityRefreshGeneration = m_identityGeneration;
                 EffectiveIdentity = effectiveIdentity!;
+                PublishIdentityStateLocked();
 
                 // update diagnostics.
                 lock (m_diagnosticsLock)
@@ -1861,6 +2026,7 @@ namespace Opc.Ua.Server
                     string? clientUserId = ClientUserIdResolver.Resolve(
                         identityToken,
                         identity);
+                    Volatile.Write(ref m_clientUserId, clientUserId);
                     ArrayOf<string> history = m_securityDiagnostics.ClientUserIdHistory;
 
                     // ClientUserIdOfSession names the user authenticated when the session
@@ -2074,6 +2240,44 @@ namespace Opc.Ua.Server
             bool error,
             bool authorizationError)
         {
+            AddPendingRequestCounts(
+                requestType,
+                !error
+                    ? 1L
+                    : authorizationError
+                        ? 1L + (1L << kErrorShift) + (1L << kUnauthorizedShift)
+                        : 1L + (1L << kErrorShift));
+        }
+
+        /// <summary>
+        /// Counts a request that passed <see cref="ValidateRequest"/> but that its service
+        /// rejected. <see cref="ValidateRequest"/> counted the request already, so only its
+        /// error is added to the service and total counters (OPC 10000-5 12.13), and to
+        /// UnauthorizedRequestCount when the rejection denied access (OPC 10000-5 12.11).
+        /// </summary>
+        /// <param name="requestType">The type of the rejected request.</param>
+        /// <param name="statusCode">The status code the service rejected the request with.</param>
+        internal void UpdateRejectedRequestCounters(RequestType requestType, StatusCode statusCode)
+        {
+            bool authorizationError =
+                statusCode == StatusCodes.BadUserAccessDenied ||
+                statusCode == StatusCodes.BadIdentityTokenInvalid ||
+                statusCode == StatusCodes.BadIdentityTokenRejected ||
+                statusCode == StatusCodes.BadSecurityModeInsufficient;
+
+            AddPendingRequestCounts(
+                requestType,
+                authorizationError
+                    ? (1L << kErrorShift) + (1L << kUnauthorizedShift)
+                    : 1L << kErrorShift);
+        }
+
+        /// <summary>
+        /// Adds a packed request count delta to the pending slot of a request type.
+        /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
+        private void AddPendingRequestCounts(RequestType requestType, long delta)
+        {
             int slot = (int)requestType;
             if ((uint)slot >= (uint)kRequestTypeCount)
             {
@@ -2081,11 +2285,6 @@ namespace Opc.Ua.Server
                     $"Unexpected RequestType {requestType}");
             }
 
-            long delta = !error
-                ? 1L
-                : authorizationError
-                    ? 1L + (1L << kErrorShift) + (1L << kUnauthorizedShift)
-                    : 1L + (1L << kErrorShift);
             ulong pending = unchecked((ulong)Interlocked.Add(ref m_pendingRequestCounts[slot], delta));
 
             // Without a diagnostics reader nothing folds the slots; fold before a field can
@@ -2148,8 +2347,16 @@ namespace Opc.Ua.Server
         }
         private readonly Lock m_lock = new();
 
-        /// <summary>Serializes identity commits and notification delivery before entering the session state.</summary>
-        private readonly Lock m_notificationAuthorizationLock = new();
+        /// <summary>
+        /// Excludes notification delivery (shared) during identity commits (exclusive) before
+        /// entering the session state. Recursion is allowed because the mutex it replaced was
+        /// reentrant. It is never disposed: a subscription may still deliver after the session
+        /// was disposed, and the gate only allocates wait handles while it is contended.
+        /// </summary>
+        [SuppressMessage("Usage", "CA2213:Disposable fields should be disposed",
+            Justification = "Subscriptions may still enter the gate after the session was disposed.")]
+        private readonly ReaderWriterLockSlim m_notificationAuthorizationLock =
+            new(LockRecursionPolicy.SupportsRecursion);
 
         /// <summary>The current notification epoch; null while effective grants require refresh.</summary>
         private NotificationAuthorization? m_notificationAuthorization;
@@ -2164,6 +2371,7 @@ namespace Opc.Ua.Server
         private int m_closing;
         private readonly ILogger m_eventLogger;
         private readonly IServerInternal m_server;
+        private readonly NodeId m_authenticationToken;
         private readonly TimeProvider m_timeProvider;
         private readonly ISecurityPolicyRegistry m_securityPolicies;
 
@@ -2225,6 +2433,7 @@ namespace Opc.Ua.Server
         private long m_lastContactUtcTicks;
         private long m_sessionTimeoutMs;
         private long m_foldedContactUtcTicks;
+        private string? m_clientUserId;
 
         /// <summary>
         /// Request counts not yet applied to <see cref="SessionDiagnostics"/>, one packed
@@ -2249,6 +2458,13 @@ namespace Opc.Ua.Server
         private string m_secureChannelId = null!;
         private long m_identityGeneration;
         private long m_identityRefreshGeneration;
+
+        /// <summary>
+        /// UTC ticks after which the credentials of the current identity are invalid;
+        /// <see cref="long.MaxValue"/> when they do not expire.
+        /// </summary>
+        private long m_credentialsExpiryUtcTicks = long.MaxValue;
+        private IdentityState m_identityState;
     }
 
     /// <summary>

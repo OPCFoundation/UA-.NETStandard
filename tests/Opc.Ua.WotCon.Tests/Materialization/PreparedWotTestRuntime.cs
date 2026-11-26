@@ -1,31 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using System.Collections.Generic;
@@ -50,10 +24,11 @@ namespace Opc.Ua.WotCon.Tests.Materialization
     internal sealed class PreparedWotTestRuntime : IAsyncDisposable
     {
         private PreparedWotTestRuntime(
-            string root, ServerFixture<ReferenceServer> fixture, ReferenceServer server, bool forceLeasedContent)
+            string root, Func<Task> stop, int port, StandardServer server, bool forceLeasedContent)
         {
             m_root = root;
-            m_fixture = fixture;
+            m_stop = stop;
+            m_port = port;
             m_server = server;
             m_forceLeasedContent = forceLeasedContent;
             m_configuredStorage = new PreparedWotTestStorage(StorageFolder, forceLeasedContent);
@@ -71,6 +46,11 @@ namespace Opc.Ua.WotCon.Tests.Materialization
         public NamespaceTable Namespaces => m_server.CurrentInstance.NamespaceUris;
 
         /// <summary>
+        /// Gets the serving state used to verify candidate routing isolation.
+        /// </summary>
+        public IServerInternal Server => m_server.CurrentInstance;
+
+        /// <summary>
         /// Gets the lifecycle for <c>PreparedWotTestRuntime</c>.
         /// </summary>
         public INodeManagerLifecycle Lifecycle => m_server.NodeManagerLifecycle;
@@ -78,7 +58,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
         /// <summary>
         /// Gets the port for <c>PreparedWotTestRuntime</c>.
         /// </summary>
-        public int Port => m_fixture.Port;
+        public int Port => m_port;
 
         /// <summary>
         /// Gets the configured registry storage directory within the test runtime.
@@ -94,18 +74,38 @@ namespace Opc.Ua.WotCon.Tests.Materialization
         /// Starts a runtime that hosts the prepared WoT publication pipeline.
         /// </summary>
         /// <param name="forceLeasedContent">The force-leased-content flag supplied by the caller.</param>
-        public static async Task<PreparedWotTestRuntime> StartAsync(bool forceLeasedContent = false)
+        public static Task<PreparedWotTestRuntime> StartAsync(bool forceLeasedContent = false)
+        {
+            return StartAsync(telemetry => new ReferenceServer(telemetry), forceLeasedContent);
+        }
+
+        /// <summary>
+        /// Starts a runtime that hosts the prepared WoT publication pipeline on
+        /// a server of type <typeparamref name="T"/>.
+        /// </summary>
+        /// <remarks>
+        /// The server type names the application and therefore the server URI.
+        /// A test that restarts from a publication committed on a server of one
+        /// type must restart on the same type, or recovery sees another server.
+        /// </remarks>
+        /// <typeparam name="T">The server type to host.</typeparam>
+        /// <param name="factory">Creates the server.</param>
+        /// <param name="forceLeasedContent">The force-leased-content flag supplied by the caller.</param>
+        public static async Task<PreparedWotTestRuntime> StartAsync<T>(
+            Func<ITelemetryContext, T> factory, bool forceLeasedContent = false)
+            where T : StandardServer
         {
             string root = Path.Combine(Path.GetTempPath(),
                 "pwr", Guid.NewGuid().ToString("N").Substring(0, 12));
-            var fixture = new ServerFixture<ReferenceServer>(telemetry => new ReferenceServer(telemetry))
+            var fixture = new ServerFixture<T>(factory)
             {
                 UriScheme = Utils.UriSchemeOpcTcp,
                 SecurityNone = true,
                 AutoAccept = true
             };
-            ReferenceServer server = await fixture.StartAsync(Path.Combine(root, "pki")).ConfigureAwait(false);
-            return new PreparedWotTestRuntime(root, fixture, server, forceLeasedContent);
+            await WotTestPki.SeedAsync(Path.Combine(root, "pki"), factory, 0).ConfigureAwait(false);
+            T server = await fixture.StartAsync(Path.Combine(root, "pki")).ConfigureAwait(false);
+            return new PreparedWotTestRuntime(root, fixture.StopAsync, fixture.Port, server, forceLeasedContent);
         }
 
         /// <summary>
@@ -149,7 +149,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
         {
             try
             {
-                await m_fixture.StopAsync().ConfigureAwait(false);
+                await m_stop().ConfigureAwait(false);
             }
             finally
             {
@@ -242,10 +242,12 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             /// <inheritdoc/>
             /// <param name="handle">The WoT projection handle.</param>
             /// <param name="cancellationToken">The cancellation token supplied by the caller.</param>
-            public async ValueTask RemoveAsync(WotProjectionHandle handle, CancellationToken cancellationToken = default)
+            public async ValueTask<LifecycleResult?> RemoveAsync(
+                WotProjectionHandle handle, CancellationToken cancellationToken = default)
             {
-                await inner.RemoveAsync(handle, cancellationToken).ConfigureAwait(false);
+                LifecycleResult? result = await inner.RemoveAsync(handle, cancellationToken).ConfigureAwait(false);
                 published([WotProjectionChange.Remove(handle)]);
+                return result;
             }
         }
 
@@ -333,8 +335,13 @@ namespace Opc.Ua.WotCon.Tests.Materialization
         private sealed class ObservedUnit(
             IWotPreparedProjectionPublication inner,
             ArrayOf<WotProjectionChange> changes,
-            Action<ArrayOf<WotProjectionChange>> published) : IWotPreparedProjectionPublication
+            Action<ArrayOf<WotProjectionChange>> published)
+            : IWotPreparedProjectionPublication, IWotPreparedProjectionNamespaceSource
         {
+            /// <inheritdoc/>
+            public ArrayOf<string> CapturedNamespaceUris =>
+                (inner as IWotPreparedProjectionNamespaceSource)?.CapturedNamespaceUris ?? [];
+
             /// <summary>
             /// Gets the projections for <c>ObservedUnit</c>.
             /// </summary>
@@ -354,6 +361,9 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             /// Gets the cleanup failure for <c>ObservedUnit</c>.
             /// </summary>
             public Exception? CleanupFailure => inner.CleanupFailure;
+
+            /// <inheritdoc/>
+            public Task Retired => inner.Retired;
 
             public void BindReadImages(ArrayOf<INodeManagerReadImage> images)
             {
@@ -382,8 +392,9 @@ namespace Opc.Ua.WotCon.Tests.Materialization
         }
 
         private readonly string m_root;
-        private readonly ServerFixture<ReferenceServer> m_fixture;
-        private readonly ReferenceServer m_server;
+        private readonly Func<Task> m_stop;
+        private readonly int m_port;
+        private readonly StandardServer m_server;
         private readonly bool m_forceLeasedContent;
         private readonly PreparedWotTestStorage m_configuredStorage;
         private readonly List<(WotRegistryService Registry, FileWotRegistryStore Store)> m_registries = [];

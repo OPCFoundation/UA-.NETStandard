@@ -1,36 +1,10 @@
-/* ========================================================================
- * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
@@ -494,14 +468,18 @@ namespace Opc.Ua.Wot
                 using var encoded = JsonDocument.Parse(
                     projection, new JsonDocumentOptions { MaxDepth = options.MaxJsonDepth });
                 UANodeSet? restored = WotNativeProjection.Read(encoded.RootElement, options, diagnostics);
+                NodeSetComparisonResult? comparison = restored is null
+                    ? null
+                    : NodeSetComparer.Compare(partition, restored, options.ToComparisonOptions());
                 if (restored is null ||
                     HasErrors(diagnostics) ||
-                    !NodeSetComparer.Compare(partition, restored, options.ToComparisonOptions()).AreEquivalent)
+                    comparison is { AreEquivalent: false })
                 {
                     diagnostics.Add(new WotDiagnostic(
                         WotDiagnosticSeverity.Error,
                         WotDiagnosticCode.NativeProjectionIncomplete,
-                        "The structured partition did not reproduce its complete source."));
+                        "The structured partition did not reproduce its complete source." +
+                        (comparison is { AreEquivalent: false } ? " " + comparison.Differences[0] : string.Empty)));
                     return [];
                 }
             }
@@ -554,6 +532,7 @@ namespace Opc.Ua.Wot
             IWotNodeResolver context = ComposeSetLocalContext(documents, nodeResolver);
             var results = new List<WotConversionResult<UANodeSet>>();
             var archived = new List<UANode>();
+            var archiveExtensions = new Dictionary<WotDocument, System.Xml.XmlElement[]?>();
             UANodeSet? archiveHeader = null;
             foreach (WotDocumentSetEntry entry in documents.Entries)
             {
@@ -563,12 +542,20 @@ namespace Opc.Ua.Wot
                 {
                     archiveHeader ??= part;
                     archived.AddRange(part.Items ?? []);
+                    archiveExtensions.Add(entry.Document, part.Extensions);
                 }
             }
             if (archiveHeader is not null)
             {
                 resolver.ArchiveContext = CopyDocumentSetHeader(archiveHeader);
                 resolver.ArchiveContext.Items = [.. archived];
+            }
+            using WotDocument? nativeTypes = CreateDocumentSetNativeDataTypes(resolver.ArchiveContext, options);
+            resolver.NativeDataTypeDocument = nativeTypes;
+            if (nativeTypes is not null)
+            {
+                resolver.DataTypeDefinitions = ReadDataTypeDefinitions(nativeTypes).ToArrayOf(source =>
+                    new WotDataTypeDefinitionSource(source.Document, source.Definition) { ProjectedSeparately = true });
             }
             for (int index = 0; index < documents.Entries.Count; index++)
             {
@@ -577,7 +564,128 @@ namespace Opc.Ua.Wot
                     documents.Entries[index].Document, options, resolver, resolution, context,
                     schemaResolver, cancellationToken).ConfigureAwait(false));
             }
+            if (resolver.ArchiveContext is not null)
+            {
+                UANodeSet scalarContext = CreateDocumentSetScalarContext(results, resolver.ArchiveContext);
+                for (int index = 0; index < results.Count; index++)
+                {
+                    cancellationToken.ThrowIfCancellationRequested();
+                    WotConversionResult<UANodeSet> result = results[index];
+                    if (result.Success && result.Value is { } part &&
+                        archiveExtensions.TryGetValue(
+                            documents.Entries[index].Document, out System.Xml.XmlElement[]? extensions))
+                    {
+                        var diagnostics = result.Diagnostics.ToList();
+                        part.Extensions = extensions;
+                        WotJsonResidue.Replace(
+                            part, documents.Entries[index].Document, options, diagnostics, schemaContext: scalarContext);
+                        results[index] = new WotConversionResult<UANodeSet>(part, diagnostics);
+                    }
+                }
+            }
+            for (int index = 0; index < results.Count; index++)
+            {
+                if (results[index] is { Success: true, Value: { } part })
+                {
+                    string? ancestor = await ResolveDocumentEventAncestorAsync(
+                        part, documents.Entries[index].Document, context, cancellationToken).ConfigureAwait(false);
+                    if (ancestor is not null)
+                    {
+                        var diagnostics = results[index].Diagnostics.ToList();
+                        WotJsonResidue.RemoveDocumentSetLinks(
+                            part, documents.Entries[index].Document, documents, options, diagnostics,
+                            resolvedEventAncestor: ancestor);
+                        results[index] = new WotConversionResult<UANodeSet>(part, diagnostics);
+                    }
+                }
+            }
             return results;
+        }
+
+        /// <summary>
+        /// Combines reconstructed scalar declarations across readable and native partitions for residue checks.
+        /// </summary>
+        private static UANodeSet CreateDocumentSetScalarContext(
+            List<WotConversionResult<UANodeSet>> results,
+            UANodeSet archive)
+        {
+            UANodeSet context = CopyDocumentSetHeader(archive, extensions: false);
+            var types = new List<UANode>();
+            foreach (WotConversionResult<UANodeSet> result in results)
+            {
+                if (result.Value is not { } part)
+                {
+                    continue;
+                }
+                INodeSetAliasResolver aliases = NodeSetDeclaredAliases.FromNodeSet(part, WotNodeSetAliases.Instance);
+                foreach (UANode node in part.Items ?? [])
+                {
+                    if (node is UADataType type)
+                    {
+                        types.Add(new UADataType
+                        {
+                            NodeId = ConvertIdentity(type.NodeId),
+                            Definition = type.Definition,
+                            References = (type.References ?? []).Select(reference => new Reference
+                            {
+                                ReferenceType = ConvertIdentity(reference.ReferenceType),
+                                IsForward = reference.IsForward,
+                                Value = ConvertIdentity(reference.Value)
+                            }).ToArray()
+                        });
+                    }
+                }
+
+                string ConvertIdentity(string? identity)
+                {
+                    string resolved = ResolveArchivedAlias(identity, aliases);
+                    return ToNodeSetNodeId(ToPortableNodeId(resolved, part.NamespaceUris) ?? resolved, context, []);
+                }
+            }
+            context.Items = [.. types];
+            return context;
+        }
+
+        /// <summary>
+        /// Supplies authoritative native definitions to readable sibling partitions without emitting their nodes again.
+        /// </summary>
+        private static WotDocument? CreateDocumentSetNativeDataTypes(
+            UANodeSet? context,
+            WotNodeSetConverterOptions options)
+        {
+            if (context is null)
+            {
+                return null;
+            }
+            var types = new List<UADataType>();
+            foreach (UANode node in context.Items ?? [])
+            {
+                if (node is UADataType { Definition: not null } dataType)
+                {
+                    types.Add(dataType);
+                }
+            }
+            if (types.Count == 0)
+            {
+                return null;
+            }
+            Dictionary<string, UANode> index = BuildIndex(context);
+            var referenceTypes = WotReferenceTypeNames.Build(context);
+            using var output = new MemoryStream();
+            using (var writer = new Utf8JsonWriter(output))
+            {
+                writer.WriteStartObject();
+                WriteContext(writer, context, null, null);
+                writer.WritePropertyName("uav:dataTypeDefinitions");
+                writer.WriteStartArray();
+                foreach (UADataType dataType in types)
+                {
+                    WriteDataTypeDefinition(writer, dataType, context, referenceTypes, string.Empty, index);
+                }
+                writer.WriteEndArray();
+                writer.WriteEndObject();
+            }
+            return WotDocument.FromOwnedBytes(output.ToArray(), options);
         }
 
         private static void ValidateDocumentSetPreservedFacts(
@@ -585,7 +693,8 @@ namespace Opc.Ua.Wot
             List<UANodeSet> partitions,
             UANodeSet merged,
             WotNodeSetConverterOptions options,
-            List<WotDiagnostic> diagnostics)
+            List<WotDiagnostic> diagnostics,
+            IReadOnlyDictionary<string, WotArgumentProperty>? resolvedArgumentProperties = null)
         {
             if (HasErrors(diagnostics))
             {
@@ -604,7 +713,7 @@ namespace Opc.Ua.Wot
                     }
                     ValidatePreservedReadableFacts(
                         document, partitions[index], options, diagnostics, merged,
-                        derivations: derivations);
+                        derivations: derivations, resolvedArgumentProperties: resolvedArgumentProperties);
                 }
             }
             ApplyIdentifierLeniency(diagnostics, options);
@@ -733,10 +842,17 @@ namespace Opc.Ua.Wot
                 }
                 part.Items = [.. owned];
             }
+            var contextNodes = new List<UANode>();
+            foreach (UANodeSet part in parts)
+            {
+                contextNodes.AddRange(part.Items ?? []);
+            }
+            UANodeSet residueContext = CopyDocumentSetHeader(parts.Count == 0 ? new UANodeSet() : parts[0]);
+            residueContext.Items = [.. contextNodes];
             for (int index = 0; index < parts.Count; index++)
             {
                 WotJsonResidue.RemoveDocumentSetLinks(
-                    parts[index], documents.Entries[index].Document, documents, options, diagnostics);
+                    parts[index], documents.Entries[index].Document, documents, options, diagnostics, residueContext);
             }
             return parts;
         }
@@ -845,7 +961,7 @@ namespace Opc.Ua.Wot
                 extensions.AddRange(part.Extensions ?? []);
             }
             result.Items = [.. nodes];
-            result.Extensions = extensions.Count == 0 ? null : [.. extensions];
+            result.Extensions = extensions.Count == 0 && result.Extensions is null ? null : [.. extensions];
             return NodeSetAliasCompleter.Complete(result, WotNodeSetAliases.Instance)!;
         }
 
@@ -908,17 +1024,28 @@ namespace Opc.Ua.Wot
         /// <param name="nodeSet">The node set.</param>
         /// <param name="data">The JSON element.</param>
         /// <param name="maxDepth">The max depth.</param>
+        /// <param name="resolvedEventAncestor">The standard event ancestor resolved from the local context.</param>
         internal static bool IsGeneratedEventDefinitionData(
             WotDocument document,
             UANodeSet nodeSet,
             JsonElement data,
-            int maxDepth)
+            int maxDepth,
+            string? resolvedEventAncestor = null)
         {
             if (!HasEventTypeAnnotation(document))
             {
                 return false;
             }
-            UANode? root = SelectRootNode(nodeSet);
+            UANode? root = null;
+            string? identity = GetUavString(document, "id");
+            foreach (UANode node in nodeSet.Items ?? [])
+            {
+                if (identity is not null && ToPortableNodeId(node.NodeId, nodeSet.NamespaceUris) == identity)
+                {
+                    root = node;
+                    break;
+                }
+            }
             if (root is null)
             {
                 return false;
@@ -928,7 +1055,8 @@ namespace Opc.Ua.Wot
             {
                 writer.WriteStartObject();
                 WriteEventTypeDefinitionData(
-                    writer, root, nodeSet.NamespaceUris, nodeSet, BuildIndex(nodeSet), GetDocumentLocale(document));
+                    writer, root, nodeSet.NamespaceUris, nodeSet, BuildIndex(nodeSet), GetDocumentLocale(document),
+                    resolvedEventAncestor);
                 writer.WriteEndObject();
             }
             using var expected = JsonDocument.Parse(

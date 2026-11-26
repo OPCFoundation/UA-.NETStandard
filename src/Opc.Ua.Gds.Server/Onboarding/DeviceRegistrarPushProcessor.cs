@@ -1,29 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person obtaining a
- * copy of this software and associated documentation files (the "Software"),
- * to deal in the Software without restriction, including without limitation
- * the rights to use, copy, modify, merge, publish, distribute, sublicense,
- * and/or sell copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following conditions:
- *
- * The above copyright notice and this permission notice shall be included
- * in all copies or substantial portions of the Software.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
- * OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
- * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
- * IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using System.Collections.Generic;
@@ -48,7 +24,10 @@ namespace Opc.Ua.Gds.Server.Onboarding
     /// proof of their installed certificate on a separate secure channel. This processor never installs software
     /// or grants a singleton authority over managed applications.
     /// </summary>
-    public sealed class DeviceRegistrarPushProcessor : IDeviceRegistrarPushProcessor, IDisposable
+    public sealed class DeviceRegistrarPushProcessor :
+        IDeviceRegistrarPushProcessor,
+        IDeviceRegistrarPushRecoveryProcessor,
+        IDisposable
     {
         /// <summary>
         /// Borrows host-selected connection, enrollment, managed application, policy, and registrar providers.
@@ -128,12 +107,65 @@ namespace Opc.Ua.Gds.Server.Onboarding
                 throw new ArgumentNullException(nameof(application));
             }
             cancellationToken.ThrowIfCancellationRequested();
-            ApplicationDescription snapshot = CoreUtils.Clone(application)!;
+            ApplicationDescription snapshot = DeviceRegistrarPushApplicationSnapshot.Create(application);
             ValidateApplication(snapshot);
             await m_attemptGate.WaitAsync(cancellationToken).ConfigureAwait(false);
             try
             {
                 await ProcessCoreAsync(snapshot, cancellationToken).ConfigureAwait(false);
+            }
+            finally
+            {
+                m_attemptGate.Release();
+            }
+        }
+
+        /// <inheritdoc/>
+        public async ValueTask ReconcileInterruptedAsync(
+            ApplicationDescription application,
+            CancellationToken cancellationToken = default)
+        {
+            if (Volatile.Read(ref m_disposed) != 0)
+            {
+                throw new ObjectDisposedException(nameof(DeviceRegistrarPushProcessor));
+            }
+            if (application == null)
+            {
+                throw new ArgumentNullException(nameof(application));
+            }
+            cancellationToken.ThrowIfCancellationRequested();
+            ApplicationDescription snapshot = DeviceRegistrarPushApplicationSnapshot.Create(application);
+            ValidateApplication(snapshot);
+            await m_attemptGate.WaitAsync(cancellationToken).ConfigureAwait(false);
+            try
+            {
+                await WithConnectionAsync(snapshot, default, async (connection, dispatch) =>
+                {
+                    ValidateConnection(snapshot, connection, dispatch.Session);
+                    _ = await ReadSingletonAsync(
+                        dispatch.Session, connection.IsSingletonId, cancellationToken).ConfigureAwait(false);
+                    ByteString peer = ReadPeer(dispatch.Session);
+                    DeviceRegistrarPushEnrollment? retained = await FindRetainedAsync(
+                        snapshot.ApplicationUri!, peer, cancellationToken).ConfigureAwait(false);
+                    if (retained == null)
+                    {
+                        return;
+                    }
+                    CertificateRequestIssuance issuance = await ReadIssuanceAsync(
+                        retained, cancellationToken).ConfigureAwait(false);
+                    if (issuance.Certificate == peer)
+                    {
+                        DeviceRegistrarDevice current = await RequireDeviceAsync(
+                            retained.Identity.ProductInstanceUri, retained.ApplicationId, cancellationToken)
+                            .ConfigureAwait(false);
+                        if (current.DcaCertificate == peer || current.PendingDcaCertificate == peer)
+                        {
+                            _ = await HoldsTrustListAsync(
+                                dispatch.Session, connection.TrustListId, retained.TrustList, cancellationToken)
+                                .ConfigureAwait(false);
+                        }
+                    }
+                }, cancellationToken).ConfigureAwait(false);
             }
             finally
             {

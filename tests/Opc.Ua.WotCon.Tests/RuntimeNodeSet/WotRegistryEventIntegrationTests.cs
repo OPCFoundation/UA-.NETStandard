@@ -1,31 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using System.Collections.Generic;
@@ -35,8 +9,8 @@ using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using Opc.Ua.Export;
+using Opc.Ua.Server;
 using Opc.Ua.Server.TestFramework;
-using Opc.Ua.WotCon;
 using Opc.Ua.WotCon.Server;
 using Opc.Ua.WotCon.Server.Materialization;
 using Opc.Ua.WotCon.Server.Registry;
@@ -64,7 +38,7 @@ namespace Opc.Ua.WotCon.Tests.RuntimeNodeSet
     [Category("Server")]
     [SetCulture("en-us")]
     [SetUICulture("en-us")]
-    [NonParallelizable]
+    [Category("Integration")]
     public sealed partial class WotRegistryEventIntegrationTests
     {
         private string m_pkiRoot = null!;
@@ -84,9 +58,9 @@ namespace Opc.Ua.WotCon.Tests.RuntimeNodeSet
         public async Task SetUpAsync()
         {
             m_pkiRoot = Path.Combine(
-                TestContext.CurrentContext.WorkDirectory,
+                Path.GetTempPath(),
                 nameof(WotRegistryEventIntegrationTests),
-                Guid.NewGuid().ToString("N"));
+                Guid.NewGuid().ToString("N")[..12]);
 
             m_fixture = new ServerFixture<ReferenceServer>(t => new ReferenceServer(t))
             {
@@ -94,6 +68,7 @@ namespace Opc.Ua.WotCon.Tests.RuntimeNodeSet
                 SecurityNone = true,
                 AutoAccept = true
             };
+            await WotTestPki.SeedAsync(m_pkiRoot).ConfigureAwait(false);
             m_server = await m_fixture.StartAsync(m_pkiRoot).ConfigureAwait(false);
 
             (m_requestHeader, m_secureChannelContext) = await m_server
@@ -127,9 +102,12 @@ namespace Opc.Ua.WotCon.Tests.RuntimeNodeSet
             m_coordinator = new WotMaterializationCoordinator(
                 m_registry, host, documentConverter: m_failureConverter);
             var factory = new WotRegistryNodeManagerFactory(options, m_registry, m_coordinator);
-            var registration = await m_server.NodeManagerLifecycle.AddAsync(factory, callerContext: null)
+            LifecycleResult publication = await m_server.NodeManagerLifecycle.ApplyAsync([LifecycleChange.Add(factory)])
                 .ConfigureAwait(false);
-            m_eventManager = (WotRegistryNodeManager)registration.NodeManager;
+            Assert.That(publication.CleanupFailure, Is.Null);
+            Assert.That(publication.Registrations[0].TryGetRegistration(out NodeManagerRegistration? registration),
+                Is.True);
+            m_eventManager = (WotRegistryNodeManager)registration!.NodeManager;
         }
 
         /// <summary>
@@ -192,7 +170,7 @@ namespace Opc.Ua.WotCon.Tests.RuntimeNodeSet
 
             Assert.That(evt, Is.Not.Null,
                 "The RefreshCompleted event must be delivered through the notifier chain.");
-            ArrayOf<Variant> fields = evt!.EventFields;
+            ArrayOf<Variant> fields = evt.Value.EventFields;
             Assert.That(AsString(fields[Field.RequestId]), Is.EqualTo(RequestId),
                 "RequestId must be populated from the materialization event arguments.");
             Assert.That(AsUInt32(fields[Field.Generation]), Is.EqualTo(result.NewGeneration),
@@ -298,7 +276,7 @@ namespace Opc.Ua.WotCon.Tests.RuntimeNodeSet
 
             Assert.That(evt, Is.Not.Null,
                 "The validation failure event must be delivered through the notifier chain.");
-            ArrayOf<Variant> fields = evt!.EventFields;
+            ArrayOf<Variant> fields = evt.Value.EventFields;
             Assert.That(AsString(fields[Field.ResourceId]), Is.EqualTo("bad-thing"));
             Assert.That(
                 fields[Field.ValidationOutcome].TryGetValue(out ExtensionObject outcomeEo), Is.True,
@@ -346,7 +324,7 @@ namespace Opc.Ua.WotCon.Tests.RuntimeNodeSet
 
             Assert.That(evt, Is.Not.Null);
             Assert.That(
-                FieldByBrowseName(evt!, filter, Opc.Ua.XRegistry.BrowseNames.SourceUrl)
+                FieldByBrowseName(evt.Value, filter, Opc.Ua.XRegistry.BrowseNames.SourceUrl)
                     .TryGetValue(out string sourceUrl) ? sourceUrl : string.Empty,
                 Is.EqualTo("https://wot-registry.example.test"));
             await DeleteSubscriptionAsync(services, subscriptionId).ConfigureAwait(false);
@@ -473,7 +451,7 @@ namespace Opc.Ua.WotCon.Tests.RuntimeNodeSet
             Assert.That(result.Outcome, Is.EqualTo(WoTOutcomeEnum.Success));
             Assert.That(evt, Is.Not.Null);
             Variant changedField = FieldByBrowseName(
-                evt!,
+                evt.Value,
                 filter,
                 XRegistryModel.BrowseNames.Changed);
             Assert.That(changedField.TryGetValue(out ArrayOf<string> changed), Is.True);
@@ -564,7 +542,7 @@ namespace Opc.Ua.WotCon.Tests.RuntimeNodeSet
             Assert.That(result.Outcome, Is.EqualTo(WoTOutcomeEnum.Success));
             Assert.That(evt, Is.Not.Null);
             Variant changedField = FieldByBrowseName(
-                evt!,
+                evt.Value,
                 resourceFilter,
                 XRegistryModel.BrowseNames.Changed);
             Assert.That(changedField.TryGetValue(out ArrayOf<string> changed), Is.True);
@@ -578,7 +556,7 @@ namespace Opc.Ua.WotCon.Tests.RuntimeNodeSet
                 Assert.That(changedNames, Does.Contain("description"));
                 Assert.That(
                     AsUInt32(FieldByBrowseName(
-                        evt!,
+                        evt.Value,
                         resourceFilter,
                         XRegistryModel.BrowseNames.MetaEpoch)),
                     Is.EqualTo(checked((uint)current.MetaEpoch)));

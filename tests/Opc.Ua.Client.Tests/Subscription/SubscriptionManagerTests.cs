@@ -1,31 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 // CA2000: test code; many disposables are ownership-transferred to test fixtures or short-lived,
 // making CA2000 noisy without a real leak risk. Disabled file-level for the suite.
@@ -2086,6 +2060,45 @@ namespace Opc.Ua.Client.Subscriptions
             await WaitUntilAsync(() => provider.Count(level, kRejectedText) >= 1, testCt).ConfigureAwait(false);
         }
 
+        /// <summary>
+        /// Capture response metadata before the Publish worker queues native delivery.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        [CancelAfter(10_000)]
+        public async Task PublishWorkerPreservesSplitMetadataAsync(bool moreNotifications, CancellationToken ct)
+        {
+            var received = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var context = new FakeSubscriptionManagerContext();
+            List<FakeManagedSubscription> partitions = AddPartitionFactory(context);
+            await using var manager = new SubscriptionManager(context, m_telemetry.LoggerFactory, DiagnosticsMasks.None)
+            {
+                MinPublishWorkerCount = 1,
+                MaxPublishWorkerCount = 1
+            };
+            int calls = 0;
+            context.OnPublishAsync = async (_, acknowledgements, token) =>
+            {
+                if (Interlocked.Increment(ref calls) > 1)
+                {
+                    await Task.Delay(Timeout.InfiniteTimeSpan, token).ConfigureAwait(false);
+                }
+                PublishResponse response = CreatePublishResponse(1, acknowledgements);
+                response.MoreNotifications = moreNotifications;
+                response.NotificationMessage.MoreNotifications = !moreNotifications;
+                return response;
+            };
+            manager.Add(m_mockNotificationDataHandler.Object, new OptionsMonitor<SubscriptionOptions>(
+                new SubscriptionOptions { DisableUnboundedItemMode = true }));
+            partitions[0].OnPublishReceivedAsyncFunc = (message, _, _) =>
+            {
+                received.TrySetResult(message.MoreNotifications);
+                return default;
+            };
+            manager.Resume();
+            Assert.That(await received.Task.WaitAsync(ct).ConfigureAwait(false), Is.EqualTo(moreNotifications));
+        }
+
         [Test]
         public async Task SendPublishRequestsWithSuccessAsync()
         {
@@ -2366,6 +2379,84 @@ namespace Opc.Ua.Client.Subscriptions
             await WaitForPublishWorkerCountAsync(manager, 0).ConfigureAwait(false);
             Assert.That(manager.CreatedCount, Is.Zero);
             Assert.That(manager.Items, Is.EquivalentTo([remaining]));
+        }
+
+        /// <summary>
+        /// A subscription held through the classic session API acknowledges a
+        /// message when it saves it. While its queue is full, one worker may park
+        /// on it; the last free worker neither saves nor acknowledges the message,
+        /// so the server keeps it for Republish, and keeps publishing.
+        /// </summary>
+        [Test]
+        [CancelAfter(30_000)]
+        public async Task FullClassicSubscriptionLeavesMessagesUnacknowledgedOnServerAsync(
+            CancellationToken ct)
+        {
+            var session = new FakeSubscriptionManagerContext();
+            session.SessionOwnedSubscriptionIds.Add(5);
+            var released = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            int refused = 0;
+            session.SessionSubscriptionRoomHandler = async (id, waitPolicy, waitCt) =>
+            {
+                Assert.That(id, Is.EqualTo(5u));
+                if (!waitPolicy.TryEnterWait())
+                {
+                    Interlocked.Increment(ref refused);
+                    return false;
+                }
+                try
+                {
+                    await released.Task.WaitAsync(waitCt).ConfigureAwait(false);
+                    return true;
+                }
+                finally
+                {
+                    waitPolicy.ExitWait();
+                }
+            };
+            int sequenceNumber = 0;
+            session.OnPublishAsync = (_, acknowledgements, _) => new ValueTask<PublishResponse>(new PublishResponse
+            {
+                SubscriptionId = 5,
+                MoreNotifications = true,
+                AvailableSequenceNumbers = [],
+                Results = acknowledgements.ConvertAll(_ => (StatusCode)StatusCodes.Good),
+                NotificationMessage = new NotificationMessage
+                {
+                    SequenceNumber = (uint)Interlocked.Increment(ref sequenceNumber),
+                    NotificationData = [new ExtensionObject(new DataChangeNotification())]
+                }
+            });
+            await using var manager = new SubscriptionManager(session, m_telemetry.LoggerFactory, DiagnosticsMasks.None)
+            {
+                MinPublishWorkerCount = 2,
+                MaxPublishWorkerCount = 2
+            };
+            manager.Update();
+            manager.Resume();
+            try
+            {
+                while (Volatile.Read(ref refused) < 20)
+                {
+                    await Task.Delay(10, ct).ConfigureAwait(false);
+                }
+                Assert.That(manager.ParkedPublishWorkerCount, Is.EqualTo(1));
+                Assert.That(session.SessionDispatchCount, Is.Zero,
+                    "A message must not be saved into a full classic subscription.");
+                Assert.That(session.PublishCalls.SelectMany(c => c.Acknowledgements.ToArray()!), Is.Empty,
+                    "A message that was not saved must not be acknowledged.");
+            }
+            finally
+            {
+                released.TrySetResult(true);
+            }
+            await WaitUntilAsync(() => session.SessionDispatchCount != 0, ct).ConfigureAwait(false);
+
+            // The workers keep publishing after the release, and a worker that draws
+            // the next message for the subscription enters and leaves the (now open)
+            // wait again, so the parked count can be 1 for a moment. The worker that
+            // was parked on the full queue must have left it.
+            await WaitUntilAsync(() => manager.ParkedPublishWorkerCount == 0, ct).ConfigureAwait(false);
         }
 
         [Test]
@@ -3091,6 +3182,218 @@ namespace Opc.Ua.Client.Subscriptions
                     session.DeleteCalls;
                 Assert.That(deleteCalls[0].SubscriptionIds.ToList(),
                     Does.Contain(4242u));
+            }
+        }
+
+        /// <summary>
+        /// While the session transfers or restores subscriptions, an identifier
+        /// that resolves to no subscription can belong to one being bound to it.
+        /// It is kept on the server until the session allows deleting it.
+        /// </summary>
+        [Test]
+        [CancelAfter(30_000)]
+        public async Task PublishWorkerKeepsUnknownSubscriptionWhileSessionTransfersAsync(
+            CancellationToken testCt)
+        {
+            ILoggerFactory loggerFactory = m_telemetry.LoggerFactory;
+            int mayDelete = 0;
+            var session = new FakeSubscriptionManagerContext
+            {
+                MayDeleteUnknownSubscriptionHandler = _ => Volatile.Read(ref mayDelete) != 0
+            };
+            OptionsMonitor<SubscriptionOptions> options =
+                OptionsFactory.Create<SubscriptionOptions>();
+            var created = new FakeManagedSubscription { Id = 1u, Created = true };
+
+            var sut = new SubscriptionManager(session,
+                loggerFactory, DiagnosticsMasks.None);
+            await using (sut.ConfigureAwait(false))
+            {
+                session.CreateSubscriptionFactory = (handler, opts, queue) => created;
+                sut.Add(m_mockNotificationDataHandler.Object, options);
+
+                int publishCount = 0;
+                session.OnPublishAsync = (h, a, ct) =>
+                {
+                    Interlocked.Increment(ref publishCount);
+                    return new ValueTask<PublishResponse>(
+                        CreatePublishResponse(4242u, h!.RequestHandle));
+                };
+
+                sut.MinPublishWorkerCount = 1;
+                sut.MaxPublishWorkerCount = 1;
+                sut.Resume();
+
+                await WaitUntilAsync(() => Volatile.Read(ref publishCount) >= 3,
+                    testCt).ConfigureAwait(false);
+                Assert.That(session.DeleteCalls, Is.Empty,
+                    "An identifier must not be deleted while the session transfers subscriptions.");
+
+                Volatile.Write(ref mayDelete, 1);
+                await WaitUntilAsync(() => session.DeleteCallsCount > 0, testCt)
+                    .ConfigureAwait(false);
+                Assert.That(session.DeleteCalls[0].SubscriptionIds.ToList(), Does.Contain(4242u));
+            }
+        }
+
+        /// <summary>
+        /// A message delivered to a subscription the session holds through the
+        /// classic API is acknowledged with a later Publish request, so the
+        /// server can release it from its retransmission queue.
+        /// </summary>
+        [Test]
+        [CancelAfter(30_000)]
+        public async Task PublishWorkerAcknowledgesSessionSubscriptionMessagesAsync(
+            CancellationToken testCt)
+        {
+            ILoggerFactory loggerFactory = m_telemetry.LoggerFactory;
+            var session = new FakeSubscriptionManagerContext();
+            session.SessionOwnedSubscriptionIds.Add(4242u);
+            var acknowledged = new ConcurrentQueue<SubscriptionAcknowledgement>();
+            int sequenceNumber = 0;
+            session.OnPublishAsync = (h, acks, ct) =>
+            {
+                foreach (SubscriptionAcknowledgement ack in acks)
+                {
+                    acknowledged.Enqueue(ack);
+                }
+                uint seq = (uint)Interlocked.Increment(ref sequenceNumber);
+                PublishResponse response = CreatePublishResponse(4242u, seq);
+                response.NotificationMessage.NotificationData =
+                [
+                    new ExtensionObject(new DataChangeNotification
+                    {
+                        MonitoredItems = [new MonitoredItemNotification { ClientHandle = 1 }]
+                    })
+                ];
+                response.AvailableSequenceNumbers = [seq];
+                response.Results = acks.ConvertAll(_ => (StatusCode)StatusCodes.Good);
+                return new ValueTask<PublishResponse>(response);
+            };
+
+            var sut = new SubscriptionManager(session,
+                loggerFactory, DiagnosticsMasks.None);
+            await using (sut.ConfigureAwait(false))
+            {
+                sut.MinPublishWorkerCount = 1;
+                sut.MaxPublishWorkerCount = 1;
+                sut.Resume();
+                sut.Update();
+
+                await WaitUntilAsync(() => acknowledged.Count >= 2, testCt).ConfigureAwait(false);
+                Assert.That(session.SessionDispatchCount, Is.GreaterThanOrEqualTo(2));
+                SubscriptionAcknowledgement[] acks = [.. acknowledged];
+                Assert.That(acks.Select(a => a.SubscriptionId), Is.All.EqualTo(4242u));
+                Assert.That(acks.Take(2).Select(a => a.SequenceNumber), Is.EqualTo(new uint[] { 1, 2 }));
+                Assert.That(session.DeleteCalls, Is.Empty);
+            }
+        }
+
+        /// <summary>
+        /// The acknowledgement of a session subscription's message is not sent when
+        /// that subscription was deleted or recreated before the next Publish request.
+        /// </summary>
+        [Test]
+        [CancelAfter(30_000)]
+        public async Task PublishWorkerDropsAcknowledgementsOfRecreatedSessionSubscriptionAsync(
+            CancellationToken testCt)
+        {
+            var session = new FakeSubscriptionManagerContext();
+            session.SessionOwnedSubscriptionIds.Add(4242u);
+            object owner = new();
+            int scopeLookups = 0;
+            // The lookup when the first message is acknowledged sees the old lifetime;
+            // every later lookup sees the recreated subscription.
+            session.SessionSubscriptionScopeHandler = id => new AcknowledgementScope(
+                owner, Interlocked.Increment(ref scopeLookups) == 1 ? 1 : 2, id);
+            var acknowledged = new ConcurrentQueue<SubscriptionAcknowledgement>();
+            int sequenceNumber = 0;
+            session.OnPublishAsync = (h, acks, ct) =>
+            {
+                foreach (SubscriptionAcknowledgement ack in acks)
+                {
+                    acknowledged.Enqueue(ack);
+                }
+                uint seq = (uint)Interlocked.Increment(ref sequenceNumber);
+                PublishResponse response = CreatePublishResponse(4242u, seq);
+                response.NotificationMessage.NotificationData =
+                [
+                    new ExtensionObject(new DataChangeNotification
+                    {
+                        MonitoredItems = [new MonitoredItemNotification { ClientHandle = 1 }]
+                    })
+                ];
+                response.AvailableSequenceNumbers = [seq];
+                response.Results = acks.ConvertAll(_ => (StatusCode)StatusCodes.Good);
+                return new ValueTask<PublishResponse>(response);
+            };
+
+            var sut = new SubscriptionManager(session,
+                m_telemetry.LoggerFactory, DiagnosticsMasks.None);
+            await using (sut.ConfigureAwait(false))
+            {
+                sut.MinPublishWorkerCount = 1;
+                sut.MaxPublishWorkerCount = 1;
+                sut.Resume();
+                sut.Update();
+
+                await WaitUntilAsync(() => acknowledged.Count >= 2, testCt).ConfigureAwait(false);
+                SubscriptionAcknowledgement[] acks = [.. acknowledged];
+                Assert.That(acks.Select(a => a.SequenceNumber), Does.Not.Contain(1u));
+                Assert.That(acks.Take(2).Select(a => a.SequenceNumber), Is.EqualTo(new uint[] { 2, 3 }));
+            }
+        }
+
+        /// <summary>
+        /// The acknowledgement of a message keeps the lifetime of the session
+        /// subscription the message was delivered to, even when that subscription
+        /// is replaced while the message is delivered.
+        /// </summary>
+        [Test]
+        [CancelAfter(30_000)]
+        public async Task PublishWorkerKeepsTheLifetimeOfTheDeliveryTargetForSessionAcknowledgementsAsync(
+            CancellationToken testCt)
+        {
+            var session = new FakeSubscriptionManagerContext();
+            session.SessionOwnedSubscriptionIds.Add(4242u);
+            object owner = new();
+            // Each delivery replaces the subscription with a new lifetime.
+            session.SessionSubscriptionScopeHandler = id =>
+                new AcknowledgementScope(owner, session.SessionDispatchCount, id);
+            var acknowledged = new ConcurrentQueue<SubscriptionAcknowledgement>();
+            int publishCount = 0;
+            session.OnPublishAsync = (h, acks, ct) =>
+            {
+                foreach (SubscriptionAcknowledgement ack in acks)
+                {
+                    acknowledged.Enqueue(ack);
+                }
+                uint seq = (uint)Interlocked.Increment(ref publishCount);
+                PublishResponse response = CreatePublishResponse(4242u, seq);
+                response.NotificationMessage.NotificationData =
+                [
+                    new ExtensionObject(new DataChangeNotification
+                    {
+                        MonitoredItems = [new MonitoredItemNotification { ClientHandle = 1 }]
+                    })
+                ];
+                response.AvailableSequenceNumbers = [seq];
+                response.Results = acks.ConvertAll(_ => (StatusCode)StatusCodes.Good);
+                return new ValueTask<PublishResponse>(response);
+            };
+
+            var sut = new SubscriptionManager(session,
+                m_telemetry.LoggerFactory, DiagnosticsMasks.None);
+            await using (sut.ConfigureAwait(false))
+            {
+                sut.MinPublishWorkerCount = 1;
+                sut.MaxPublishWorkerCount = 1;
+                sut.Resume();
+                sut.Update();
+
+                await WaitUntilAsync(() => Volatile.Read(ref publishCount) >= 5, testCt)
+                    .ConfigureAwait(false);
+                Assert.That(acknowledged, Is.Empty);
             }
         }
 

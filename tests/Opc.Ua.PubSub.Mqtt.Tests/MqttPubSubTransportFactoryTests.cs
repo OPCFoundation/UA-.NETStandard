@@ -1,31 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using System.Threading.Tasks;
@@ -331,7 +305,8 @@ namespace Opc.Ua.PubSub.Mqtt.Tests
         {
             var defaultOptions = new MqttConnectionOptions
             {
-                PasswordSecretId = "Default:secret"
+                PasswordSecretId = "Default:secret",
+                Endpoint = "mqtt://broker.example.com:1883"
             };
             MqttPubSubTransportFactory factory = NewFactory(options: defaultOptions);
             PubSubConnectionDataType connection = NewConnection("mqtt://broker.example.com:1883");
@@ -354,7 +329,8 @@ namespace Opc.Ua.PubSub.Mqtt.Tests
             var defaultOptions = new MqttConnectionOptions
             {
                 PasswordSecretId = "InMemory:mqtt-password",
-                UserName = "alice"
+                UserName = "alice",
+                Endpoint = "mqtt://broker.example.com:1883"
             };
             var factory = new MqttPubSubTransportFactory(
                 Profiles.PubSubMqttJsonTransport,
@@ -383,7 +359,8 @@ namespace Opc.Ua.PubSub.Mqtt.Tests
             var registry = new SecretRegistry(store);
             var defaultOptions = new MqttConnectionOptions
             {
-                PasswordSecretId = "plain-secret"
+                PasswordSecretId = "plain-secret",
+                Endpoint = "mqtt://broker.example.com:1883"
             };
             var factory = new MqttPubSubTransportFactory(
                 Profiles.PubSubMqttJsonTransport,
@@ -407,7 +384,8 @@ namespace Opc.Ua.PubSub.Mqtt.Tests
             var registry = new SecretRegistry(new InMemorySecretStore());
             var defaultOptions = new MqttConnectionOptions
             {
-                PasswordSecretId = "InMemory:missing"
+                PasswordSecretId = "InMemory:missing",
+                Endpoint = "mqtt://broker.example.com:1883"
             };
             var factory = new MqttPubSubTransportFactory(
                 Profiles.PubSubMqttJsonTransport,
@@ -420,6 +398,81 @@ namespace Opc.Ua.PubSub.Mqtt.Tests
                 connection,
                 NUnitTelemetryContext.Create(),
                 TimeProvider.System));
+        }
+
+        [TestCase("mqtts://attacker.example.com:8883")]
+        [TestCase("mqtts://broker.example.com:9999")]
+        [TestCase("mqtts://broker.example.com.attacker.example:8883")]
+        public async Task Create_HostCredentials_RefusedForOtherBrokerAsync(string url)
+        {
+            var store = new InMemorySecretStore();
+            await store.SetAsync(
+                new SecretIdentifier("mqtt-password", InMemorySecretStore.DefaultStoreType),
+                new byte[] { 1, 2, 3 }).ConfigureAwait(false);
+            var defaultOptions = new MqttConnectionOptions
+            {
+                Endpoint = "mqtts://broker.example.com:8883",
+                UserName = "alice",
+                PasswordSecretId = "InMemory:mqtt-password"
+            };
+            var factory = new MqttPubSubTransportFactory(
+                Profiles.PubSubMqttJsonTransport,
+                new FakeMqttClientFactory(),
+                Options.Create(defaultOptions),
+                new SecretRegistry(store));
+
+            InvalidOperationException ex = Assert.Throws<InvalidOperationException>(() => factory.Create(
+                NewConnection(url),
+                NUnitTelemetryContext.Create(),
+                TimeProvider.System));
+            Assert.That(ex.Message, Does.Contain("CredentialEndpoints"));
+        }
+
+        [Test]
+        public void Create_HostCredentialsWithoutHostEndpoint_Refused()
+        {
+            var defaultOptions = new MqttConnectionOptions { UserName = "alice" };
+            MqttPubSubTransportFactory factory = NewFactory(options: defaultOptions);
+
+            Assert.Throws<InvalidOperationException>(() => factory.Create(
+                NewConnection("mqtts://broker.example.com:8883"),
+                NUnitTelemetryContext.Create(),
+                TimeProvider.System));
+        }
+
+        [TestCase("mqtts://BROKER.example.com:8883")]
+        [TestCase("mqtts://broker.example.com")]
+        [TestCase("mqtts://second.example.com:8883")]
+        public void Create_HostCredentials_AllowedForNamedBroker(string url)
+        {
+            var defaultOptions = new MqttConnectionOptions
+            {
+                Endpoint = "mqtts://broker.example.com:8883",
+                UserName = "alice"
+            };
+            defaultOptions.CredentialEndpoints.Add("second.example.com:8883");
+            MqttPubSubTransportFactory factory = NewFactory(options: defaultOptions);
+
+            IPubSubTransport transport = factory.Create(
+                NewConnection(url),
+                NUnitTelemetryContext.Create(),
+                TimeProvider.System);
+
+            Assert.That(((MqttBrokerTransport)transport).Options.UserName, Is.EqualTo("alice"));
+        }
+
+        [Test]
+        public void Create_WithoutHostCredentials_AnyBrokerAllowed()
+        {
+            MqttPubSubTransportFactory factory = NewFactory(
+                options: new MqttConnectionOptions { Endpoint = "mqtts://broker.example.com:8883" });
+
+            Assert.That(
+                factory.Create(
+                    NewConnection("mqtts://other.example.com:8883"),
+                    NUnitTelemetryContext.Create(),
+                    TimeProvider.System),
+                Is.InstanceOf<MqttBrokerTransport>());
         }
     }
 }

@@ -1,31 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using System.Collections.Generic;
@@ -104,7 +78,7 @@ namespace Opc.Ua.Pumps.Tests
             var name = new QualifiedName("Feed", runtime.InstanceNamespaceIndex);
             using var cancelled = new CancellationTokenSource();
             cancelled.Cancel();
-            Assert.That(async () => await runtime.CreatePumpAsync(name, cancelled.Token),
+            await Assert.ThatAsync(async () => await runtime.CreatePumpAsync(name, cancelled.Token),
                 Throws.InstanceOf<OperationCanceledException>());
             await runtime.CreatePumpAsync(name);
             ServiceResultException error = (await Assert.ThrowsAsync<ServiceResultException>(
@@ -135,6 +109,25 @@ namespace Opc.Ua.Pumps.Tests
             ServiceResultException error = Assert.Throws<ServiceResultException>(
                 () => fixture.Manager.CreatePumpsRuntime())!;
             Assert.That(error.StatusCode, Is.EqualTo((StatusCode)StatusCodes.BadConfigurationError));
+        }
+
+        /// <summary>
+        /// The stock owner aggregates native Pumps units and withdraws them when its runtime stops.
+        /// </summary>
+        [Test]
+        public async Task ComposedOwnerPublishesOnlyItsLivePumpsContributionAsync()
+        {
+            await using var fixture = new ComposedOwner();
+            await fixture.StartAsync();
+            PumpsRuntime runtime = fixture.Manager.CreatePumpsRuntime();
+            var unit = new QualifiedName("Base System", runtime.NamespaceIndices.Pumps);
+            Assert.That(fixture.Manager.ConformanceUnits.ToArray(), Does.Not.Contain(unit));
+            await runtime.CreatePumpAsync(new QualifiedName("Conformance", runtime.InstanceNamespaceIndex));
+            Assert.That(fixture.Manager.ConformanceUnits.ToArray(), Does.Contain(unit));
+            Assert.That(fixture.Manager.ServerProfiles.ToArray(),
+                Does.Not.Contain("http://opcfoundation.org/UA-Profile/Pumps/Server/Advanced"));
+            await runtime.DisposeAsync();
+            Assert.That(fixture.Manager.ConformanceUnits.ToArray(), Does.Not.Contain(unit));
         }
 
         /// <summary>

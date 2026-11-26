@@ -1,3 +1,8 @@
+<!--
+SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+SPDX-License-Identifier: MIT
+-->
+
 # Machine Tools and Wireless Peripherals
 
 The `Opc.Ua.MachineTool*` libraries implement released
@@ -74,8 +79,8 @@ is `OPCFoundation.NetStandard.` followed by that name; for example,
 | `Opc.Ua.MachineTool.Client` | Subtype-aware discovery, bounded reads/observations, generated service navigation and WMTP workflows; no server-runtime dependency |
 | `Opc.Ua.Mcp.MachineTool` | The combined MachineTool/WMTP MCP catalog over host-owned named sessions |
 
-The first three libraries target .NET Framework 4.8 and .NET 8, 9 and 10.
-The MCP library targets .NET 8, 9 and 10. They follow the repository's normal
+The first three libraries target .NET Framework 4.8 and .NET 10 and 11.
+The MCP library targets .NET 10 and 11. They follow the repository's normal
 root package-version policy, including `.Debug` variants; they are not
 independently forced to preview. The released specification version is distinct
 from the NuGet version. NativeAOT application examples use the same APIs.
@@ -452,7 +457,12 @@ its runtimes have drained.
 Standard verbs remain `Store`, `StoreAndStart`, `Start`, `Stop`, `Abort`,
 `Pause`, `Resume`, `Clear`, `Cancel`, `Update` and `RevokeStart`. Their UInt64
 `ReturnStatus` is an ISA-95 bitmap: success is **1**, not UA `Good` (zero).
-An accepted order is not evidence of physical execution. Providers describing
+An accepted order is not evidence of physical execution. The execution system
+must signal `MarkReady` through `IIsa95JobExecutionController.TransitionAsync`
+before `BeginExecution` can start a V2 order with start permission. Readiness
+changes update the order catalog without publishing a status event. See
+[Job Control](ISA95.md#job-control-v1-and-v2) for the full lifecycle.
+Providers describing
 different equipment must not be combined into one instance's control,
 response and monitoring views.
 
@@ -466,7 +476,9 @@ in the provider and is exposed with the MachineTool-qualified browse name.
 An absent directory or inadequate materialization limits fail setup.
 
 The provider owns storage and access decisions. Operation flags and
-`MaxEntries`/`MaxDepth` bound the shared directory binding. The runtime owns
+`MaxEntries`/`MaxDepth` bound the shared directory binding. Anonymous sessions
+cannot modify the bound directory unless
+`FileDirectoryBindingOptions.AllowAnonymousWrite` is set. The runtime owns
 materialized nodes and session-bound file handles, not the application-supplied
 provider. Remote paths are scoped UA paths, not permission to read host-local
 files. Reading a program file does not execute it.

@@ -1,47 +1,23 @@
-/* ========================================================================
- * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 // CA2007: tests run without a SynchronizationContext; ConfigureAwait(false)
 // adds noise without a behavioural benefit. Disabled file-level for the suite.
 #pragma warning disable CA2007
 
+using System;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using Opc.Ua.Redundancy;
 using Opc.Ua.Redundancy.Server;
 using Opc.Ua.Server.TestFramework;
+using Opc.Ua.Tests;
 using Quickstarts.ReferenceServer;
 
 namespace Opc.Ua.Server.Tests.Redundancy
 {
     /// <summary>
-    /// Two-replica session takeover tests for distributed session mirroring.
+    /// Exercises the service path when a session created on a None endpoint reaches another replica.
     /// </summary>
     [TestFixture]
     [Category("Distributed")]
@@ -50,11 +26,17 @@ namespace Opc.Ua.Server.Tests.Redundancy
     public class DistributedSessionTakeoverIntegrationTests
     {
         [Test]
-        public async Task SessionCreatedOnActiveCanActivateOnBackupAsync()
+        public async Task MirroredNoneSessionStaysLocalAsync()
         {
-            using var kv = new InMemorySharedKeyValueStore();
+            using var payloads = new InMemorySharedKeyValueStore();
+            using var authority = new SimulatedSharedKeyValueStore();
+            using var protector = new AesCbcHmacRecordProtector(Nonce.CreateRandomNonceData(32));
+            var kv = new FreshnessProtectedKeyValueStore(
+                payloads, authority, protector, Guid.NewGuid(), Guid.NewGuid());
+            await kv.EnrollAsync();
             var factory = new DistributedSessionManagerFactory(
                 kv,
+                protector,
                 options: new DistributedSessionOptions { EnableFastReconnect = true });
             var activeFixture = new ServerFixture<StandardServer>(t => new ReferenceServer(t)
             {
@@ -75,127 +57,38 @@ namespace Opc.Ua.Server.Tests.Redundancy
             StandardServer? backup = null;
             try
             {
-                active = await activeFixture.StartAsync().ConfigureAwait(false);
-                backup = await backupFixture.StartAsync().ConfigureAwait(false);
-                (RequestHeader activeHeader, _) = await active.CreateAndActivateSessionAsync(
-                    nameof(SessionCreatedOnActiveCanActivateOnBackupAsync)).ConfigureAwait(false);
+                active = await activeFixture.StartAsync();
+                backup = await backupFixture.StartAsync();
+                (RequestHeader activeHeader, SecureChannelContext activeChannel) =
+                    await active.CreateAndActivateSessionAsync(nameof(MirroredNoneSessionStaysLocalAsync));
+                var store = new SharedKeyValueSessionStore(kv, active.CurrentInstance.MessageContext, protector);
+                SharedSessionEntry? original = await store.TryGetAsync(activeHeader.AuthenticationToken);
+                Assert.That(original!.HasActivatedUserIdentity, Is.True);
 
-                EndpointDescription backupEndpoint = backup.GetEndpoints()
+                EndpointDescription endpoint = backup.GetEndpoints()
                     .Find(e => e.SecurityMode == MessageSecurityMode.None)!;
-                var backupChannelContext = new SecureChannelContext(
-                    "backup-channel",
-                    backupEndpoint,
-                    RequestEncoding.Binary,
-                    null,
-                    null,
-                    null);
-                var takeoverHeader = new RequestHeader
-                {
-                    AuthenticationToken = activeHeader.AuthenticationToken
-                };
+                var channel = new SecureChannelContext(
+                    "backup-channel", endpoint, RequestEncoding.Binary, null, null, null);
+                var header = new RequestHeader { AuthenticationToken = activeHeader.AuthenticationToken };
+                ServiceResultException? error = await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                    await backup.ActivateSessionAsync(
+                        channel, header, null, [], [], default, null, RequestLifetime.None));
+                Assert.That(error!.StatusCode, Is.EqualTo(StatusCodes.BadSessionIdInvalid));
+                Assert.That((await store.TryGetAsync(activeHeader.AuthenticationToken))!.OwnerId,
+                    Is.EqualTo(original.OwnerId));
 
-                ActivateSessionResponse response = await backup.ActivateSessionAsync(
-                    backupChannelContext,
-                    takeoverHeader,
-                    null,
-                    [],
-                    [],
-                    default,
-                    null,
-                    RequestLifetime.None).ConfigureAwait(false);
-
-                ServerFixtureUtils.ValidateResponse(response.ResponseHeader);
-                Assert.That(response.ServerNonce.IsNull, Is.False);
-
-                await backup.CloseSessionAsync(
-                    backupChannelContext,
-                    takeoverHeader,
-                    true,
-                    RequestLifetime.None).ConfigureAwait(false);
-                var mirror = new SharedKeyValueSessionStore(kv, backup.CurrentInstance.MessageContext);
-                SharedSessionEntry? afterClose = await mirror.TryGetAsync(activeHeader.AuthenticationToken).ConfigureAwait(false);
-                Assert.That(afterClose, Is.Null, "backup ownership must close and remove the mirrored session");
+                await active.CloseSessionAsync(activeChannel, activeHeader, true, RequestLifetime.None);
+                Assert.That(await store.TryGetAsync(activeHeader.AuthenticationToken), Is.Null);
             }
             finally
             {
                 if (backup != null)
                 {
-                    await backupFixture.StopAsync().ConfigureAwait(false);
+                    await backupFixture.StopAsync();
                 }
                 if (active != null)
                 {
-                    await activeFixture.StopAsync().ConfigureAwait(false);
-                }
-            }
-        }
-
-        [Test]
-        public async Task SessionTakeoverPreservesAuthenticationTokenAsync()
-        {
-            using var kv = new InMemorySharedKeyValueStore();
-            var factory = new DistributedSessionManagerFactory(kv,
-                options: new DistributedSessionOptions { EnableFastReconnect = true });
-            var activeFixture = new ServerFixture<StandardServer>(t => new ReferenceServer(t)
-            {
-                SessionManagerFactory = factory
-            })
-            {
-                SecurityNone = true
-            };
-            var backupFixture = new ServerFixture<StandardServer>(t => new ReferenceServer(t)
-            {
-                SessionManagerFactory = factory
-            })
-            {
-                SecurityNone = true
-            };
-
-            StandardServer? active = null;
-            StandardServer? backup = null;
-            try
-            {
-                active = await activeFixture.StartAsync().ConfigureAwait(false);
-                backup = await backupFixture.StartAsync().ConfigureAwait(false);
-                (RequestHeader activeHeader, _) = await active.CreateAndActivateSessionAsync(
-                    nameof(SessionTakeoverPreservesAuthenticationTokenAsync)).ConfigureAwait(false);
-
-                NodeId originalToken = activeHeader.AuthenticationToken;
-                EndpointDescription backupEndpoint = backup.GetEndpoints()
-                    .Find(e => e.SecurityMode == MessageSecurityMode.None)!;
-                var backupChannelContext = new SecureChannelContext(
-                    "backup-channel",
-                    backupEndpoint,
-                    RequestEncoding.Binary,
-                    null,
-                    null,
-                    null);
-                var takeoverHeader = new RequestHeader
-                {
-                    AuthenticationToken = originalToken
-                };
-
-                ActivateSessionResponse response = await backup.ActivateSessionAsync(
-                    backupChannelContext,
-                    takeoverHeader,
-                    null,
-                    [],
-                    [],
-                    default,
-                    null,
-                    RequestLifetime.None).ConfigureAwait(false);
-
-                ServerFixtureUtils.ValidateResponse(response.ResponseHeader);
-                Assert.That(takeoverHeader.AuthenticationToken, Is.EqualTo(originalToken));
-            }
-            finally
-            {
-                if (backup != null)
-                {
-                    await backupFixture.StopAsync().ConfigureAwait(false);
-                }
-                if (active != null)
-                {
-                    await activeFixture.StopAsync().ConfigureAwait(false);
+                    await activeFixture.StopAsync();
                 }
             }
         }

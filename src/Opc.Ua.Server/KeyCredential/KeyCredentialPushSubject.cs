@@ -1,31 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using System.Collections.Generic;
@@ -84,6 +58,7 @@ namespace Opc.Ua.Server
             m_options = options ?? new KeyCredentialPushOptions();
             m_certificates = certificates;
             m_securityPolicies = securityPolicies ?? SecurityPolicies.Default;
+            m_pushAuthorization = m_options.PushAuthorization;
         }
 
         /// <summary>
@@ -169,6 +144,40 @@ namespace Opc.Ua.Server
             m_certificates ??= certificates;
         }
 
+        /// <summary>
+        /// Supplies the host push authorization of the binding server unless
+        /// <see cref="KeyCredentialPushOptions.PushAuthorization"/> was set.
+        /// </summary>
+        internal void ConfigurePushAuthorization(IPushConfigurationAuthorization? pushAuthorization)
+        {
+            m_pushAuthorization ??= pushAuthorization;
+        }
+
+        /// <summary>
+        /// Asks the server authorization policy for
+        /// <see cref="ServerAuthorizationDecision.KeyCredentialPush"/>, then the host
+        /// <see cref="IPushConfigurationAuthorization"/>, as certificate push does.
+        /// </summary>
+        private async ValueTask<ServiceResult> AuthorizeAsync(ISystemContext context, CancellationToken ct)
+        {
+            ServiceResult result = await ServerAuthorizationPolicy.Resolve(context)
+                .AuthorizeAsync(context, ServerAuthorizationDecision.KeyCredentialPush, ct)
+                .ConfigureAwait(false);
+            if (ServiceResult.IsBad(result) || m_pushAuthorization == null)
+            {
+                return result;
+            }
+            try
+            {
+                await m_pushAuthorization.AuthorizeAsync(context, ct).ConfigureAwait(false);
+                return ServiceResult.Good;
+            }
+            catch (ServiceResultException ex)
+            {
+                return ex.Result;
+            }
+        }
+
         private async ValueTask<CreateCredentialMethodStateResult> OnCreateCredentialAsync(
             ISystemContext context,
             MethodState method,
@@ -179,7 +188,7 @@ namespace Opc.Ua.Server
             ArrayOf<string> endpointUrls,
             CancellationToken ct = default)
         {
-            ServiceResult authorization = RoleAuthorizationGate.CheckAdmin(context);
+            ServiceResult authorization = await AuthorizeAsync(context, ct).ConfigureAwait(false);
             if (ServiceResult.IsBad(authorization))
             {
                 return new CreateCredentialMethodStateResult { ServiceResult = authorization };
@@ -244,7 +253,7 @@ namespace Opc.Ua.Server
             string securityPolicyUri,
             CancellationToken ct = default)
         {
-            ServiceResult authorization = RoleAuthorizationGate.CheckAdmin(context);
+            ServiceResult authorization = await AuthorizeAsync(context, ct).ConfigureAwait(false);
             if (ServiceResult.IsBad(authorization))
             {
                 return new KeyCredentialUpdateMethodStateResult { ServiceResult = authorization };
@@ -423,7 +432,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Adapts encrypting-key selection to the asynchronous configuration-method callback.
         /// </summary>
-        private ValueTask<GetEncryptingKeyMethodStateResult> OnGetEncryptingKeyAsync(
+        private async ValueTask<GetEncryptingKeyMethodStateResult> OnGetEncryptingKeyAsync(
             ISystemContext context,
             MethodState method,
             NodeId objectId,
@@ -431,8 +440,12 @@ namespace Opc.Ua.Server
             string requestedSecurityPolicyUri,
             CancellationToken ct = default)
         {
-            return new ValueTask<GetEncryptingKeyMethodStateResult>(
-                GetEncryptingKey(context, credentialId, requestedSecurityPolicyUri, ct));
+            ServiceResult authorization = await AuthorizeAsync(context, ct).ConfigureAwait(false);
+            if (ServiceResult.IsBad(authorization))
+            {
+                return new GetEncryptingKeyMethodStateResult { ServiceResult = authorization };
+            }
+            return GetEncryptingKey(context, credentialId, requestedSecurityPolicyUri, ct);
         }
 
         /// <summary>
@@ -444,11 +457,6 @@ namespace Opc.Ua.Server
             string requestedSecurityPolicyUri,
             CancellationToken ct)
         {
-            ServiceResult authorization = RoleAuthorizationGate.CheckAdmin(context);
-            if (ServiceResult.IsBad(authorization))
-            {
-                return new GetEncryptingKeyMethodStateResult { ServiceResult = authorization };
-            }
             ct.ThrowIfCancellationRequested();
             try
             {
@@ -491,7 +499,7 @@ namespace Opc.Ua.Server
             List<Variant> outputArguments,
             CancellationToken ct = default)
         {
-            ServiceResult authorization = RoleAuthorizationGate.CheckAdmin(context);
+            ServiceResult authorization = await AuthorizeAsync(context, ct).ConfigureAwait(false);
             if (ServiceResult.IsBad(authorization))
             {
                 return authorization;
@@ -675,6 +683,7 @@ namespace Opc.Ua.Server
         /// Provides the application certificates used to receive encrypted credentials.
         /// </summary>
         private ICertificateRegistry? m_certificates;
+        private IPushConfigurationAuthorization? m_pushAuthorization;
         private Func<BaseInstanceState, CancellationToken, ValueTask>? m_addNodeAsync;
         private Func<BaseInstanceState, CancellationToken, ValueTask>? m_removeNodeAsync;
     }

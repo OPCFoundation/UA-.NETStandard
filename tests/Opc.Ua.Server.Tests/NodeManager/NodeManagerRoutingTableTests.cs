@@ -1,40 +1,20 @@
-/* ========================================================================
- * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
+
+#pragma warning disable CS0618, UA0031 // Test doubles implement or inspect the legacy IAsyncNodeManager.SyncNodeManager view.
 
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
+using System.Runtime.CompilerServices;
+using System.Runtime.ExceptionServices;
 using System.Threading;
 using System.Threading.Tasks;
 using Moq;
 using NUnit.Framework;
+using Opc.Ua.Server.Historian;
 
 namespace Opc.Ua.Server.Tests.NodeManager
 {
@@ -49,6 +29,465 @@ namespace Opc.Ua.Server.Tests.NodeManager
         private static readonly int[] ConcurrentNamespaceIndexes = [9];
         private static readonly int[] BatchNamespaceIndexes = [2];
 
+        /// <summary>
+        /// A failed routing publication preserves the serving source epoch and legacy source admission.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task FailedRoutingPublicationPreservesSourceAdmissionAsync(bool prepared)
+        {
+            var historian = new Mock<IHistorianProviderRegistry>();
+            Mock<IHistorianOwnedProviderRegistry> ownedHistorian =
+                historian.As<IHistorianOwnedProviderRegistry>();
+            var server = new Mock<IServerInternal>();
+            server.As<IHistorianRegistryProvider>()
+                .SetupGet(value => value.HistorianRegistry)
+                .Returns(historian.Object);
+            var namespaces = new NamespaceTable();
+            var serverUris = new StringTable();
+            var telemetry = new Mock<ITelemetryContext>().Object;
+            var encodeableFactory = (EncodeableFactory)EncodeableFactory.Create();
+            server.SetupGet(value => value.NamespaceUris).Returns(namespaces);
+            server.SetupGet(value => value.ServerUris).Returns(serverUris);
+            server.SetupGet(value => value.TypeTree).Returns(new TypeTable(namespaces));
+            server.SetupGet(value => value.Factory).Returns(encodeableFactory);
+            server.SetupGet(value => value.Telemetry).Returns(telemetry);
+            server.SetupGet(value => value.MessageContext)
+                .Returns(new ServiceMessageContext(telemetry, encodeableFactory)
+                {
+                    NamespaceUris = namespaces,
+                    ServerUris = serverUris
+                });
+            server.SetupGet(value => value.DefaultSystemContext)
+                .Returns(() => new ServerSystemContext(server.Object));
+
+            var configurationManager = new Mock<IConfigurationNodeManager>();
+            var coreManager = new Mock<ICoreNodeManager>();
+            var mainFactory = new Mock<IMainNodeManagerFactory>();
+            mainFactory.Setup(value => value.CreateConfigurationNodeManager())
+                .Returns(configurationManager.Object);
+            mainFactory.Setup(value => value.CreateCoreNodeManager(It.IsAny<ushort>()))
+                .Returns(coreManager.Object);
+            server.SetupGet(value => value.MainNodeManagerFactory).Returns(mainFactory.Object);
+            server.SetupGet(value => value.CoreNodeManager).Returns(coreManager.Object);
+            var table = new NodeManagerRoutingTable();
+            await using var master = new MasterNodeManager(
+                server.Object,
+                new ApplicationConfiguration { ServerConfiguration = new ServerConfiguration() },
+                table);
+            server.SetupGet(value => value.NodeManager).Returns(master);
+
+            var manager = new Mock<IAsyncNodeManager>();
+            _ = manager.As<INodeManagerReadinessNotification>();
+            manager.SetupGet(value => value.NamespaceUris).Returns(Array.Empty<string>());
+            var factory = new Mock<IAsyncNodeManagerFactory>();
+            factory.Setup(value => value.CreateAsync(
+                    It.IsAny<IServerInternal>(),
+                    It.IsAny<ApplicationConfiguration>(),
+                    It.IsAny<CancellationToken>()))
+                .Returns(new ValueTask<IAsyncNodeManager>(manager.Object));
+            IAsyncNodeManager candidate = await new ChangePreparer(server.Object).CreateNodeManagerAsync(
+                factory.Object, null!, false, _ => false, CancellationToken.None).ConfigureAwait(false);
+            var resource = new Mock<IAsyncNodeManager>();
+            resource.SetupGet(value => value.NamespaceUris).Returns(Array.Empty<string>());
+            resource.SetupGet(value => value.SyncNodeManager)
+                .Returns(new SyncNodeManagerAdapter(resource.Object));
+            NodeManagerGeneration raw = NodeManagerGenerationRegistry.GetOrCreate(resource.Object);
+            var failure = new InvalidOperationException("Historian retirement failed.");
+            bool failRetirement = true;
+            bool registered = false;
+            NodeManagerRoutingTable.PreparedRoutes? routes = null;
+            MasterNodeManager.SourceEmissionAdmission? beforeEmission = null;
+            MasterNodeManager.SourceEmissionAdmission? afterEmission = null;
+            AddressSpaceEpoch? beforeFailure = null;
+            AddressSpaceEpoch? afterFailure = null;
+            int beforeSlot = -1;
+            int afterSlot = -1;
+            ownedHistorian.Setup(value => value.RemoveOwnedRegistrations(It.IsAny<object>()))
+                .Callback<object>(_ =>
+                {
+                    if (failRetirement)
+                    {
+                        throw failure;
+                    }
+                });
+            try
+            {
+                ChangePreparer.StagingServer staging = ChangePreparer.GetServer(candidate)!;
+                ((IHistorianRegistryProvider)staging).HistorianRegistry.RegisterDefault(
+                    new Mock<IHistorianProvider>().Object);
+                ChangePreparer.Bind(candidate);
+                Assert.That(ChangePreparer.PublishHistorianRegistrations(candidate), Is.True);
+                table.Add(candidate, BatchNamespaceIndexes);
+                registered = true;
+                NodeManagerGeneration generation = table.GetGeneration(candidate);
+                NodeManagerRoutingTable.RoutingSnapshot serving = table.Revision;
+                Assert.That(
+                    serving.TryPin(out beforeSlot),
+                    Is.True);
+                beforeFailure = serving.Epoch;
+                Assert.That(
+                    MasterNodeManager.TryCaptureSourceEmission(
+                        server.Object, resource.Object, out beforeEmission, raw.Reference),
+                    Is.True);
+
+                if (prepared)
+                {
+                    var facade = new Mock<IAsyncNodeManager>();
+                    facade.SetupGet(value => value.NamespaceUris).Returns(Array.Empty<string>());
+                    facade.SetupGet(value => value.SyncNodeManager)
+                        .Returns(new SyncNodeManagerAdapter(resource.Object));
+                    NodeManagerGeneration facadeGeneration =
+                        NodeManagerGenerationRegistry.CreateAddition(facade.Object);
+                    var preparedFacade = new PreparedNodeManager(facade.Object, [], facadeGeneration);
+                    routes = table.PrepareBatch(
+                        [preparedFacade], [candidate], _ => BatchNamespaceIndexes,
+                        new TypeTable(new NamespaceTable()), encodeableFactory);
+                    routes.Reserve();
+                }
+
+                InvalidOperationException? actual = Assert.Throws<InvalidOperationException>(
+                    () =>
+                    {
+                        if (routes is null)
+                        {
+                            table.Remove(candidate);
+                        }
+                        else
+                        {
+                            routes.Publish();
+                        }
+                    });
+                routes?.Dispose();
+                Assert.Multiple(() =>
+                {
+                    Assert.That(actual, Is.SameAs(failure));
+                    Assert.That(table.Revision, Is.SameAs(serving));
+                    Assert.That(generation.Gate.State, Is.EqualTo(NodeManagerGenerationState.Live));
+                });
+                Assert.That(
+                    table.Revision.TryPin(out afterSlot),
+                    Is.True);
+                afterFailure = table.Revision.Epoch;
+                bool admittedAfterFailure = MasterNodeManager.TryCaptureSourceEmission(
+                    server.Object, resource.Object, out afterEmission, raw.Reference);
+                Assert.Multiple(() =>
+                {
+                    Assert.That(afterFailure, Is.SameAs(beforeFailure));
+                    Assert.That(admittedAfterFailure, Is.True,
+                        "A failed facade publication must not disable the serving legacy source.");
+                });
+
+                beforeFailure!.Exit(beforeSlot);
+                beforeSlot = -1;
+                afterFailure!.Exit(afterSlot);
+                afterSlot = -1;
+                beforeEmission?.Dispose();
+                beforeEmission = null;
+                afterEmission?.Dispose();
+                afterEmission = null;
+                failRetirement = false;
+                table.Remove(candidate);
+                registered = false;
+                using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+                await generation.WaitForQuiescenceAsync(timeout.Token).ConfigureAwait(false);
+            }
+            finally
+            {
+                failRetirement = false;
+                routes?.Dispose();
+                beforeEmission?.Dispose();
+                afterEmission?.Dispose();
+                if (beforeSlot >= 0)
+                {
+                    beforeFailure?.Exit(beforeSlot);
+                }
+                if (afterSlot >= 0)
+                {
+                    afterFailure?.Exit(afterSlot);
+                }
+                if (registered)
+                {
+                    table.Remove(candidate);
+                }
+                await ChangePreparer.DisposeAsync(candidate).ConfigureAwait(false);
+            }
+        }
+
+        /// <summary>
+        /// A failed batch retirement preserves every generation and historian registration in the serving view.
+        /// </summary>
+        [TestCase(false, false)]
+        [TestCase(true, false)]
+        [TestCase(false, true)]
+        [TestCase(true, true)]
+        public async Task FailedBatchRoutingPublicationPreservesEarlierServingGenerationAsync(
+            bool preferredRemovedFirst,
+            bool failAfterWithdrawal)
+        {
+            var namespaces = new NamespaceTable();
+            using var servingHistorian = new HistorianProviderRegistry(namespaces);
+            IHistorianOwnedProviderRegistry ownedServingHistorian = servingHistorian;
+            var historian = new Mock<IHistorianProviderRegistry>();
+            Mock<IHistorianOwnedProviderRegistry> ownedHistorian =
+                historian.As<IHistorianOwnedProviderRegistry>();
+            historian.SetupGet(value => value.Providers).Returns(() => servingHistorian.Providers);
+            ownedHistorian.Setup(value => value.OwnsProvider(It.IsAny<IHistorianProvider>()))
+                .Returns<IHistorianProvider>(ownedServingHistorian.OwnsProvider);
+            ownedHistorian.Setup(value => value.RetainStagedProviderOwnership(
+                    It.IsAny<object>(), It.IsAny<IHistorianProvider>()))
+                .Callback<object, IHistorianProvider>(ownedServingHistorian.RetainStagedProviderOwnership);
+            ownedHistorian.Setup(value => value.ReleaseStagedProviderOwnership(
+                    It.IsAny<object>(), It.IsAny<IHistorianProvider>()))
+                .Returns<object, IHistorianProvider>(ownedServingHistorian.ReleaseStagedProviderOwnership);
+            var servingOwners = new List<object>();
+            ownedHistorian.Setup(value => value.CaptureOwnedRegistrationRollback(It.IsAny<object>()))
+                .Returns<object>(owner =>
+                {
+                    Action restore = ownedServingHistorian.CaptureOwnedRegistrationRollback(owner);
+                    return () =>
+                    {
+                        restore();
+                        if (!servingOwners.Exists(existing => ReferenceEquals(existing, owner)))
+                        {
+                            servingOwners.Add(owner);
+                        }
+                    };
+                });
+            ownedHistorian.Setup(value => value.ReplaceOwnedRegistrations(
+                    It.IsAny<object>(), It.IsAny<HistorianProviderRegistration[]>()))
+                .Callback<object, HistorianProviderRegistration[]>((owner, registrations) =>
+                {
+                    ownedServingHistorian.ReplaceOwnedRegistrations(owner, registrations);
+                    servingOwners.RemoveAll(existing => ReferenceEquals(existing, owner));
+                    if (registrations.Length != 0)
+                    {
+                        servingOwners.Add(owner);
+                    }
+                });
+                var failure = new InvalidOperationException("The second historian retirement failed.");
+                var probeNodeId = new NodeId("failed-batch-historian", 0);
+                bool failRetirement = true;
+                int retirementCalls = 0;
+            ownedHistorian.Setup(value => value.RemoveOwnedRegistrations(It.IsAny<object>()))
+                .Callback<object>(owner =>
+                {
+                    bool shouldFail = failRetirement && ++retirementCalls == 2;
+                    if (shouldFail && !failAfterWithdrawal)
+                    {
+                        throw failure;
+                    }
+                    ownedServingHistorian.RemoveOwnedRegistrations(owner);
+                    servingOwners.RemoveAll(existing => ReferenceEquals(existing, owner));
+                    if (shouldFail)
+                    {
+                        throw failure;
+                    }
+                });
+
+            var server = new Mock<IServerInternal>();
+            server.As<IHistorianRegistryProvider>()
+                .SetupGet(value => value.HistorianRegistry)
+                .Returns(historian.Object);
+            var serverUris = new StringTable();
+            var telemetry = new Mock<ITelemetryContext>().Object;
+            var encodeableFactory = (EncodeableFactory)EncodeableFactory.Create();
+            server.SetupGet(value => value.NamespaceUris).Returns(namespaces);
+            server.SetupGet(value => value.ServerUris).Returns(serverUris);
+            server.SetupGet(value => value.TypeTree).Returns(new TypeTable(namespaces));
+            server.SetupGet(value => value.Factory).Returns(encodeableFactory);
+            server.SetupGet(value => value.Telemetry).Returns(telemetry);
+            server.SetupGet(value => value.MessageContext)
+                .Returns(new ServiceMessageContext(telemetry, encodeableFactory)
+                {
+                    NamespaceUris = namespaces,
+                    ServerUris = serverUris
+                });
+            server.SetupGet(value => value.DefaultSystemContext)
+                .Returns(() => new ServerSystemContext(server.Object));
+
+            var table = new NodeManagerRoutingTable();
+            var staged = new List<IAsyncNodeManager>();
+            var registered = new List<IAsyncNodeManager>();
+            var providers = new List<IHistorianProvider>();
+            NodeManagerRoutingTable.PreparedRoutes? routes = null;
+            try
+            {
+                for (int index = 0; index < 2; index++)
+                {
+                    var manager = new Mock<IAsyncNodeManager>();
+                    _ = manager.As<INodeManagerReadinessNotification>();
+                    manager.SetupGet(value => value.NamespaceUris).Returns(Array.Empty<string>());
+                    var factory = new Mock<IAsyncNodeManagerFactory>();
+                    factory.Setup(value => value.CreateAsync(
+                            It.IsAny<IServerInternal>(),
+                            It.IsAny<ApplicationConfiguration>(),
+                            It.IsAny<CancellationToken>()))
+                        .Returns(new ValueTask<IAsyncNodeManager>(manager.Object));
+                    IAsyncNodeManager candidate = await new ChangePreparer(server.Object).CreateNodeManagerAsync(
+                        factory.Object, null!, false, _ => false, CancellationToken.None).ConfigureAwait(false);
+                    staged.Add(candidate);
+                    IHistorianProvider provider = new Mock<IHistorianProvider>().Object;
+                    providers.Add(provider);
+                    ChangePreparer.StagingServer staging = ChangePreparer.GetServer(candidate)!;
+                    ((IHistorianRegistryProvider)staging).HistorianRegistry.RegisterDefault(provider);
+                    ChangePreparer.Bind(candidate);
+                }
+
+                int firstPublication = preferredRemovedFirst ? 1 : 0;
+                int secondPublication = preferredRemovedFirst ? 0 : 1;
+                Assert.That(ChangePreparer.PublishHistorianRegistrations(staged[firstPublication]), Is.True);
+                Assert.That(ChangePreparer.PublishHistorianRegistrations(staged[secondPublication]), Is.True);
+                foreach (IAsyncNodeManager candidate in staged)
+                {
+                    table.Add(candidate, BatchNamespaceIndexes);
+                    registered.Add(candidate);
+                }
+
+                Assert.That(servingOwners, Has.Count.EqualTo(2));
+                IHistorianProvider expectedProvider = providers[secondPublication];
+                Assert.That(servingHistorian.Resolve(probeNodeId), Is.SameAs(expectedProvider));
+                object[] initialOwners = [.. servingOwners];
+                NodeManagerRoutingTable.RoutingSnapshot serving = table.Revision;
+                NodeManagerGeneration[] generations = [.. registered.Select(table.GetGeneration)];
+                routes = table.PrepareBatch(
+                    [], [.. registered], _ => BatchNamespaceIndexes,
+                    new TypeTable(new NamespaceTable()), encodeableFactory);
+                routes.Reserve();
+
+                InvalidOperationException? actual = Assert.Throws<InvalidOperationException>(
+                    () => routes.Publish());
+                routes.Dispose();
+                var admitted = new bool[generations.Length];
+                for (int index = 0; index < generations.Length; index++)
+                {
+                    admitted[index] = generations[index].Gate.TryEnter(out int slot);
+                    if (admitted[index])
+                    {
+                        generations[index].Gate.Exit(slot);
+                    }
+                }
+                Assert.Multiple(() =>
+                {
+                    Assert.That(actual, Is.SameAs(failure));
+                    Assert.That(table.Revision, Is.SameAs(serving));
+                    Assert.That(servingOwners, Has.Count.EqualTo(2));
+                    foreach (object owner in initialOwners)
+                    {
+                        Assert.That(servingOwners.Exists(current => ReferenceEquals(current, owner)), Is.True);
+                    }
+                    Assert.That(servingHistorian.Resolve(probeNodeId), Is.SameAs(expectedProvider));
+                    Assert.That(generations.Select(generation => generation.Gate.State),
+                        Is.All.EqualTo(NodeManagerGenerationState.Live));
+                    foreach (NodeManagerGeneration generation in generations)
+                    {
+                        Assert.That(generation.Slot.Current, Is.SameAs(generation));
+                    }
+                    Assert.That(admitted, Is.All.True);
+                });
+            }
+            finally
+            {
+                failRetirement = false;
+                routes?.Dispose();
+                foreach (IAsyncNodeManager manager in registered)
+                {
+                    table.Remove(manager);
+                }
+                foreach (IAsyncNodeManager manager in staged)
+                {
+                    await ChangePreparer.DisposeAsync(manager).ConfigureAwait(false);
+                }
+            }
+        }
+
+        /// <summary>
+        /// Replacing one manager preserves an equal peer and the original namespace dispatch order.
+        /// </summary>
+        [Test]
+        public void BatchReplacementPreservesEqualPeerAndRouteOrder()
+        {
+            var table = new NodeManagerRoutingTable();
+            var original = new EqualNodeManager();
+            var peer = new EqualNodeManager();
+            var replacement = new EqualNodeManager();
+            table.Add(original, BatchNamespaceIndexes);
+            table.Add(peer, BatchNamespaceIndexes);
+            NodeManagerGeneration originalGeneration = table.GetGeneration(original);
+            NodeManagerGeneration peerGeneration = table.GetGeneration(peer);
+            NodeManagerGeneration replacementGeneration =
+                NodeManagerGenerationRegistry.CreateReplacement(originalGeneration, replacement);
+            var candidate = new PreparedNodeManager(replacement, [], replacementGeneration, original);
+            using NodeManagerRoutingTable.PreparedRoutes routes = table.PrepareBatch(
+                [candidate], [], _ => BatchNamespaceIndexes,
+                new TypeTable(new NamespaceTable()), (EncodeableFactory)EncodeableFactory.Create());
+
+            routes.Reserve();
+            routes.Publish();
+
+            NodeManagerRoutingTable.RoutingSnapshot published = table.Revision;
+            Assert.That(published.NodeManagers, Has.Length.EqualTo(2));
+            Assert.That(published.NodeManagers[0], Is.SameAs(replacement));
+            Assert.That(published.NodeManagers[1], Is.SameAs(peer));
+            Assert.That(published.NamespaceManagers[2], Has.Count.EqualTo(2));
+            Assert.That(published.NamespaceManagers[2][0], Is.SameAs(replacement));
+            Assert.That(published.NamespaceManagers[2][1], Is.SameAs(peer));
+            Assert.That(originalGeneration.Gate.State, Is.EqualTo(NodeManagerGenerationState.Retiring));
+            Assert.That(peerGeneration.Gate.State, Is.EqualTo(NodeManagerGenerationState.Live));
+            Assert.That(replacementGeneration.Gate.State, Is.EqualTo(NodeManagerGenerationState.Live));
+        }
+
+        /// <summary>
+        /// A manager that only compares equal to a registered instance cannot retire it.
+        /// </summary>
+        [Test]
+        public void BatchRejectsUnregisteredEqualManager()
+        {
+            var table = new NodeManagerRoutingTable();
+            var registered = new EqualNodeManager();
+            var unrelated = new EqualNodeManager();
+            table.Add(registered, BatchNamespaceIndexes);
+            NodeManagerRoutingTable.RoutingSnapshot serving = table.Revision;
+            NodeManagerGeneration generation = table.GetGeneration(registered);
+
+            Assert.Throws<InvalidOperationException>(() => table.PrepareBatch(
+                [], [unrelated], _ => BatchNamespaceIndexes,
+                new TypeTable(new NamespaceTable()), (EncodeableFactory)EncodeableFactory.Create()));
+
+            Assert.That(table.Revision, Is.SameAs(serving));
+            Assert.That(generation.Gate.State, Is.EqualTo(NodeManagerGenerationState.Live));
+        }
+
+        /// <summary>
+        /// Retiring one manager does not withdraw a distinct equal manager.
+        /// </summary>
+        [Test]
+        public void BatchRetirementPreservesEqualPeer()
+        {
+            var table = new NodeManagerRoutingTable();
+            var retiring = new EqualNodeManager();
+            var peer = new EqualNodeManager();
+            table.Add(retiring, BatchNamespaceIndexes);
+            table.Add(peer, BatchNamespaceIndexes);
+            NodeManagerGeneration peerGeneration = table.GetGeneration(peer);
+            using NodeManagerRoutingTable.PreparedRoutes routes = table.PrepareBatch(
+                [], [retiring], _ => BatchNamespaceIndexes,
+                new TypeTable(new NamespaceTable()), (EncodeableFactory)EncodeableFactory.Create());
+
+            routes.Reserve();
+            routes.Publish();
+
+            NodeManagerRoutingTable.RoutingSnapshot published = table.Revision;
+            Assert.That(published.NodeManagers, Has.Length.EqualTo(1));
+            Assert.That(published.NodeManagers[0], Is.SameAs(peer));
+            Assert.That(published.NamespaceManagers[2], Has.Count.EqualTo(1));
+            Assert.That(published.NamespaceManagers[2][0], Is.SameAs(peer));
+            Assert.That(peerGeneration.Gate.State, Is.EqualTo(NodeManagerGenerationState.Live));
+        }
+
+        /// <summary>
+        /// Prepared routing preserves captured requests and reveals only the candidates assigned to the unit.
+        /// </summary>
         [TestCase(false)]
         [TestCase(true)]
         public void PreparedBatchRevealsOnlyItsCandidatesInThePublishedImage(bool replace)
@@ -63,20 +502,21 @@ namespace Opc.Ua.Server.Tests.NodeManager
             IAsyncNodeManager unrelated = CreateManager();
             table.RegisterNamespace(2, candidate, visible: false);
             table.RegisterNamespace(3, unrelated, visible: false);
-            var prepared = new PreparedNodeManager(candidate, [])
-            {
-                Staged = true,
-                ReplacedNodeManager = replace ? original : null
-            };
+            NodeManagerGeneration generation = replace
+                ? NodeManagerGenerationRegistry.CreateReplacement(table.GetGeneration(original), candidate)
+                : NodeManagerGenerationRegistry.CreateAddition(candidate);
+            var prepared = new PreparedNodeManager(candidate, [], generation, replace ? original : null);
             using NodeManagerRoutingTable.PreparedRoutes routes = table.PrepareBatch(
-                [prepared], [], table.Revision, _ => BatchNamespaceIndexes,
+                [prepared], [], _ => BatchNamespaceIndexes,
                 new TypeTable(new NamespaceTable()), (EncodeableFactory)EncodeableFactory.Create());
-            using (table.Capture())
+            using var context = new OperationContext(new RequestHeader(), null, RequestType.Read, RequestLifetime.None);
+            using (context.CaptureRouting(table))
             {
                 routes.Reserve();
                 routes.Publish();
-                Assert.That(table.Any(manager => ReferenceEquals(manager, candidate)), Is.False,
+                Assert.That(table.GetDispatchView(context.RoutingSnapshot).NodeManagers, Does.Not.Contain(candidate),
                     "An in-flight request must retain the unpublished routing image.");
+                Assert.That(table, Does.Contain(candidate), "Contextless work must use live routes.");
             }
             using (Assert.EnterMultipleScope())
             {
@@ -94,30 +534,412 @@ namespace Opc.Ua.Server.Tests.NodeManager
 
         [TestCase(false)]
         [TestCase(true)]
-        public async Task CaptureUntilReturnEndsWhenTheAsyncMethodReturnsAsync(bool completeAsynchronously)
+        public async Task ExplicitOperationRoutingSurvivesAsyncPublicationAsync(bool completeAsynchronously)
         {
             NodeManagerRoutingTable table = CreateTable(out _, out _);
             IAsyncNodeManager lifecycleManager = CreateManager();
 
             async ValueTask CaptureAndPublishAsync()
             {
-                table.CaptureUntilReturn();
-                NodeManagerRoutingTable.RoutingSnapshot captured = table.CapturedRevision;
+                using var context = new OperationContext(
+                    new RequestHeader(), null, RequestType.Read, RequestLifetime.None);
+                context.PinRouting(table);
+                NodeManagerRoutingTable.RoutingSnapshot captured = context.RoutingSnapshot!;
                 table.Add(lifecycleManager, AddNamespaceIndexes);
                 if (completeAsynchronously)
                 {
                     await Task.Yield();
                 }
-                Assert.That(table.CapturedRevision, Is.SameAs(captured),
-                    "The rest of the method must keep the captured routing image.");
-                Assert.That(table.Any(manager => ReferenceEquals(manager, lifecycleManager)), Is.False);
+                Assert.That(context.RoutingSnapshot, Is.SameAs(captured),
+                    "The operation must retain its explicit routes.");
+                Assert.That(table.Any(manager => ReferenceEquals(manager, lifecycleManager)), Is.True,
+                    "A metadata image must never select dispatch routes.");
             }
 
             await CaptureAndPublishAsync().ConfigureAwait(false);
 
-            Assert.That(table.CapturedRevision, Is.SameAs(table.Revision),
-                "The caller must read the live routing once the method returned.");
             Assert.That(table.Any(manager => ReferenceEquals(manager, lifecycleManager)), Is.True);
+        }
+
+        /// <summary>
+        /// Independent work never inherits a request's explicitly selected dispatch view.
+        /// </summary>
+        [Test]
+        public async Task IndependentBackgroundWorkUsesLiveRoutesDespiteInheritedRequestMetadataAsync()
+        {
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+            NodeManagerRoutingTable table = CreateTable(out _, out _);
+            IAsyncNodeManager added = CreateManager();
+            using var context = new OperationContext(new RequestHeader(), null, RequestType.Read, RequestLifetime.None);
+            context.PinRouting(table);
+            using OperationContext.RoutingScope requestRouting = context.CaptureRouting(table);
+            var started = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var published = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            Task<(IAsyncNodeManager[] Routes, NodeManagerRoutingTable.RoutingSnapshot Metadata)> background =
+                Task.Run(async () =>
+                {
+                    started.SetResult(true);
+                    await published.Task.WaitAsync(timeout.Token).ConfigureAwait(false);
+                    using var independent = new OperationContext(
+                        new RequestHeader(), null, RequestType.Read, RequestLifetime.None);
+                    return (table.GetDispatchView(independent.RoutingSnapshot).NodeManagers, table.Revision);
+                }, timeout.Token);
+            try
+            {
+                await started.Task.WaitAsync(timeout.Token).ConfigureAwait(false);
+                table.Add(added, AddNamespaceIndexes);
+            }
+            finally
+            {
+                published.TrySetResult(true);
+            }
+            var result = await background.ConfigureAwait(false);
+            using (Assert.EnterMultipleScope())
+            {
+                Assert.That(result.Metadata, Is.SameAs(table.Revision));
+                Assert.That(result.Routes, Does.Contain(added),
+                    "The inherited bridge must not select background dispatch routes.");
+                Assert.That(table.GetDispatchView(context.RoutingSnapshot).NodeManagers, Does.Not.Contain(added),
+                    "Only the original request explicitly holds its earlier routing view.");
+            }
+        }
+
+        /// <summary>
+        /// Nested service scopes retain a request's original view, which disposal releases.
+        /// </summary>
+        [Test]
+        public void RequestPinSurvivesNestedScopesAndIsReleasedWithTheContext()
+        {
+            NodeManagerRoutingTable table = CreateTable(out _, out _);
+            using var context = new OperationContext(new RequestHeader(), null, RequestType.Read, RequestLifetime.None);
+            context.PinRouting(table);
+            NodeManagerRoutingTable.RoutingSnapshot original = context.RoutingSnapshot!;
+            table.Add(CreateManager(), AddNamespaceIndexes);
+            context.PinRouting(table);
+            Assert.That(context.RoutingSnapshot, Is.SameAs(original), "A later dispatch must not repin the request.");
+            using (context.CaptureRouting(table))
+            {
+                Assert.That(context.RoutingSnapshot, Is.SameAs(original));
+                using (context.CaptureRouting(table))
+                {
+                    Assert.That(context.RoutingSnapshot, Is.SameAs(original));
+                }
+                Assert.That(context.RoutingSnapshot, Is.SameAs(original));
+            }
+            Assert.That(context.RoutingSnapshot, Is.SameAs(original));
+            context.Dispose();
+            Assert.That(context.RoutingSnapshot, Is.Null);
+        }
+
+        /// <summary>
+        /// Concurrent first captures join one cohort and release its single epoch pin exactly once.
+        /// </summary>
+        [Test]
+        public async Task ConcurrentBorrowedScopesShareOnePinAndPermitFreshReuseAsync()
+        {
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+            NodeManagerRoutingTable table = CreateTable(out _, out _);
+            using var context = new OperationContext(new RequestHeader(), null, RequestType.Read, RequestLifetime.None);
+            var start = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var entered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var release = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            int count = 0;
+            var snapshots = new ConcurrentBag<NodeManagerRoutingTable.RoutingSnapshot>();
+            Task[] calls = Enumerable.Range(0, 16).Select(_ => Task.Run(async () =>
+            {
+                await start.Task.WaitAsync(timeout.Token).ConfigureAwait(false);
+                using OperationContext.RoutingScope scope = context.CaptureRouting(table);
+                NodeManagerRoutingTable.RoutingSnapshot captured = context.RoutingSnapshot!;
+                snapshots.Add(captured);
+                if (Interlocked.Increment(ref count) == 16)
+                {
+                    entered.SetResult(true);
+                }
+                await release.Task.WaitAsync(timeout.Token).ConfigureAwait(false);
+                Assert.That(context.RoutingSnapshot, Is.SameAs(captured));
+                scope.Dispose();
+                scope.Dispose();
+            }, timeout.Token)).ToArray();
+            NodeManagerRoutingTable.RoutingSnapshot original = table.Revision;
+            try
+            {
+                start.SetResult(true);
+                await entered.Task.WaitAsync(timeout.Token).ConfigureAwait(false);
+                Assert.That(snapshots, Has.Count.EqualTo(16));
+                Assert.That(snapshots.All(snapshot => ReferenceEquals(snapshot, original)), Is.True);
+                Assert.That(original.Epoch.ActiveCount, Is.EqualTo(1));
+                table.Add(CreateManager(), AddNamespaceIndexes);
+                Assert.That(original.Epoch.IsDrained, Is.False);
+            }
+            finally
+            {
+                start.TrySetResult(true);
+                release.TrySetResult(true);
+                await Task.WhenAll(calls).ConfigureAwait(false);
+            }
+            Assert.That(original.Epoch.ActiveCount, Is.Zero);
+            Assert.That(original.Epoch.IsDrained, Is.True);
+            Assert.That(context.RoutingSnapshot, Is.Null);
+            using (context.CaptureRouting(table))
+            {
+                Assert.That(context.RoutingSnapshot, Is.SameAs(table.Revision));
+                Assert.That(table.Revision.Epoch.ActiveCount, Is.EqualTo(1));
+            }
+            Assert.That(context.RoutingSnapshot, Is.Null);
+            Assert.That(table.Revision.Epoch.ActiveCount, Is.Zero);
+            context.PinRouting(table);
+            Assert.That(context.RoutingSnapshot, Is.SameAs(table.Revision));
+            Assert.That(table.Revision.Epoch.ActiveCount, Is.EqualTo(1));
+            context.Dispose();
+            Assert.That(table.Revision.Epoch.ActiveCount, Is.Zero);
+        }
+
+        /// <summary>
+        /// Exception and cancellation unwinding release temporary ownership without disposing the context.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task BorrowedRoutingScopesReleaseTheirPinOnFailureAsync(bool cancel)
+        {
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+            using var cancellation = new CancellationTokenSource();
+            NodeManagerRoutingTable table = CreateTable(out _, out _);
+            using var context = new OperationContext(new RequestHeader(), null, RequestType.Read, RequestLifetime.None);
+            var entered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var finish = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            Task work = FailAsync();
+            try
+            {
+                await entered.Task.WaitAsync(timeout.Token).ConfigureAwait(false);
+                Assert.That(table.Revision.Epoch.ActiveCount, Is.EqualTo(1));
+                if (cancel)
+                {
+                    cancellation.Cancel();
+                    await Assert.ThatAsync(async () => await work.ConfigureAwait(false),
+                        Throws.InstanceOf<OperationCanceledException>()).ConfigureAwait(false);
+                }
+                else
+                {
+                    finish.SetResult(true);
+                    await Assert.ThatAsync(async () => await work.ConfigureAwait(false),
+                        Throws.TypeOf<InvalidOperationException>()).ConfigureAwait(false);
+                }
+            }
+            finally
+            {
+                cancellation.Cancel();
+                finish.TrySetResult(true);
+            }
+            Assert.That(context.RoutingSnapshot, Is.Null);
+            Assert.That(context.HasRoutingPin, Is.False);
+            Assert.That(table.Revision.Epoch.ActiveCount, Is.Zero);
+            using (context.CaptureRouting(table))
+            {
+                Assert.That(context.RoutingSnapshot, Is.SameAs(table.Revision));
+            }
+            Assert.That(table.Revision.Epoch.ActiveCount, Is.Zero);
+
+            async Task FailAsync()
+            {
+                using OperationContext.RoutingScope scope = context.CaptureRouting(table);
+                using OperationContext.RoutingScope nested = context.CaptureRouting(table);
+                entered.SetResult(true);
+                await finish.Task.WaitAsync(cancellation.Token).ConfigureAwait(false);
+                throw new InvalidOperationException("Borrowed service failed.");
+            }
+        }
+
+        /// <summary>
+        /// Ordinary request-owned dispatch allocates no cohort or per-service ownership token.
+        /// </summary>
+        /// <remarks>
+        /// The runtime can allocate a few bytes on this thread once, for example when on-stack
+        /// replacement moves a Tier0 loop to optimized code, which made a single exact-zero round
+        /// flaky (64 bytes locally, 3264 bytes on macOS CI). The measured loop therefore runs in a
+        /// separate method that is warmed up first, and the test measures several rounds: every
+        /// round must stay below one byte per call, which any per-call allocation exceeds, and at
+        /// least one round must allocate nothing at all, so an allocation on a rare path still fails.
+        /// </remarks>
+        [Test]
+#if NET8_0_OR_GREATER
+        // Exclude tiered loop instrumentation from the allocation measurement.
+        [MethodImpl(MethodImplOptions.AggressiveOptimization)]
+#endif
+        public void RequestOwnedRoutingCaptureAddsNoManagedAllocations()
+        {
+            const int iterations = 10000;
+            const int rounds = 5;
+            NodeManagerRoutingTable table = CreateTable(out _, out _);
+            using var context = new OperationContext(new RequestHeader(), null, RequestType.Read, RequestLifetime.None);
+            context.PinRouting(table);
+            for (int ii = 0; ii < 3; ii++)
+            {
+                MeasureRequestOwnedCaptures(context, table, iterations, out _);
+            }
+            long[] allocated = new long[rounds];
+            long elapsed = 0;
+            for (int ii = 0; ii < rounds; ii++)
+            {
+                allocated[ii] = MeasureRequestOwnedCaptures(context, table, iterations, out long roundElapsed);
+                elapsed += roundElapsed;
+            }
+            string perRound = string.Join(", ", allocated);
+            Assert.That(allocated, Has.All.LessThan(iterations), $"Bytes per round: {perRound}");
+            Assert.That(allocated, Has.Some.Zero, $"Bytes per round: {perRound}");
+            Assert.That(table.Revision.Epoch.ActiveCount, Is.EqualTo(1));
+            TestContext.Out.WriteLine(
+                $"Request-owned capture microcheck: {rounds} x {iterations} scopes, bytes per round [{perRound}], " +
+                $"{elapsed} stopwatch ticks ({Stopwatch.Frequency} ticks/s); not a load benchmark.");
+        }
+
+        /// <summary>
+        /// Captures and disposes request-owned routing scopes and returns the bytes this thread allocated.
+        /// </summary>
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        private static long MeasureRequestOwnedCaptures(
+            OperationContext context,
+            NodeManagerRoutingTable table,
+            int iterations,
+            out long elapsed)
+        {
+            long before = GC.GetAllocatedBytesForCurrentThread();
+            long started = Stopwatch.GetTimestamp();
+            for (int ii = 0; ii < iterations; ii++)
+            {
+                context.CaptureRouting(table).Dispose();
+            }
+            elapsed = Stopwatch.GetTimestamp() - started;
+            return GC.GetAllocatedBytesForCurrentThread() - before;
+        }
+
+        /// <summary>
+        /// First borrowed acquisition racing an explicit pin or disposal cannot leak or repin a terminal context.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task BorrowedRoutingAcquisitionRacesExplicitOwnershipSafelyAsync(bool dispose)
+        {
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+            NodeManagerRoutingTable table = CreateTable(out _, out _);
+            for (int ii = 0; ii < 32; ii++)
+            {
+                using var context = new OperationContext(
+                    new RequestHeader(), null, RequestType.Read, RequestLifetime.None);
+                var start = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+                Task capture = Task.Run(async () =>
+                {
+                    await start.Task.WaitAsync(timeout.Token).ConfigureAwait(false);
+                    try
+                    {
+                        using OperationContext.RoutingScope scope = context.CaptureRouting(table);
+                    }
+                    catch (ObjectDisposedException) when (dispose)
+                    {
+                    }
+                }, timeout.Token);
+                Task owner = Task.Run(async () =>
+                {
+                    await start.Task.WaitAsync(timeout.Token).ConfigureAwait(false);
+                    if (dispose)
+                    {
+                        context.Dispose();
+                    }
+                    else
+                    {
+                        context.PinRouting(table);
+                    }
+                }, timeout.Token);
+                start.SetResult(true);
+                await Task.WhenAll(capture, owner).WaitAsync(timeout.Token).ConfigureAwait(false);
+                Assert.That(table.Revision.Epoch.ActiveCount, Is.EqualTo(dispose ? 0 : 1));
+                context.Dispose();
+                Assert.That(context.RoutingSnapshot, Is.Null);
+                Assert.That(table.Revision.Epoch.ActiveCount, Is.Zero);
+                Assert.That(() => context.CaptureRouting(table), Throws.TypeOf<ObjectDisposedException>());
+                Assert.That(() => context.PinRouting(table), Throws.TypeOf<ObjectDisposedException>());
+            }
+        }
+
+        /// <summary>
+        /// Unwinding a nested request scope after disposal cannot restore the disposed context's old snapshot.
+        /// </summary>
+        [Test]
+        public void NestedRequestRoutingDoesNotRestoreDisposedContext()
+        {
+            NodeManagerRoutingTable table = CreateTable(out _, out _);
+            using var context = new OperationContext(new RequestHeader(), null, RequestType.Read, RequestLifetime.None);
+            context.PinRouting(table);
+            NodeManagerRoutingTable.RoutingSnapshot original = context.RoutingSnapshot!;
+            table.Add(CreateManager(), AddNamespaceIndexes);
+            using (context.CaptureRouting(table))
+            {
+                context.Dispose();
+                Assert.That(context.RoutingSnapshot, Is.Null);
+            }
+            Assert.That(context.RoutingSnapshot, Is.Null);
+            Assert.That(original.Epoch.ActiveCount, Is.Zero);
+            Assert.That(() => context.CaptureRouting(table), Throws.TypeOf<ObjectDisposedException>());
+        }
+
+        /// <summary>
+        /// A permanently installed cohort never reuses a state accepted by stale null-cohort bootstrap paths.
+        /// A construction-bound checkpoint forces stale null-cohort decisions across drain and upgrade.
+        /// </summary>
+        [Test]
+        public void BorrowedRoutingCohortNeverReentersOrdinaryBootstrapStates()
+        {
+            AssertStaleBootstrapCannotBypassBorrowedOwnership(upgradeBeforeDisposal: false);
+            AssertStaleBootstrapCannotBypassBorrowedOwnership(upgradeBeforeDisposal: true);
+        }
+
+        /// <summary>
+        /// Forces an ordinary path to observe null before a cohort installs and drains or upgrades.
+        /// </summary>
+        private static void AssertStaleBootstrapCannotBypassBorrowedOwnership(bool upgradeBeforeDisposal)
+        {
+            NodeManagerRoutingTable table = CreateTable(out _, out _);
+            NodeManagerRoutingTable.RoutingSnapshot snapshot = table.Revision;
+            bool installCohort = true;
+            int checkpoints = 0;
+            OperationContext? context = null;
+            context = new OperationContext(new RequestHeader(), () =>
+            {
+                checkpoints++;
+                if (!installCohort)
+                {
+                    return;
+                }
+                installCohort = false;
+                using OperationContext.RoutingScope scope = context!.CaptureRouting(table);
+                if (upgradeBeforeDisposal)
+                {
+                    context.PinRouting(table);
+                }
+            }, RequestLifetime.None);
+            using (context)
+            {
+                if (upgradeBeforeDisposal)
+                {
+                    context.Dispose();
+                    Assert.That(snapshot.Epoch.ActiveCount, Is.Zero);
+                    Assert.That(() => context.CaptureRouting(table), Throws.TypeOf<ObjectDisposedException>(),
+                        "A stale ordinary release must revoke the installed cohort, not bypass it.");
+                }
+                else
+                {
+                    context.PinRouting(table);
+                    using (context.CaptureRouting(table))
+                    {
+                        Assert.That(context.RoutingSnapshot, Is.SameAs(snapshot));
+                        Assert.That(snapshot.Epoch.ActiveCount, Is.EqualTo(1),
+                            "A stale ordinary pin must not acquire outside the installed cohort.");
+                    }
+                    Assert.That(snapshot.Epoch.ActiveCount, Is.EqualTo(1));
+                }
+                Assert.That(checkpoints, Is.EqualTo(2),
+                    "Only the stale outer selection and the nested first borrow may select bootstrap.");
+            }
+            Assert.That(snapshot.Epoch.ActiveCount, Is.Zero);
         }
 
         [Test]
@@ -279,6 +1101,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             table.Add(earlier, InitialNamespaceIndexes);
             table.Add(first, InitialNamespaceIndexes);
             table.Add(second, InitialNamespaceIndexes);
+            NodeManagerGeneration generation = table.GetGeneration(first);
 
             NodeManagerRoutingTable.NodeManagerRoutingPosition position =
                 table.RemoveAndCapturePosition(first);
@@ -291,6 +1114,9 @@ namespace Opc.Ua.Server.Tests.NodeManager
             Assert.That(table.NamespaceManagers[2][1], Is.SameAs(second));
             Assert.That(table.NamespaceManagers[3][0], Is.SameAs(first));
             Assert.That(table.NamespaceManagers[3][1], Is.SameAs(second));
+            Assert.That(table.GetGeneration(first), Is.SameAs(generation));
+            Assert.That(generation.Gate.State, Is.EqualTo(NodeManagerGenerationState.Live));
+            Assert.That(generation.Slot.Current, Is.SameAs(generation));
         }
 
         [Test]
@@ -299,9 +1125,9 @@ namespace Opc.Ua.Server.Tests.NodeManager
             NodeManagerRoutingTable table = CreateTable(out _, out _);
             INodeManager syncManager = new Mock<INodeManager>().Object;
             IAsyncNodeManager registeredAdapter =
-                CreateManagerWithSync(syncManager);
+                new AsyncNodeManagerAdapter(syncManager);
             IAsyncNodeManager lookupAdapter =
-                CreateManagerWithSync(syncManager);
+                new AsyncNodeManagerAdapter(syncManager);
             table.Add(registeredAdapter, [2]);
 
             table.RegisterNamespace(3, lookupAdapter);
@@ -318,11 +1144,42 @@ namespace Opc.Ua.Server.Tests.NodeManager
         }
 
         /// <summary>
-        /// While one writer alternates replacing the single lifecycle-managed slot between
-        /// two manager instances (~200 times) and several readers loop concurrently, every
+        /// Opaque facades over one synchronous resource keep independent namespace and registration owners.
+        /// </summary>
+        [Test]
+        public void OpaqueSynchronousFacadesKeepIndependentNamespaceAndRegistrationOwners()
+        {
+            NodeManagerRoutingTable table = CreateTable(out _, out _);
+            INodeManager resource = Mock.Of<INodeManager>();
+            IAsyncNodeManager registered = CreateManagerWithSync(resource);
+            IAsyncNodeManager other = CreateManagerWithSync(resource);
+            table.Add(registered, BatchNamespaceIndexes);
+            table.Add(other, BatchNamespaceIndexes);
+            NodeManagerGeneration registeredGeneration = table.GetGeneration(registered);
+            NodeManagerGeneration otherGeneration = table.GetGeneration(other);
+            table.RegisterNamespace(3, other);
+            AssertSingleManagerRoute(table.NamespaceManagers, 3, other);
+
+            table.RemoveNamespaceManager(other);
+            AssertSingleManagerRoute(table.NamespaceManagers, 2, registered);
+            Assert.That(table.NamespaceManagers.ContainsKey(3), Is.False);
+            Assert.That(table.Contains(other), Is.True);
+            Assert.That(otherGeneration.Gate.State, Is.EqualTo(NodeManagerGenerationState.Live));
+
+            table.Remove(other);
+            Assert.That(table.Contains(other), Is.False);
+            Assert.That(table.Contains(registered), Is.True);
+            AssertSingleManagerRoute(table.NamespaceManagers, 2, registered);
+            Assert.That(registeredGeneration.Gate.State, Is.EqualTo(NodeManagerGenerationState.Live));
+            Assert.That(otherGeneration.Gate.State, Is.EqualTo(NodeManagerGenerationState.Retiring));
+        }
+
+        /// <summary>
+        /// While one writer replaces a single lifecycle-managed slot with fresh exact generations
+        /// (~200 times) and several readers loop concurrently, every
         /// individually captured manager-list snapshot (via <see cref="NodeManagerRoutingTable.GetEnumerator"/>)
         /// must remain structurally complete - three managers, the first two always the
-        /// same permanent instances, and the third always exactly one of the two lifecycle
+        /// same permanent instances, and the third always exactly one of the known lifecycle
         /// generations, never anything else - and every individually captured
         /// <see cref="NodeManagerRoutingTable.NamespaceManagers"/> snapshot must show exactly
         /// one non-null route to the same namespace index, pointing at exactly one valid
@@ -334,112 +1191,45 @@ namespace Opc.Ua.Server.Tests.NodeManager
         [Test]
         public async Task ConcurrentReadersObserveOnlyCompleteRoutingSnapshotsAsync()
         {
-            const int ReaderIterations = 100;
-            const int ReaderCount = 4;
+            await RunConcurrentSnapshotReadersAsync().ConfigureAwait(false);
+        }
 
-            NodeManagerRoutingTable table = CreateTable(
-                out IAsyncNodeManager firstPermanent,
-                out IAsyncNodeManager secondPermanent);
-            IAsyncNodeManager generationA = CreateManager();
-            IAsyncNodeManager generationB = CreateManager();
-            table.Add(generationA, ConcurrentNamespaceIndexes);
-
-            var managerSnapshotFailures = new ConcurrentBag<string>();
-            var namespaceSnapshotFailures = new ConcurrentBag<string>();
-            using var startBarrier = new Barrier(ReaderCount + 1);
-            using var writerStarted = new ManualResetEventSlim();
-            using var readersReadyForConcurrentWrite = new CountdownEvent(ReaderCount);
-            using var concurrentWriteCompleted = new ManualResetEventSlim();
-            using var stopWriter = new CancellationTokenSource();
-            int writerIterations = 0;
-
-            var writerTask = Task.Run(() =>
-            {
-                IAsyncNodeManager current = generationA;
-                startBarrier.SignalAndWait();
-
-                ReplaceCurrent();
-                writerStarted.Set();
-                readersReadyForConcurrentWrite.Wait();
-                ReplaceCurrent();
-                concurrentWriteCompleted.Set();
-
-                while (!stopWriter.IsCancellationRequested)
+        /// <summary>
+        /// A writer failure before either startup notification cancels every waiting reader and preserves the cause.
+        /// </summary>
+        [TestCase(1)]
+        [TestCase(2)]
+        public async Task ConcurrentSnapshotWriterFailureReleasesEveryParticipantAsync(int failedWrite)
+        {
+            var failure = new InvalidOperationException("The coordinated writer failed.");
+            InvalidOperationException? observed = await Assert.ThrowsAsync<InvalidOperationException>(
+                () => RunConcurrentSnapshotReadersAsync(beforeWrite: write =>
                 {
-                    ReplaceCurrent();
-                    Thread.Yield();
-                }
+                    if (write == failedWrite)
+                    {
+                        throw failure;
+                    }
+                })).ConfigureAwait(false);
+            Assert.That(observed, Is.SameAs(failure));
+        }
 
-                void ReplaceCurrent()
+        /// <summary>
+        /// A reader failure before readiness or during a snapshot round releases the writer and its peer readers.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task ConcurrentSnapshotReaderFailureReleasesEveryParticipantAsync(bool duringRound)
+        {
+            var failure = new InvalidOperationException("The coordinated reader failed.");
+            InvalidOperationException? observed = await Assert.ThrowsAsync<InvalidOperationException>(
+                () => RunConcurrentSnapshotReadersAsync(beforeRead: (reader, iteration) =>
                 {
-                    IAsyncNodeManager next = ReferenceEquals(current, generationA)
-                            ? generationB
-                            : generationA;
-                    table.Replace(current, next, ConcurrentNamespaceIndexes);
-                    current = next;
-                    Interlocked.Increment(ref writerIterations);
-                }
-            });
-
-            Task[] readerTasks = [.. Enumerable.Range(0, ReaderCount).Select(_ => Task.Run(() =>
-            {
-                startBarrier.SignalAndWait();
-                writerStarted.Wait();
-                readersReadyForConcurrentWrite.Signal();
-                concurrentWriteCompleted.Wait();
-
-                for (int iteration = 0; iteration < ReaderIterations; iteration++)
-                {
-                    using IEnumerator<IAsyncNodeManager> managerSnapshot = table.GetEnumerator();
-                    var managers = new List<IAsyncNodeManager>();
-                    while (managerSnapshot.MoveNext())
+                    if (reader == 0 && iteration == (duringRound ? 0 : -1))
                     {
-                        managers.Add(managerSnapshot.Current);
+                        throw failure;
                     }
-
-                    if (managers.Count != 3 ||
-                        !ReferenceEquals(managers[0], firstPermanent) ||
-                        !ReferenceEquals(managers[1], secondPermanent) ||
-                        (!ReferenceEquals(managers[2], generationA) &&
-                            !ReferenceEquals(managers[2], generationB)))
-                    {
-                        managerSnapshotFailures.Add(
-                            $"iteration {iteration}: manager count {managers.Count}");
-                    }
-
-                    IReadOnlyDictionary<int, IReadOnlyList<IAsyncNodeManager>> namespaceRoutes =
-                        table.NamespaceManagers;
-                    int namespaceIndex = ConcurrentNamespaceIndexes[0];
-                    bool hasRoute = namespaceRoutes.TryGetValue(
-                        namespaceIndex,
-                        out IReadOnlyList<IAsyncNodeManager>? route);
-                    if (!hasRoute ||
-                        route!.Count != 1 ||
-                        (!ReferenceEquals(route[0], generationA) &&
-                            !ReferenceEquals(route[0], generationB)))
-                    {
-                        namespaceSnapshotFailures.Add(
-                            $"iteration {iteration}: hasRoute {hasRoute}, " +
-                            $"count {(hasRoute ? route!.Count : -1)}");
-                    }
-
-                    Thread.Yield();
-                }
-            }))];
-
-            try
-            {
-                await Task.WhenAll(readerTasks).ConfigureAwait(false);
-            }
-            finally
-            {
-                stopWriter.Cancel();
-                await writerTask.ConfigureAwait(false);
-            }
-
-            Assert.That(writerIterations, Is.GreaterThan(2));
-            Assert.That(managerSnapshotFailures, Is.Empty);
-            Assert.That(namespaceSnapshotFailures, Is.Empty);
+                })).ConfigureAwait(false);
+            Assert.That(observed, Is.SameAs(failure));
         }
 
         [Test]
@@ -498,7 +1288,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
         }
 
         [Test]
-        public void AddWithVisibleFalseHidesManagerFromEnumerationButNotFromIndexer()
+        public void AddWithVisibleFalseHidesManagerFromReadOnlyList()
         {
             NodeManagerRoutingTable table = CreateTable(
                 out IAsyncNodeManager firstPermanent,
@@ -507,8 +1297,9 @@ namespace Opc.Ua.Server.Tests.NodeManager
 
             table.Add(hiddenManager, AddNamespaceIndexes, visible: false);
 
-            Assert.That(table, Has.Count.EqualTo(3));
-            Assert.That(table[2], Is.SameAs(hiddenManager));
+            Assert.That(table, Has.Count.EqualTo(2));
+            Assert.That((IReadOnlyCollection<IAsyncNodeManager>)table, Has.Count.EqualTo(2));
+            Assert.That(table, Is.Not.Contains(hiddenManager));
             Assert.That(table.IsVisible(hiddenManager), Is.False);
             using IEnumerator<IAsyncNodeManager> visibleSnapshot = table.GetEnumerator();
             AssertManagerSnapshot(visibleSnapshot, firstPermanent, secondPermanent);
@@ -536,14 +1327,23 @@ namespace Opc.Ua.Server.Tests.NodeManager
         }
 
         [Test]
-        public void ReplaceThrowsWhenCurrentIsNotLifecycleManaged()
+        public void ReplaceInitialManagerPreservesItsRoutingPosition()
         {
             NodeManagerRoutingTable table = CreateTable(
-                out IAsyncNodeManager firstPermanent,
-                out _);
+                out IAsyncNodeManager firstInitial,
+                out IAsyncNodeManager secondInitial);
+            table.RegisterNamespace(2, firstInitial);
+            IAsyncNodeManager replacement = CreateManager();
 
-            Assert.Throws<InvalidOperationException>(
-                () => table.Replace(firstPermanent, CreateManager(), ReplaceNamespaceIndexes));
+            var position = table.Replace(firstInitial, replacement, ReplaceNamespaceIndexes);
+
+            Assert.That(position.ManagerPosition.Index, Is.Zero);
+            Assert.That(table.Revision.NodeManagers, Is.EqualTo([replacement, secondInitial]));
+            Assert.That(table, Does.Not.Contain(firstInitial));
+            foreach (int namespaceIndex in ReplaceNamespaceIndexes)
+            {
+                AssertSingleManagerRoute(table.NamespaceManagers, namespaceIndex, replacement);
+            }
         }
 
         [Test]
@@ -570,11 +1370,17 @@ namespace Opc.Ua.Server.Tests.NodeManager
         }
 
         [Test]
-        public void RemoveThrowsWhenNodeManagerIsNotLifecycleManaged()
+        public void RemoveInitialManagerRemovesItsRoutes()
         {
-            NodeManagerRoutingTable table = CreateTable(out IAsyncNodeManager firstPermanent, out _);
+            NodeManagerRoutingTable table = CreateTable(
+                out IAsyncNodeManager firstInitial,
+                out IAsyncNodeManager secondInitial);
+            table.RegisterNamespace(2, firstInitial);
 
-            Assert.Throws<InvalidOperationException>(() => table.Remove(firstPermanent));
+            table.Remove(firstInitial);
+
+            Assert.That(table.Revision.NodeManagers, Is.EqualTo([secondInitial]));
+            Assert.That(table.NamespaceManagers.ContainsKey(2), Is.False);
         }
 
         [Test]
@@ -690,8 +1496,8 @@ namespace Opc.Ua.Server.Tests.NodeManager
         {
             var table = new NodeManagerRoutingTable();
             INodeManager syncManager = new Mock<INodeManager>().Object;
-            IAsyncNodeManager registeredManager = CreateManagerWithSync(syncManager);
-            IAsyncNodeManager lookupManager = CreateManagerWithSync(syncManager);
+            IAsyncNodeManager registeredManager = new AsyncNodeManagerAdapter(syncManager);
+            IAsyncNodeManager lookupManager = new AsyncNodeManagerAdapter(syncManager);
             IAsyncNodeManager unrelated = CreateManager();
             table.RegisterNamespace(2, registeredManager);
             table.RegisterNamespace(3, registeredManager);
@@ -801,6 +1607,180 @@ namespace Opc.Ua.Server.Tests.NodeManager
             Assert.That(managers, Is.EqualTo([firstPermanent, secondPermanent]));
         }
 
+        /// <summary>
+        /// Joins one bounded writer and every reader, canceling all synchronization waits on the first actor failure.
+        /// </summary>
+        private static async Task RunConcurrentSnapshotReadersAsync(
+            Action<int>? beforeWrite = null,
+            Action<int, int>? beforeRead = null)
+        {
+            const int ReaderIterations = 100;
+            const int ReaderCount = 4;
+            const int ReplacementCount = (ReaderIterations * 2) + 2;
+
+            NodeManagerRoutingTable table = CreateTable(
+                out IAsyncNodeManager firstPermanent,
+                out IAsyncNodeManager secondPermanent);
+            IAsyncNodeManager[] generations =
+                [.. Enumerable.Range(0, ReplacementCount + 1).Select(_ => CreateManager())];
+            var expectedManagers = new HashSet<IAsyncNodeManager>(generations, RefEqualityComparer.Default);
+            table.Add(generations[0], ConcurrentNamespaceIndexes);
+
+            var managerSnapshotFailures = new ConcurrentBag<string>();
+            var namespaceSnapshotFailures = new ConcurrentBag<string>();
+            using var startBarrier = new Barrier(ReaderCount + 1);
+            using var roundBarrier = new Barrier(ReaderCount + 1);
+            using var writerStarted = new ManualResetEventSlim();
+            using var readersReadyForConcurrentWrite = new CountdownEvent(ReaderCount);
+            using var concurrentWriteCompleted = new ManualResetEventSlim();
+            using var stopWorkers = new CancellationTokenSource();
+            CancellationToken stop = stopWorkers.Token;
+            int writerIterations = 0;
+            ExceptionDispatchInfo? firstFailure = null;
+
+            Task writerTask = Task.Factory.StartNew(() =>
+            {
+                int currentIndex = 0;
+                try
+                {
+                    startBarrier.SignalAndWait(stop);
+                    ReplaceCurrent();
+                    writerStarted.Set();
+                    readersReadyForConcurrentWrite.Wait(stop);
+                    ReplaceCurrent();
+                    concurrentWriteCompleted.Set();
+
+                    for (int iteration = 0; iteration < ReaderIterations; iteration++)
+                    {
+                        roundBarrier.SignalAndWait(stop);
+                        ReplaceCurrent();
+                        Thread.Yield();
+                        ReplaceCurrent();
+                        roundBarrier.SignalAndWait(stop);
+                    }
+                }
+                catch (Exception failure)
+                {
+                    Interlocked.CompareExchange(ref firstFailure, ExceptionDispatchInfo.Capture(failure), null);
+                    stopWorkers.Cancel();
+                    throw;
+                }
+                finally
+                {
+                    writerStarted.Set();
+                    concurrentWriteCompleted.Set();
+                }
+
+                void ReplaceCurrent()
+                {
+                    int nextIndex = currentIndex + 1;
+                    beforeWrite?.Invoke(nextIndex);
+                    table.Replace(generations[currentIndex], generations[nextIndex], ConcurrentNamespaceIndexes);
+                    currentIndex = nextIndex;
+                    Interlocked.Increment(ref writerIterations);
+                }
+            }, CancellationToken.None, TaskCreationOptions.LongRunning, TaskScheduler.Default);
+
+            Task[] readerTasks = [.. Enumerable.Range(0, ReaderCount).Select(reader => Task.Factory.StartNew(() =>
+            {
+                try
+                {
+                    startBarrier.SignalAndWait(stop);
+                    writerStarted.Wait(stop);
+                    beforeRead?.Invoke(reader, -1);
+                    readersReadyForConcurrentWrite.Signal();
+                    concurrentWriteCompleted.Wait(stop);
+
+                    for (int iteration = 0; iteration < ReaderIterations; iteration++)
+                    {
+                        roundBarrier.SignalAndWait(stop);
+                        beforeRead?.Invoke(reader, iteration);
+                        (NodeManagerRoutingTable.RoutingSnapshot pinnedSnapshot, AddressSpaceEpoch pinnedEpoch,
+                            int pinnedSlot) = table.PinCurrent();
+                        try
+                        {
+                            IAsyncNodeManager[] pinnedManagers = pinnedSnapshot.NodeManagers;
+                            if (pinnedManagers.Length != 3 ||
+                                !ReferenceEquals(pinnedManagers[0], firstPermanent) ||
+                                !ReferenceEquals(pinnedManagers[1], secondPermanent) ||
+                                !expectedManagers.Contains(pinnedManagers[2]) ||
+                                pinnedSnapshot.Generations.Length != 3 ||
+                                !ReferenceEquals(pinnedSnapshot.Generations[2].NodeManager, pinnedManagers[2]))
+                            {
+                                managerSnapshotFailures.Add(
+                                    $"iteration {iteration}: pinned manager count {pinnedManagers.Length}");
+                            }
+                        }
+                        finally
+                        {
+                            pinnedEpoch.Exit(pinnedSlot);
+                        }
+
+                        using IEnumerator<IAsyncNodeManager> managerSnapshot = table.GetEnumerator();
+                        var managers = new List<IAsyncNodeManager>();
+                        while (managerSnapshot.MoveNext())
+                        {
+                            managers.Add(managerSnapshot.Current);
+                        }
+
+                        if (managers.Count != 3 ||
+                            !ReferenceEquals(managers[0], firstPermanent) ||
+                            !ReferenceEquals(managers[1], secondPermanent) ||
+                            !expectedManagers.Contains(managers[2]))
+                        {
+                            managerSnapshotFailures.Add(
+                                $"iteration {iteration}: manager count {managers.Count}");
+                        }
+
+                        IReadOnlyDictionary<int, IReadOnlyList<IAsyncNodeManager>> namespaceRoutes =
+                            table.NamespaceManagers;
+                        int namespaceIndex = ConcurrentNamespaceIndexes[0];
+                        bool hasRoute = namespaceRoutes.TryGetValue(
+                            namespaceIndex,
+                            out IReadOnlyList<IAsyncNodeManager>? route);
+                        if (namespaceRoutes.Count != 1 ||
+                            !hasRoute ||
+                            route!.Count != 1 ||
+                            !expectedManagers.Contains(route[0]))
+                        {
+                            namespaceSnapshotFailures.Add(
+                                $"iteration {iteration}: hasRoute {hasRoute}, " +
+                                $"count {(hasRoute ? route!.Count : -1)}");
+                        }
+
+                        Thread.Yield();
+                        roundBarrier.SignalAndWait(stop);
+                    }
+                }
+                catch (Exception failure)
+                {
+                    Interlocked.CompareExchange(ref firstFailure, ExceptionDispatchInfo.Capture(failure), null);
+                    stopWorkers.Cancel();
+                    throw;
+                }
+            }, CancellationToken.None, TaskCreationOptions.LongRunning, TaskScheduler.Default))];
+
+            var completion = Task.WhenAll([writerTask, .. readerTasks]);
+            try
+            {
+                await completion.ConfigureAwait(false);
+            }
+            catch
+            {
+                Volatile.Read(ref firstFailure)?.Throw();
+                throw;
+            }
+            finally
+            {
+                writerStarted.Set();
+                concurrentWriteCompleted.Set();
+            }
+
+            Assert.That(writerIterations, Is.EqualTo(ReplacementCount));
+            Assert.That(managerSnapshotFailures, Is.Empty);
+            Assert.That(namespaceSnapshotFailures, Is.Empty);
+        }
+
         private static NodeManagerRoutingTable CreateTable(
             out IAsyncNodeManager firstPermanent,
             out IAsyncNodeManager secondPermanent)
@@ -845,6 +1825,19 @@ namespace Opc.Ua.Server.Tests.NodeManager
             Assert.That(routes.ContainsKey(namespaceIndex), Is.True);
             Assert.That(routes[namespaceIndex], Has.Count.EqualTo(1));
             Assert.That(routes[namespaceIndex][0], Is.SameAs(expected));
+        }
+
+        private sealed class EqualNodeManager() : AsyncNodeManagerAdapter(new Mock<INodeManager>().Object)
+        {
+            public override bool Equals(object? obj)
+            {
+                return obj is EqualNodeManager;
+            }
+
+            public override int GetHashCode()
+            {
+                return 0;
+            }
         }
     }
 }

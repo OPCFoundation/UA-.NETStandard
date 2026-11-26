@@ -63,6 +63,8 @@ the reader publishes exactly those methods.
 | `IAutoIdAsyncScanProvider` | `ScanStart`, `ScanStop` |
 | `IAutoIdRfidProvider` | `ReadTag`, `WriteTag`, `WriteTagID`, `KillTag`, `LockTag`, `SetTagPassword` (per `SupportedOperations`) |
 | `IAutoIdRtlsProvider` | `GetLocation`, `GetSupportedLocationTypes` |
+| `IAutoIdScanParametersProvider` | `WithRuntimeParameters()` publishes configuration; `WithRuntimeParameters(true)` also enables `ScanActive` with an asynchronous scan provider |
+| `IAutoIdReaderParametersProvider` | Adds explicitly supported standard RFID or OCR/optical parameters through the same snapshot and commit path |
 
 Providers report scans, completion, presence, logbook entries and device accesses
 through the `IAutoIdReaderSink` they receive on attach. The package ships
@@ -72,15 +74,61 @@ locks and kill; `InMemoryScanReaderProvider`; `InMemoryOpticalVerifierProvider`;
 
 ## Behavior
 
+- `WithImages` configures up to 16 named, read-only FileType slots on OCR and
+  optical readers, including verifiers. Providers publish copied image bytes
+  through the optional `IAutoIdImageSink`. Existing open handles retain snapshots;
+  the reader owns binding cleanup. Each slot declares its MIME type and a byte
+  limit of at most 16 MiB. Hosting accepts an injectable `IFileTypeBinder`.
+- `WithIOData` creates the optional FunctionalGroup before registration and
+  retains application-owned sensor/actuator nodes, access levels and asynchronous
+  bindings. No hardware points or universal IO schema are invented.
 - A reader runs one scan at a time; a second `Scan` or `ScanStart` fails with
   `Bad_InvalidState`. An infinite synchronous scan is `Bad_InvalidArgument`.
-- The scan started by a session stops when the session closes.
+- A method-started scan stops when its starting session closes. Variable-started
+  scans are device-owned and survive session closure.
 - A failed reader registration is rolled back and the name stays usable;
   disposal stops scans, detaches providers and disposes the providers the
   reader owns.
 - Conformance units and facets are advertised only for what the hosted readers
-  implement; the Full AutoID facet is not claimed.
-- An optical verifier does not publish `Scan`: the NodeSet types its results
-  as `WGS84Coordinate`, contradicting OPC 30010 6.4.3.1.
+  implement. Full requires synchronous scans, asynchronous control and enabled
+  runtime parameters on the same reader.
+- Optical verifier `Scan` returns `OpticalVerifierScanResult[]` from OPC 30010
+  6.4.3.1. The imported model explicitly corrects the published NodeSet's
+  conflicting result metadata without changing NodeIds or argument order.
+
+Runtime parameter writes are validated and acknowledged after provider commit.
+Writes during scanning are rejected. ScanActive shares the existing scan
+serialization and completion paths; repeated True writes do not restart a scan.
+Use `WithScanWritePermissions` for standard role permissions on control and
+parameter variables. The in-memory RFID provider supports the EPC format;
+production hardware and persistent settings remain provider responsibilities.
+The optional `configure` callback adds application-namespace reader-specific
+parameters before registration, retaining their application-owned bindings.
+
+`IAutoIdReaderParametersProvider` supplies stable capability catalogues and
+optional values in `AutoIdScanParameters`. RFID supports the standard
+`TagTypes`, scalar `RfPower`, `MinRssi` and `EnableAntennas`
+bindings; OCR and optical readers, including verifiers, support configured
+`TemplateName` and `MatchCode`. Unsupported capabilities remain absent.
+`TagTypes` has a mandatory read-only `EnumStrings` property.
+`EnableAntennas` cannot exceed the provider's general configuration; a zero
+write has no effect. An optional `IAutoIdRfidDiagnosticFormatter` implements
+`CodeTypesRWData` selection for diagnostic user data. The simulated RFID provider
+supports `RAW:BYTES`; other providers can declare formats they actually produce.
+Empty selection disables diagnostic RWData on subsequent reports; multiple
+selections let the provider return one selected representation. Invalid formatting
+is recorded and makes RWData unavailable without changing the completed command
+or its event payload. Provider-reported access results use the same diagnostic
+formatting boundary.
+See the guide for the scalar
+power boundary and complete provider contract.
+
+Use `WithDiagnostics()` to publish read-only Presence, Logbook and LastAccess
+from the existing sink and method-report paths. RFID LastAccess includes the
+optional RFID fields and only the method data permitted by the existing
+access-event classification policy. Omitted fields become Bad_NoData instead
+of retaining an earlier access; clients must compare source timestamps across
+the fields they read. This projection is independent of access-event publication
+and does not define hardware-specific IO points or a second event source.
 
 See the [AutoID guide](https://github.com/OPCFoundation/UA-.NETStandard/blob/master/docs/AutoID.md).

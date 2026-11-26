@@ -1,36 +1,12 @@
-/* ========================================================================
- * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using System.IO;
 using System.Linq;
+using System.Reflection;
 using System.Text.Json.Nodes;
+using System.Threading.Tasks;
 using NUnit.Framework;
 using Opc.Ua.Gds.Server;
 using Opc.Ua.Gds.Server.Database.Linq;
@@ -44,6 +20,116 @@ namespace Opc.Ua.Gds.Tests
     [Parallelizable]
     public class LinqApplicationsDatabaseTests
     {
+        /// <summary>
+        /// Both persistence methods retain the public virtual slot used by previously compiled callers.
+        /// </summary>
+        [TestCase(typeof(LinqApplicationsDatabase))]
+        [TestCase(typeof(JsonApplicationsDatabase))]
+        public void SaveRetainsPublicVirtualMethodContract(Type databaseType)
+        {
+            MethodInfo? save = databaseType.GetMethod(
+                nameof(LinqApplicationsDatabase.Save),
+                BindingFlags.Public | BindingFlags.Instance | BindingFlags.DeclaredOnly);
+
+            Assert.That(save, Is.Not.Null);
+            Assert.That(save!.IsPublic, Is.True);
+            Assert.That(save.IsVirtual, Is.True);
+            Assert.That(save.IsFinal, Is.False);
+            Assert.That(save.ReturnType, Is.EqualTo(typeof(void)));
+            Assert.That(save.GetParameters(), Is.Empty);
+            Assert.That(save.GetBaseDefinition().DeclaringType, Is.EqualTo(typeof(LinqApplicationsDatabase)));
+        }
+
+        /// <summary>
+        /// A derived public Save override still intercepts mutations and base dispatch persists the complete database.
+        /// </summary>
+        [Test]
+        public void DerivedSaveOverridePersistsRecordsThroughBaseDispatch()
+        {
+            string fileName = Path.Combine(Path.GetTempPath(), Path.GetRandomFileName() + ".json");
+            try
+            {
+                var database = new SaveOverrideDatabase(fileName);
+                NodeId applicationId = database.RegisterApplication(
+                    CreateServerApplication("urn:test:save-override", "ServerOne"));
+
+                Assert.That(database.SaveCount, Is.EqualTo(2));
+                LinqApplicationsDatabase baseReference = database;
+                baseReference.Save();
+                Assert.That(database.SaveCount, Is.EqualTo(3));
+                JsonApplicationsDatabase jsonReference = database;
+                jsonReference.Save();
+                Assert.That(database.SaveCount, Is.EqualTo(4));
+
+                JsonApplicationsDatabase reloaded = JsonApplicationsDatabase.Load(fileName);
+                ApplicationRecordDataType[] records = reloaded.FindApplications("urn:test:save-override");
+                Assert.That(records, Has.Length.EqualTo(1));
+                Assert.That(records[0].ApplicationId, Is.EqualTo(applicationId));
+                Assert.That(records[0].ApplicationNames[0].Text, Is.EqualTo("ServerOne"));
+                Assert.That(File.Exists(fileName + ".tmp"), Is.False);
+            }
+            finally
+            {
+                File.Delete(fileName);
+            }
+        }
+
+        /// <summary>
+        /// Public saves and mutations share persistence ownership and leave a complete reloadable database.
+        /// </summary>
+        [Test]
+        public async Task ConcurrentPublicSavesAndRegistrationsPersistCompleteRecordsAsync()
+        {
+            string fileName = Path.Combine(Path.GetTempPath(), Path.GetRandomFileName() + ".json");
+            try
+            {
+                var database = JsonApplicationsDatabase.Load(fileName);
+                var start = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+                Task registrations = Task.Run(async () =>
+                {
+                    await start.Task.ConfigureAwait(false);
+                    for (int i = 0; i < 20; i++)
+                    {
+                        string suffix = i.ToString(System.Globalization.CultureInfo.InvariantCulture);
+                        database.RegisterApplication(
+                            CreateServerApplication("urn:test:concurrent:" + suffix, "Server" + suffix));
+                    }
+                });
+                Task saves = Task.Run(async () =>
+                {
+                    await start.Task.ConfigureAwait(false);
+                    for (int i = 0; i < 20; i++)
+                    {
+                        database.Save();
+                    }
+                });
+                start.SetResult(true);
+                await Task.WhenAll(registrations, saves).ConfigureAwait(false);
+                database.Save();
+
+                JsonApplicationsDatabase reloaded = JsonApplicationsDatabase.Load(fileName);
+                ServerOnNetwork[] records = reloaded.QueryServers(0, 0, null!, null!, null!, [], out _);
+                Assert.That(records, Has.Length.EqualTo(20));
+                Assert.That(records.Select(record => record.RecordId), Is.Unique.And.Ordered);
+                for (int i = 0; i < 20; i++)
+                {
+                    string suffix = i.ToString(System.Globalization.CultureInfo.InvariantCulture);
+                    ApplicationRecordDataType[] applications = reloaded.FindApplications(
+                        "urn:test:concurrent:" + suffix);
+                    Assert.That(applications, Has.Length.EqualTo(1));
+                    Assert.That(applications[0].ApplicationNames[0].Text, Is.EqualTo("Server" + suffix));
+                    Assert.That(applications[0].DiscoveryUrls.Count, Is.EqualTo(1));
+                    Assert.That(applications[0].DiscoveryUrls[0],
+                        Is.EqualTo("opc.tcp://localhost:4840/Server" + suffix));
+                }
+                Assert.That(File.Exists(fileName + ".tmp"), Is.False);
+            }
+            finally
+            {
+                File.Delete(fileName);
+            }
+        }
+
         [Test]
         public void RegisterApplicationWithDuplicateUriThrowsBadEntryExists()
         {
@@ -292,6 +378,178 @@ namespace Opc.Ua.Gds.Tests
                 Is.EqualTo(CertificateRequestState.Approved));
         }
 
+        [TestCase(false)]
+        [TestCase(true)]
+        public void BoundCertificateRequestFinishesWithItsInitiatingClientCertificate(bool newKeyPair)
+        {
+            var database = new LinqApplicationsDatabase();
+            NodeId application = database.RegisterApplication(CreateServerApplication("urn:test:bound", "Bound"));
+            ByteString fingerprint = CreateFingerprint(1);
+            NodeId request = StartBoundRequest(database, application, newKeyPair, fingerprint);
+            database.ApproveRequest(request, false);
+
+            Assert.That(
+                () => database.FinishRequest(application, request, out _, out _, out _, out _),
+                Throws.TypeOf<ServiceResultException>()
+                    .With.Property(nameof(ServiceResultException.StatusCode)).EqualTo(StatusCodes.BadUserAccessDenied));
+            Assert.That(
+                database.FinishBoundRequest(
+                    application, request, fingerprint, out _, out _, out _, out _),
+                Is.EqualTo(CertificateRequestState.Approved));
+        }
+
+        [TestCase(false)]
+        [TestCase(true)]
+        public void BoundCertificateRequestRejectsDifferentClientCertificate(bool newKeyPair)
+        {
+            var database = new LinqApplicationsDatabase();
+            NodeId application = database.RegisterApplication(CreateServerApplication("urn:test:bound", "Bound"));
+            ByteString initiatingFingerprint = CreateFingerprint(1);
+            NodeId request = StartBoundRequest(database, application, newKeyPair, initiatingFingerprint);
+            database.ApproveRequest(request, false);
+
+            Assert.That(
+                () => database.FinishBoundRequest(
+                    application, request, CreateFingerprint(2), out _, out _, out _, out _),
+                Throws.TypeOf<ServiceResultException>()
+                    .With.Property(nameof(ServiceResultException.StatusCode)).EqualTo(StatusCodes.BadUserAccessDenied));
+            Assert.That(
+                database.FinishBoundRequest(
+                    application, request, initiatingFingerprint, out _, out _, out _, out _),
+                Is.EqualTo(CertificateRequestState.Approved));
+        }
+
+        [TestCase(false)]
+        [TestCase(true)]
+        public void BoundCertificateRequestBindingSurvivesJsonDatabaseReload(bool newKeyPair)
+        {
+            string fileName = Path.Combine(
+                TestContext.CurrentContext.WorkDirectory,
+                Path.GetRandomFileName() + ".json");
+            try
+            {
+                var database = JsonApplicationsDatabase.Load(fileName);
+                NodeId application = database.RegisterApplication(CreateServerApplication("urn:test:bound", "Bound"));
+                ByteString fingerprint = CreateFingerprint(1);
+                NodeId request = StartBoundRequest(database, application, newKeyPair, fingerprint);
+                database.ApproveRequest(request, false);
+
+                database = JsonApplicationsDatabase.Load(fileName);
+
+                Assert.That(
+                    database.FinishBoundRequest(
+                        application, request, fingerprint, out _, out _, out _, out _),
+                    Is.EqualTo(CertificateRequestState.Approved));
+                Assert.That(
+                    () => database.FinishBoundRequest(
+                        application, request, CreateFingerprint(2), out _, out _, out _, out _),
+                    Throws.TypeOf<ServiceResultException>()
+                        .With.Property(nameof(ServiceResultException.StatusCode))
+                        .EqualTo(StatusCodes.BadUserAccessDenied));
+            }
+            finally
+            {
+                File.Delete(fileName);
+            }
+        }
+
+        /// <summary>
+        /// A legacy request without a client-certificate binding must be replaced with a new request.
+        /// </summary>
+        [TestCase(false, CertificateRequestState.New)]
+        [TestCase(false, CertificateRequestState.Approved)]
+        [TestCase(false, CertificateRequestState.Accepted)]
+        [TestCase(true, CertificateRequestState.New)]
+        [TestCase(true, CertificateRequestState.Approved)]
+        [TestCase(true, CertificateRequestState.Accepted)]
+        public void LegacyPersistedRequestWithoutCertificateBindingMustBeReRequested(
+            bool newKeyPair,
+            CertificateRequestState state)
+        {
+            string fileName = Path.Combine(
+                TestContext.CurrentContext.WorkDirectory,
+                Path.GetRandomFileName() + ".json");
+            try
+            {
+                var database = JsonApplicationsDatabase.Load(fileName);
+                NodeId application = database.RegisterApplication(CreateServerApplication("urn:test:legacy", "Legacy"));
+                NodeId legacyRequest = newKeyPair
+                    ? database.StartNewKeyPairRequest(
+                        application,
+                        "DefaultApplicationGroup",
+                        "RsaSha256ApplicationCertificateType",
+                        "CN=Legacy",
+                        ["localhost"],
+                        "PFX",
+                        ReadOnlySpan<char>.Empty,
+                        "admin")
+                    : database.StartSigningRequest(
+                        application,
+                        "DefaultApplicationGroup",
+                        "RsaSha256ApplicationCertificateType",
+                        ByteString.From([1, 2, 3]),
+                        "admin");
+                if (state == CertificateRequestState.Approved)
+                {
+                    database.ApproveRequest(legacyRequest, false);
+                }
+                else if (state == CertificateRequestState.Accepted)
+                {
+                    database.AcceptRequest(legacyRequest, ByteString.From([9, 8, 7]));
+                }
+
+                JsonObject document = JsonNode.Parse(File.ReadAllText(fileName))!.AsObject();
+                JsonObject request = document["CertificateRequests"]!.AsArray()[0]!.AsObject();
+                request.Remove("ClientCertificateFingerprint");
+                File.WriteAllText(fileName, document.ToJsonString());
+
+                database = JsonApplicationsDatabase.Load(fileName);
+                ByteString fingerprint = CreateFingerprint(1);
+                Assert.That(
+                    () => database.FinishBoundRequest(
+                        application, legacyRequest, fingerprint, out _, out _, out _, out _),
+                    Throws.TypeOf<ServiceResultException>()
+                        .With.Property(nameof(ServiceResultException.StatusCode))
+                        .EqualTo(StatusCodes.BadUserAccessDenied));
+
+                NodeId replacementRequest = newKeyPair
+                    ? database.StartBoundNewKeyPairRequest(
+                        application,
+                        "DefaultApplicationGroup",
+                        "RsaSha256ApplicationCertificateType",
+                        "CN=Replacement",
+                        ["localhost"],
+                        "PFX",
+                        ReadOnlySpan<char>.Empty,
+                        fingerprint,
+                        "admin")
+                    : database.StartBoundSigningRequest(
+                        application,
+                        "DefaultApplicationGroup",
+                        "RsaSha256ApplicationCertificateType",
+                        ByteString.From([4, 5, 6]),
+                        fingerprint,
+                        "admin");
+                Assert.That(replacementRequest, Is.Not.EqualTo(legacyRequest));
+                database.ApproveRequest(replacementRequest, false);
+
+                Assert.That(
+                    () => database.FinishBoundRequest(
+                        application, legacyRequest, fingerprint, out _, out _, out _, out _),
+                    Throws.TypeOf<ServiceResultException>()
+                        .With.Property(nameof(ServiceResultException.StatusCode))
+                        .EqualTo(StatusCodes.BadInvalidArgument));
+                Assert.That(
+                    database.FinishBoundRequest(
+                        application, replacementRequest, fingerprint, out _, out _, out _, out _),
+                    Is.EqualTo(CertificateRequestState.Approved));
+            }
+            finally
+            {
+                File.Delete(fileName);
+            }
+        }
+
         /// <summary>
         /// Pending signing requests retain recovery evidence without publishing issued credentials.
         /// </summary>
@@ -516,9 +774,10 @@ namespace Opc.Ua.Gds.Tests
             {
                 var database = JsonApplicationsDatabase.Load(fileName);
                 NodeId application = database.RegisterApplication(CreateServerApplication("urn:test:a", "ServerA"));
-                NodeId request = database.StartNewKeyPairRequest(
+                ByteString fingerprint = CreateFingerprint(1);
+                NodeId request = database.StartBoundNewKeyPairRequest(
                     application, "DefaultApplicationGroup", "RsaSha256ApplicationCertificateType",
-                    "CN=ServerA", ["localhost"], "PFX", "secret-password".AsSpan(), "admin");
+                    "CN=ServerA", ["localhost"], "PFX", "secret-password".AsSpan(), fingerprint, "admin");
                 database.ApproveRequest(request, false);
 
                 Assert.That(File.ReadAllText(fileName), Does.Not.Contain("secret-password"));
@@ -532,7 +791,13 @@ namespace Opc.Ua.Gds.Tests
                 // completed with an unprotected private key.
                 database = JsonApplicationsDatabase.Load(fileName);
                 Assert.That(
-                    database.FinishRequest(application, request, out _, out _, out _, out _),
+                    () => database.FinishRequest(application, request, out _, out _, out _, out _),
+                    Throws.TypeOf<ServiceResultException>()
+                        .With.Property(nameof(ServiceResultException.StatusCode))
+                        .EqualTo(StatusCodes.BadUserAccessDenied));
+                Assert.That(
+                    database.FinishBoundRequest(
+                        application, request, fingerprint, out _, out _, out _, out _),
                     Is.EqualTo(CertificateRequestState.Rejected));
             }
             finally
@@ -632,6 +897,34 @@ namespace Opc.Ua.Gds.Tests
             return database;
         }
 
+        /// <summary>
+        /// Exercises the existing public override contract without depending on the new persistence hook.
+        /// </summary>
+        private sealed class SaveOverrideDatabase : JsonApplicationsDatabase
+        {
+            /// <summary>
+            /// Creates a database that counts dispatch to its public Save override.
+            /// </summary>
+            public SaveOverrideDatabase(string fileName)
+                : base(fileName)
+            {
+            }
+
+            /// <summary>
+            /// Gets the number of public Save calls.
+            /// </summary>
+            public int SaveCount { get; private set; }
+
+            /// <summary>
+            /// Records dispatch and delegates persistence through the existing base Save method.
+            /// </summary>
+            public override void Save()
+            {
+                SaveCount++;
+                base.Save();
+            }
+        }
+
         private static ApplicationRecordDataType CreateServerApplication(string applicationUri, string name)
         {
             return new ApplicationRecordDataType
@@ -643,6 +936,37 @@ namespace Opc.Ua.Gds.Tests
                 DiscoveryUrls = [$"opc.tcp://localhost:4840/{name}"],
                 ServerCapabilities = ["LDS"]
             };
+        }
+
+        private static NodeId StartBoundRequest(
+            LinqApplicationsDatabase database,
+            NodeId application,
+            bool newKeyPair,
+            ByteString fingerprint)
+        {
+            return newKeyPair
+                ? database.StartBoundNewKeyPairRequest(
+                    application,
+                    "DefaultApplicationGroup",
+                    "RsaSha256ApplicationCertificateType",
+                    "CN=Bound",
+                    ["localhost"],
+                    "PFX",
+                    default,
+                    fingerprint,
+                    "admin")
+                : database.StartBoundSigningRequest(
+                    application,
+                    "DefaultApplicationGroup",
+                    "RsaSha256ApplicationCertificateType",
+                    ByteString.From([1, 2, 3]),
+                    fingerprint,
+                    "admin");
+        }
+
+        private static ByteString CreateFingerprint(byte value)
+        {
+            return ByteString.From(Enumerable.Repeat(value, 32).ToArray());
         }
     }
 }

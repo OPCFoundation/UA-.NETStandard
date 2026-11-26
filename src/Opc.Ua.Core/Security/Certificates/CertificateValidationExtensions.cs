@@ -1,33 +1,9 @@
-/* ========================================================================
- * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
+using Microsoft.Extensions.Logging;
+using Opc.Ua.Redaction;
 using Opc.Ua.Security.Certificates;
 
 namespace Opc.Ua
@@ -135,5 +111,55 @@ namespace Opc.Ua
                     endpointUrl.IdnHost);
             }
         }
+
+        /// <summary>
+        /// Checks the host name of the endpoint URL against the server certificate,
+        /// as Part 4 §6.1.3 requires of a client. When <paramref name="enforce"/> is
+        /// <c>true</c> a mismatch fails with
+        /// <see cref="StatusCodes.BadCertificateHostNameInvalid"/> (unless the
+        /// validator accepts the error); otherwise the suppressed error is reported
+        /// as a warning instead of being skipped silently.
+        /// </summary>
+        /// <param name="validator">The validator, or <c>null</c> when none is configured.</param>
+        /// <param name="serverCertificate">The server certificate.</param>
+        /// <param name="endpoint">The endpoint used to connect.</param>
+        /// <param name="enforce">Whether a mismatch fails the connection.</param>
+        /// <param name="logger">The logger that reports a suppressed mismatch.</param>
+        /// <exception cref="ServiceResultException">
+        /// Thrown with <see cref="StatusCodes.BadCertificateHostNameInvalid"/>
+        /// when <paramref name="enforce"/> is <c>true</c> and the host is not listed.
+        /// </exception>
+        public static void CheckServerDomain(
+            this ICertificateValidatorEx? validator,
+            Certificate serverCertificate,
+            ConfiguredEndpoint endpoint,
+            bool enforce,
+            ILogger logger)
+        {
+            if (enforce)
+            {
+                validator?.ValidateDomains(serverCertificate, endpoint);
+                return;
+            }
+
+            Uri? endpointUrl = endpoint?.EndpointUrl;
+            if (endpointUrl != null &&
+                !CertificateValidationHelpers.FindDomain(serverCertificate, endpointUrl))
+            {
+                logger.ServerCertificateHostNameNotChecked(endpointUrl.IdnHost);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Source-generated log messages for <see cref="CertificateValidationExtensions"/>.
+    /// </summary>
+    internal static partial class CertificateValidationExtensionsLog
+    {
+        [LoggerMessage(EventId = CoreEventIds.CertificateValidationCore + 18, Level = LogLevel.Warning,
+            Message = "The host {Host} of the endpoint URL is not listed in the server certificate. " +
+                "The connection continues because the host name check is disabled (CheckDomain = false).")]
+        public static partial void ServerCertificateHostNameNotChecked(
+            this ILogger logger, [NetworkAddress] string host);
     }
 }

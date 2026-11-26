@@ -1,33 +1,7 @@
-/* ========================================================================
- * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
-#if NET10_0
+#if NET10_0_OR_GREATER
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -270,7 +244,7 @@ namespace Opc.Ua.Tools.Tests.Mcp.AutoId
         }
 
         [Test]
-        public async Task AVerifierScanIsRefusedAndEventsCarryItsResultsAsync()
+        public async Task AVerifierScanAndEventsCarryItsResultsAsync()
         {
             string verifier = await ReaderIdAsync(AutoIdMcpFixture.VerifierName).ConfigureAwait(false);
             m_fixture!.Verifier.Present(new OpticalVerifierScanResult
@@ -281,10 +255,9 @@ namespace Opc.Ua.Tools.Tests.Mcp.AutoId
             });
             try
             {
-                JsonElement refused = await CallAsync(
+                JsonElement scanned = await CallAsync(
                     "autoid_scan",
-                    new JsonObject { ["readerNodeId"] = verifier, ["cycles"] = 1 },
-                    expectError: true).ConfigureAwait(false);
+                    new JsonObject { ["readerNodeId"] = verifier, ["cycles"] = 1 }).ConfigureAwait(false);
                 JsonElement started = await CallAsync("autoid_scan_start", new JsonObject
                 {
                     ["readerNodeId"] = verifier
@@ -306,7 +279,11 @@ namespace Opc.Ua.Tools.Tests.Mcp.AutoId
 
                 Assert.Multiple(() =>
                 {
-                    Assert.That(refused.GetProperty("message").GetString(), Does.Contain("WGS84Coordinate"));
+                    Assert.That(scanned.GetProperty("status").GetString(), Is.EqualTo("SUCCESS"));
+                    Assert.That(scanned.GetProperty("results").GetArrayLength(), Is.EqualTo(1));
+                    Assert.That(
+                        scanned.GetProperty("results")[0].GetProperty("CodeType").GetString(),
+                        Is.EqualTo("RAW:STRING"));
                     Assert.That(started.GetProperty("status").GetString(), Is.EqualTo("SUCCESS"));
                     Assert.That(observed.GetProperty("stoppedBy").GetString(), Is.EqualTo("itemLimit"));
                     Assert.That(

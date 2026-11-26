@@ -1,31 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using System.Collections.Generic;
@@ -433,7 +407,7 @@ namespace Opc.Ua.Subscriptions.Tests
         {
             // Call Publish() asynchronously, invoking 5 concurrent publish requests
             CreateSubscriptionResponse resp = await CreateSubAsync(
-                interval: 500, keepAlive: 10).ConfigureAwait(false);
+                interval: 500, keepAlive: 2).ConfigureAwait(false);
             uint subId = resp.SubscriptionId;
             try
             {
@@ -450,51 +424,21 @@ namespace Opc.Ua.Subscriptions.Tests
                     publishTasks[i] = PublishAsync();
                 }
 
-                // Wait for at least the first to complete
-                PublishResponse first;
-                try
-                {
-                    first = await publishTasks[0].ConfigureAwait(false);
-                }
-                catch (ServiceResultException ex) when (ex.StatusCode == StatusCodes.BadRequestTimeout)
-                {
-                    Assert.Ignore("Timing-sensitive: publish request timed out.");
-                    return;
-                }
-                Assert.That(StatusCode.IsGood(first.ResponseHeader.ServiceResult), Is.True);
-                if (!HasDataChangeNotification(first))
-                {
-                    Assert.Ignore("Timing-sensitive: no initial data change in concurrent publish.");
-                }
+                PublishResponse[] responses = await Task.WhenAll(publishTasks).ConfigureAwait(false);
+                Assert.That(responses, Has.Length.EqualTo(publishQueueSize));
 
-                // Await remaining and verify no failures
-                int dataChangeCount = HasDataChangeNotification(first) ? 1 : 0;
-                for (int i = 1; i < publishQueueSize; i++)
+                int dataChangeCount = 0;
+                foreach (PublishResponse response in responses)
                 {
-                    try
+                    Assert.That(StatusCode.IsGood(response.ResponseHeader.ServiceResult), Is.True);
+                    Assert.That(response.SubscriptionId, Is.EqualTo(subId));
+                    if (HasDataChangeNotification(response))
                     {
-                        PublishResponse p = await publishTasks[i].ConfigureAwait(false);
-                        Assert.That(StatusCode.IsGood(p.ResponseHeader.ServiceResult), Is.True);
-                        if (HasDataChangeNotification(p))
-                        {
-                            dataChangeCount++;
-                        }
-                    }
-                    catch (ServiceResultException sre)
-                        when (sre.StatusCode == StatusCodes.BadTooManyPublishRequests ||
-                            sre.StatusCode == StatusCodes.BadNoSubscription ||
-                            sre.StatusCode == StatusCodes.BadRequestTimeout)
-                    {
-                        // Some servers may reject excess publish requests or timeout
+                        dataChangeCount++;
                     }
                 }
 
-                Assert.That(dataChangeCount, Is.GreaterThan(0), "Expected at least one DataChange.");
-            }
-            catch (ServiceResultException sre) when (IsTransientCiTimeoutStatus(sre.StatusCode))
-            {
-                Assert.Ignore(
-                    $"Timing-sensitive: concurrent publish interrupted by CI runner load ({sre.StatusCode}).");
+                Assert.That(dataChangeCount, Is.EqualTo(1), "Expected the initial DataChange.");
             }
             finally
             {

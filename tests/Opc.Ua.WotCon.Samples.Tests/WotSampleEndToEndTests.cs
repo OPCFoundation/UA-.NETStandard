@@ -1,31 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using System.Collections.Generic;
@@ -283,17 +257,17 @@ namespace Opc.Ua.WotCon.Samples.Tests
                     timeout.Token).ConfigureAwait(false);
             Assert.That(initial.StatusCode, Is.EqualTo(StatusCodes.Good));
             AssertDataValue(initial, environment.SourceAValues.DifferentialPressure);
-            using var retiredPublishLifetime =
+            using var migratedPublishLifetime =
                 CancellationTokenSource.CreateLinkedTokenSource(timeout.Token);
             // CA2025 cannot see that the finally block cancels and awaits this task before
             // the subscription connection is disposed. TODO: Remove when flow analysis supports it.
 #pragma warning disable CA2025
             Task<(DataValue Value, ArrayOf<SubscriptionAcknowledgement> Acknowledgements)>
-                retiredGenerationPublish = PublishDataChangeAsync(
+                migratedGenerationPublish = PublishDataChangeAsync(
                     subscriptionSession,
                     acknowledgements,
                     TimeSpan.FromMinutes(45),
-                    retiredPublishLifetime.Token);
+                    migratedPublishLifetime.Token);
 #pragma warning restore CA2025
 
             try
@@ -359,25 +333,25 @@ namespace Opc.Ua.WotCon.Samples.Tests
                         monitoredItemIds,
                         timeout.Token).ConfigureAwait(false);
                 Assert.That(reporting.Results[0], Is.EqualTo(StatusCodes.Good));
-                (DataValue retiredGenerationNotification, _) =
-                    await retiredGenerationPublish.ConfigureAwait(false);
-                Assert.That(retiredGenerationNotification.StatusCode, Is.EqualTo(StatusCodes.Good));
+                (DataValue migratedGenerationNotification, _) =
+                    await migratedGenerationPublish.ConfigureAwait(false);
+                Assert.That(migratedGenerationNotification.StatusCode, Is.EqualTo(StatusCodes.Good));
                 AssertDataValue(
-                    retiredGenerationNotification,
-                    environment.SourceAValues.DifferentialPressure);
+                    migratedGenerationNotification,
+                    environment.SourceBValues.BearingTemperature);
             }
             finally
             {
-                retiredPublishLifetime.Cancel();
+                migratedPublishLifetime.Cancel();
                 try
                 {
-                    _ = await retiredGenerationPublish.ConfigureAwait(false);
+                    _ = await migratedGenerationPublish.ConfigureAwait(false);
                 }
-                catch (OperationCanceledException) when (retiredPublishLifetime.IsCancellationRequested)
+                catch (OperationCanceledException) when (migratedPublishLifetime.IsCancellationRequested)
                 {
                 }
                 catch (ServiceResultException ex)
-                    when (retiredPublishLifetime.IsCancellationRequested &&
+                    when (migratedPublishLifetime.IsCancellationRequested &&
                         ex.StatusCode == StatusCodes.BadRequestInterrupted)
                 {
                 }
@@ -405,7 +379,7 @@ namespace Opc.Ua.WotCon.Samples.Tests
         [Test]
         public async Task RealSamplesRouteManagementAndConditionActionsToEachSourceAsync()
         {
-            using var timeout = new CancellationTokenSource(TimeSpan.FromMinutes(30));
+            using var timeout = new CancellationTokenSource(s_fullSampleLoadTimeout);
             WotSampleEnvironment environment = await WotSampleEnvironment
                 .StartAsync(timeout.Token).ConfigureAwait(false);
             await using ConfiguredAsyncDisposable environmentLifetime = environment.ConfigureAwait(false);
@@ -566,7 +540,7 @@ namespace Opc.Ua.WotCon.Samples.Tests
         [Test]
         public async Task BadTargetMappingFailsRefreshAsync()
         {
-            using var timeout = new CancellationTokenSource(TimeSpan.FromMinutes(30));
+            using var timeout = new CancellationTokenSource(s_fullSampleLoadTimeout);
             WotSampleEnvironment environment = await WotSampleEnvironment
                 .StartAsync(timeout.Token).ConfigureAwait(false);
             await using ConfiguredAsyncDisposable environmentLifetime = environment.ConfigureAwait(false);
@@ -592,7 +566,7 @@ namespace Opc.Ua.WotCon.Samples.Tests
         [Test]
         public async Task UnavailableUpstreamEndpointFailsMappedReadAsync()
         {
-            using var timeout = new CancellationTokenSource(TimeSpan.FromMinutes(30));
+            using var timeout = new CancellationTokenSource(s_fullSampleLoadTimeout);
             WotSampleEnvironment environment = await WotSampleEnvironment
                 .StartAsync(timeout.Token).ConfigureAwait(false);
             await using ConfiguredAsyncDisposable environmentLifetime = environment.ConfigureAwait(false);
@@ -1293,6 +1267,13 @@ namespace Opc.Ua.WotCon.Samples.Tests
             }
             return string.Join("; ", details);
         }
+
+        /// <summary>
+        /// Bounds a test that loads and refreshes the full 535-document sample set. It takes
+        /// about 2-3 minutes in Debug; the cap stays below the CI blame hang timeout (10 minutes)
+        /// so a slowdown fails as a timeout instead of a crash with hang dumps.
+        /// </summary>
+        private static readonly TimeSpan s_fullSampleLoadTimeout = TimeSpan.FromMinutes(6);
 
         private static readonly string[] s_controlPairs =
             ["Pump1/SourceA", "Pump1/SourceB", "Pump2/SourceA", "Pump2/SourceB"];

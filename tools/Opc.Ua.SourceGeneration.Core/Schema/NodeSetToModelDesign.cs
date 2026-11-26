@@ -1,31 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using System.Collections.Generic;
@@ -230,7 +204,7 @@ namespace Opc.Ua.Schema.Model
             }
 
             int index = 0;
-            while ((index = text.IndexOf('<', index)) >= 0)
+            while ((index = text.IndexOf('<', index, StringComparison.Ordinal)) >= 0)
             {
                 if (string.CompareOrdinal(text, index, "<!--", 0, 4) == 0)
                 {
@@ -240,7 +214,7 @@ namespace Opc.Ua.Schema.Model
                 }
                 if (index + 1 < text.Length && text[index + 1] is '?' or '!')
                 {
-                    int end = text.IndexOf('>', index + 1);
+                    int end = text.IndexOf('>', index + 1, StringComparison.Ordinal);
                     index = end < 0 ? text.Length : end + 1;
                     continue;
                 }
@@ -354,6 +328,13 @@ namespace Opc.Ua.Schema.Model
                 ns.Name = "OpcUa";
                 ns.XmlPrefix = ns.Prefix = "Opc.Ua";
             }
+
+            // The names are derived from a model URI in the file and end up
+            // verbatim in generated code, which only accepts identifiers (see
+            // ModelDesignValidator.EnsureNamespacesAreCodeSafe). Names that
+            // already are identifiers are kept as they are.
+            ns.Name = ns.Name.ToCodeSafeName(dotted: false);
+            ns.XmlPrefix = ns.Prefix = ns.Prefix.ToCodeSafeName(dotted: true);
 
             return ns;
         }
@@ -2288,6 +2269,34 @@ namespace Opc.Ua.Schema.Model
 
         private XmlQualifiedName BuildSymbolicId(UANode node)
         {
+            // The id is built from the parent's id, so a ParentNodeId chain that
+            // loops back (a node that is its own parent, or two nodes that
+            // name each other) would recurse until the compiler's stack
+            // overflows, which no exception handler can catch.
+            string key = node.NodeId ?? string.Empty;
+            if (!m_symbolicIdPath.Add(key))
+            {
+                throw new InvalidDataException(
+                    $"The ParentNodeId chain of node {node.NodeId} contains a cycle.");
+            }
+            if (m_symbolicIdPath.Count > MaxParentDepth)
+            {
+                throw new InvalidDataException(
+                    $"The ParentNodeId chain of node {node.NodeId} is deeper than " +
+                    $"{MaxParentDepth} levels.");
+            }
+            try
+            {
+                return BuildSymbolicIdCore(node);
+            }
+            finally
+            {
+                m_symbolicIdPath.Remove(key);
+            }
+        }
+
+        private XmlQualifiedName BuildSymbolicIdCore(UANode node)
+        {
             NodeId nodeId = ImportNodeId(node.NodeId, false);
 
             if (node is not UAInstance instance)
@@ -3433,6 +3442,14 @@ namespace Opc.Ua.Schema.Model
         /// </summary>
         private static string? ImportArrayDimensions(int valueRank, string? arrayDimensions)
         {
+            if (valueRank > MaxValueRank)
+            {
+                // The rank sizes an allocation below: an unchecked value from
+                // the file would let a tiny NodeSet exhaust the compiler's
+                // memory.
+                throw new InvalidDataException(
+                    $"ValueRank {valueRank} exceeds the maximum of {MaxValueRank} dimensions.");
+            }
             if (valueRank > 1 && string.IsNullOrWhiteSpace(arrayDimensions))
             {
                 return string.Join(",", Enumerable.Repeat("0", valueRank));
@@ -3615,6 +3632,19 @@ namespace Opc.Ua.Schema.Model
         private readonly Dictionary<string, XmlQualifiedName> m_symbolicIds;
         private readonly HashSet<string> m_digitPreservingNames = [];
         private readonly HashSet<string> m_collisionSuffixed = new(StringComparer.Ordinal);
+        private readonly HashSet<string> m_symbolicIdPath = new(StringComparer.Ordinal);
+
+        /// <summary>
+        /// Deepest ParentNodeId chain a SymbolicId is built from. Every level
+        /// appends to the id, so a real instance hierarchy stays far below it.
+        /// </summary>
+        internal const int MaxParentDepth = 256;
+
+        /// <summary>
+        /// Most dimensions a ValueRank may declare (the matrix rank limit of
+        /// the stack, MatrixOf.MaxMatrixRank).
+        /// </summary>
+        internal const int MaxValueRank = 32;
         private readonly HashSet<string> m_userExecutableSpecified = new(StringComparer.Ordinal);
         private Dictionary<NodeId, List<UAVariable>>? m_variablesByParent;
         private Dictionary<NodeId, UANode>? m_dataTypesByEncoding;

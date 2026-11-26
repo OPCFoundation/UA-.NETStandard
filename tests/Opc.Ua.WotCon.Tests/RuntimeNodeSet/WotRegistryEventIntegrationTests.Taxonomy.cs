@@ -1,32 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using System.Collections.Generic;
@@ -41,11 +14,13 @@ using Moq;
 using NUnit.Framework;
 using Opc.Ua.Client;
 using Opc.Ua.Client.TestFramework;
+using Opc.Ua.Server;
 using Opc.Ua.Server.TestFramework;
 using Opc.Ua.Tests;
 using Opc.Ua.WotCon.Server;
 using Opc.Ua.WotCon.Server.Materialization;
 using Opc.Ua.WotCon.Server.Registry;
+using ISession = Opc.Ua.Client.ISession;
 using WotConModel = Opc.Ua.WotCon;
 using XRegistryModel = Opc.Ua.XRegistry;
 
@@ -151,7 +126,7 @@ namespace Opc.Ua.WotCon.Tests.RuntimeNodeSet
                         HasVersionSubject(fields, filter, "bad-taxonomy", "rejected-version"))
                     .ConfigureAwait(false);
                 Assert.That(created, Is.Not.Null);
-                Assert.That(FieldByBrowseName(created!, filter, Ua.BrowseNames.SourceNode)
+                Assert.That(FieldByBrowseName(created.Value, filter, Ua.BrowseNames.SourceNode)
                     .TryGetValue(out NodeId exactVersion), Is.True);
                 Assert.That(exactVersion.IsNull, Is.False);
                 NodeState? version = m_eventManager.Find(exactVersion);
@@ -175,14 +150,14 @@ namespace Opc.Ua.WotCon.Tests.RuntimeNodeSet
                     fields => EventTypeOf(fields) == failureType).ConfigureAwait(false);
                 Assert.That(failure, Is.Not.Null);
                 Assert.That(produced, Is.Not.Null);
-                Assert.That(FieldByBrowseName(failure!, filter, Ua.BrowseNames.SourceNode)
+                Assert.That(FieldByBrowseName(failure.Value, filter, Ua.BrowseNames.SourceNode)
                     .TryGetValue(out NodeId source), Is.True);
                 Assert.That(source, Is.EqualTo(exactVersion),
                     "The concrete failure must originate at the exact failing Version.");
-                Assert.That(AsString(failure!.EventFields[Field.VersionId]), Is.EqualTo("rejected-version"));
-                Assert.That(failure.EventFields[Field.Phase].TryGetValue(out WoTPhaseEnum phase), Is.True);
+                Assert.That(AsString(failure.Value.EventFields[Field.VersionId]), Is.EqualTo("rejected-version"));
+                Assert.That(failure.Value.EventFields[Field.Phase].TryGetValue(out WoTPhaseEnum phase), Is.True);
                 Assert.That(phase, Is.EqualTo(produced!.Phase));
-                Assert.That(AsUInt32(failure.EventFields[Field.Generation]), Is.EqualTo(produced.Generation));
+                Assert.That(AsUInt32(failure.Value.EventFields[Field.Generation]), Is.EqualTo(produced.Generation));
             }
             finally
             {
@@ -236,7 +211,7 @@ namespace Opc.Ua.WotCon.Tests.RuntimeNodeSet
                     fields => EventTypeOf(fields) == createdType &&
                         HasVersionSubject(fields, filter, ResourceId, "rejected")).ConfigureAwait(false);
                 Assert.That(created, Is.Not.Null);
-                Assert.That(FieldByBrowseName(created!, filter, Ua.BrowseNames.SourceNode)
+                Assert.That(FieldByBrowseName(created.Value, filter, Ua.BrowseNames.SourceNode)
                     .TryGetValue(out NodeId rejectedVersion), Is.True);
                 WotResource before = m_registry.Current.FindResource(
                     WotRegistryGroups.ThingDescriptions, ResourceId)!;
@@ -247,10 +222,10 @@ namespace Opc.Ua.WotCon.Tests.RuntimeNodeSet
                 EventFieldList? failure = await CollectEventAsync(services, subscriptionId,
                     fields => EventTypeOf(fields) == failureType).ConfigureAwait(false);
                 Assert.That(failure, Is.Not.Null);
-                Assert.That(FieldByBrowseName(failure!, filter, Ua.BrowseNames.SourceNode)
+                Assert.That(FieldByBrowseName(failure.Value, filter, Ua.BrowseNames.SourceNode)
                     .TryGetValue(out NodeId source), Is.True);
                 Assert.That(source, Is.EqualTo(rejectedVersion));
-                Assert.That(AsString(failure!.EventFields[Field.VersionId]), Is.EqualTo("rejected"));
+                Assert.That(AsString(failure.Value.EventFields[Field.VersionId]), Is.EqualTo("rejected"));
             }
             finally
             {
@@ -266,6 +241,7 @@ namespace Opc.Ua.WotCon.Tests.RuntimeNodeSet
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
             await using var client = new ClientFixture(false, false, telemetry);
+            await WotTestPki.SeedAsync(m_pkiRoot).ConfigureAwait(false);
             await client.LoadClientConfigurationAsync(m_pkiRoot).ConfigureAwait(false);
             var endpoint = new Uri($"{Utils.UriSchemeOpcTcp}://localhost:{m_fixture.Port}");
             using ISession session = await client.ConnectAsync(endpoint, SecurityPolicies.Basic256Sha256)
@@ -331,7 +307,7 @@ namespace Opc.Ua.WotCon.Tests.RuntimeNodeSet
                             HasVersionSubject(fields, filter, ResourceId, "rejected"), requestHeader)
                         .ConfigureAwait(false);
                     Assert.That(created, Is.Not.Null);
-                    Assert.That(FieldByBrowseName(created!, filter, Ua.BrowseNames.SourceNode)
+                    Assert.That(FieldByBrowseName(created.Value, filter, Ua.BrowseNames.SourceNode)
                         .TryGetValue(out NodeId rejectedVersion), Is.True);
 
                     await m_coordinator.RefreshAsync(
@@ -351,10 +327,10 @@ namespace Opc.Ua.WotCon.Tests.RuntimeNodeSet
                     }, requestHeader).ConfigureAwait(false);
                     Assert.That(completed, Is.Not.Null);
                     Assert.That(failure, Is.Not.Null);
-                    Assert.That(FieldByBrowseName(failure!, filter, Ua.BrowseNames.SourceNode)
+                    Assert.That(FieldByBrowseName(failure.Value, filter, Ua.BrowseNames.SourceNode)
                         .TryGetValue(out NodeId source), Is.True);
                     Assert.That(source, Is.EqualTo(rejectedVersion));
-                    Assert.That(AsString(failure!.EventFields[Field.VersionId]), Is.EqualTo("rejected"));
+                    Assert.That(AsString(failure.Value.EventFields[Field.VersionId]), Is.EqualTo("rejected"));
                     Assert.That(observed, Does.Not.Contain(abstractType));
                 }
                 finally
@@ -430,9 +406,9 @@ namespace Opc.Ua.WotCon.Tests.RuntimeNodeSet
                     Assert.That(barrier, Is.Not.Null, versionId);
                     Assert.That(created, Is.Not.Null, versionId);
                     Assert.That(failure, Is.Not.Null, versionId);
-                    Assert.That(FieldByBrowseName(created!, filter, Ua.BrowseNames.SourceNode)
+                    Assert.That(FieldByBrowseName(created.Value, filter, Ua.BrowseNames.SourceNode)
                         .TryGetValue(out NodeId exactVersion), Is.True, versionId);
-                    Assert.That(FieldByBrowseName(failure!, filter, Ua.BrowseNames.SourceNode)
+                    Assert.That(FieldByBrowseName(failure.Value, filter, Ua.BrowseNames.SourceNode)
                         .TryGetValue(out NodeId source), Is.True, versionId);
                     Assert.That(source, Is.EqualTo(exactVersion),
                         "Failure delivery cannot depend on the consumer waiting for VersionCreated: " + versionId);
@@ -506,9 +482,9 @@ namespace Opc.Ua.WotCon.Tests.RuntimeNodeSet
                 Assert.That(failure, Is.Not.Null,
                     "The matching Version and notifier chain must remain until its queued failure is delivered.");
                 Assert.That(order, Is.EqualTo(s_expectedQueuedFailureOrder));
-                Assert.That(FieldByBrowseName(created!, filter, Ua.BrowseNames.SourceNode)
+                Assert.That(FieldByBrowseName(created.Value, filter, Ua.BrowseNames.SourceNode)
                     .TryGetValue(out NodeId exactVersion), Is.True);
-                Assert.That(FieldByBrowseName(failure!, filter, Ua.BrowseNames.SourceNode)
+                Assert.That(FieldByBrowseName(failure.Value, filter, Ua.BrowseNames.SourceNode)
                     .TryGetValue(out NodeId source), Is.True);
                 Assert.That(source, Is.EqualTo(exactVersion));
             }
@@ -588,9 +564,18 @@ namespace Opc.Ua.WotCon.Tests.RuntimeNodeSet
                 m_coordinator.Event -= CancelAfterCompletion;
             }
 
-            await Assert.ThatAsync(
-                () => m_eventManager.DeleteAddressSpaceAsync(CancellationToken.None).AsTask(),
-                Throws.Nothing).ConfigureAwait(false);
+            NodeManagerRegistration registration = m_server.NodeManagerLifecycle.Registrations.ToList()
+                .Single(candidate => ReferenceEquals(candidate.NodeManager, m_eventManager));
+            ILifecycleCapture capture = m_server.NodeManagerLifecycle.CaptureChanges();
+            await using ILifecycleWriter writer = await capture.BeginAsync().ConfigureAwait(false);
+            Assert.That(m_server.NodeManagerLifecycle.Registrations.Contains(
+                current => ReferenceEquals(current, registration)), Is.True);
+            IPreparedChanges removal = await writer
+                .PrepareAsync([LifecycleChange.Remove(registration.Slot)]).ConfigureAwait(false);
+            await using var removalLifetime = removal.ConfigureAwait(false);
+            LifecycleResult result = await removal.CommitAsync(static _ => default).ConfigureAwait(false);
+            Assert.That(result.CleanupFailure, Is.Null);
+            await result.Retired.WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
             NodeId registryId = ExpandedNodeId.ToNodeId(
                 WotConModel.ObjectIds.WoTRegistry, m_server.CurrentInstance.NamespaceUris);
             Assert.That(m_eventManager.Find(registryId), Is.Null);
@@ -605,6 +590,7 @@ namespace Opc.Ua.WotCon.Tests.RuntimeNodeSet
             const string ResourceId = "bad-native-delete";
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
             await using var client = new ClientFixture(false, false, telemetry);
+            await WotTestPki.SeedAsync(m_pkiRoot).ConfigureAwait(false);
             await client.LoadClientConfigurationAsync(m_pkiRoot).ConfigureAwait(false);
             var endpoint = new Uri($"{Utils.UriSchemeOpcTcp}://localhost:{m_fixture.Port}");
             using ISession session = await client.ConnectAsync(endpoint, SecurityPolicies.Basic256Sha256)
@@ -642,7 +628,7 @@ namespace Opc.Ua.WotCon.Tests.RuntimeNodeSet
                         fields => EventTypeOf(fields) == createdType &&
                             HasVersionSubject(fields, filter, ResourceId, "v1"), header).ConfigureAwait(false);
                     Assert.That(created, Is.Not.Null);
-                    Assert.That(FieldByBrowseName(created!, filter, Ua.BrowseNames.SourceNode)
+                    Assert.That(FieldByBrowseName(created.Value, filter, Ua.BrowseNames.SourceNode)
                         .TryGetValue(out NodeId exactVersion), Is.True);
                     var version = (BaseInstanceState)m_eventManager.Find(exactVersion)!;
                     var versions = (BaseInstanceState)version.Parent!;
@@ -688,7 +674,7 @@ namespace Opc.Ua.WotCon.Tests.RuntimeNodeSet
                     Assert.That(barrier, Is.Not.Null);
                     Assert.That(failure, Is.Not.Null,
                         "Native Delete must not remove a Version/notifier ahead of its queued mandatory failure.");
-                    Assert.That(FieldByBrowseName(failure!, filter, Ua.BrowseNames.SourceNode)
+                    Assert.That(FieldByBrowseName(failure.Value, filter, Ua.BrowseNames.SourceNode)
                         .TryGetValue(out NodeId source), Is.True);
                     Assert.That(source, Is.EqualTo(exactVersion));
 

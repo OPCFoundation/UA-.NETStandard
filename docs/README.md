@@ -1,3 +1,8 @@
+<!--
+SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+SPDX-License-Identifier: MIT
+-->
+
 # OPC UA .NET Standard stack documentation
 
 These guides lead from a first working application to advanced and experimental
@@ -35,6 +40,7 @@ paths that match your application, or use the contents list to find a feature.
 - [Reference and upgrade](#reference-and-upgrade)
 - [Contributing and maintaining the SDK](#contributing-and-maintaining-the-sdk)
 - [UaLens NodeSet2 explorer](UaLens.md#opening-nodeset2-files)
+- [NodeSet2 to WoT export tool](WotExportTool.md)
 
 ## How to use this index
 
@@ -113,6 +119,8 @@ Assumes [Getting started](GettingStarted.md).
    application.
 4. [Asynchronous server support](AsyncServerSupport.md) — implement service and
    node-manager callbacks asynchronously.
+5. [NodeManager change sets](NodeManagers.md#lifecycle-change-sets) — publish slot-targeted
+   changes, inspect committed issues, and await physical retirement independently.
 
 ### PubSub path
 
@@ -161,6 +169,8 @@ needs.
 - [File system client](FileSystemClient.md) — transfer files through the
   standard file objects.
 - [Alias names](AliasNames.md) — find nodes through named aliases.
+- [Base Network Model](BaseNetworkModel.md) — provider-backed interfaces,
+  priority mappings, TSN streams and LLDP, with a simulated server/client example.
 - [Node management](NodeManagement.md) — let clients add and delete nodes and
   references.
 - [Final-value publication](NodeManagers.md#final-value-publication-before-node-removal) — await terminal Value
@@ -188,24 +198,37 @@ models that each model depends on.
   software package storage, installation, and confirmation. Read Device
   Integration first.
 - [ISA-95](ISA95.md) (OPC 10030 and OPC 10031-4) — the common
-  model and job control.
+  model and job control. Use [the neutral Job Control rules](ISA95.md#server-independent-job-control)
+  without a server or in a durable provider.
 - [Positioning](Positioning.md) (OPC 10000-210 and OPC 10000-211; preview
   package) — relative frames and geographic positions.
+- [Industrial Automation](IndustrialAutomation.md) (OPC 10000-200) —
+  provider-backed stacklights, aggregate/rolling statistics, and
+  calibration-target information on an existing DI or companion owner.
 - [Machinery](Machinery.md) (OPC 40001-1, -2, -3, -4 and -101) —
   machines with identification, server-driven state machines,
   process values, job management, energy and result transfer, based on the
   Industrial Automation, Device Integration, PA-DIM, ECM and ISA-95 models.
 - [Pumps](Pumps.md) (OPC 40223) — pumps and vacuum pumps,
   published both as Device Integration devices and as Machinery machines.
+- [Energy Consumption Management](ECM.md) (OPC 34100) — provider-backed
+  standalone E0, E1, E2, E3, D0 and D1 measurements, standby and simulated
+  WOL sleep. Statistics reuse the shared Industrial Automation runtime.
+- [PA-DIM](PADIM.md) (OPC 30081) — standalone provider-backed devices,
+  typed process signals and analysers, with generated-proxy clients.
 - [Composing DI companions](DeviceIntegration.md#composing-companion-models) — add several DI device
   families and their models to one server's `DeviceSet`.
 - [AutoID Devices](AutoID.md) (OPC 30010) — RFID, OCR, optical, optical
   verifier and RTLS readers: model, server hosting with a provider contract for
-  the reader hardware, typed client, MCP tools and a simulated RFID reader
-  sample, based on the Device Integration model.
+  the reader hardware, provider-backed runtime parameters, variable-triggered
+  scanning, read-only Diagnostics, typed Data Access clients, MCP tools and a
+  simulated RFID reader sample, based on the Device Integration model. Published
+  optical-verifier/RTLS contract discrepancies keep specification support Partial.
 - [Laboratory and Analytical Devices](LADS.md) (OPC 30500-1, LADS): model,
   server hosting on Machinery with functions, programs, results and maintenance
-  tasks, typed client and a shaking incubator sample.
+  tasks, optional cooperative running operations, stored-data restoration,
+  typed client and a shaking incubator sample. Restart never resumes interrupted
+  physical execution.
 - [Machine Vision](Vision.md) (OPC 40100-1 and OPC 40100-2) —
   released control, recipes, configurations, results, assets, and condition monitoring,
   with Vision/Perception composition and Machinery hosting.
@@ -221,6 +244,8 @@ models that each model depends on.
 - [Scales](Scales.md) (OPC 40200 and OPC 30050) — weighing
   technology with every scale kind, scale systems, recipes and PackML state
   machines, based on the Machinery model.
+- [PackML](PackML.md) (OPC 30050) — standalone provider-backed units,
+  configurable modes, administration, typed clients and a simulated sample.
 - [Plastics and rubber capabilities](PlasticsRubber.md) (OPC 40083 and OPC 40082-6) —
   shared machine configuration, control and monitoring, with
   [production dataset transfer](PlasticsRubber.md#production-dataset-protocol) and
@@ -336,6 +361,12 @@ Assumes [stage 5](#5-prepare-for-production).
   before exposing application data.
 - [Global Discovery Server](GDS.md) — application registration and central
   certificate management.
+- [Device onboarding](Onboarding.md) — registrar setup and pull and push
+  provisioning.
+- [Pull DCA key-pair recovery](GDS.md#recover-pull-dca-key-pair-requests) — protected
+  checkpoint storage for server-generated key pairs.
+- [Provisionable device replacement](Onboarding.md#replace-a-provisionable-devices-node-manager) —
+  replace the node manager without replacing the managed targets.
 - [GDS sample](../samples/Gds/README.md) — a runnable onboarding workflow.
 - [AuthorizationService](AuthorizationService.md) — issue access tokens.
 - [KeyCredentialService](KeyCredentialService.md) — manage credentials for

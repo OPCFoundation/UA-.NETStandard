@@ -1,3 +1,8 @@
+<!--
+SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+SPDX-License-Identifier: MIT
+-->
+
 # Migration Guide
 
 Use this guide to migrate an application between versions of the OPC UA
@@ -8,6 +13,8 @@ covers cross-cutting changes.
 ## Contents
 
 - [General principles](#general-principles)
+- [Migrating legacy GDS certificate requests](#migrating-legacy-gds-certificate-requests)
+- [Migrating custom node write overrides](#migrating-custom-node-write-overrides)
 - [Correcting preview onboarding ticket APIs](#correcting-preview-onboarding-ticket-apis)
 - [Migrating confirmation-enabled ConfigurationFile providers](#migrating-confirmation-enabled-configurationfile-providers)
 - [Program state numbers and managed execution](#program-state-numbers-and-managed-execution)
@@ -21,26 +28,33 @@ covers cross-cutting changes.
 - [Migrating code that used ApplicationConfiguration.PropertiesLock](#migrating-code-that-used-applicationconfigurationpropertieslock)
 - [Migrating node types that override FindChild or CreateChild](#migrating-node-types-that-override-findchild-or-createchild)
 - [Adopting replica-consistent NodeIds](#adopting-replica-consistent-nodeids)
+- [Session user identifiers and custom operation contexts](#session-user-identifiers-and-custom-operation-contexts)
 - [Removed members on ISession](#removed-members-on-isession)
 - [Awaiting custom node-manager cleanup](#awaiting-custom-node-manager-cleanup)
+- [Migrating custom NodeManager interfaces](#migrating-custom-nodemanager-interfaces)
+- [Migrating NodeManager registration and runtime creation](#migrating-nodemanager-registration-and-runtime-creation)
 - [Migrating code that called IServerInternal.Set\* mutators](#migrating-code-that-called-iserverinternalset-mutators)
 - [Migrating IServerStartupTask implementations to IServerContext](#migrating-iserverstartuptask-implementations-to-iservercontext)
 - [Removed members on IServerInternal](#removed-members-on-iserverinternal)
 - [Migrating servers that relied on unserved history advertisement](#migrating-servers-that-relied-on-unserved-history-advertisement)
 - [Migrating custom ISessionManager implementations to ShutdownAsync](#migrating-custom-isessionmanager-implementations-to-shutdownasync)
 - [Configuring distributed address-space storage](#configuring-distributed-address-space-storage)
+- [Configuring redundancy peer status](#configuring-redundancy-peer-status)
 - [Migrating SamplingGroupManager create/modify overrides](#migrating-samplinggroupmanager-createmodify-overrides)
 - [Migrating callers of the synchronous MonitoredNode2 notification wrappers](#migrating-callers-of-the-synchronous-monitorednode2-notification-wrappers)
+- [Migrating condition subclasses to asynchronous state setters](#migrating-condition-subclasses-to-asynchronous-state-setters)
 - [Migrating callers of the SecurityPolicies lookup and cryptography statics](#migrating-callers-of-the-securitypolicies-lookup-and-cryptography-statics)
 - [Migrating code that drove the server subscription publish pipeline](#migrating-code-that-drove-the-server-subscription-publish-pipeline)
 - [Migrating channel subclasses that guarded state with DataLock](#migrating-channel-subclasses-that-guarded-state-with-datalock)
 - [Transport resource limits](#transport-resource-limits)
+- [Identity token secret size limits](#identity-token-secret-size-limits)
 - [Migrating channel subclasses that override HandleIncomingMessage](#migrating-channel-subclasses-that-override-handleincomingmessage)
 - [Migrating custom IUserDatabase implementations](#migrating-custom-iuserdatabase-implementations)
 - [Reading certificates from SecureChannelContext](#reading-certificates-from-securechannelcontext)
 - [ContentFilter NULL semantics follow OPC 10000-4 1.05.07](#contentfilter-null-semantics-follow-opc-10000-4-10507)
 - [Write service Value semantics follow OPC 10000-3 and OPC 10000-4](#write-service-value-semantics-follow-opc-10000-3-and-opc-10000-4)
 - [Address space permissions, Call, NodeManagement and locales follow OPC 10000-3](#address-space-permissions-call-nodemanagement-and-locales-follow-opc-10000-3)
+- [Hosted servers restrict anonymous sessions to read-only access](#hosted-servers-restrict-anonymous-sessions-to-read-only-access)
 - [Migrating from the classic subscription fast callbacks and DefaultSubscription](#migrating-from-the-classic-subscription-fast-callbacks-and-defaultsubscription)
 - [Migrating from the PublishSequenceNumbersToAcknowledge event](#migrating-from-the-publishsequencenumberstoacknowledge-event)
 - [Migrating from 1.05.377 to 1.05.378](#migrating-from-105377-to-105378)
@@ -73,6 +87,128 @@ copilot plugin marketplace add OPCFoundation/UA-.NETStandard
 copilot plugin install opcua-v20-migration@opcua-dotnet
 ```
 
+## Migrating legacy GDS certificate requests
+
+**Upgrade impact:** Legacy Global Discovery Server (GDS) pull certificate requests have no persisted
+binding to the initiating client certificate and require a fresh certificate-bound
+request. This affects both `StartSigningRequest` and `StartNewKeyPairRequest`
+records carried over from a 1.5.x deployment. The pull `FinishRequest` method
+rejects an unbound record with `Bad_UserAccessDenied` in the `New`, `Approved`,
+or `Accepted` state. Prior approval or acceptance does not establish the missing
+certificate binding.
+
+Start a fresh request through the GDS OPC UA method and retain its new `RequestId`.
+Obtain approval for that request according to the configured approval process.
+Then call `FinishRequest` with the same client certificate used to start it.
+A different Session or SecureChannel is permitted; a different client certificate
+is not. Updating the client to retry `FinishRequest` with the old identifier does
+not repair the missing binding.
+
+Server-side callers that complete requests through `ICertificateRequest` must
+use `IClientCertificateBoundCertificateRequestStore.FinishBoundRequest` and
+provide the initiating client certificate fingerprint for bound requests.
+Calling `ICertificateRequest.FinishRequest` for a bound request returns
+`Bad_UserAccessDenied`.
+
+The built-in persisted request fields and Start audit event do not establish
+which SecureChannel client certificate initiated an unbound legacy request.
+The application certificate being issued, its certificate signing request, and
+the recorded user display name are not substitutes for that evidence. Do not
+populate a missing fingerprint from the certificate of a later caller.
+Custom stores or external audit systems may retain authenticated evidence that
+the built-in store does not. This procedure does not retroactively bind an
+existing request.
+
+Custom request stores must implement
+`IClientCertificateBoundCertificateRequestStore` and persist the binding with the
+request. See [GDS extension points](GDS.md#extension-points) for the provider
+contract and registration behavior.
+
+## Migrating custom node write overrides
+
+**Breaking change:** `NodeState.WriteAttributeAsync` is no longer virtual.
+Move custom implementations to the protected virtual `WriteAttributeCoreAsync`
+hook. Existing callers keep the same public method and parameters; derived node
+types that override the public method require a source change and recompilation.
+
+The public entrypoint now owns Value-write admission through validation, the
+custom hook, callback dispatch and the correlated value/status/timestamp cache
+commit. A public override could previously bypass that operation by not calling
+base, or run custom behavior outside it. Making the public method non-virtual
+prevents that bypass without exposing synchronization to derived types.
+
+Before:
+
+```csharp
+public override ValueTask<ServiceResult> WriteAttributeAsync(
+    ISystemContext context,
+    uint attributeId,
+    NumericRange indexRange,
+    DataValue value,
+    CancellationToken cancellationToken = default)
+{
+    return base.WriteAttributeAsync(
+        context, attributeId, indexRange, value, cancellationToken);
+}
+```
+
+After:
+
+```csharp
+protected override ValueTask<ServiceResult> WriteAttributeCoreAsync(
+    ISystemContext context,
+    uint attributeId,
+    NumericRange indexRange,
+    DataValue value,
+    CancellationToken cancellationToken = default)
+{
+    return base.WriteAttributeCoreAsync(
+        context, attributeId, indexRange, value, cancellationToken);
+}
+```
+
+Keep custom validation and write behavior inside the core hook. Call the protected
+base hook to retain native behavior; do not call the public `WriteAttributeAsync`
+on the same node from that hook. When admission is bound, the nested public call
+waits behind the operation that invoked the hook until its cancellation token is
+cancelled. Cancellation unwinds that wait and releases the outer operation's
+admission. There is no invocation identity that distinguishes this call from an
+independent queued writer, so ordinary overlapping asynchronous writers continue
+to wait and serialize.
+
+The synchronous `WriteAttribute` entrypoint is non-virtual and keeps its
+synchronous implementation, including protected `WriteValueAttribute`
+customization. It does not block on the asynchronous hook. Both public paths
+apply the same Value-write admission where an owning runtime binds it.
+
+On an executor-bound node, an asynchronous Value write no longer falls back to
+the synchronous implementation. Configure `OnWriteValueAsync` or
+`OnSimpleWriteValueAsync` on a `BaseVariableState`, or implement the asynchronous
+core yourself. When no native asynchronous implementation handles the write, it
+returns `BadNotSupported` without invoking synchronous handlers or changing the
+cached value, status or timestamp. This includes variables with no write
+handlers. Calling the synchronous entrypoint remains supported; wrapping it in
+an asynchronous core would violate this rule.
+
+Scales supplies a native async cache-write policy for its stock writable
+variables, including product targets, tolerances and recipe condition settings.
+That policy retains native validation and correlated cache commit. Custom
+synchronous-only handlers require an asynchronous implementation; they are
+neither invoked nor silently bypassed by the policy.
+Stock `MultiStateValueDiscreteState` notification settings use a separate native
+async enum policy, including `ValueAsText` updates after a successful cache
+commit. Native validation checks access/type before enum membership; the
+synchronous implementation checks enum membership first. Application-defined
+subclasses, `SelectionListState` and `MultiStateDiscreteState` do not receive
+these policies; provide their native async behavior explicitly.
+
+Unbound nodes retain their existing synchronous fallback. Non-Value attributes
+still dispatch to the protected core without Value-write admission.
+
+Direct assignments to node properties do not pass through these methods and
+require application serialization. See [Scales write coordination](Scales.md)
+for the runtime-specific rejection and publication behavior.
+
 ## Correcting preview onboarding ticket APIs
 
 Part 21 `EncodedTicket` is a String subtype. Applications using the earlier
@@ -87,7 +223,7 @@ Server hosts must pass an `IOnboardingTicketValidator` when calling
 registration with `BadConfigurationError` instead of storing unverified
 tickets. Register authority stores through `AddOnboardingTickets` and resolve
 the validator from dependency injection, or construct it with an explicit
-trust provider. See [onboarding configuration](GDS.md#opc-10000-21-onboardingclient).
+trust provider. See [onboarding configuration](Onboarding.md#opc-10000-21-onboardingclient).
 
 ## Migrating confirmation-enabled ConfigurationFile providers
 
@@ -150,6 +286,7 @@ are null.
 
 | From | To | Where to read |
 | --- | --- | --- |
+| `2.0.2` | `2.0.3` | [`migrate/2.0.3/`](migrate/2.0.3/README.md) — deprecations: `[Obsolete]` warnings (`UA0031`) point at the replacement APIs. The PubSub, WoT connectivity and Boiler sample factories are now asynchronous only, so direct `Create(...)` calls must move to `CreateAsync(...)`. |
 | `1.5.378` | `2.0.x` | [`migrate/2.0.x/`](migrate/2.0.x/README.md) — landing page and symptom-based thematic sub-doc index. |
 | `1.05.377` | `1.05.378` | [§ inline below](#migrating-from-105377-to-105378) — small enough to keep on this page. |
 | `1.04` | `1.05` | [§ inline below](#migrating-from-104-to-105) — small enough to keep on this page. |
@@ -394,6 +531,18 @@ Unbound legacy shared state is not automatically adopted or renumbered. The
 identity module refuses unknown or conflicting stored contracts; see its
 new-store provisioning and migration limits before attaching an existing store.
 
+## Session user identifiers and custom operation contexts
+
+Custom `ISessionOperationContext` implementations must expose `string? ClientUserId`.
+Forward it from the standard request context when wrapping one; otherwise use the
+authenticated token's user identifier, not its display label. Anonymous users
+have a `null` identifier.
+
+`SessionSystemContext.UserId` reports `ClientUserId`. Code that used it as a
+display label should use `UserIdentity.DisplayName` explicitly instead. See
+[session user identifiers](migrate/2.0.x/sessions-subscriptions.md#session-user-identifiers)
+for the token mapping and authorization limits.
+
 ## Removed members on ISession
 
 `ISession.SessionDiagnostics` is removed. It handed out the whole mutable
@@ -479,6 +628,44 @@ await its own drain with `DisposeAsync()`. Await completion outside the
 callback. Server and master-node-manager asynchronous teardown already await
 adapted synchronous managers, so server-owned managers need no additional
 disposal call.
+
+## Migrating custom NodeManager interfaces
+
+Custom managers implementing `INodeManager`, `INodeManager2` or
+`IAsyncNodeManager` directly must update changed signatures. Direct
+`IAsyncNodeManager` implementations also have new required members.
+Subclasses overriding the old monitored-item transfer methods must move their
+overrides to the options-taking methods used by server dispatch. See
+[custom NodeManager interface changes](migrate/2.0.x/node-states.md#custom-nodemanager-interface-changes)
+for the affected methods and deferred initial-value behavior.
+
+The protected `PredefinedNodes` property on `CustomNodeManager2` and
+`AsyncCustomNodeManager`, and the protected `RootNotifiers` property on
+`AsyncCustomNodeManager`, now return `PredefinedNodeDictionary` instead of
+`NodeIdDictionary<NodeState>`. These are binary-breaking changes: recompile
+subclasses and update explicit dictionary types. The indexer and common lookup
+and mutation methods remain available, but the new type is not a
+`ConcurrentDictionary`. Conditional removal and update compare the stored
+node by reference, rather than calling its `Equals` method.
+
+## Migrating NodeManager registration and runtime creation
+
+`MasterNodeManager` constructors that accept preconstructed application
+managers are obsolete. `StandardServer` rejects those managers during startup
+because it cannot isolate their prior construction from serving metadata.
+Register application managers as factories instead. In `CreateMasterNodeManager`
+or `CreateMasterNodeManagerAsync` overrides, combine
+`GetInitialNodeManagerFactories()` with factories for any additional models and
+pass the factories to the master constructor without invoking them. The obsolete
+constructors remain available for standalone dispatch. See
+[startup registration](NodeManagers.md#startup-registration).
+
+For `CustomNodeManager2.CreateNode` calls made while the server is running,
+await `CreateNodeAsync` from an asynchronous caller. The synchronous method is
+obsolete and does not run unresolved monitored-item recovery. The asynchronous
+method creates and indexes the nodes before recovery, so cancellation or a
+recovery failure can throw after the nodes exist. Check the address space before
+retrying.
 
 ## Migrating code that called IServerInternal.Set* mutators
 
@@ -655,6 +842,23 @@ requirements of the distributed-state extension, not a 1.5 persisted-format
 migration guarantee. See
 [address-space consistency](HighAvailability.md#activepassive-address-space-consistency).
 
+## Configuring redundancy peer status
+
+A replica publishes observed ServiceLevel and ServerState for each peer.
+Configure a protected peer-status
+store and the physical `TransparentPeerServerIds` for a Transparent set.
+An unavailable observation reports NoData and Unknown.
+
+For managed client redundancy, set `ServerRedundancyOptions.ExpectedServerApplicationUri`
+from trusted deployment configuration. Do not initialize it from discovery.
+Use the shared application URI for Transparent sets. The client must be
+able to authenticate that application URI on the UA SecureChannel;
+HTTPS endpoints are not supported for managed redundancy.
+
+For applications adding distributed storage in 2.0, see
+[Configure the freshness authority](HighAvailability.md#configure-the-freshness-authority)
+for the required backend and coordinated upgrade procedure.
+
 ## Migrating SamplingGroupManager create/modify overrides
 
 The public virtual `SamplingGroupManager.CreateMonitoredItem` and
@@ -698,6 +902,49 @@ await monitoredNode.OnReportEventAsync(context, node, e, cancellationToken)
 
 The wrappers still work and are unchanged in behaviour, so this is a
 warning to act on rather than a break.
+
+## Migrating condition subclasses to asynchronous state setters
+
+Condition and alarm state classes now provide asynchronous virtual counterparts
+for their state setters. Existing synchronous methods remain available and
+continue to dispatch through synchronous overrides. An asynchronous caller uses
+the async virtual method instead; it does not call a subclass's synchronous
+override. A subclass that customizes one of these setters must also override
+its async counterpart when the application uses the async path.
+
+| Synchronous override | Async counterpart |
+| --- | --- |
+| `ConditionState.SetEnableState` | `ConditionState.SetEnableStateAsync` |
+| `ConditionState.SetSeverity` | `ConditionState.SetSeverityAsync` |
+| `AcknowledgeableConditionState.SetAcknowledgedState` | `AcknowledgeableConditionState.SetAcknowledgedStateAsync` |
+| `AcknowledgeableConditionState.SetConfirmedState` | `AcknowledgeableConditionState.SetConfirmedStateAsync` |
+| `AlarmConditionState.SetActiveState` | `AlarmConditionState.SetActiveStateAsync` |
+| `AlarmConditionState.SetShelvingState` | `AlarmConditionState.SetShelvingStateAsync` |
+| `AlarmConditionState.SetSilenceState` | `AlarmConditionState.SetSilenceStateAsync` |
+| `AlarmConditionState.SetLatchedState` | `AlarmConditionState.SetLatchedStateAsync` |
+| `ExclusiveLimitAlarmState.SetActiveState` | `ExclusiveLimitAlarmState.SetActiveStateAsync` |
+| `ExclusiveLimitAlarmState.SetLimitState` | `ExclusiveLimitAlarmState.SetLimitStateAsync` |
+
+Async setters honor cancellation before changing state. Once a setter has
+committed a mutation, it completes nested state updates and change-mask
+notifications without observing caller cancellation, so cancellation cannot
+leave a compound active-state update partly applied.
+
+`ExclusiveLimitAlarmState` keeps its active and limit states consistent when
+notifications or Retain evaluation are deferred. Subclasses customizing these
+updates must override the overload that accepts `clearChangeMasks` and
+`updateRetainState`; overloads with both options enabled retain dispatch through
+the existing synchronous or asynchronous setter override.
+
+When publishing a condition snapshot after releasing an application mutation
+gate, initialize `InstanceStateSnapshot` while still holding that gate. Snapshot
+initialization captures the condition's EventId, acknowledgement and confirmation
+state and counters with its attributes; reporting registers that captured state
+instead of reading a newer live EventId. Assign a new EventId for each evaluation
+and do not change the snapshot's EventId or Handle after initialization. Snapshot
+capture alone does not register an EventId for condition methods; registration
+occurs when `ReportEvent` or `ReportEventAsync` is invoked, including a report
+whose delivery is subsequently canceled.
 
 <a id="ua0029"></a>
 
@@ -892,6 +1139,27 @@ for legitimate large transfers without relying on continuation chunks to
 extend it indefinitely. A zero or negative value uses the 30-second default
 for message assembly. It does not disable assembly cleanup. See
 [incomplete-message limits](Transports.md#incomplete-message-resource-limits).
+
+## Identity token secret size limits
+
+Servers now reject an encrypted `UserName` password longer than **1 024 bytes**
+and `IssuedIdentityToken` token data longer than **16 384 bytes** with
+`Bad_IdentityTokenInvalid`, before any authenticator runs. In 1.5.x the server
+decrypted a legacy RSA token secret of any length one RSA block at a time, so a
+1 MB secret cost about 2 s of CPU per `ActivateSession`. The limits apply to
+the legacy RSA format, `RSAEncryptedSecret` and the ECC `EncryptedSecret`.
+
+The limits are fixed and cannot be configured. A deployment affected by them:
+
+- moves bearer tokens longer than 1 024 bytes from the password field to an
+  `IssuedIdentityToken`;
+- keeps issued tokens under 16 KiB by trimming the claims the identity provider
+  adds, or by switching it to reference tokens;
+- that calls `SecurityPolicies.Decrypt` or `DecryptAsync` for its own data
+  larger than 16 KiB plus a 128-byte nonce, decrypts with `RsaUtils` or its own
+  RSA code instead.
+
+See [encrypted token secret size limits](IdentityProviders.md#encrypted-token-secret-size-limits).
 
 ## Migrating channel subclasses that override HandleIncomingMessage
 
@@ -1113,6 +1381,32 @@ fails with `Bad_WriteNotSupported` without the received timestamps and remembers
   structures. `StructureDefinition.FirstExplicitFieldIndex` marks the first field of the
   subtype; NodeSet export writes only those fields.
 
+## Hosted servers restrict anonymous sessions to read-only access
+
+A server hosted with `AddOpcUa().AddServer(...)` now applies a server-wide default to the nodes
+that have no `RolePermissions` in a namespace (other than namespace 0) without
+`DefaultRolePermissions`: the `Anonymous` role may browse, read and receive events, the
+`AuthenticatedUser` role and the other well-known user roles keep every permission. Before,
+such nodes were open to every session, so an anonymous client could write values and call
+methods of any node manager that did not set permissions itself. Writes, method calls, history
+updates and node management by anonymous sessions now return `Bad_UserAccessDenied`.
+
+- To keep anonymous write and call access on selected nodes, set `RolePermissions` on them or
+  `DefaultRolePermissions` on the namespace metadata; both override the server default.
+- To restore the previous behavior, for example in a demo, set
+  `OpcUaServerOptions.AnonymousAccess = AnonymousAccess.Unrestricted`
+  (`OpcUa:Server:AnonymousAccess`).
+- A `StandardServer` that is started without the hosting extensions is unchanged. Opt in with
+  `StandardServer.NamespaceDefaultRolePermissions = ServerDefaultRolePermissions.AnonymousReadOnly`.
+- Server components that act without a user identity through the node managers' permission
+  checks are treated like a session without roles; run them with an identity that holds a role.
+
+The options bound from configuration (`AddServer(IConfiguration)`) are also stricter: a value
+that cannot be parsed, such as `"0"` for a boolean or an unknown `TokenType` in
+`UserTokenPolicies`, now fails the startup with an `ArgumentException`. Earlier versions ignored
+the value and kept the default, which turned an unknown token type into an `Anonymous` policy.
+A `UserTokenPolicies` entry may be written as the token type itself (`["UserName"]`).
+
 ## Migrating from the classic subscription fast callbacks and DefaultSubscription
 
 The following classic client members are `[Obsolete]` and produce `CS0618`:
@@ -1122,7 +1416,7 @@ The following classic client members are `[Obsolete]` and produce `CS0618`:
 | `Subscription.FastDataChangeCallback` and `FastDataChangeNotificationEventHandler` | `ISubscriptionNotificationHandler.OnDataChangeNotificationAsync` |
 | `Subscription.FastEventCallback` and `FastEventNotificationEventHandler` | `ISubscriptionNotificationHandler.OnEventDataNotificationAsync` |
 | `Subscription.FastKeepAliveCallback` and `FastKeepAliveNotificationEventHandler` | `ISubscriptionNotificationHandler.OnKeepAliveNotificationAsync` |
-| `ISession.DefaultSubscription` (and `Session`, `ManagedSession`, `RedundantClientSession`) | `ISubscriptionManager.Add` with `SubscriptionOptions` |
+| `ISession.DefaultSubscription` (and `Session`, `ManagedSession`) | `ISubscriptionManager.Add` with `SubscriptionOptions` |
 
 The members keep working; existing classic code builds with a warning. New
 code should use the managed (V2) subscription model: implement
@@ -1156,8 +1450,8 @@ for the complete mapping.
 
 ## Migrating from the PublishSequenceNumbersToAcknowledge event
 
-`ISession.PublishSequenceNumbersToAcknowledge` (and its implementations on `Session`,
-`ManagedSession` and `RedundantClientSession`) is `[Obsolete]`. Acknowledgements are now
+`ISession.PublishSequenceNumbersToAcknowledge` (and its implementations on `Session`
+and `ManagedSession`) is `[Obsolete]`. Acknowledgements are now
 controlled by injectable, asynchronous providers instead of an event that edits mutable
 lists. The event still works with its previous behaviour as long as no provider is
 configured.

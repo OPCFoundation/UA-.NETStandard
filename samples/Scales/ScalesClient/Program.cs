@@ -1,31 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using System.Collections.Generic;
@@ -96,6 +70,53 @@ foreach (ScaleEntry entry in all)
     firstScale ??= entry;
     ScaleSnapshot snapshot = await scales.ReadSnapshotAsync(entry, ct).ConfigureAwait(false);
     PrintScale(snapshot);
+    for (int index = 0; index < snapshot.Products.Count; index++)
+    {
+        NodeId product = snapshot.Products[index].NodeId;
+        if (entry.Kind is ScaleKind.Catchweigher or ScaleKind.AutomaticWeightPriceLabeler)
+        {
+            ScaleLastItemSnapshot item = await scales.ReadLastItemAsync(product, ct).ConfigureAwait(false);
+            Console.WriteLine($"  item {item.ItemId.Value}, weight status {item.MeasuredWeight.StatusCode}, zone {item.ZoneName.Value}");
+            Console.WriteLine($"  length {item.MeasuredLength.Value} ({item.MeasuredLength.StatusCode}, {item.MeasuredLength.Timestamp:O})");
+            if (entry.Kind == ScaleKind.AutomaticWeightPriceLabeler)
+            {
+                string amount = item.ItemPrice.HasValue
+                    ? item.ItemPrice.Value.ToString(CultureInfo.InvariantCulture) : "unavailable";
+                Console.WriteLine($"  price {amount} {item.ItemPriceCurrencyUnit.Value?.AlphabeticCode} ({item.ItemPrice.StatusCode})");
+            }
+        }
+        else if (entry.Kind == ScaleKind.TotalizingHopper)
+        {
+            ScaleField<ulong> tips = await scales.ReadTipCounterAsync(product, ct).ConfigureAwait(false);
+            string count = tips.HasValue ? tips.Value.ToString(CultureInfo.InvariantCulture) : "unavailable";
+            Console.WriteLine($"  completed fills {count} ({tips.StatusCode})");
+        }
+        else if (entry.Kind == ScaleKind.PieceCounting)
+        {
+            ScalePieceCountingSnapshot totals = await scales.ReadPieceCountingTotalsAsync(product, ct)
+                .ConfigureAwait(false);
+            string pieces = totals.TotalizedItemCount.HasValue
+                ? totals.TotalizedItemCount.Value.ToString(CultureInfo.InvariantCulture) : "unavailable";
+            string weight = totals.TotalizedWeight.HasValue
+                ? totals.TotalizedWeight.Value.Net.ToString(CultureInfo.InvariantCulture) : "unavailable";
+            Console.WriteLine($"  registered pieces {pieces} ({totals.TotalizedItemCount.StatusCode}), " +
+                $"weight {weight} ({totals.TotalizedWeight.StatusCode})");
+        }
+        else if (entry.Kind == ScaleKind.Recipe)
+        {
+            ScaleRecipeStatus status = await scales.ReadRecipeStatusAsync(product, ct).ConfigureAwait(false);
+            Console.WriteLine($"  recipe {status.RecipeNodeId.Value}, report entries {status.Report.Value.Count}");
+        }
+        else if (entry.Kind == ScaleKind.Vehicle)
+        {
+            ScaleVehicleWeightSnapshot vehicle = await scales.ReadVehicleWeightsAsync(product, ct)
+                .ConfigureAwait(false);
+            string total = vehicle.TotalWeight.HasValue
+                ? vehicle.TotalWeight.Value.Net.ToString(CultureInfo.InvariantCulture) : "unavailable";
+            Console.WriteLine(
+                $"  vehicle total {total} ({vehicle.TotalWeight.StatusCode}, {vehicle.TotalWeight.Timestamp:O})");
+        }
+    }
 }
 
 if (firstScale == null)

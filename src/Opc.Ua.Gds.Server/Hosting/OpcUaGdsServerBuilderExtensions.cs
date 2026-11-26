@@ -1,31 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using System.Diagnostics.CodeAnalysis;
@@ -817,6 +791,7 @@ namespace Microsoft.Extensions.DependencyInjection
                     "The GDS forwarding server builder only forwards identity registrations.");
             }
 
+#pragma warning disable CS0618, UA0031 // Implements the obsolete IOpcUaServerBuilder.AddSyncNodeManager.
             public IOpcUaServerBuilder AddSyncNodeManager<
                 [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)] TFactory>()
                 where TFactory : class, INodeManagerFactory
@@ -826,7 +801,60 @@ namespace Microsoft.Extensions.DependencyInjection
                     sp.GetRequiredService<TFactory>()));
                 return this;
             }
+#pragma warning restore CS0618, UA0031
         }
+
+        /// <summary>
+        /// Gets the final configured request store through the binding-aware contract.
+        /// </summary>
+        /// <param name="serviceProvider">The service provider.</param>
+        /// <returns>The configured binding-aware request store.</returns>
+        private static IClientCertificateBoundCertificateRequestStore GetBoundCertificateRequestStore(
+            IServiceProvider serviceProvider)
+        {
+            return (IClientCertificateBoundCertificateRequestStore)serviceProvider
+                .GetRequiredService<ICertificateRequest>();
+        }
+
+        /// <summary>
+        /// Updates the automatically registered binding-aware request store without changing explicit registrations.
+        /// </summary>
+        /// <param name="services">The service collection.</param>
+        /// <param name="isBindingAware">Whether the final request-store registration supports certificate binding.</param>
+        private static void UpdateBoundCertificateRequestStoreRegistration(
+            IServiceCollection services,
+            bool isBindingAware)
+        {
+            bool hasExplicitRegistration = false;
+            for (int i = services.Count - 1; i >= 0; i--)
+            {
+                ServiceDescriptor descriptor = services[i];
+                if (descriptor.ServiceType != typeof(IClientCertificateBoundCertificateRequestStore))
+                {
+                    continue;
+                }
+
+                if (descriptor.ImplementationFactory == s_boundCertificateRequestStoreFactory)
+                {
+                    services.RemoveAt(i);
+                }
+                else
+                {
+                    hasExplicitRegistration = true;
+                }
+            }
+
+            if (isBindingAware && !hasExplicitRegistration)
+            {
+                services.AddSingleton(s_boundCertificateRequestStoreFactory);
+            }
+        }
+
+        /// <summary>
+        /// Factory used to keep the binding-aware service aligned with the final request-store registration.
+        /// </summary>
+        private static readonly Func<IServiceProvider, IClientCertificateBoundCertificateRequestStore>
+            s_boundCertificateRequestStoreFactory = GetBoundCertificateRequestStore;
 
         private sealed class GdsServerBuilder : IGdsServerBuilder
         {
@@ -908,6 +936,9 @@ namespace Microsoft.Extensions.DependencyInjection
                 Services.AddSingleton<T>();
                 Services.AddSingleton<ICertificateRequest>(
                     sp => sp.GetRequiredService<T>());
+                UpdateBoundCertificateRequestStoreRegistration(
+                    Services,
+                    typeof(IClientCertificateBoundCertificateRequestStore).IsAssignableFrom(typeof(T)));
                 return this;
             }
 

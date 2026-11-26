@@ -1,31 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using System.Collections.Generic;
@@ -56,7 +30,8 @@ namespace Opc.Ua.Server.FileSystem
     /// under <c>i=16314</c>.
     /// </para>
     /// </remarks>
-    public sealed class FileSystemNodeManager : AsyncCustomNodeManager, IFileSystemHost
+    public sealed class FileSystemNodeManager :
+        AsyncCustomNodeManager, IFileSystemHost, INodeManagerCleanupParticipant
     {
         /// <summary>
         /// Base URI used to build the namespace URI of a mounted
@@ -88,6 +63,16 @@ namespace Opc.Ua.Server.FileSystem
         public IFileSystemProvider Provider { get; }
 
         /// <summary>
+        /// Gets or sets the lifecycle wait limit for subsequently opened files. Unfinished operations keep
+        /// their writer reservation until the provider operation and stream cleanup have actually finished.
+        /// </summary>
+        public TimeSpan CloseTimeout
+        {
+            get => m_closeTimeout;
+            set => m_closeTimeout = FileHandle.ValidateCloseTimeout(value);
+        }
+
+        /// <summary>
         /// Namespace index assigned to this provider's nodes.
         /// </summary>
         public new ushort NamespaceIndex { get; }
@@ -113,6 +98,126 @@ namespace Opc.Ua.Server.FileSystem
         bool IFileSystemHost.AllowMoveOrCopy => true;
 
         bool IFileSystemHost.UsesVirtualDirectoryBrowsing => true;
+
+        void IFileSystemHost.RegisterDirectoryCursor(DirectoryCursorOwnership ownership)
+        {
+            lock (m_lock)
+            {
+                if (m_cursorAdmissionClosed || m_fileSystemDisposed)
+                {
+                    throw new ObjectDisposedException(nameof(FileSystemNodeManager));
+                }
+                m_directoryCursors.RemoveAll(static cursor => cursor.IsReleased);
+                m_directoryCursors.Add(ownership);
+            }
+        }
+
+        void IFileSystemHost.CompleteDirectoryCursor(DirectoryCursorOwnership ownership)
+        {
+            lock (m_lock)
+            {
+                if (ownership.IsReleased)
+                {
+                    m_directoryCursors.Remove(ownership);
+                }
+            }
+        }
+
+        void IFileSystemHost.TrackCursorCleanup(Task cleanup)
+        {
+            lock (m_lock)
+            {
+                m_cursorCleanups.RemoveAll(static pending => pending.Status == TaskStatus.RanToCompletion);
+                m_cursorCleanups.Add(cleanup);
+            }
+        }
+
+        /// <inheritdoc/>
+        ArrayOf<NodeManagerCleanupFailure> INodeManagerCleanupParticipant.GetCleanupFailures(
+            NodeManagerCleanupAccess access)
+        {
+            if (access is null)
+            {
+                throw new ArgumentNullException(nameof(access));
+            }
+            lock (m_lock)
+            {
+                if (!access.IsAuthorizedFor(this))
+                {
+                    throw new UnauthorizedAccessException("The cleanup discovery capability is invalid.");
+                }
+                var failures = new List<NodeManagerCleanupFailure>();
+                foreach (DirectoryCursorOwnership cursor in m_directoryCursors)
+                {
+                    if (cursor.TryGetFailure(out _, out _))
+                    {
+                        failures.Add(new NodeManagerCleanupFailure(
+                            cursor.Id, "DirectoryCursor", null, StatusCodes.BadUnexpectedError));
+                    }
+                }
+                return [.. failures];
+            }
+        }
+
+        /// <inheritdoc/>
+        NodeManagerCleanupResource INodeManagerCleanupParticipant.GetCleanupResource(
+            NodeManagerCleanupVerification verification)
+        {
+            if (verification is null)
+            {
+                throw new ArgumentNullException(nameof(verification));
+            }
+            lock (m_lock)
+            {
+                if (!verification.TryConsume(this, out Guid id))
+                {
+                    throw new InvalidOperationException("The cleanup verification capability is invalid.");
+                }
+                foreach (DirectoryCursorOwnership cursor in m_directoryCursors)
+                {
+                    if (cursor.Id == id)
+                    {
+                        return cursor.GetCleanupResource();
+                    }
+                }
+                throw new InvalidOperationException("The retained directory cursor was not found.");
+            }
+        }
+
+        /// <inheritdoc/>
+        void INodeManagerCleanupParticipant.ConfirmCleanup(NodeManagerCleanupConfirmation confirmation)
+        {
+            if (confirmation is null)
+            {
+                throw new ArgumentNullException(nameof(confirmation));
+            }
+            TaskCompletionSource<bool>? changed = null;
+            bool confirmed = false;
+            lock (m_lock)
+            {
+                if (!confirmation.TryConsume(this, out Guid id))
+                {
+                    throw new InvalidOperationException("The cleanup confirmation capability is invalid.");
+                }
+                for (int index = 0; index < m_directoryCursors.Count; index++)
+                {
+                    DirectoryCursorOwnership cursor = m_directoryCursors[index];
+                    if (cursor.Id == id && cursor.TryConfirm())
+                    {
+                        m_directoryCursors.RemoveAt(index);
+                        changed = m_cursorFailuresChanged;
+                        m_cursorFailuresChanged = null;
+                        confirmed = true;
+                        break;
+                    }
+                }
+            }
+            if (!confirmed)
+            {
+                throw new InvalidOperationException("The retained directory cursor was not found.");
+            }
+            changed?.TrySetResult(true);
+        }
 
         string IFileSystemHost.CombineProviderPath(string parent, string name)
         {
@@ -180,6 +285,30 @@ namespace Opc.Ua.Server.FileSystem
         /// </summary>
         public bool AllowAnonymousWrite { get; set; }
 
+        /// <summary>
+        /// The files one Session can keep open in this mount through <c>FileType.Open</c>,
+        /// 64 by default; zero means no limit. An open beyond it fails with
+        /// <see cref="StatusCodes.BadTooManyOperations"/>.
+        /// </summary>
+        public int MaxOpenFilesPerSession
+        {
+            get => m_openQuota.MaxOpenFilesPerSession;
+            set => m_openQuota.MaxOpenFilesPerSession = value;
+        }
+
+        /// <summary>
+        /// The files all Sessions together can keep open in this mount through
+        /// <c>FileType.Open</c>, 1024 by default; zero means no limit. An open beyond it
+        /// fails with <see cref="StatusCodes.BadTooManyOperations"/>.
+        /// </summary>
+        public int MaxOpenFiles
+        {
+            get => m_openQuota.MaxOpenFiles;
+            set => m_openQuota.MaxOpenFiles = value;
+        }
+
+        private readonly FileOpenQuota m_openQuota = new();
+
         /// <inheritdoc/>
         public override NodeId New(ISystemContext context, NodeState node)
         {
@@ -246,25 +375,31 @@ namespace Opc.Ua.Server.FileSystem
         }
 
         /// <inheritdoc/>
-        public override ValueTask DeleteAddressSpaceAsync(CancellationToken cancellationToken = default)
+        /// <remarks>
+        /// Deletion closes cursor admission and waits for every previously registered cursor.
+        /// A failed cursor remains retained until its cleanup is verified.
+        /// </remarks>
+        public override async ValueTask DeleteAddressSpaceAsync(CancellationToken cancellationToken = default)
         {
+            await WaitForCursorCleanupsAsync().ConfigureAwait(false);
+
             FileHandle[] handles;
             lock (m_lock)
             {
                 handles = [.. m_handles.Values];
-                m_handles.Clear();
             }
 
+            await CloseHandlesAsync(handles).ConfigureAwait(false);
             foreach (FileHandle handle in handles)
             {
-                handle.Dispose();
+                ReleaseHandle(handle);
             }
 
-            return base.DeleteAddressSpaceAsync(cancellationToken);
+            await base.DeleteAddressSpaceAsync(cancellationToken).ConfigureAwait(false);
         }
 
         /// <inheritdoc/>
-        public override ValueTask SessionClosingAsync(
+        public override async ValueTask SessionClosingAsync(
             OperationContext context,
             NodeId sessionId,
             bool deleteSubscriptions,
@@ -276,17 +411,28 @@ namespace Opc.Ua.Server.FileSystem
                 handles = [.. m_handles.Values];
             }
 
+            List<Task> cleanup = [];
             foreach (FileHandle handle in handles)
             {
-                handle.CloseSession(sessionId);
-                ReleaseHandle(handle);
+                cleanup.Add(handle.CloseSessionAsync(sessionId).AsTask());
             }
-
-            return base.SessionClosingAsync(
-                context,
-                sessionId,
-                deleteSubscriptions,
-                cancellationToken);
+            cleanup.Add(base.SessionClosingAsync(context, sessionId, deleteSubscriptions, cancellationToken).AsTask());
+            Task all = Task.WhenAll(cleanup);
+            try
+            {
+                await all.ConfigureAwait(false);
+            }
+            catch
+            {
+                throw all.Exception ?? new AggregateException("Session file cleanup failed.");
+            }
+            finally
+            {
+                foreach (FileHandle handle in handles)
+                {
+                    ReleaseHandle(handle);
+                }
+            }
         }
 
         /// <inheritdoc/>
@@ -299,16 +445,157 @@ namespace Opc.Ua.Server.FileSystem
                 {
                     m_fileSystemDisposed = true;
                     handles = [.. m_handles.Values];
-                    m_handles.Clear();
                 }
 
                 foreach (FileHandle handle in handles)
                 {
-                    handle.Dispose();
+                    _ = handle.RequestShutdown();
                 }
             }
             base.Dispose(disposing);
         }
+
+        /// <inheritdoc/>
+        public override async ValueTask DisposeAsync()
+        {
+            Task cleanup = base.DisposeAsync().AsTask();
+            if (!await FileHandle.CompletesWithinAsync(cleanup, CloseTimeout).ConfigureAwait(false) &&
+                !cleanup.IsCompleted)
+            {
+                throw new NodeManagerCleanupDeferredException(cleanup);
+            }
+            await cleanup.ConfigureAwait(false);
+        }
+
+        /// <inheritdoc/>
+        protected override async ValueTask DisposeAsyncCore()
+        {
+            await WaitForCursorCleanupsAsync(waitForConfirmation: true).ConfigureAwait(false);
+            FileHandle[] handles;
+            lock (m_lock)
+            {
+                handles = [.. m_handles.Values];
+            }
+            try
+            {
+                await CloseHandlesAsync(handles, waitUntilFinished: true).ConfigureAwait(false);
+            }
+            finally
+            {
+                await base.DisposeAsyncCore().ConfigureAwait(false);
+            }
+        }
+
+        /// <summary>
+        /// Closes cursor admission and waits for registered cursors and recorded cleanup tasks.
+        /// </summary>
+        /// <param name="waitForConfirmation">Whether unresolved failures keep disposal pending.</param>
+        /// <exception cref="AggregateException">
+        /// No cleanup task remains pending and a registered cleanup failed, was canceled or retains a cursor failure.
+        /// </exception>
+        private async ValueTask WaitForCursorCleanupsAsync(bool waitForConfirmation = false)
+        {
+            while (true)
+            {
+                Task[] pending;
+                var failures = new List<Exception>();
+                int retainedCursorFailures = 0;
+                lock (m_lock)
+                {
+                    m_cursorAdmissionClosed = true;
+                    m_cursorCleanups.RemoveAll(static cleanup => cleanup.Status == TaskStatus.RanToCompletion);
+                    m_directoryCursors.RemoveAll(static cursor => cursor.IsReleased);
+                    var active = new List<Task>();
+                    foreach (Task cleanup in m_cursorCleanups)
+                    {
+                        if (cleanup.IsFaulted)
+                        {
+                            failures.Add(cleanup.Exception!);
+                        }
+                        else if (cleanup.IsCanceled)
+                        {
+                            failures.Add(new TaskCanceledException(cleanup));
+                        }
+                        else
+                        {
+                            active.Add(cleanup);
+                        }
+                    }
+                    foreach (DirectoryCursorOwnership cursor in m_directoryCursors)
+                    {
+                        if (cursor.TryGetFailure(out _, out Exception? failure) && failure is not null)
+                        {
+                            failures.Add(failure);
+                            retainedCursorFailures++;
+                        }
+                        else
+                        {
+                            active.Add(cursor.Completion);
+                        }
+                    }
+                    if (active.Count == 0 && retainedCursorFailures != 0 && waitForConfirmation)
+                    {
+                        active.Add((m_cursorFailuresChanged ??= new TaskCompletionSource<bool>(
+                            TaskCreationOptions.RunContinuationsAsynchronously)).Task);
+                    }
+                    pending = [.. active];
+                }
+                if (pending.Length == 0)
+                {
+                    if (failures.Count != 0)
+                    {
+                        throw new AggregateException("Directory cursor cleanup failed.", failures);
+                    }
+                    return;
+                }
+                await Task.WhenAny(pending).ConfigureAwait(false);
+            }
+        }
+
+        private static async ValueTask CloseHandlesAsync(FileHandle[] handles, bool waitUntilFinished = false)
+        {
+            List<Task> cleanup = [];
+            foreach (FileHandle handle in handles)
+            {
+                if (waitUntilFinished)
+                {
+                    cleanup.Add(handle.RequestShutdown());
+                }
+                else
+                {
+                    cleanup.Add(handle.DisposeAsync().AsTask());
+                }
+            }
+            Task all = Task.WhenAll(cleanup);
+            try
+            {
+                await all.ConfigureAwait(false);
+            }
+            catch
+            {
+                throw all.Exception ?? new AggregateException("File cleanup failed.");
+            }
+        }
+
+        private bool IsSessionTerminated(NodeId sessionId)
+        {
+            ISessionManager? sessions = Server.SessionManager;
+            if (sessions == null)
+            {
+                return false;
+            }
+            foreach (ISession session in sessions.GetSessions())
+            {
+                if (session.Id == sessionId)
+                {
+                    return SessionTermination.IsClosingOrClaimed(session) || session.HasExpired;
+                }
+            }
+            return false;
+        }
+
+        /// <summary>Bounds lifecycle waiting without shortening provider operation ownership.</summary>
+        private TimeSpan m_closeTimeout = TimeSpan.FromSeconds(10);
 
         /// <inheritdoc/>
         protected override async ValueTask<NodeState> ValidateNodeAsync(
@@ -431,7 +718,7 @@ namespace Opc.Ua.Server.FileSystem
             {
                 return NodeId.Null;
             }
-            int slash = providerPath.LastIndexOf('/');
+            int slash = providerPath.LastIndexOf('/', StringComparison.Ordinal);
             string parent = slash < 0 ? string.Empty : providerPath[..slash];
             return string.IsNullOrEmpty(parent)
                 ? FileSystemNodeId.BuildRoot(NamespaceIndex)
@@ -493,7 +780,11 @@ namespace Opc.Ua.Server.FileSystem
                 {
                     return handle;
                 }
-                handle = new FileHandle(Provider, providerPath);
+                handle = new FileHandle(Provider, providerPath, IsSessionTerminated)
+                {
+                    CloseTimeout = CloseTimeout,
+                    OpenQuota = m_openQuota
+                };
                 FileSystemDirectoryOperations.BlockForRunningMutations(Provider, m_mutations, handle);
                 m_handles.Add(identity, handle);
                 return handle;
@@ -632,7 +923,11 @@ namespace Opc.Ua.Server.FileSystem
         /// Path identities of the Delete and Move mutations currently running; guarded by m_lock.
         /// </summary>
         private readonly List<string> m_mutations = [];
+        private readonly List<DirectoryCursorOwnership> m_directoryCursors = [];
+        private readonly List<Task> m_cursorCleanups = [];
         private readonly Lock m_lock = new();
+        private TaskCompletionSource<bool>? m_cursorFailuresChanged;
+        private bool m_cursorAdmissionClosed;
         private bool m_fileSystemDisposed;
 
         /// <summary>

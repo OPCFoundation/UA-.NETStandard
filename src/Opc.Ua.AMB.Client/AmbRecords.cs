@@ -1,31 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using Opc.Ua.Di;
@@ -85,6 +59,12 @@ namespace Opc.Ua.AMB.Client
     /// </summary>
     public sealed record AssetAlarmRecord
     {
+        /// <summary>
+        /// Gets original historical select-clause values, including nulls and per-field StatusCodes.
+        /// Empty for a live or current-value record.
+        /// </summary>
+        public ArrayOf<Variant> HistoryFields { get; init; }
+
         /// <summary>Gets the condition, which is also the NodeId of the alarm.</summary>
         public NodeId ConditionId { get; init; }
 
@@ -156,6 +136,12 @@ namespace Opc.Ua.AMB.Client
     /// </summary>
     public sealed record MaintenanceActivityRecord
     {
+        /// <summary>
+        /// Gets original historical select-clause values, including nulls and per-field StatusCodes.
+        /// Empty for a live or current-value record.
+        /// </summary>
+        public ArrayOf<Variant> HistoryFields { get; init; }
+
         /// <summary>Gets the condition.</summary>
         public NodeId ConditionId { get; init; }
 
@@ -274,6 +260,13 @@ namespace Opc.Ua.AMB.Client
     /// <param name="Path">The browse names from the entry point, separated by a slash.</param>
     /// <param name="Assets">The objects the location contains.</param>
     public sealed record AssetLocationNode(NodeId NodeId, string Path, ArrayOf<ExpandedNodeId> Assets);
+
+    /// <summary>
+    /// An asset identified in the server that owns it.
+    /// </summary>
+    /// <param name="ServerUri">The owning server's application URI.</param>
+    /// <param name="NodeId">The asset's identifier, expressed with its namespace URI.</param>
+    public sealed record AssetSubAssetReference(string ServerUri, ExpandedNodeId NodeId);
 
     /// <summary>
     /// A location that contains an asset.

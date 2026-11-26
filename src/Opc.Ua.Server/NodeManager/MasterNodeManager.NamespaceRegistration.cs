@@ -1,0 +1,367 @@
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
+
+#pragma warning disable CS0618, UA0031 // Namespace registration still accepts legacy synchronous node managers.
+
+using System;
+using System.Threading;
+using System.Threading.Tasks;
+
+namespace Opc.Ua.Server
+{
+    public partial class MasterNodeManager
+    {
+        /// <summary>
+        /// Registers a namespace manager without blocking the calling thread while a lifecycle publication is active.
+        /// </summary>
+        /// <param name="namespaceUri">The namespace URI.</param>
+        /// <param name="nodeManager">The node manager that owns nodes in the namespace.</param>
+        /// <param name="cancellationToken">A token that cancels the wait for namespace registration.</param>
+        /// <returns>A task that completes when the namespace manager is registered.</returns>
+        public ValueTask RegisterNamespaceManagerAsync(
+            string namespaceUri,
+            IAsyncNodeManager nodeManager,
+            CancellationToken cancellationToken = default)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            if (string.IsNullOrEmpty(namespaceUri))
+            {
+                throw new ArgumentNullException(nameof(namespaceUri));
+            }
+
+            if (nodeManager == null)
+            {
+                throw new ArgumentNullException(nameof(nodeManager));
+            }
+
+            IAsyncNodeManager? preparingNodeManager = GetPreparingNodeManager(nodeManager);
+            ChangePreparer.StagingServer? staging =
+                ChangePreparer.GetServer(preparingNodeManager ?? nodeManager);
+            if (staging is { IsStaging: true })
+            {
+                staging.NamespaceUris.GetIndexOrAppend(namespaceUri);
+                staging.StageNamespaceRegistration(namespaceUri);
+                return default;
+            }
+
+            ThrowIfNamespaceRegistrationFromGetter();
+            return RegisterNamespaceManagerCoreAsync(
+                namespaceUri,
+                preparingNodeManager ?? nodeManager,
+                preparingNodeManager is null,
+                cancellationToken);
+        }
+
+        /// <summary>
+        /// Registers a namespace manager without blocking the calling thread while a lifecycle publication is active.
+        /// </summary>
+        /// <param name="namespaceUri">The namespace URI.</param>
+        /// <param name="nodeManager">The node manager that owns nodes in the namespace.</param>
+        /// <param name="cancellationToken">A token that cancels the wait for namespace registration.</param>
+        /// <returns>A task that completes when the namespace manager is registered.</returns>
+        public ValueTask RegisterNamespaceManagerAsync(
+            string namespaceUri,
+            INodeManager nodeManager,
+            CancellationToken cancellationToken = default)
+        {
+            if (nodeManager == null)
+            {
+                throw new ArgumentNullException(nameof(nodeManager));
+            }
+
+            return RegisterNamespaceManagerAsync(
+                namespaceUri,
+                nodeManager.ToAsyncNodeManager(),
+                cancellationToken);
+        }
+
+        /// <summary>
+        /// Unregisters a namespace manager without blocking the calling thread while a lifecycle publication is active.
+        /// </summary>
+        /// <param name="namespaceUri">The namespace URI.</param>
+        /// <param name="nodeManager">The node manager that no longer owns nodes in the namespace.</param>
+        /// <param name="cancellationToken">A token that cancels the wait for namespace unregistration.</param>
+        /// <returns>A task that completes with whether the namespace manager was unregistered.</returns>
+        public ValueTask<bool> UnregisterNamespaceManagerAsync(
+            string namespaceUri,
+            IAsyncNodeManager nodeManager,
+            CancellationToken cancellationToken = default)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            if (string.IsNullOrEmpty(namespaceUri))
+            {
+                throw new ArgumentNullException(nameof(namespaceUri));
+            }
+
+            if (nodeManager == null)
+            {
+                throw new ArgumentNullException(nameof(nodeManager));
+            }
+
+            return UnregisterNamespaceManagerCoreAsync(
+                namespaceUri,
+                nodeManager,
+                null,
+                cancellationToken);
+        }
+
+        /// <summary>
+        /// Unregisters a namespace manager without blocking the calling thread while a lifecycle publication is active.
+        /// </summary>
+        /// <param name="namespaceUri">The namespace URI.</param>
+        /// <param name="nodeManager">The node manager that no longer owns nodes in the namespace.</param>
+        /// <param name="cancellationToken">A token that cancels the wait for namespace unregistration.</param>
+        /// <returns>A task that completes with whether the namespace manager was unregistered.</returns>
+        public ValueTask<bool> UnregisterNamespaceManagerAsync(
+            string namespaceUri,
+            INodeManager nodeManager,
+            CancellationToken cancellationToken = default)
+        {
+            if (string.IsNullOrEmpty(namespaceUri))
+            {
+                throw new ArgumentNullException(nameof(namespaceUri));
+            }
+
+            if (nodeManager == null)
+            {
+                throw new ArgumentNullException(nameof(nodeManager));
+            }
+
+            cancellationToken.ThrowIfCancellationRequested();
+            return UnregisterNamespaceManagerCoreAsync(
+                namespaceUri,
+                null,
+                nodeManager,
+                cancellationToken);
+        }
+
+        /// <summary>
+        /// Applies a serving alias registration through the shared namespace reservation merge.
+        /// </summary>
+        private async ValueTask RegisterNamespaceManagerCoreAsync(
+            string namespaceUri,
+            IAsyncNodeManager nodeManager,
+            bool visible,
+            CancellationToken cancellationToken)
+        {
+            await ChangeNamespaceRegistrationAsync(
+                namespaceUri, nodeManager, register: true, visible, cancellationToken).ConfigureAwait(false);
+
+            ServerUrisVersion.Update(Server);
+        }
+
+        /// <summary>
+        /// Unstages private aliases or applies serving alias removal through the shared reservation merge.
+        /// </summary>
+        private async ValueTask<bool> UnregisterNamespaceManagerCoreAsync(
+            string namespaceUri,
+            IAsyncNodeManager? asyncNodeManager,
+            INodeManager? nodeManager,
+            CancellationToken cancellationToken)
+        {
+            IAsyncNodeManager candidate = asyncNodeManager ?? nodeManager!.ToAsyncNodeManager();
+            ChangePreparer.StagingServer? staging =
+                ChangePreparer.GetServer(GetPreparingNodeManager(candidate) ?? candidate);
+            if (staging is { IsStaging: true })
+            {
+                return staging.UnstageNamespaceRegistration(namespaceUri);
+            }
+
+            ThrowIfNamespaceRegistrationFromGetter();
+            return await ChangeNamespaceRegistrationAsync(
+                namespaceUri, candidate, register: false, visible: true, cancellationToken).ConfigureAwait(false);
+        }
+    }
+
+    /// <summary>
+    /// Adds asynchronous namespace-manager registration to master node managers.
+    /// </summary>
+    public static class MasterNodeManagerNamespaceRegistrationExtensions
+    {
+        /// <summary>
+        /// Registers a namespace alias from a durable-decision callback.
+        /// </summary>
+        /// <exception cref="InvalidOperationException">The decision owns the active host reservation.</exception>
+        public static void RegisterNamespaceManager(
+            this IMasterNodeManager master,
+            string namespaceUri,
+            IAsyncNodeManager nodeManager,
+            NodeManagerDecisionContext decisionContext)
+        {
+            CheckDecision(master, decisionContext);
+            master.RegisterNamespaceManager(namespaceUri, nodeManager);
+        }
+
+        /// <summary>
+        /// Unregisters a namespace alias from a durable-decision callback.
+        /// </summary>
+        /// <exception cref="InvalidOperationException">The decision owns the active host reservation.</exception>
+        public static bool UnregisterNamespaceManager(
+            this IMasterNodeManager master,
+            string namespaceUri,
+            IAsyncNodeManager nodeManager,
+            NodeManagerDecisionContext decisionContext)
+        {
+            CheckDecision(master, decisionContext);
+            return master.UnregisterNamespaceManager(namespaceUri, nodeManager);
+        }
+
+        private static void CheckDecision(IMasterNodeManager master, NodeManagerDecisionContext decisionContext)
+        {
+            (decisionContext ?? throw new ArgumentNullException(nameof(decisionContext)))
+                .CheckAddressSpaceMutation(master);
+        }
+
+        /// <summary>
+        /// Registers a namespace alias asynchronously from a durable-decision callback.
+        /// </summary>
+        public static ValueTask RegisterNamespaceManagerAsync(
+            this IMasterNodeManager master,
+            string namespaceUri,
+            IAsyncNodeManager nodeManager,
+            NodeManagerDecisionContext decisionContext,
+            CancellationToken cancellationToken)
+        {
+            CheckDecision(master, decisionContext);
+            return master.RegisterNamespaceManagerAsync(namespaceUri, nodeManager, cancellationToken);
+        }
+
+        /// <summary>
+        /// Unregisters a namespace alias asynchronously from a durable-decision callback.
+        /// </summary>
+        public static ValueTask<bool> UnregisterNamespaceManagerAsync(
+            this IMasterNodeManager master,
+            string namespaceUri,
+            IAsyncNodeManager nodeManager,
+            NodeManagerDecisionContext decisionContext,
+            CancellationToken cancellationToken)
+        {
+            CheckDecision(master, decisionContext);
+            return master.UnregisterNamespaceManagerAsync(namespaceUri, nodeManager, cancellationToken);
+        }
+
+        /// <summary>
+        /// Registers a namespace manager without blocking the calling thread when the master supports asynchronous
+        /// namespace registration.
+        /// </summary>
+        /// <param name="master">The master node manager.</param>
+        /// <param name="namespaceUri">The namespace URI.</param>
+        /// <param name="nodeManager">The node manager that owns nodes in the namespace.</param>
+        /// <param name="cancellationToken">A token that cancels the wait for namespace registration.</param>
+        /// <returns>A task that completes when the namespace manager is registered.</returns>
+        public static ValueTask RegisterNamespaceManagerAsync(
+            this IMasterNodeManager master,
+            string namespaceUri,
+            IAsyncNodeManager nodeManager,
+            CancellationToken cancellationToken = default)
+        {
+            if (master == null)
+            {
+                throw new ArgumentNullException(nameof(master));
+            }
+
+            if (master is MasterNodeManager implementation)
+            {
+                return implementation.RegisterNamespaceManagerAsync(namespaceUri, nodeManager, cancellationToken);
+            }
+
+            cancellationToken.ThrowIfCancellationRequested();
+            master.RegisterNamespaceManager(namespaceUri, nodeManager);
+            return default;
+        }
+
+        /// <summary>
+        /// Registers a namespace manager without blocking the calling thread when the master supports asynchronous
+        /// namespace registration.
+        /// </summary>
+        /// <param name="master">The master node manager.</param>
+        /// <param name="namespaceUri">The namespace URI.</param>
+        /// <param name="nodeManager">The node manager that owns nodes in the namespace.</param>
+        /// <param name="cancellationToken">A token that cancels the wait for namespace registration.</param>
+        /// <returns>A task that completes when the namespace manager is registered.</returns>
+        public static ValueTask RegisterNamespaceManagerAsync(
+            this IMasterNodeManager master,
+            string namespaceUri,
+            INodeManager nodeManager,
+            CancellationToken cancellationToken = default)
+        {
+            if (master == null)
+            {
+                throw new ArgumentNullException(nameof(master));
+            }
+
+            if (master is MasterNodeManager implementation)
+            {
+                return implementation.RegisterNamespaceManagerAsync(namespaceUri, nodeManager, cancellationToken);
+            }
+
+            cancellationToken.ThrowIfCancellationRequested();
+            master.RegisterNamespaceManager(namespaceUri, nodeManager);
+            return default;
+        }
+
+        /// <summary>
+        /// Unregisters a namespace manager without blocking the calling thread when the master supports asynchronous
+        /// namespace registration.
+        /// </summary>
+        /// <param name="master">The master node manager.</param>
+        /// <param name="namespaceUri">The namespace URI.</param>
+        /// <param name="nodeManager">The node manager that no longer owns nodes in the namespace.</param>
+        /// <param name="cancellationToken">A token that cancels the wait for namespace unregistration.</param>
+        /// <returns>A task that completes with whether the namespace manager was unregistered.</returns>
+        public static ValueTask<bool> UnregisterNamespaceManagerAsync(
+            this IMasterNodeManager master,
+            string namespaceUri,
+            IAsyncNodeManager nodeManager,
+            CancellationToken cancellationToken = default)
+        {
+            if (master == null)
+            {
+                throw new ArgumentNullException(nameof(master));
+            }
+
+            if (master is MasterNodeManager implementation)
+            {
+                return implementation.UnregisterNamespaceManagerAsync(
+                    namespaceUri,
+                    nodeManager,
+                    cancellationToken);
+            }
+
+            cancellationToken.ThrowIfCancellationRequested();
+            return new ValueTask<bool>(master.UnregisterNamespaceManager(namespaceUri, nodeManager));
+        }
+
+        /// <summary>
+        /// Unregisters a namespace manager without blocking the calling thread when the master supports asynchronous
+        /// namespace registration.
+        /// </summary>
+        /// <param name="master">The master node manager.</param>
+        /// <param name="namespaceUri">The namespace URI.</param>
+        /// <param name="nodeManager">The node manager that no longer owns nodes in the namespace.</param>
+        /// <param name="cancellationToken">A token that cancels the wait for namespace unregistration.</param>
+        /// <returns>A task that completes with whether the namespace manager was unregistered.</returns>
+        public static ValueTask<bool> UnregisterNamespaceManagerAsync(
+            this IMasterNodeManager master,
+            string namespaceUri,
+            INodeManager nodeManager,
+            CancellationToken cancellationToken = default)
+        {
+            if (master == null)
+            {
+                throw new ArgumentNullException(nameof(master));
+            }
+
+            if (master is MasterNodeManager implementation)
+            {
+                return implementation.UnregisterNamespaceManagerAsync(
+                    namespaceUri,
+                    nodeManager,
+                    cancellationToken);
+            }
+
+            cancellationToken.ThrowIfCancellationRequested();
+            return new ValueTask<bool>(master.UnregisterNamespaceManager(namespaceUri, nodeManager));
+        }
+    }
+}

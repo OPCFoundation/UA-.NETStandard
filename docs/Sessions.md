@@ -1,3 +1,8 @@
+<!--
+SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+SPDX-License-Identifier: MIT
+-->
+
 # Sessions, Reconnection, and Subscription Engines
 
 This document describes how the OPC UA client stack composes the building
@@ -273,6 +278,12 @@ an `ISession` facade that wraps a raw `Session` and adds:
   through the existing certificate-validation rules, not by changing the
   channel's security configuration. An application can add its own checks;
   see [Validating a rediscovered endpoint](#validating-a-rediscovered-endpoint).
+
+  `IManagedSession.RedundancyInfo` is the snapshot from the last refresh,
+  not a live view of `MemberConnections`. A newly arrived reverse connection
+  does not itself refresh that snapshot. Calling `FailoverAsync` without an
+  explicit target refreshes the available members before selecting a target;
+  polling the snapshot alone does not initiate discovery.
 - A **service gate** (`m_serviceLock`) that pauses caller-issued service
   calls (Read/Write/Browse/Call/...) for the duration of a reconnect or
   failover, so consumers see one transparent retry rather than a torn
@@ -323,7 +334,8 @@ cycle and failover are exhausted. It reports `Disconnected` and the last error,
 then starts a fresh bounded cycle after the policy's maximum backoff (at least
 one second). Closing or disposing the session cancels this recovery timer.
 This does not restart failed initial connections: `CreateAsync` still fails as
-described above.
+described above. A session without server redundancy skips the `Failover`
+state and goes from `Reconnecting` straight to `Disconnected`.
 
 `ReconnectAsync` explicitly re-arms the state machine instead of waiting at the
 ordinary service gate. An explicitly supplied channel or reverse connection is
@@ -379,6 +391,10 @@ ManagedSession session = await new ManagedSessionBuilder(configuration, telemetr
         MaxDelay = TimeSpan.FromSeconds(30)
     })
     .WithServerRedundancy()
+    .WithServerRedundancyOptions(new ServerRedundancyOptions
+    {
+        ExpectedServerApplicationUri = provisionedServerUri
+    })
     .UseSubscriptionEngine(DefaultSubscriptionEngineFactory.Instance) // optional; V2 by default
     .ConnectAsync(ct);
 ```
@@ -429,6 +445,11 @@ including in-flight requests and subscription restoration. The default is
 `max(3 * KeepAliveInterval, revised SessionTimeout, OperationTimeout)`, sampled
 from the inner session when the cycle starts. See
 [shared retry budgets](#shared-retry-budget-with-managedsession) for overrides and handoff behaviour.
+
+If the replacement channel uses a different client application certificate,
+recovery creates a new session instead of sending the old authentication
+token. Mirrored recovery that requires token reuse cannot continue on that
+channel.
 
 Because all of this is driven internally, callers must **not** wrap a
 `ManagedSession` with `SessionReconnectHandler`; doing so throws
@@ -1022,7 +1043,7 @@ Participant deadlines use the manager's injected `TimeProvider`, including on
 
 ### HTTPS resilience vs channel-mgr reconnect
 
-On .NET 8 and later, HTTPS endpoints have two independent resilience layers:
+On .NET 10 and later, HTTPS endpoints have two independent resilience layers:
 
 - **HTTP resilience pipeline** — the named `HttpClient` created through
   [`IOpcUaHttpClientFactory`](../src/Opc.Ua.Core/Stack/Https/OpcUaHttpClientFactory.cs)
@@ -1082,7 +1103,7 @@ services.AddHttpClient("Opc.Ua.Client")
     });
 ```
 
-For direct builder usage on .NET 8 and later, call
+For direct builder usage on .NET 10 and later, call
 [`ManagedSessionBuilder.WithHttpsResilience(...)`](../src/Opc.Ua.Client/Fluent/ManagedSessionBuilder.cs):
 
 ```csharp
@@ -1469,6 +1490,59 @@ with `MonitoredItemOptions.Affinity` so per-subscription features like
 `SetTriggering` keep working across the group. Full
 developer guide: [Subscriptions § Unbounded monitored items](Subscriptions.md#unbounded-monitored-items).
 
+### Deferred notification decoding
+
+Both subscription engines decode the `DataChangeNotification` and
+`EventNotificationList` of a Publish response right before they are
+dispatched, not when the response arrives. Under load, responses
+wait for their subscription, and a garbage collection that finds them
+waiting as objects has to walk and promote them. As raw bytes in a
+pooled buffer they cost it nothing.
+
+After the dispatch, the V2 engine releases each body. A classic
+`Subscription` keeps its messages reachable (`Notifications`,
+`LastNotification`, the monitored item caches), so it drops only the
+decoded notifications and keeps the bytes: reading a cached message
+decodes it again, as new instances. The values that the subscription
+sets during dispatch (`PublishTime`, `SequenceNumber` and
+`MoreNotifications` of a `DataChangeNotification` or
+`EventNotificationList`, and the `Message` of each event) are set on
+these new instances too. Kept decoded, the cached messages are
+promoted by every collection, and a client with Workstation GC falls
+behind at high notification rates (#5003).
+
+When a message leaves the cache (`MaxMessageCount`), its buffers go back
+to the pool, unless the application could still hold the message. A
+message that is still the `MonitoredItem.LastMessage` of an item keeps
+its bytes, also when the item was removed from the subscription. In a
+subscription with many monitored items, messages that left the cache
+are returned in batches of about one per 64 items. Once the application read `Subscription.Notifications`,
+`Subscription.LastNotification` or `MonitoredItem.LastMessage`, or once
+a message was saved while the session had a `Session.Notification`
+handler (also before the subscription moved to another session),
+messages of that subscription keep their bytes until the garbage
+collector takes them. A `Session.Notification` handler is raised with
+the messages a classic subscription saved after it was attached, not
+with messages saved before that are raised later. A message reached only through the
+`Message` property of a `MonitoredItemNotification` or `EventFieldList`
+has no notification data after it left the cache. At high notification
+rates, set `MaxMessageCount` to 1.
+
+This is enabled by default and does not change what a handler sees,
+with one exception: a notification body that cannot be decoded is
+logged and not delivered, instead of failing the whole Publish
+response. To decode on arrival, set `Session.DeferNotificationDecoding`
+to `false`, or use
+`ManagedSessionBuilder.WithoutDeferredNotificationDecoding()` or the
+`ManagedSessionOptions.DeferNotificationDecoding` init property.
+
+The decoding happens on the transport, so sessions that share one
+through an `IClientChannelManager` also share this: the bodies are kept
+as bytes as soon as one session on the transport wants that, including
+for a session that opted out. Those still see every notification; to
+decode on arrival for certain, do not share the transport with a
+session that defers.
+
 ### V2 notification pooling (opt-in)
 
 The V2 subscription engine supports activator-level pooling of
@@ -1669,13 +1743,13 @@ transferring or disposing the caller's resource twice.
 
 Activating an unknown server session restores it first. The flow is:
 
-1. The activation enters binding admission.
-2. Admission is suspended while the restore provider runs, so activations for
-   other tokens and unrelated session creation can continue. Activations that
-   use the same token share one pending restore.
-3. Admission is reacquired.
-4. The restored session is validated and its security checks run.
-5. The session is activated and binding notifications are sent.
+1. Activations that use the same unknown token share one pending restore.
+2. The restore provider runs without globally serializing activations for other
+   tokens or unrelated session creation.
+3. The restored session is validated and its security checks run under the
+   session's own activation serialization.
+4. The session is activated and binding notifications are reconciled through
+   per-generation session records.
 
 Replacing or resetting a session's ephemeral user-token key retires the
 previous key. A key already borrowed by credential decryption remains

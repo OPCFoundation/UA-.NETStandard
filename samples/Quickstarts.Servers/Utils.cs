@@ -1,31 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using System.Collections.Generic;
@@ -118,11 +92,6 @@ namespace Quickstarts.Servers
         /// </summary>
         public static void AddDefaultNodeManagers(IStandardServer server)
         {
-            foreach (INodeManagerFactory nodeManagerFactory in NodeManagerFactories)
-            {
-                server.AddNodeManager(nodeManagerFactory);
-            }
-
             foreach (IAsyncNodeManagerFactory asyncFactory in AsyncNodeManagerFactories)
             {
                 server.AddNodeManager(asyncFactory);
@@ -148,18 +117,6 @@ namespace Quickstarts.Servers
         }
 
         /// <summary>
-        /// The property with available node manager factories.
-        /// </summary>
-        public static ArrayOf<INodeManagerFactory> NodeManagerFactories
-        {
-            get
-            {
-                s_nodeManagerFactories ??= GetNodeManagerFactories();
-                return s_nodeManagerFactories.ToArrayOf();
-            }
-        }
-
-        /// <summary>
         /// The property with available async node manager factories.
         /// </summary>
         public static ArrayOf<IAsyncNodeManagerFactory> AsyncNodeManagerFactories
@@ -172,32 +129,25 @@ namespace Quickstarts.Servers
         }
 
         /// <summary>
-        /// Enumerates all node manager factories.
-        /// </summary>
-        private static List<INodeManagerFactory> GetNodeManagerFactories()
-        {
-            List<INodeManagerFactory> nodeManagerFactories = [];
-
-            nodeManagerFactories.Add(new MemoryBuffer.MemoryBufferNodeManagerFactory());
-            nodeManagerFactories.Add(new Boiler.BoilerNodeManagerFactory());
-
-            return nodeManagerFactories;
-        }
-
-        /// <summary>
         /// Enumerates all async node manager factories.
         /// </summary>
+        /// <remarks>
+        /// The order fixes the namespace indexes: MemoryBuffer first, then Boiler,
+        /// the same order the samples had while MemoryBuffer was a synchronous
+        /// factory whose namespaces were reserved ahead of the async ones.
+        /// </remarks>
         private static List<IAsyncNodeManagerFactory> GetAsyncNodeManagerFactories()
         {
             List<IAsyncNodeManagerFactory> factories = [];
 
+            factories.Add(new MemoryBuffer.MemoryBufferNodeManagerFactory());
+            factories.Add(new Boiler.BoilerNodeManagerFactory());
             factories.Add(new TestData.TestDataNodeManagerFactory());
             factories.Add(new Alarms.AlarmNodeManagerFactory());
 
             return factories;
         }
 
-        private static IList<INodeManagerFactory>? s_nodeManagerFactories;
         private static IList<IAsyncNodeManagerFactory>? s_asyncNodeManagerFactories;
     }
 

@@ -1,31 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using System.Linq;
@@ -36,6 +10,7 @@ using Moq;
 using NUnit.Framework;
 using Opc.Ua.Client;
 using Opc.Ua.Client.TestFramework;
+using Opc.Ua.Server;
 using Opc.Ua.WotCon.Client;
 using Opc.Ua.WotCon.Server;
 using Opc.Ua.WotCon.Server.Materialization;
@@ -43,6 +18,7 @@ using Opc.Ua.WotCon.Server.Registry;
 using Opc.Ua.WotCon.Tests.Materialization;
 using Opc.Ua.WotCon.Tests.Registry;
 using Opc.Ua.XRegistry;
+using ISession = Opc.Ua.Client.ISession;
 
 namespace Opc.Ua.WotCon.Tests
 {
@@ -98,6 +74,7 @@ namespace Opc.Ua.WotCon.Tests
                 Assert.That(trace.Handle, Is.Zero);
             });
             using var retryFixture = new ClientFixture(false, false, m_telemetry);
+            await WotTestPki.SeedAsync(m_root).ConfigureAwait(false);
             await retryFixture.LoadClientConfigurationAsync(m_root).ConfigureAwait(false);
             using ISession retrySession = await retryFixture.ConnectAsync(
                 new Uri($"{Utils.UriSchemeOpcTcp}://localhost:{m_serverFixture.Port}"), SecurityPolicies.None)
@@ -597,13 +574,21 @@ namespace Opc.Ua.WotCon.Tests
                 registry = m_typedServices.GetRequiredService<IWotRegistryService>();
                 Assert.That(m_typedServices.GetRequiredService<IWotTypedRegistryService>(), Is.SameAs(typed.Object));
             }
-            await m_server.NodeManagerLifecycle.RemoveAsync(m_registration, null).ConfigureAwait(false);
+            LifecycleResult removal = await m_server.NodeManagerLifecycle
+                .ApplyAsync([LifecycleChange.Remove(m_registration.Slot)]).ConfigureAwait(false);
+            Assert.That(removal.CleanupFailure, Is.Null);
+            await removal.Retired.ConfigureAwait(false);
             m_coordinator.Dispose();
             m_coordinator = new WotMaterializationCoordinator(
                 registry, new LifecycleWotProjectionHost(m_server.NodeManagerLifecycle),
                 documentConverter: new FakeWotDocumentConverter());
-            m_registration = await m_server.NodeManagerLifecycle.AddAsync(
-                new WotRegistryNodeManagerFactory(m_options, registry, m_coordinator), null).ConfigureAwait(false);
+            LifecycleResult publication = await m_server.NodeManagerLifecycle.ApplyAsync(
+                [LifecycleChange.Add(new WotRegistryNodeManagerFactory(m_options, registry, m_coordinator))])
+                .ConfigureAwait(false);
+            Assert.That(publication.CleanupFailure, Is.Null);
+            Assert.That(publication.Registrations[0].TryGetRegistration(out NodeManagerRegistration? registration),
+                Is.True);
+            m_registration = registration!;
             m_manager = (WotRegistryNodeManager)m_registration.NodeManager;
             m_client = m_typedServices is not null
                 ? await m_typedServices

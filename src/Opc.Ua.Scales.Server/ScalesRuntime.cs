@@ -1,35 +1,10 @@
-/* ========================================================================
- * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Runtime.ExceptionServices;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
@@ -287,7 +262,7 @@ namespace Opc.Ua.Scales.Server
                         {
                             continue;
                         }
-                        if (IsKindFacetMet(scale.Kind))
+                        if (IsKindFacetMet(scale))
                         {
                             AddDistinct(profiles, ScalesProfiles.FacetOf(scale.Kind));
                         }
@@ -332,7 +307,7 @@ namespace Opc.Ua.Scales.Server
                     foreach (ScaleHandle scale in m_scales)
                     {
                         Add("Scales ScaleDeviceType");
-                        if (IsKindFacetMet(scale.Kind))
+                        if (IsKindFacetMet(scale))
                         {
                             Add(ConformanceUnitOf(scale.Kind));
                         }
@@ -406,19 +381,23 @@ namespace Opc.Ua.Scales.Server
         /// </summary>
         public ValueTask DisposeAsync()
         {
+            TaskCompletionSource<bool> completion;
             lock (m_scaleLock)
             {
-                if (m_disposeTask == null)
+                if (m_disposeTask != null)
                 {
-                    m_disposed = true;
-                    if (m_activeCreations == 0)
-                    {
-                        m_creationsDrained.TrySetResult(true);
-                    }
-                    m_disposeTask = DisposeCoreAsync();
+                    return new ValueTask(m_disposeTask);
                 }
-                return new ValueTask(m_disposeTask);
+                m_disposed = true;
+                if (m_activeCreations == 0)
+                {
+                    m_creationsDrained.TrySetResult(true);
+                }
+                completion = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+                m_disposeTask = completion.Task;
             }
+            _ = CompleteDisposalAsync(completion);
+            return new ValueTask(completion.Task);
         }
 
         /// <summary>
@@ -471,7 +450,8 @@ namespace Opc.Ua.Scales.Server
                         (nodeId, ct) => Manager.DeleteNodeAsync(Manager.SystemContext, nodeId, ct),
                         Manager.Server.TypeTree.IsTypeOf,
                         m_lockService,
-                        m_scalesLogger);
+                        m_scalesLogger,
+                        m_stopping.Token);
                     Volatile.Write(ref m_services, services);
                     return services;
                 }
@@ -514,18 +494,75 @@ namespace Opc.Ua.Scales.Server
         /// </summary>
         private async Task DisposeCoreAsync()
         {
-            m_stopping.Cancel();
-            await m_creationsDrained.Task.ConfigureAwait(false);
+            var failures = new List<Exception>();
             try
             {
-                Volatile.Write(ref m_stopped, true);
-                m_services?.Dispose();
+                m_stopping.Cancel();
             }
-            finally
+            catch (Exception ex)
+            {
+                failures.Add(ex);
+            }
+            await m_creationsDrained.Task.ConfigureAwait(false);
+            Volatile.Write(ref m_stopped, true);
+            try
+            {
+                if (m_services != null)
+                {
+                    await m_services.DisposeAsync().ConfigureAwait(false);
+                }
+            }
+            catch (Exception ex)
+            {
+                failures.Add(ex);
+            }
+            try
             {
                 m_lockService.Dispose();
+            }
+            catch (Exception ex)
+            {
+                failures.Add(ex);
+            }
+            try
+            {
                 m_publishGate.Dispose();
+            }
+            catch (Exception ex)
+            {
+                failures.Add(ex);
+            }
+            try
+            {
                 m_stopping.Dispose();
+            }
+            catch (Exception ex)
+            {
+                failures.Add(ex);
+            }
+            if (failures.Count == 1)
+            {
+                ExceptionDispatchInfo.Capture(failures[0]).Throw();
+            }
+            if (failures.Count > 1)
+            {
+                throw new AggregateException(failures);
+            }
+        }
+
+        /// <summary>
+        /// Runs cancellation and cleanup outside synchronization, sharing their result with every caller.
+        /// </summary>
+        private async Task CompleteDisposalAsync(TaskCompletionSource<bool> completion)
+        {
+            try
+            {
+                await DisposeCoreAsync().ConfigureAwait(false);
+                completion.TrySetResult(true);
+            }
+            catch (Exception ex)
+            {
+                completion.TrySetException(ex);
             }
         }
 
@@ -557,7 +594,7 @@ namespace Opc.Ua.Scales.Server
                 parent.AddChild(node);
                 try
                 {
-                    Services.BindProductWriteGuards(node);
+                    Services.BindProductWriteGuards(node, null);
                     // A scale reports scale events and alarms, so it has to be a
                     // notifier before a client can subscribe to it.
                     node.EventNotifier |= EventNotifiers.SubscribeToEvents;
@@ -739,19 +776,14 @@ namespace Opc.Ua.Scales.Server
         /// <summary>
         /// Gets whether the runtime drives what the facet of a scale kind adds.
         /// </summary>
-        /// <remarks>
-        /// No controller drives the <c>TipCounter</c> of a totalizing hopper,
-        /// and the catchweigher and the price labeler have no controller of
-        /// their own (see the known limitations in <c>docs/Scales.md</c>).
-        /// Their kind facets and units are not claimed; the scales still
-        /// count towards the Base Scale facet.
-        /// </remarks>
-        private static bool IsKindFacetMet(ScaleKind kind)
+        private static bool IsKindFacetMet(ScaleHandle scale)
         {
-            return kind is not (
-                ScaleKind.TotalizingHopper or
-                ScaleKind.Catchweigher or
-                ScaleKind.AutomaticWeightPriceLabeler);
+            return scale.Kind switch
+            {
+                ScaleKind.TotalizingHopper => scale.TotalizingHopper != null,
+                ScaleKind.Catchweigher or ScaleKind.AutomaticWeightPriceLabeler => scale.Catchweigher != null,
+                _ => true
+            };
         }
 
         /// <summary>

@@ -1,35 +1,10 @@
-/* ========================================================================
- * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.IO;
 using System.Runtime.CompilerServices;
 using System.Security.Cryptography;
 using System.Text;
@@ -51,10 +26,10 @@ namespace Opc.Ua.Redundancy.Server
     /// <para>
     /// Security model (see <c>docs/HighAvailability.md</c>): the
     /// <c>AuthenticationToken</c> is only a lookup key. On restore the standard
-    /// activation path still performs the full client-certificate signature
-    /// check against the mirrored <c>serverNonce</c>, the nonce is consumed
-    /// exactly once across the replica set (so a captured activation cannot be
-    /// replayed), and the SecurityPolicy/Mode must match the original.
+    /// activation path requires a signed SecureChannel and checks the full
+    /// client-certificate signature against the mirrored <c>serverNonce</c>.
+    /// One conditional commit replaces that nonce and transfers ownership,
+    /// and the SecurityPolicy/Mode must match the original.
     /// The mirrored record is encrypted and integrity-protected at
     /// rest by the <see cref="ISharedSessionStore"/>'s record protector.
     /// </para>
@@ -68,11 +43,14 @@ namespace Opc.Ua.Redundancy.Server
     /// Lifecycle: the replica that serves a session owns its entry. It refreshes a
     /// liveness heartbeat while the client uses the session, so a session in normal use
     /// stays restorable, and it is the only replica that mirrors activations or deletes
-    /// the entry. A restore takes ownership with a conditional write after the restored
-    /// activation passed validation, and the previous owner then drops its stale local
-    /// copy without deleting the entry. A restored session keeps its SessionId. A
+    /// the entry. Activation and close compete on that same committed record, so a
+    /// close that wins cannot be undone by an in-flight activation. A restore takes
+    /// ownership after validation. New session service requests are admitted only while
+    /// the committed activation belongs to this replica; this is a check at admission,
+    /// not a fence on operations already dispatched. The previous owner drops its stale
+    /// local copy without deleting the entry. A restored session keeps its SessionId. A
     /// periodic sweep removes the entries of timed-out sessions (for example those of a
-    /// replica that crashed) and orphaned consumed-nonce markers.
+    /// replica that crashed).
     /// </para>
     /// <para>
     /// A session whose user identity token is encrypted with an EphemeralKey (ECC or
@@ -89,7 +67,6 @@ namespace Opc.Ua.Redundancy.Server
         /// <param name="server">The hosting server.</param>
         /// <param name="configuration">The application configuration.</param>
         /// <param name="sessionStore">The shared session store (encrypted).</param>
-        /// <param name="nonceRegistry">The cross-replica single-use nonce registry.</param>
         /// <param name="serverCertificateProvider">
         /// Resolves the shared server <c>ApplicationInstanceCertificate</c> for a
         /// security policy URI. Returns a new caller-owned certificate handle that
@@ -103,7 +80,6 @@ namespace Opc.Ua.Redundancy.Server
             IServerInternal server,
             ApplicationConfiguration configuration,
             ISharedSessionStore sessionStore,
-            ISingleUseNonceRegistry nonceRegistry,
             Func<string, Certificate?> serverCertificateProvider,
             DistributedSessionOptions? options = null,
             TimeProvider? timeProvider = null)
@@ -111,10 +87,10 @@ namespace Opc.Ua.Redundancy.Server
         {
             m_server = server ?? throw new ArgumentNullException(nameof(server));
             m_sessionStore = sessionStore ?? throw new ArgumentNullException(nameof(sessionStore));
-            m_nonceRegistry = nonceRegistry ?? throw new ArgumentNullException(nameof(nonceRegistry));
             m_serverCertificateProvider = serverCertificateProvider
                 ?? throw new ArgumentNullException(nameof(serverCertificateProvider));
             m_options = options ?? new DistributedSessionOptions();
+            m_fastReconnectEnabled = m_options.EnableFastReconnect;
             m_telemetry = server.Telemetry;
             m_logger = server.Telemetry.CreateLogger<DistributedSessionManager>();
             m_restoreTimeProvider = timeProvider
@@ -124,7 +100,50 @@ namespace Opc.Ua.Redundancy.Server
         }
 
         /// <inheritdoc/>
-        protected override bool SupportsSessionRestore => m_options.EnableFastReconnect;
+        protected override bool SupportsSessionRestore => m_fastReconnectEnabled;
+
+        /// <inheritdoc/>
+        protected override bool RequiresSessionRequestAdmission(ISession session)
+        {
+            return UsesAuthoritativeActivation(session.EndpointDescription);
+        }
+
+        /// <inheritdoc/>
+        protected override async ValueTask ValidateSessionRequestAdmissionAsync(
+            NodeId authenticationToken,
+            ISession session,
+            CancellationToken cancellationToken)
+        {
+            m_committedActivations.TryGetValue(session, out SharedSessionEntry? localActivation);
+            ByteString localNonce = session is Session concrete ? concrete.GetServerNonceData() : default;
+            SharedSessionEntry? current;
+            try
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                current = await m_sessionStore.TryGetAsync(authenticationToken, cancellationToken)
+                    .ConfigureAwait(false);
+                cancellationToken.ThrowIfCancellationRequested();
+            }
+            catch (Exception ex) when (
+                ex is not OperationCanceledException || !cancellationToken.IsCancellationRequested)
+            {
+                m_logger.FailedToVerifySessionRequestAdmission(ex);
+                StatusCode status = ex is ServiceResultException { StatusCode: var code } &&
+                    code == StatusCodes.BadSecurityChecksFailed
+                        ? StatusCodes.BadSecurityChecksFailed
+                        : StatusCodes.BadResourceUnavailable;
+                throw new ServiceResultException(status, "The committed session state could not be verified.");
+            }
+
+            if (current == null || !MatchesLocalOwner(current, session) ||
+                localNonce.IsNull || current.ServerNonce != localNonce ||
+                (localActivation == null
+                    ? session.Activated || current.HasActivatedUserIdentity
+                    : !IsSameActivation(localActivation, current)))
+            {
+                throw new ServiceResultException(StatusCodes.BadSessionIdInvalid);
+            }
+        }
 
         /// <summary>
         /// The identity this manager records as the owner of the entries of the
@@ -247,12 +266,13 @@ namespace Opc.Ua.Redundancy.Server
             // otherwise reach the stale local copy, which validates against a nonce the
             // other replica has since replaced. Once another replica owns the session,
             // the local copy is dropped and the session is restored from the store.
-            if (m_options.EnableFastReconnect &&
-                m_sessionsByToken.TryGetValue(authenticationToken, out NodeId localSessionId))
+            if (UsesAuthoritativeActivation(context.ChannelContext?.EndpointDescription) &&
+                m_sessionsByToken.ContainsKey(authenticationToken) &&
+                GetSession(authenticationToken) is ISession localSession)
             {
                 await DropLocalCopyIfOwnedElsewhereAsync(
                     authenticationToken,
-                    localSessionId,
+                    localSession,
                     cancellationToken).ConfigureAwait(false);
             }
 
@@ -295,18 +315,30 @@ namespace Opc.Ua.Redundancy.Server
 
             try
             {
-                TrackLocalSession(result.SessionId, result.AuthenticationToken, result.RevisedSessionTimeout);
-                SharedSessionEntry entry = BuildEntry(
-                    context,
-                    result,
-                    serverCertificate,
-                    sessionName,
-                    clientNonce,
-                    clientDescription,
-                    endpointUrl,
-                    clientCertificate);
-                await m_sessionStore.PutAsync(entry, cancellationToken).ConfigureAwait(false);
-                MarkContactMirrored(result.AuthenticationToken, entry.LastContactAt.ToDateTime());
+                CreationPublication publication = m_creationPublications.GetValue(result.Session, static _ => new());
+                await publication.Gate.WaitAsync(cancellationToken).ConfigureAwait(false);
+                try
+                {
+                    if (!publication.Closed && ReferenceEquals(GetSession(result.AuthenticationToken), result.Session))
+                    {
+                        TrackLocalSession(result.SessionId, result.AuthenticationToken, result.RevisedSessionTimeout);
+                        SharedSessionEntry entry = BuildEntry(
+                            context,
+                            result,
+                            serverCertificate,
+                            sessionName,
+                            clientNonce,
+                            clientDescription,
+                            endpointUrl,
+                            clientCertificate);
+                        await m_sessionStore.PutAsync(entry, cancellationToken).ConfigureAwait(false);
+                        MarkContactMirrored(result.AuthenticationToken, entry.LastContactAt.ToDateTime());
+                    }
+                }
+                finally
+                {
+                    publication.Gate.Release();
+                }
             }
             catch (OperationCanceledException)
             {
@@ -332,22 +364,18 @@ namespace Opc.Ua.Redundancy.Server
             long activationSequence,
             CancellationToken cancellationToken)
         {
-            // A restored session becomes this replica's once its first activation has
-            // committed: nothing shared beyond the consumed nonce is touched before.
-            SharedSessionEntry? restoredFrom = null;
-            lock (m_pendingRestoresLock)
-            {
-                if (m_admittedRestores.TryGetValue(session, out restoredFrom))
-                {
-                    m_admittedRestores.Remove(session);
-                }
-            }
-            if (restoredFrom != null)
+            if (m_admittedRestores.TryGetValue(session, out SharedSessionEntry? restoredFrom) &&
+                m_admittedRestores.Remove(session))
             {
                 await CompleteRestoreAsync(authenticationToken, session, restoredFrom, cancellationToken)
                     .ConfigureAwait(false);
             }
-            else if (!m_tokensBySession.ContainsKey(session.Id))
+
+            if (UsesAuthoritativeActivation(session.EndpointDescription))
+            {
+                return;
+            }
+            if (!m_tokensBySession.ContainsKey(session.Id))
             {
                 TrackLocalSession(
                     session.Id,
@@ -388,15 +416,8 @@ namespace Opc.Ua.Redundancy.Server
                     break;
                 }
             }
-            if (string.IsNullOrEmpty(securityPolicyUri))
-            {
-                securityPolicyUri = session.EndpointDescription.SecurityPolicyUri;
-            }
-
-            SecurityPolicyInfo? info = string.IsNullOrEmpty(securityPolicyUri)
-                ? null
-                : SecurityPolicies.Default.GetInfo(securityPolicyUri!);
-            return info != null && info.EphemeralKeyAlgorithm != CertificateKeyAlgorithm.None;
+            return UserTokenRequiresEphemeralKey(
+                handler.TokenType, securityPolicyUri, session.EndpointDescription.SecurityPolicyUri);
         }
 
         /// <summary>
@@ -456,42 +477,51 @@ namespace Opc.Ua.Redundancy.Server
         }
 
         /// <inheritdoc/>
-        public override async ValueTask CloseSessionAsync(
-            NodeId sessionId,
-            CancellationToken cancellationToken = default)
+        protected override async ValueTask OnSessionClosingAsync(
+            NodeId authenticationToken,
+            ISession session,
+            CancellationToken cancellationToken)
         {
-            if (m_tokensBySession.TryRemove(sessionId, out NodeId token))
+            // A create that has not published yet must not write after this close.
+            CreationPublication publication = m_creationPublications.GetValue(session, static _ => new());
+            await publication.Gate.WaitAsync(cancellationToken).ConfigureAwait(false);
+            try
             {
-                m_sessionsByToken.TryRemove(token, out _);
+                publication.Closed = true;
+                if (!m_tokensBySession.TryRemove(session.Id, out _))
+                {
+                    return;
+                }
+
+                m_sessionsByToken.TryRemove(authenticationToken, out _);
+                m_liveness.TryRemove(authenticationToken, out _);
+                bool authoritative = UsesAuthoritativeActivation(session.EndpointDescription);
+                ByteString committedNonce = m_committedActivations.TryGetValue(session, out SharedSessionEntry? current)
+                    ? current.ServerNonce
+                    : session is Session localSession ? localSession.GetServerNonceData() : default;
                 try
                 {
-                    // Only the owner ends the mirrored session. A copy left behind on a
-                    // replica the client moved away from times out eventually, and must
-                    // not delete the entry of the session that is live elsewhere.
-                    SharedSessionEntry? entry = await m_sessionStore
-                        .TryGetAsync(token, cancellationToken)
+                    await CloseMirroredSessionAsync(
+                        authenticationToken, session.Id, committedNonce, authoritative, cancellationToken)
                         .ConfigureAwait(false);
-                    if (entry != null && IsOwnedByThisReplica(entry))
-                    {
-                        await m_sessionStore.TryRemoveAsync(entry, cancellationToken).ConfigureAwait(false);
-                    }
                 }
-                catch (OperationCanceledException)
-                {
-                    throw;
-                }
-                catch (Exception ex)
+                catch (Exception ex) when (ex is not OperationCanceledException)
                 {
                     m_logger.FailedToRemoveMirroredSessionFromSharedStore(ex);
+                    if (authoritative)
+                    {
+                        throw;
+                    }
+                }
+                finally
+                {
+                    m_mirrorLocks.TryRemove(authenticationToken, out _);
+                    m_mirroredSequences.TryRemove(authenticationToken, out _);
                 }
             }
-
-            await base.CloseSessionAsync(sessionId, cancellationToken).ConfigureAwait(false);
-            if (!token.IsNull)
+            finally
             {
-                m_mirrorLocks.TryRemove(token, out _);
-                m_mirroredSequences.TryRemove(token, out _);
-                m_liveness.TryRemove(token, out _);
+                publication.Gate.Release();
             }
         }
 
@@ -501,8 +531,16 @@ namespace Opc.Ua.Redundancy.Server
             OperationContext context,
             CancellationToken cancellationToken = default)
         {
-            if (!m_options.EnableFastReconnect)
+            if (!m_fastReconnectEnabled)
             {
+                return null;
+            }
+
+            SecureChannelContext channel = context.ChannelContext!;
+            EndpointDescription endpoint = channel.EndpointDescription!;
+            if (!IsSignedChannel(endpoint.SecurityPolicyUri, endpoint.SecurityMode))
+            {
+                LogRestoreRejected(authenticationToken, RestoreDecision.UnsignedChannel);
                 return null;
             }
 
@@ -514,15 +552,14 @@ namespace Opc.Ua.Redundancy.Server
                 return null;
             }
 
-            EndpointDescription endpoint = context.ChannelContext!.EndpointDescription!;
             RestoreDecision decision = AuthorizeRestore(
                 entry,
                 endpoint.SecurityPolicyUri ?? string.Empty,
                 endpoint.SecurityMode,
-                EmptyIfNull(context.ChannelContext.ClientChannelCertificate));
+                EmptyIfNull(channel.ClientChannelCertificate));
             if (decision != RestoreDecision.Authorized)
             {
-                m_logger.DistributedSessionRestoreRejected(TokenDigest(authenticationToken), decision);
+                LogRestoreRejected(authenticationToken, decision);
                 if (decision == RestoreDecision.Expired)
                 {
                     // Nobody can restore it any more, and its owner may be gone.
@@ -544,56 +581,9 @@ namespace Opc.Ua.Redundancy.Server
                     throw;
                 }
 
-                // The single-use nonce is consumed, and the session taken over, only
-                // once its first activation has passed the signature and identity
-                // checks (AdmitRestoredSessionAsync). A failed attempt therefore leaves
-                // the mirrored session restorable here or on another replica.
-                lock (m_pendingRestoresLock)
-                {
-                    m_pendingRestores.Remove(session);
-                    m_pendingRestores.Add(session, entry);
-                }
+                m_pendingRestores.Add(session, entry);
             }
             return session;
-        }
-
-        /// <inheritdoc/>
-        protected override async ValueTask<bool> AdmitRestoredSessionAsync(
-            NodeId authenticationToken,
-            ISession session,
-            OperationContext context,
-            CancellationToken cancellationToken)
-        {
-            SharedSessionEntry? entry;
-            lock (m_pendingRestoresLock)
-            {
-                if (!m_pendingRestores.TryGetValue(session, out entry))
-                {
-                    return false;
-                }
-                m_pendingRestores.Remove(session);
-            }
-
-            bool consumed = await m_nonceRegistry
-                .TryConsumeAsync(entry.ServerNonce, cancellationToken)
-                .ConfigureAwait(false);
-            if (!consumed)
-            {
-                m_logger.DistributedSessionRestoreRejected(
-                    TokenDigest(authenticationToken),
-                    RestoreDecision.NonceReplayed);
-                return false;
-            }
-
-            // Only the single-use nonce is consumed here, the one step that must precede
-            // the commit to stay single-use across the replica set. Ownership, the
-            // continuation points and the audit follow once the activation committed.
-            lock (m_pendingRestoresLock)
-            {
-                m_admittedRestores.Remove(session);
-                m_admittedRestores.Add(session, entry);
-            }
-            return true;
         }
 
         /// <inheritdoc/>
@@ -602,23 +592,17 @@ namespace Opc.Ua.Redundancy.Server
             ISession session,
             OperationContext context,
             bool isRestoredSession,
+            ByteString serverNonce,
+            UserTokenType clientUserTokenType,
+            string? clientUserId,
+            UserTokenPolicy? userTokenPolicy,
             CancellationToken cancellationToken)
         {
-            if (isRestoredSession)
+            EndpointDescription endpoint = context.ChannelContext!.EndpointDescription!;
+            if (!UsesAuthoritativeActivation(endpoint))
             {
-                return await base.AdmitActivationAsync(
-                    authenticationToken,
-                    session,
-                    context,
-                    isRestoredSession,
-                    cancellationToken).ConfigureAwait(false);
+                return !isRestoredSession;
             }
-
-            if (!m_options.EnableFastReconnect)
-            {
-                return true;
-            }
-
             if (session is not Session localSession)
             {
                 return false;
@@ -630,22 +614,84 @@ namespace Opc.Ua.Redundancy.Server
                 return false;
             }
 
-            bool consumed = await m_nonceRegistry
-                .TryConsumeAsync(previousNonce, cancellationToken)
-                .ConfigureAwait(false);
-            if (!consumed)
+            SharedSessionEntry? current;
+            if (isRestoredSession)
             {
-                m_logger.DistributedSessionRestoreRejected(
-                    TokenDigest(authenticationToken),
-                    RestoreDecision.NonceReplayed);
+                m_pendingRestores.TryGetValue(session, out current);
             }
-            return consumed;
+            else
+            {
+                current = await m_sessionStore
+                    .TryGetAsync(authenticationToken, cancellationToken).ConfigureAwait(false);
+                if (current != null &&
+                    (current.SessionId != session.Id ||
+                        !string.Equals(current.OwnerId, m_replicaId, StringComparison.Ordinal)))
+                {
+                    current = null;
+                }
+            }
+
+            if (current == null || current.ServerNonce != previousNonce)
+            {
+                LogRestoreRejected(authenticationToken, RestoreDecision.ActivationChanged);
+                return false;
+            }
+
+            bool requiresEphemeralKey = UserTokenRequiresEphemeralKey(
+                clientUserTokenType, userTokenPolicy?.SecurityPolicyUri, endpoint.SecurityPolicyUri);
+            SharedSessionEntry original = current;
+            for (int attempt = 0; attempt < kMaxConditionalWriteAttempts; attempt++)
+            {
+                if (isRestoredSession && IsRestoreExpired(current))
+                {
+                    LogRestoreRejected(authenticationToken, RestoreDecision.Expired);
+                    return false;
+                }
+
+                SharedSessionEntry replacement = WithActivation(
+                    current, session.Id, serverNonce, clientUserTokenType, clientUserId, requiresEphemeralKey);
+                bool committed;
+                try
+                {
+                    committed = await TryCommitActivationAsync(current, replacement, cancellationToken)
+                        .ConfigureAwait(false);
+                }
+                catch (Exception ex) when (ex is not OperationCanceledException)
+                {
+                    m_logger.FailedToMirrorActivatedSessionToSharedStore(ex);
+                    throw;
+                }
+                if (committed)
+                {
+                    m_committedActivations.Remove(session);
+                    m_committedActivations.Add(session, replacement);
+                    if (isRestoredSession)
+                    {
+                        m_pendingRestores.Remove(session);
+                        m_admittedRestores.Add(session, original);
+                        TrackLocalSession(session.Id, authenticationToken, replacement.SessionTimeout);
+                    }
+                    MarkContactMirrored(authenticationToken, replacement.LastContactAt.ToDateTime());
+                    return true;
+                }
+
+                SharedSessionEntry? refreshed = await m_sessionStore
+                    .TryGetAsync(authenticationToken, cancellationToken).ConfigureAwait(false);
+                // Heartbeats can advance the record without changing its activation
+                // generation. Never retry against an advanced activation or a deletion.
+                if (refreshed == null || !IsSameActivation(original, refreshed))
+                {
+                    break;
+                }
+                current = refreshed;
+            }
+
+            LogRestoreRejected(authenticationToken, RestoreDecision.ActivationChanged);
+            return false;
         }
 
         /// <summary>
-        /// Completes a restore after its first activation committed: this replica takes
-        /// over the entry (the previous owner then drops its stale copy), tracks the
-        /// session locally, loads its mirrored continuation points and audits it.
+        /// Loads the continuation points and audits a committed restore.
         /// </summary>
         private async ValueTask CompleteRestoreAsync(
             NodeId authenticationToken,
@@ -653,18 +699,6 @@ namespace Opc.Ua.Redundancy.Server
             SharedSessionEntry entry,
             CancellationToken cancellationToken)
         {
-            TrackLocalSession(session.Id, authenticationToken, entry.SessionTimeout);
-
-            // A failure to record the ownership is only logged, the activation is valid.
-            try
-            {
-                await TakeOwnershipAsync(entry, session.Id, cancellationToken).ConfigureAwait(false);
-            }
-            catch (Exception ex) when (ex is not OperationCanceledException)
-            {
-                m_logger.FailedToMirrorActivatedSessionToSharedStore(ex);
-            }
-
             if (session is Session restoredSession)
             {
                 try
@@ -697,7 +731,7 @@ namespace Opc.Ua.Redundancy.Server
         /// </summary>
         internal enum RestoreDecision
         {
-            /// <summary>The restore is authorized and the nonce was consumed.</summary>
+            /// <summary>The mirrored state is eligible for restore.</summary>
             Authorized,
 
             /// <summary>The mirrored session timed out before the restore attempt.</summary>
@@ -705,6 +739,9 @@ namespace Opc.Ua.Redundancy.Server
 
             /// <summary>The mirrored record predates or omits required security state.</summary>
             SecurityStateMissing,
+
+            /// <summary>Cross-replica activation requires a signed SecureChannel.</summary>
+            UnsignedChannel,
 
             /// <summary>The SecurityPolicy/Mode does not match the original.</summary>
             PolicyMismatch,
@@ -715,44 +752,14 @@ namespace Opc.Ua.Redundancy.Server
             /// <summary>The mirrored nonce is malformed.</summary>
             NonceInvalid,
 
-            /// <summary>The mirrored nonce is missing or was already consumed (replay).</summary>
-            NonceReplayed,
+            /// <summary>The committed entry was closed or moved to another activation.</summary>
+            ActivationChanged,
 
             /// <summary>
             /// The user identity token is encrypted with an EphemeralKey whose private
             /// part only the replica that issued it holds.
             /// </summary>
             EphemeralKeyUnavailable
-        }
-
-        /// <summary>
-        /// Enforces the cross-channel security checks and consumes the mirrored
-        /// <c>serverNonce</c> exactly once. Factored out so the security policy
-        /// is unit-testable without constructing a live session; a live restore
-        /// runs the checks first and consumes the nonce only after the activation
-        /// passed validation.
-        /// </summary>
-        internal async ValueTask<RestoreDecision> AuthorizeAndConsumeAsync(
-            SharedSessionEntry entry,
-            string securityPolicyUri,
-            MessageSecurityMode securityMode,
-            ByteString clientChannelCertificate,
-            CancellationToken cancellationToken = default)
-        {
-            RestoreDecision decision = AuthorizeRestore(
-                entry,
-                securityPolicyUri,
-                securityMode,
-                clientChannelCertificate);
-            if (decision != RestoreDecision.Authorized)
-            {
-                return decision;
-            }
-
-            bool consumed = await m_nonceRegistry
-                .TryConsumeAsync(entry.ServerNonce, cancellationToken)
-                .ConfigureAwait(false);
-            return consumed ? RestoreDecision.Authorized : RestoreDecision.NonceReplayed;
         }
 
         /// <summary>
@@ -775,17 +782,18 @@ namespace Opc.Ua.Redundancy.Server
                 return RestoreDecision.SecurityStateMissing;
             }
 
+            if (!IsSignedChannel(securityPolicyUri, securityMode))
+            {
+                return RestoreDecision.UnsignedChannel;
+            }
+
             if (!string.Equals(entry.SecurityPolicyUri, securityPolicyUri, StringComparison.Ordinal) ||
                 entry.SecurityMode != (int)securityMode)
             {
                 return RestoreDecision.PolicyMismatch;
             }
 
-            bool requiresClientCertificate =
-                securityMode != MessageSecurityMode.None ||
-                !string.Equals(securityPolicyUri, SecurityPolicies.None, StringComparison.Ordinal);
-            if ((requiresClientCertificate &&
-                    entry.OriginalClientChannelCertificate.IsEmpty) ||
+            if (entry.OriginalClientChannelCertificate.IsEmpty ||
                 entry.OriginalClientChannelCertificate != clientChannelCertificate)
             {
                 return RestoreDecision.ClientCertificateMismatch;
@@ -811,18 +819,13 @@ namespace Opc.Ua.Redundancy.Server
             NodeId authenticationToken,
             OperationContext context)
         {
-            if (!HasValidClientUserIdState(entry))
+            if (!HasValidClientUserIdState(entry) ||
+                !IsSignedChannel(entry.SecurityPolicyUri, (MessageSecurityMode)entry.SecurityMode))
             {
                 return null;
             }
 
-            bool requiresClientCertificate =
-                entry.SecurityMode != (int)MessageSecurityMode.None ||
-                !string.Equals(entry.SecurityPolicyUri, SecurityPolicies.None, StringComparison.Ordinal);
-            if (requiresClientCertificate &&
-                (entry.ClientCertificateChain.IsNull ||
-                    entry.ClientCertificateChain.IsEmpty ||
-                    entry.OriginalClientChannelCertificate.IsEmpty))
+            if (entry.ClientCertificateChain.IsEmpty || entry.OriginalClientChannelCertificate.IsEmpty)
             {
                 m_logger.MirroredSessionHasNoClientCertificate();
                 return null;
@@ -844,11 +847,9 @@ namespace Opc.Ua.Redundancy.Server
                 return null;
             }
 
-            using CertificateCollection parsed = entry.ClientCertificateChain.IsNull ||
-                entry.ClientCertificateChain.IsEmpty
-                    ? []
-                    : Utils.ParseCertificateChainBlob(entry.ClientCertificateChain.ToArray(), m_telemetry);
-            if (requiresClientCertificate && parsed.Count == 0)
+            using CertificateCollection parsed =
+                Utils.ParseCertificateChainBlob(entry.ClientCertificateChain.ToArray(), m_telemetry);
+            if (parsed.Count == 0)
             {
                 return null;
             }
@@ -863,7 +864,7 @@ namespace Opc.Ua.Redundancy.Server
             Nonce? serverNonce = null;
             try
             {
-                clientCertificate = parsed.Count == 0 ? null : parsed[0].AddRef();
+                clientCertificate = parsed[0].AddRef();
                 issuers = [];
                 serverNonce = Nonce.CreateNonce(SecurityPolicies.None, entry.ServerNonce.ToArray());
                 ISession session = CreateSession(
@@ -1017,35 +1018,22 @@ namespace Opc.Ua.Redundancy.Server
             bool userTokenRequiresEphemeralKey,
             CancellationToken cancellationToken)
         {
-            // The activation committed on this replica, so the client is here: the
-            // write also (re)asserts ownership. It is conditional, so it never
-            // silently overwrites a concurrent change of the entry.
             for (int attempt = 0; attempt < kMaxConditionalWriteAttempts; attempt++)
             {
                 SharedSessionEntry? existing = await m_sessionStore
                     .TryGetAsync(authenticationToken, cancellationToken)
                     .ConfigureAwait(false);
-                if (existing == null)
+                if (existing == null || !IsOwnedByThisReplica(existing))
                 {
                     return;
                 }
 
-                DateTimeUtc now = UtcNow();
-                SharedSessionEntry updated = existing with
+                SharedSessionEntry updated = WithActivation(
+                    existing, existing.SessionId, serverNonce, clientUserTokenType,
+                    clientUserId, userTokenRequiresEphemeralKey);
+                if (await TryReplaceEntryAsync(existing, updated, cancellationToken).ConfigureAwait(false))
                 {
-                    ServerNonce = serverNonce,
-                    LastActivatedAt = now,
-                    LastContactAt = now,
-                    OwnerId = m_replicaId,
-                    SecurityStateVersion = SharedSessionEntry.CurrentSecurityStateVersion,
-                    ClientUserId = clientUserId,
-                    ClientUserTokenType = clientUserTokenType,
-                    HasActivatedUserIdentity = true,
-                    UserTokenRequiresEphemeralKey = userTokenRequiresEphemeralKey
-                };
-                if (await m_sessionStore.TryReplaceAsync(existing, updated, cancellationToken).ConfigureAwait(false))
-                {
-                    MarkContactMirrored(authenticationToken, now.ToDateTime());
+                    MarkContactMirrored(authenticationToken, updated.LastContactAt.ToDateTime());
                     return;
                 }
             }
@@ -1053,56 +1041,153 @@ namespace Opc.Ua.Redundancy.Server
             m_logger.MirroredSessionUpdateConflicted(TokenDigest(authenticationToken));
         }
 
-        /// <summary>
-        /// Records this replica as the owner of a restored session, with the SessionId
-        /// it was restored under, after its first activation passed validation.
-        /// </summary>
-        private async ValueTask TakeOwnershipAsync(
-            SharedSessionEntry restoredFrom,
+        private SharedSessionEntry WithActivation(
+            SharedSessionEntry current,
             NodeId sessionId,
+            ByteString serverNonce,
+            UserTokenType clientUserTokenType,
+            string? clientUserId,
+            bool userTokenRequiresEphemeralKey)
+        {
+            DateTimeUtc now = UtcNow();
+            return current with
+            {
+                SessionId = sessionId,
+                ServerNonce = serverNonce,
+                LastActivatedAt = now,
+                LastContactAt = now,
+                OwnerId = m_replicaId,
+                SecurityStateVersion = SharedSessionEntry.CurrentSecurityStateVersion,
+                ClientUserId = clientUserId,
+                ClientUserTokenType = clientUserTokenType,
+                HasActivatedUserIdentity = true,
+                UserTokenRequiresEphemeralKey = userTokenRequiresEphemeralKey
+            };
+        }
+
+        private async ValueTask<bool> TryCommitActivationAsync(
+            SharedSessionEntry current,
+            SharedSessionEntry replacement,
             CancellationToken cancellationToken)
         {
-            SharedSessionEntry? current = restoredFrom;
-            for (int attempt = 0; attempt < kMaxConditionalWriteAttempts; attempt++)
+            try
             {
-                if (current == null)
-                {
-                    // Removed meanwhile (for example by the sweep): the session is live
-                    // here, so the entry is written again.
-                    SharedSessionEntry recreated = restoredFrom with
-                    {
-                        SessionId = sessionId,
-                        OwnerId = m_replicaId,
-                        LastContactAt = UtcNow(),
-                        SecurityStateVersion = SharedSessionEntry.CurrentSecurityStateVersion
-                    };
-                    await m_sessionStore.PutAsync(recreated, cancellationToken).ConfigureAwait(false);
-                    MarkContactMirrored(recreated.AuthenticationToken, recreated.LastContactAt.ToDateTime());
-                    return;
-                }
-
-                SharedSessionEntry updated = current with
-                {
-                    // A SessionId that could not be kept (it was in use here) is
-                    // replaced, so the next failover loads the continuation points
-                    // that this replica mirrors under its own id.
-                    SessionId = sessionId,
-                    OwnerId = m_replicaId,
-                    LastContactAt = UtcNow(),
-                    SecurityStateVersion = SharedSessionEntry.CurrentSecurityStateVersion
-                };
-                if (await m_sessionStore.TryReplaceAsync(current, updated, cancellationToken).ConfigureAwait(false))
-                {
-                    MarkContactMirrored(updated.AuthenticationToken, updated.LastContactAt.ToDateTime());
-                    return;
-                }
-
-                current = await m_sessionStore
-                    .TryGetAsync(restoredFrom.AuthenticationToken, cancellationToken)
+                return await m_sessionStore.TryReplaceAsync(current, replacement, cancellationToken)
                     .ConfigureAwait(false);
             }
+            catch (Exception ex) when (ex is IOException or TimeoutException)
+            {
+                // A lost write acknowledgement is not proof of failure. Only this
+                // attempt could have committed its freshly generated nonce.
+                SharedSessionEntry? committed = await m_sessionStore
+                    .TryGetAsync(current.AuthenticationToken, cancellationToken).ConfigureAwait(false);
+                if (committed != null && IsSameActivation(replacement, committed))
+                {
+                    return true;
+                }
+                throw;
+            }
+        }
 
-            m_logger.MirroredSessionUpdateConflicted(TokenDigest(restoredFrom.AuthenticationToken));
+        private async ValueTask CloseMirroredSessionAsync(
+            NodeId authenticationToken,
+            NodeId sessionId,
+            ByteString committedNonce,
+            bool authoritative,
+            CancellationToken cancellationToken)
+        {
+            for (int attempt = 0; attempt < kMaxConditionalWriteAttempts; attempt++)
+            {
+                SharedSessionEntry? current = await m_sessionStore.TryGetAsync(authenticationToken, cancellationToken)
+                    .ConfigureAwait(false);
+                if (current == null || current.SessionId != sessionId || !IsOwnedByThisReplica(current) ||
+                    (authoritative && (current.OwnerId == null || current.ServerNonce != committedNonce)))
+                {
+                    return;
+                }
+                bool removed = authoritative
+                    ? await m_sessionStore.TryRemoveAsync(current, cancellationToken).ConfigureAwait(false)
+                    : await TryRemoveEntryVersionAsync(current, cancellationToken).ConfigureAwait(false);
+                if (removed)
+                {
+                    return;
+                }
+            }
+
+            m_logger.MirroredSessionUpdateConflicted(TokenDigest(authenticationToken));
+            if (authoritative)
+            {
+                throw new ServiceResultException(StatusCodes.BadResourceUnavailable,
+                    "The shared session close could not be committed.");
+            }
+        }
+
+        private ValueTask<bool> TryReplaceEntryAsync(
+            SharedSessionEntry current,
+            SharedSessionEntry replacement,
+            CancellationToken cancellationToken)
+        {
+            return !UsesAuthoritativeActivation(current) && m_sessionStore is SharedKeyValueSessionStore metadata
+                ? metadata.TryReplaceMetadataAsync(current, replacement, cancellationToken)
+                : m_sessionStore.TryReplaceAsync(current, replacement, cancellationToken);
+        }
+
+        private ValueTask<bool> TryRemoveEntryVersionAsync(
+            SharedSessionEntry current,
+            CancellationToken cancellationToken)
+        {
+            return !UsesAuthoritativeActivation(current) && m_sessionStore is SharedKeyValueSessionStore metadata
+                ? metadata.TryRemoveMetadataAsync(current, cancellationToken)
+                : m_sessionStore.TryRemoveAsync(current, cancellationToken);
+        }
+
+        private void LogRestoreRejected(NodeId authenticationToken, RestoreDecision decision)
+        {
+            m_logger.DistributedSessionRestoreRejected(TokenDigest(authenticationToken), decision);
+        }
+
+        private static bool IsSameActivation(SharedSessionEntry original, SharedSessionEntry current)
+        {
+            return (original with
+                {
+                    LastContactAt = current.LastContactAt,
+                    ClientDescription = current.ClientDescription
+                }) == current &&
+                original.ClientDescription.IsEqual(current.ClientDescription);
+        }
+
+        private bool UsesAuthoritativeActivation(SharedSessionEntry entry)
+        {
+            return m_fastReconnectEnabled &&
+                IsSignedChannel(entry.SecurityPolicyUri, (MessageSecurityMode)entry.SecurityMode);
+        }
+
+        private bool UsesAuthoritativeActivation(EndpointDescription? endpoint)
+        {
+            return m_fastReconnectEnabled && endpoint != null &&
+                IsSignedChannel(endpoint.SecurityPolicyUri, endpoint.SecurityMode);
+        }
+
+        private static bool IsSignedChannel(string? policy, MessageSecurityMode mode)
+        {
+            return (mode is MessageSecurityMode.Sign or MessageSecurityMode.SignAndEncrypt) &&
+                !string.IsNullOrEmpty(policy) &&
+                !string.Equals(policy, SecurityPolicies.None, StringComparison.Ordinal);
+        }
+
+        private static bool UserTokenRequiresEphemeralKey(
+            UserTokenType tokenType,
+            string? tokenPolicy,
+            string? endpointPolicy)
+        {
+            if (tokenType is not (UserTokenType.UserName or UserTokenType.IssuedToken))
+            {
+                return false;
+            }
+
+            string? policy = string.IsNullOrEmpty(tokenPolicy) ? endpointPolicy : tokenPolicy;
+            SecurityPolicyInfo? info = string.IsNullOrEmpty(policy) ? null : SecurityPolicies.Default.GetInfo(policy!);
+            return info != null && info.EphemeralKeyAlgorithm != CertificateKeyAlgorithm.None;
         }
 
         /// <summary>
@@ -1153,7 +1238,7 @@ namespace Opc.Ua.Redundancy.Server
         {
             if (m_liveness.TryGetValue(authenticationToken, out LivenessState? state))
             {
-                m_liveness[authenticationToken] = state with { MirroredContactUtc = contactUtc };
+                m_liveness.TryUpdate(authenticationToken, state with { MirroredContactUtc = contactUtc }, state);
             }
         }
 
@@ -1161,7 +1246,7 @@ namespace Opc.Ua.Redundancy.Server
         {
             try
             {
-                await m_sessionStore.TryRemoveAsync(entry, cancellationToken).ConfigureAwait(false);
+                await TryRemoveEntryVersionAsync(entry, cancellationToken).ConfigureAwait(false);
             }
             catch (Exception ex) when (ex is not OperationCanceledException)
             {
@@ -1177,7 +1262,7 @@ namespace Opc.Ua.Redundancy.Server
         /// </summary>
         private async ValueTask DropLocalCopyIfOwnedElsewhereAsync(
             NodeId authenticationToken,
-            NodeId sessionId,
+            ISession session,
             CancellationToken cancellationToken)
         {
             SharedSessionEntry? entry;
@@ -1195,33 +1280,31 @@ namespace Opc.Ua.Redundancy.Server
 
             if (entry != null && !IsOwnedByThisReplica(entry))
             {
-                await DropLocalCopyAsync(authenticationToken, sessionId).ConfigureAwait(false);
+                await DropLocalCopyAsync(authenticationToken, session).ConfigureAwait(false);
             }
         }
 
-        private async ValueTask DropLocalCopyAsync(NodeId authenticationToken, NodeId sessionId)
+        private async ValueTask DropLocalCopyAsync(NodeId authenticationToken, ISession session)
         {
-            // Forget the token first, so the close below leaves the entry alone.
-            if (!m_tokensBySession.TryRemove(sessionId, out _))
+            if (!ReferenceEquals(GetSession(authenticationToken), session) ||
+                !SessionTermination.TryClaimClose(session))
             {
                 return;
             }
-            m_sessionsByToken.TryRemove(authenticationToken, out _);
-            m_liveness.TryRemove(authenticationToken, out _);
             if (m_logger.IsEnabled(LogLevel.Information))
             {
-                m_logger.DroppingSessionOwnedByAnotherReplica(TokenDigest(authenticationToken), sessionId);
+                m_logger.DroppingUnownedSession(TokenDigest(authenticationToken), session.Id);
             }
 
             // The subscriptions are kept, like on a timeout: the client may transfer them.
-            await m_server.CloseSessionAsync(null!, sessionId, false, CancellationToken.None)
+            await m_server.CloseClaimedSessionAsync(session, false, CancellationToken.None)
                 .ConfigureAwait(false);
         }
 
         /// <summary>
-        /// Mirrors the client activity of the sessions this replica serves, at most once
-        /// per <see cref="kHeartbeatFraction"/>th of their timeout, so a standby can tell a
-        /// session in use from one that timed out (OPC 10000-4 5.7.2.1).
+        /// Checks whether mirrored fast sessions still belong to this replica, and
+        /// mirrors client activity at most once per <see cref="kHeartbeatFraction"/>th
+        /// of their timeout (OPC 10000-4 5.7.2.1).
         /// </summary>
         internal async ValueTask RefreshLivenessAsync(CancellationToken cancellationToken)
         {
@@ -1238,15 +1321,18 @@ namespace Opc.Ua.Redundancy.Server
                 }
 
                 DateTime lastContact = now.AddMilliseconds(-Math.Max(0, nowTicks - session.LastContactTickCount));
-                if ((lastContact - state.MirroredContactUtc).TotalMilliseconds <
-                    state.SessionTimeout / kHeartbeatFraction)
+                bool writeHeartbeat = (lastContact - state.MirroredContactUtc).TotalMilliseconds >=
+                    state.SessionTimeout / kHeartbeatFraction;
+                bool authoritative = UsesAuthoritativeActivation(session.EndpointDescription);
+                if (!authoritative && !writeHeartbeat)
                 {
                     continue;
                 }
 
                 try
                 {
-                    await MirrorContactAsync(token, session.Id, lastContact, cancellationToken).ConfigureAwait(false);
+                    await MirrorContactAsync(token, session, authoritative, writeHeartbeat, lastContact,
+                        cancellationToken).ConfigureAwait(false);
                 }
                 catch (Exception ex) when (ex is not OperationCanceledException)
                 {
@@ -1257,7 +1343,9 @@ namespace Opc.Ua.Redundancy.Server
 
         private async ValueTask MirrorContactAsync(
             NodeId authenticationToken,
-            NodeId sessionId,
+            ISession session,
+            bool authoritative,
+            bool writeHeartbeat,
             DateTime lastContactUtc,
             CancellationToken cancellationToken)
         {
@@ -1265,7 +1353,7 @@ namespace Opc.Ua.Redundancy.Server
                 authenticationToken,
                 static _ => new SemaphoreSlim(1, 1));
             await mirrorLock.WaitAsync(cancellationToken).ConfigureAwait(false);
-            bool ownedElsewhere = false;
+            bool discardLocalCopy = false;
             try
             {
                 for (int attempt = 0; attempt < kMaxConditionalWriteAttempts; attempt++)
@@ -1275,12 +1363,17 @@ namespace Opc.Ua.Redundancy.Server
                         .ConfigureAwait(false);
                     if (existing == null)
                     {
-                        return;
-                    }
-                    if (!IsOwnedByThisReplica(existing))
-                    {
-                        ownedElsewhere = true;
+                        discardLocalCopy = authoritative;
                         break;
+                    }
+                    if (authoritative ? !MatchesLocalOwner(existing, session) : !IsOwnedByThisReplica(existing))
+                    {
+                        discardLocalCopy = true;
+                        break;
+                    }
+                    if (!writeHeartbeat)
+                    {
+                        return;
                     }
 
                     DateTime? mirrored = existing.LastContactAt.IsNull ? null : existing.LastContactAt.ToDateTime();
@@ -1295,7 +1388,7 @@ namespace Opc.Ua.Redundancy.Server
                         LastContactAt = DateTimeUtc.From(lastContactUtc),
                         OwnerId = m_replicaId
                     };
-                    if (await m_sessionStore.TryReplaceAsync(existing, updated, cancellationToken).ConfigureAwait(false))
+                    if (await TryReplaceEntryAsync(existing, updated, cancellationToken).ConfigureAwait(false))
                     {
                         MarkContactMirrored(authenticationToken, lastContactUtc);
                         return;
@@ -1307,43 +1400,42 @@ namespace Opc.Ua.Redundancy.Server
                 mirrorLock.Release();
             }
 
-            if (ownedElsewhere)
+            if (discardLocalCopy)
             {
-                await DropLocalCopyAsync(authenticationToken, sessionId).ConfigureAwait(false);
+                await DropLocalCopyAsync(authenticationToken, session).ConfigureAwait(false);
             }
+        }
+
+        private bool MatchesLocalOwner(SharedSessionEntry entry, ISession session)
+        {
+            return entry.SessionId == session.Id &&
+                string.Equals(entry.OwnerId, m_replicaId, StringComparison.Ordinal);
         }
 
         /// <summary>
         /// Removes the entries of sessions that can no longer be restored (their owner
-        /// crashed or shut down, so nobody closed them) and the consumed-nonce markers
-        /// that no live entry references any more.
+        /// crashed or shut down, so nobody closed them).
         /// </summary>
-        internal async ValueTask<(int Entries, int NonceMarkers)> SweepAsync(CancellationToken cancellationToken)
+        internal async ValueTask<int> SweepAsync(CancellationToken cancellationToken)
         {
             int removed = 0;
-            var liveNonces = new List<ByteString>();
             await foreach (SharedSessionEntry entry in m_sessionStore
                 .EnumerateAsync(cancellationToken)
                 .ConfigureAwait(false))
             {
                 if (IsRestoreExpired(entry) &&
                     !m_sessionsByToken.ContainsKey(entry.AuthenticationToken) &&
-                    await m_sessionStore.TryRemoveAsync(entry, cancellationToken).ConfigureAwait(false))
+                    await TryRemoveEntryVersionAsync(entry, cancellationToken).ConfigureAwait(false))
                 {
                     removed++;
-                    continue;
                 }
-                liveNonces.Add(entry.ServerNonce);
             }
 
-            int purged = await m_nonceRegistry
-                .PurgeAsync(liveNonces, m_options.NonceMarkerRetention, cancellationToken)
-                .ConfigureAwait(false);
-            if (removed > 0 || purged > 0)
+            if (removed > 0)
             {
-                m_logger.SweptSharedSessionStore(removed, purged);
+                m_logger.SweptSharedSessionStore(removed);
             }
-            return (removed, purged);
+            return removed;
         }
 
         private async Task RunMaintenanceAsync(CancellationToken cancellationToken)
@@ -1486,6 +1578,22 @@ namespace Opc.Ua.Redundancy.Server
         private sealed record LivenessState(double SessionTimeout, DateTime MirroredContactUtc);
 
         /// <summary>
+        /// Orders the initial shared publication with the close of the same local session.
+        /// </summary>
+        private sealed class CreationPublication
+        {
+            /// <summary>
+            /// Serializes initial publication with explicit close.
+            /// </summary>
+            public SemaphoreSlim Gate { get; } = new(1, 1);
+
+            /// <summary>
+            /// Whether close prevents a future initial publication.
+            /// </summary>
+            public bool Closed { get; set; }
+        }
+
+        /// <summary>
         /// The heartbeat is written at most once per this fraction of the session timeout.
         /// </summary>
         private const int kHeartbeatFraction = 4;
@@ -1496,15 +1604,16 @@ namespace Opc.Ua.Redundancy.Server
         private readonly ConcurrentDictionary<NodeId, LivenessState> m_liveness = new();
         private readonly ConditionalWeakTable<ISession, SharedSessionEntry> m_pendingRestores = new();
         private readonly ConditionalWeakTable<ISession, SharedSessionEntry> m_admittedRestores = new();
-        private readonly Lock m_pendingRestoresLock = new();
+        private readonly ConditionalWeakTable<ISession, SharedSessionEntry> m_committedActivations = new();
+        private readonly ConditionalWeakTable<ISession, CreationPublication> m_creationPublications = new();
         private readonly Lock m_maintenanceLock = new();
         private CancellationTokenSource? m_maintenanceCts;
         private Task? m_maintenanceTask;
         private readonly IServerInternal m_server;
         private readonly ISharedSessionStore m_sessionStore;
-        private readonly ISingleUseNonceRegistry m_nonceRegistry;
         private readonly Func<string, Certificate?> m_serverCertificateProvider;
         private readonly DistributedSessionOptions m_options;
+        private readonly bool m_fastReconnectEnabled;
         private readonly ITelemetryContext m_telemetry;
         private readonly ILogger m_logger;
         private readonly TimeProvider m_restoreTimeProvider;
@@ -1572,16 +1681,15 @@ namespace Opc.Ua.Redundancy.Server
         public static partial void MirroredSessionUpdateConflicted(this ILogger logger, string token);
 
         [LoggerMessage(EventId = RedundancyServerEventIds.DistributedSessionManager + 8, Level = LogLevel.Information,
-            Message = "Session {SessionId} ({Token}) is served by another replica now; dropping the local copy.")]
-        public static partial void DroppingSessionOwnedByAnotherReplica(
+            Message = "Session {SessionId} ({Token}) is no longer owned here; dropping the local copy.")]
+        public static partial void DroppingUnownedSession(
             this ILogger logger,
             string token,
             NodeId sessionId);
 
         [LoggerMessage(EventId = RedundancyServerEventIds.DistributedSessionManager + 9, Level = LogLevel.Information,
-            Message = "Swept the shared session store: {Entries} expired session entries and {NonceMarkers} " +
-                "consumed-nonce markers removed.")]
-        public static partial void SweptSharedSessionStore(this ILogger logger, int entries, int nonceMarkers);
+            Message = "Swept the shared session store: {Entries} expired session entries removed.")]
+        public static partial void SweptSharedSessionStore(this ILogger logger, int entries);
 
         [LoggerMessage(EventId = RedundancyServerEventIds.DistributedSessionManager + 10, Level = LogLevel.Warning,
             Message = "Distributed session maintenance failed.")]
@@ -1593,6 +1701,10 @@ namespace Opc.Ua.Redundancy.Server
             this ILogger logger,
             Exception exception,
             NodeId sessionId);
+
+        [LoggerMessage(EventId = RedundancyServerEventIds.DistributedSessionManager + 12, Level = LogLevel.Warning,
+            Message = "Failed to verify committed session request admission.")]
+        public static partial void FailedToVerifySessionRequestAdmission(this ILogger logger, Exception exception);
     }
 
 }

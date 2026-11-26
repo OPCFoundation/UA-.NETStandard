@@ -1,31 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using System.Buffers.Binary;
@@ -42,12 +16,9 @@ namespace Opc.Ua.PubSub.Redundancy
     /// redundant PubSub set for restoration by a promoted Hot standby (Part 14 §9.1.6 / §7.2.5.4.1).
     /// </summary>
     /// <remarks>
-    /// SequenceNumbers are a high-water mark rather than a secret, so they are stored without
-    /// record protection and may use an eventually-consistent store. The publisher's fixed restore
-    /// offset does not bound gossip lag or uncheckpointed sequence advances. A strongly consistent
-    /// store does not recover advances never written to it. When the caller provides a fencing token
-    /// the write is additionally guarded against stale-active overwrite; callers that do not yet
-    /// flow a token keep the previous unconditional behavior.
+    /// External checkpoints require an enrolled <see cref="FreshnessProtectedKeyValueStore"/>
+    /// and the publisher's active fence. A successful fenced write rules out later writes from
+    /// older fences but does not recover sequence advances that were never checkpointed.
     /// </remarks>
     public sealed class SharedStorePubSubWriterCheckpointStore : IPubSubWriterCheckpointStore
     {
@@ -60,7 +31,7 @@ namespace Opc.Ua.PubSub.Redundancy
         /// </exception>
         public SharedStorePubSubWriterCheckpointStore(ISharedKeyValueStore store)
         {
-            m_store = store ?? throw new ArgumentNullException(nameof(store));
+            m_store = FencedSharedStoreValue.RequireStore(store);
         }
 
         /// <inheritdoc/>
@@ -69,36 +40,33 @@ namespace Opc.Ua.PubSub.Redundancy
             ushort dataSetWriterId,
             CancellationToken cancellationToken = default)
         {
-            (bool found, ByteString value) = await m_store
-                .TryGetAsync(BuildKey(writerGroupComponentId, dataSetWriterId), cancellationToken)
+            (bool found, ByteString value) = await FencedSharedStoreValue
+                .ReadRetainedAsync(m_store, BuildKey(writerGroupComponentId, dataSetWriterId), cancellationToken)
                 .ConfigureAwait(false);
-            if (!found || !FencedSharedStoreValue.TryExtractPayload(value, out ByteString payload, out _))
+            bool allowUnfenced = m_store is InMemorySharedKeyValueStore;
+            if (!found ||
+                !FencedSharedStoreValue.TryExtractFixedPayload(value, sizeof(uint), allowUnfenced,
+                    out ByteString payload, out _))
             {
                 return null;
             }
 
-            ReadOnlySpan<byte> bytes = payload.Span;
-            if (bytes.Length < sizeof(uint))
-            {
-                return null;
-            }
-
-            return BinaryPrimitives.ReadUInt32LittleEndian(bytes);
+            return BinaryPrimitives.ReadUInt32LittleEndian(payload.Span);
         }
 
         /// <inheritdoc/>
-        public async ValueTask SetSequenceNumberAsync(
+        public ValueTask SetSequenceNumberAsync(
             string writerGroupComponentId,
             ushort dataSetWriterId,
             uint sequenceNumber,
             CancellationToken cancellationToken = default)
         {
-            await SetSequenceNumberCoreAsync(
+            return SetSequenceNumberCoreAsync(
                 writerGroupComponentId,
                 dataSetWriterId,
                 sequenceNumber,
                 null,
-                cancellationToken).ConfigureAwait(false);
+                cancellationToken);
         }
 
         /// <inheritdoc/>
@@ -117,7 +85,7 @@ namespace Opc.Ua.PubSub.Redundancy
                 cancellationToken);
         }
 
-        private async ValueTask SetSequenceNumberCoreAsync(
+        private ValueTask SetSequenceNumberCoreAsync(
             string writerGroupComponentId,
             ushort dataSetWriterId,
             uint sequenceNumber,
@@ -126,12 +94,12 @@ namespace Opc.Ua.PubSub.Redundancy
         {
             byte[] buffer = new byte[sizeof(uint)];
             BinaryPrimitives.WriteUInt32LittleEndian(buffer, sequenceNumber);
-            await FencedSharedStoreValue.StoreAsync(
+            return FencedSharedStoreValue.StoreFixedAsync(
                 m_store,
                 BuildKey(writerGroupComponentId, dataSetWriterId),
                 new ByteString(buffer),
                 fencingToken,
-                cancellationToken).ConfigureAwait(false);
+                cancellationToken);
         }
 
         private static string BuildKey(string writerGroupComponentId, ushort dataSetWriterId)

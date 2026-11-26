@@ -1,31 +1,7 @@
-/* ========================================================================
- * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
+
+#pragma warning disable CS0618, UA0031 // Covers the deprecated synchronous node manager API on purpose.
 
 // CA2000: test code; disposables are ownership-transferred to the test
 // harness or are short-lived, making CA2000 noisy without a real leak risk.
@@ -33,6 +9,9 @@
 
 using System;
 using System.Collections.Generic;
+using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Moq;
 using NUnit.Framework;
@@ -55,8 +34,9 @@ namespace Opc.Ua.Server.Tests.NodeManager
     {
         private const string TestNamespaceUri = "http://test.org/UA/CustomNodeManagerDeterministic/";
 
-        [Test]
-        public void CreateNode_AddsNodeToPredefinedNodesAndEmitsModelChange()
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task CreateNodeAddsNodeToPredefinedNodesAndEmitsModelChangeAsync(bool asynchronous)
         {
             using Harness h = CreateHarness();
             ushort ns = h.NamespaceIndex;
@@ -65,12 +45,13 @@ namespace Opc.Ua.Server.Tests.NodeManager
             // node that carries no NodeVersion property (the default requires one).
             h.Manager.RequireNodeVersionForModelChange = false;
 
-            NodeId resultId = h.Manager.CreateNode(
-                h.Context,
-                NodeId.Null,
-                ReferenceTypeIds.Organizes,
-                new QualifiedName("Created", ns),
-                instance);
+            NodeId resultId = asynchronous
+                ? await h.Manager.CreateNodeAsync(
+                    h.Context, NodeId.Null, ReferenceTypeIds.Organizes,
+                    new QualifiedName("Created", ns), instance).ConfigureAwait(false)
+                : h.Manager.CreateNode(
+                    h.Context, NodeId.Null, ReferenceTypeIds.Organizes,
+                    new QualifiedName("Created", ns), instance);
 
             Assert.That(resultId.IsNull, Is.False);
             Assert.That(resultId, Is.EqualTo(instance.NodeId));
@@ -112,6 +93,110 @@ namespace Opc.Ua.Server.Tests.NodeManager
 
             Assert.That(h.Manager.PredefinedNodes.ContainsKey(variable.NodeId), Is.True);
             Assert.That(h.Manager.PredefinedNodes[variable.NodeId], Is.SameAs(variable));
+        }
+
+        /// <summary>
+        /// Runtime address-space additions await slot recovery without requiring synchronous completion.
+        /// </summary>
+        [Test]
+        public async Task RuntimeAdditionAwaitsScopedRecoveryAsync([Values] bool fail, [Values] bool create)
+        {
+            using Harness h = CreateHarness();
+            IMasterNodeManager previous = h.MockServer.Object.NodeManager;
+            var master = new Mock<IMasterNodeManager>();
+            Mock<IDynamicNodeManagerHost> recovery = master.As<IDynamicNodeManagerHost>();
+            master.SetupGet(value => value.ConfigurationNodeManager).Returns(previous.ConfigurationNodeManager);
+            master.SetupGet(value => value.CoreNodeManager).Returns(previous.CoreNodeManager);
+            h.MockServer.SetupGet(value => value.NodeManager).Returns(master.Object);
+            using var cancellation = new CancellationTokenSource();
+            var release = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            bool called = false;
+            CancellationToken receivedToken = default;
+            IAsyncNodeManager? receivedManager = null;
+            IReadOnlyCollection<NodeId>? receivedNodes = null;
+            var failure = new InvalidOperationException("asynchronous recovery failed");
+            recovery.Setup(value => value.ResolveUnresolvedSourcesAsync(
+                    It.IsAny<IAsyncNodeManager>(), It.IsAny<IReadOnlyCollection<NodeId>>(),
+                    It.IsAny<CancellationToken>()))
+                .Returns(async (IAsyncNodeManager owner, IReadOnlyCollection<NodeId>? nodeIds, CancellationToken ct) =>
+                {
+                    receivedManager = owner;
+                    receivedToken = ct;
+                    receivedNodes = nodeIds;
+                    called = true;
+                    await release.Task.ConfigureAwait(false);
+                    if (fail)
+                    {
+                        throw failure;
+                    }
+                });
+            BaseDataVariableState node = h.NewVariable("AwaitedRecovery", 42);
+            BaseDataVariableState child = h.NewVariable("RecoveryChild", 1);
+            node.AddChild(child);
+            ILocalAddressSpace addressSpace = ((ILocalAddressSpaceSource)h.Manager).CreateLocalAddressSpace();
+            Task addition = create
+                ? h.Manager.CreateNodeAsync(
+                    h.Context, NodeId.Null, ReferenceTypeIds.Organizes,
+                    node.BrowseName, node, cancellation.Token).AsTask()
+                : addressSpace.AddOrUpdateNodeAsync(node, cancellation.Token).AsTask();
+            try
+            {
+                Assert.Multiple(() =>
+                {
+                    Assert.That(called, Is.True);
+                    Assert.That(addition.IsCompleted, Is.False);
+                    Assert.That(h.Manager.PredefinedNodes[node.NodeId], Is.SameAs(node));
+                    Assert.That(receivedToken, Is.EqualTo(cancellation.Token));
+                    Assert.That(receivedNodes, Is.EquivalentTo(new[] { node.NodeId, child.NodeId }));
+                    Assert.That(receivedManager, Is.TypeOf<AsyncNodeManagerAdapter>());
+                    Assert.That((receivedManager as AsyncNodeManagerAdapter)?.SyncNodeManager, Is.SameAs(h.Manager));
+                });
+            }
+            finally
+            {
+                release.TrySetResult(true);
+                if (fail && called)
+                {
+                    await Assert.ThatAsync(
+                        async () => await addition.ConfigureAwait(false),
+                        Throws.TypeOf<InvalidOperationException>().And.SameAs(failure)).ConfigureAwait(false);
+                }
+                else
+                {
+                    await addition.ConfigureAwait(false);
+                }
+            }
+            recovery.Verify(value => value.ResolveUnresolvedSourcesAsync(
+                It.IsAny<IAsyncNodeManager>(), It.IsAny<IReadOnlyCollection<NodeId>>(),
+                It.IsAny<CancellationToken>()), Times.Once);
+        }
+
+        /// <summary>
+        /// Creation validates reference arguments and cancellation before indexing any nodes.
+        /// </summary>
+        [Test]
+        public async Task CreateNodeAsyncRejectsInvalidArgumentsBeforeIndexingAsync()
+        {
+            using Harness h = CreateHarness();
+            BaseDataVariableState node = h.NewVariable("CanceledCreation", 1);
+            await Assert.ThatAsync(async () =>
+                await h.Manager.CreateNodeAsync(
+                    null!, NodeId.Null, ReferenceTypeIds.Organizes, node.BrowseName, node).ConfigureAwait(false),
+                Throws.TypeOf<ArgumentNullException>()
+                    .With.Property("ParamName").EqualTo("context")).ConfigureAwait(false);
+            await Assert.ThatAsync(async () =>
+                await h.Manager.CreateNodeAsync(
+                    h.Context, NodeId.Null, ReferenceTypeIds.Organizes, node.BrowseName, null!).ConfigureAwait(false),
+                Throws.TypeOf<ArgumentNullException>()
+                    .With.Property("ParamName").EqualTo("instance")).ConfigureAwait(false);
+            using var cancellation = new CancellationTokenSource();
+            cancellation.Cancel();
+            await Assert.ThatAsync(async () =>
+                await h.Manager.CreateNodeAsync(
+                    h.Context, NodeId.Null, ReferenceTypeIds.Organizes, node.BrowseName, node,
+                    cancellation.Token).ConfigureAwait(false),
+                Throws.InstanceOf<OperationCanceledException>()).ConfigureAwait(false);
+            Assert.That(h.Manager.PredefinedNodes.ContainsKey(node.NodeId), Is.False);
         }
 
         [Test]
@@ -246,25 +331,19 @@ namespace Opc.Ua.Server.Tests.NodeManager
         }
 
         [Test]
-        public void RebuildTypeTreeRegistersSubtypeAndEncodingRelationshipsForDirectlyInsertedNodes()
+        public void AddingPredefinedNodesRegistersSubtypeAndEncodingWithoutRepair()
         {
             using Harness h = CreateHarness();
             ushort ns = h.NamespaceIndex;
             BaseObjectTypeState type = h.NewObjectType("RebuiltType");
-            // Insert directly into PredefinedNodes to bypass AddPredefinedNode's own
-            // automatic type-tree wiring, mirroring nodes restored after a reload where
-            // the caller explicitly triggers RebuildTypeTree afterwards.
-            h.Manager.PredefinedNodes.Add(type.NodeId, type);
-            Assert.That(h.MockServer.Object.TypeTree.IsKnown(type.NodeId), Is.False);
+            h.Manager.AddPredefinedNodePublic(h.Context, type);
 
             var dataTypeId = new NodeId("RebuiltDataType", ns);
             h.MockServer.Object.TypeTree.AddSubtype(dataTypeId, NodeId.Null);
             BaseObjectState encoding = h.NewObject("RebuiltEncoding");
             encoding.AddReference(ReferenceTypeIds.HasEncoding, true, dataTypeId);
-            h.Manager.PredefinedNodes.Add(encoding.NodeId, encoding);
-            Assert.That(h.MockServer.Object.TypeTree.IsEncodingOf(encoding.NodeId, dataTypeId), Is.False);
-
-            h.Manager.RebuildTypeTree();
+            h.Manager.AddPredefinedNodePublic(h.Context, encoding);
+            h.Manager.AddReverseReferencesPublic(new Dictionary<NodeId, IList<IReference>>());
 
             Assert.That(h.MockServer.Object.TypeTree.IsKnown(type.NodeId), Is.True);
             Assert.That(h.MockServer.Object.TypeTree.IsEncodingOf(encoding.NodeId, dataTypeId), Is.True);
@@ -610,6 +689,80 @@ namespace Opc.Ua.Server.Tests.NodeManager
             Assert.That(errors[0].StatusCode, Is.EqualTo(StatusCodes.BadNodeIdUnknown));
         }
 
+        /// <summary>
+        /// Part 4 §6.5.8: a write of a node validated in the deferred operation is
+        /// audited like any other write.
+        /// </summary>
+        [Test]
+        public void WriteOfDeferredValidatedNodeIsAudited()
+        {
+            using Harness h = CreatePlaceholderHarness(out PlaceholderNodeManager manager);
+            var audits = new List<AuditEventState>();
+            h.MockServer.SetupGet(s => s.Auditing).Returns(true);
+            h.MockServer
+                .Setup(s => s.ReportAuditEvent(It.IsAny<ISystemContext>(), It.IsAny<AuditEventState>()))
+                .Callback((ISystemContext _, AuditEventState e) => audits.Add(e));
+            BaseDataVariableState variable = h.NewWritableVariable("DeferredVar", 1);
+            manager.PlaceholderNodeId = variable.NodeId;
+            manager.ValidatedNode = variable;
+
+            var nodesToWrite = new List<WriteValue>
+            {
+                new() {
+                    NodeId = variable.NodeId,
+                    AttributeId = Attributes.Value,
+                    Value = new DataValue(new Variant(42))
+                }
+            };
+            var errors = new List<ServiceResult> { ServiceResult.Good };
+
+            // the audit names the user, so the write carries an identity.
+            var context = new OperationContext(
+                new RequestHeader(), null, RequestType.Write, RequestLifetime.None,
+                new Mock<IUserIdentity>().Object);
+            manager.Write(context, nodesToWrite, errors);
+
+            Assert.That(ServiceResult.IsGood(errors[0]), Is.True);
+            Assert.That(variable.Value, Is.EqualTo(42));
+            AuditWriteUpdateEventState audit = audits.OfType<AuditWriteUpdateEventState>().Single();
+            Assert.That(audit.Status!.Value, Is.True);
+        }
+
+        /// <summary>
+        /// Part 4 §6.5.8: a write whose node the deferred validation cannot resolve is
+        /// already marked processed, so the node manager audits the failure itself.
+        /// </summary>
+        [Test]
+        public void WriteOfDeferredUnknownNodeIsAuditedAsFailure()
+        {
+            using Harness h = CreatePlaceholderHarness(out PlaceholderNodeManager manager);
+            var audits = new List<AuditEventState>();
+            h.MockServer.SetupGet(s => s.Auditing).Returns(true);
+            h.MockServer
+                .Setup(s => s.ReportAuditEvent(It.IsAny<ISystemContext>(), It.IsAny<AuditEventState>()))
+                .Callback((ISystemContext _, AuditEventState e) => audits.Add(e));
+            manager.PlaceholderNodeId = new NodeId("Ghost", h.NamespaceIndex);
+
+            var nodesToWrite = new List<WriteValue>
+            {
+                new() {
+                    NodeId = manager.PlaceholderNodeId,
+                    AttributeId = Attributes.Value,
+                    Value = new DataValue(new Variant(1))
+                }
+            };
+            var errors = new List<ServiceResult> { ServiceResult.Good };
+
+            var context = new OperationContext(
+                new RequestHeader(), null, RequestType.Write, RequestLifetime.None,
+                new Mock<IUserIdentity>().Object);
+            manager.Write(context, nodesToWrite, errors);
+
+            Assert.That(errors[0].StatusCode, Is.EqualTo(StatusCodes.BadNodeIdUnknown));
+            AuditWriteUpdateEventState audit = audits.OfType<AuditWriteUpdateEventState>().Single();
+            Assert.That(audit.Status!.Value, Is.False);
+        }
+
         [Test]
         public void Browse_ReturnsChildReferences()
         {
@@ -734,8 +887,13 @@ namespace Opc.Ua.Server.Tests.NodeManager
             Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadNodeIdUnknown));
         }
 
+        /// <summary>
+        /// A View may organize nodes of other node managers (Part 4 §5.9.2); the service
+        /// dispatcher checks that the View exists, so a View this node manager does not
+        /// own does not fail the operation here.
+        /// </summary>
         [Test]
-        public void Browse_UnknownView_ThrowsBadViewIdUnknown()
+        public void BrowseWithViewOfAnotherNodeManagerDoesNotFail()
         {
             using Harness h = CreateHarness();
             BaseObjectState node = h.NewObject("BrowseView");
@@ -746,11 +904,35 @@ namespace Opc.Ua.Server.Tests.NodeManager
             continuationPoint.View = new ViewDescription { ViewId = new NodeId("NoView", h.NamespaceIndex) };
             var references = new List<ReferenceDescription>();
 
-            ServiceResultException ex = Assert.Throws<ServiceResultException>(
-                () => h.Manager.Browse(h.NewContext(RequestType.Browse), ref continuationPoint, references))!;
+            Assert.DoesNotThrow(
+                () => h.Manager.Browse(h.NewContext(RequestType.Browse), ref continuationPoint, references));
+            continuationPoint?.Dispose();
+        }
 
-            Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadViewIdUnknown));
-            continuationPoint.Dispose();
+        /// <summary>
+        /// The node manager returns only current references, so a View version is
+        /// rejected even when another node manager owns the View.
+        /// </summary>
+        [Test]
+        public void BrowseWithVersionOfAnotherNodeManagersViewIsRejected()
+        {
+            using Harness h = CreateHarness();
+            BaseObjectState node = h.NewObject("BrowseViewVersion");
+            h.Manager.AddPredefinedNodePublic(h.Context, node);
+            object handle = h.Manager.GetManagerHandle(node.NodeId)!;
+
+            ContinuationPoint continuationPoint = h.NewContinuationPoint(handle);
+            continuationPoint.View = new ViewDescription
+            {
+                ViewId = new NodeId("NoView", h.NamespaceIndex),
+                ViewVersion = 7
+            };
+            var references = new List<ReferenceDescription>();
+
+            ServiceResultException? ex = Assert.Throws<ServiceResultException>(
+                () => h.Manager.Browse(h.NewContext(RequestType.Browse), ref continuationPoint, references));
+            Assert.That(ex!.StatusCode, Is.EqualTo(StatusCodes.BadViewVersionInvalid));
+            continuationPoint?.Dispose();
         }
 
         [Test]
@@ -1140,7 +1322,8 @@ namespace Opc.Ua.Server.Tests.NodeManager
             bool unknownView = h.Manager.IsNodeInView(
                 h.NewContext(RequestType.Browse), new NodeId("UnknownView", h.NamespaceIndex), handle);
 
-            Assert.That(unknownView, Is.False);
+            // A View owned by another node manager does not filter the nodes of this one.
+            Assert.That(unknownView, Is.True);
         }
 
         [Test]
@@ -1186,7 +1369,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             var mockServer = new Mock<IServerInternal>();
             var mockMasterNodeManager = new Mock<IMasterNodeManager>();
             var mockConfigurationNodeManager = new Mock<IConfigurationNodeManager>();
-            NamespaceMetadataState? noMetadata = null;
+            NamespaceMetadataNode? noMetadata = null;
             mockConfigurationNodeManager.As<INamespaceMetadataSnapshot>()
                 .Setup(manager => manager.TryGetNamespaceMetadataState(It.IsAny<ushort>(), out noMetadata))
                 .Returns(true);
@@ -1339,6 +1522,27 @@ namespace Opc.Ua.Server.Tests.NodeManager
             }
 
             public NodeId PlaceholderNodeId { get; set; } = NodeId.Null;
+
+            /// <summary>
+            /// The node the deferred validation resolves the placeholder to, or
+            /// <c>null</c> when the placeholder stays unknown.
+            /// </summary>
+            public NodeState? ValidatedNode { get; set; }
+
+            protected override NodeState? ValidateNode(
+                ServerSystemContext context,
+                NodeHandle handle,
+                IDictionary<NodeId, NodeState> cache)
+            {
+                if (ValidatedNode != null && handle.NodeId == PlaceholderNodeId)
+                {
+                    handle.Node = ValidatedNode;
+                    handle.Validated = true;
+                    return ValidatedNode;
+                }
+
+                return base.ValidateNode(context, handle, cache);
+            }
 
             protected override NodeHandle? GetManagerHandle(
                 ServerSystemContext context,

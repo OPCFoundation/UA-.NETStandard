@@ -1,36 +1,11 @@
-/* ========================================================================
- * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Threading;
 using Opc.Ua.Schema.Model;
 
 namespace Opc.Ua.SourceGeneration
@@ -297,6 +272,24 @@ namespace Opc.Ua.SourceGeneration
             bool useAllowSubtypes,
             IReadOnlyDictionary<string, Dependency.ModelDependencyV1>? referencedDependencies)
         {
+            return OpenModelDesign(fileSystem, designFiles, exclusions, telemetry,
+                useAllowSubtypes, referencedDependencies, CancellationToken.None);
+        }
+
+        /// <summary>
+        /// Opens a design with cancellable dependency materialization for a generator run.
+        /// </summary>
+        internal static IModelDesign OpenModelDesign(
+            this IFileSystem fileSystem,
+            DesignFileCollection designFiles,
+            IReadOnlyList<string> exclusions,
+            ITelemetryContext telemetry,
+            bool useAllowSubtypes,
+            IReadOnlyDictionary<string, Dependency.ModelDependencyV1>? referencedDependencies,
+            CancellationToken cancellationToken,
+            Dependency.ModelDependencyResolver? dependencyResolver = null)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
             DesignFileOptions options = designFiles.Options ?? new DesignFileOptions();
             var validator = new ModelDesignValidator(
                 fileSystem,
@@ -308,13 +301,16 @@ namespace Opc.Ua.SourceGeneration
                 UseAllowSubtypes = useAllowSubtypes,
                 ReleaseCandidate = options.ReleaseCandidate,
                 ModelVersion = options.ModelVersion,
-                ModelPublicationDate = options.ModelPublicationDate
+                ModelPublicationDate = options.ModelPublicationDate,
+                DependencyCancellation = cancellationToken,
+                DependencyResolver = dependencyResolver
             };
 
             if (referencedDependencies != null)
             {
                 foreach (KeyValuePair<string, Dependency.ModelDependencyV1> entry in referencedDependencies)
                 {
+                    cancellationToken.ThrowIfCancellationRequested();
                     if (entry.Value == null)
                     {
                         continue;

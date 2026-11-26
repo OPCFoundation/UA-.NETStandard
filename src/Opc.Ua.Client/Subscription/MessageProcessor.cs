@@ -1,31 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using System.Collections.Generic;
@@ -139,10 +113,11 @@ namespace Opc.Ua.Client.Subscriptions
         }
 
         /// <inheritdoc/>
-        public virtual async ValueTask OnPublishReceivedAsync(
+        public virtual async ValueTask<bool> OnPublishReceivedAsync(
             NotificationMessage message,
             IReadOnlyList<uint>? availableSequenceNumbers,
-            IReadOnlyList<string> stringTable)
+            IReadOnlyList<string> stringTable,
+            IIngressWaitPolicy? waitPolicy = null)
         {
             CancellationToken shutdownToken = AckQueue.ShutdownToken;
             shutdownToken.ThrowIfCancellationRequested();
@@ -155,21 +130,216 @@ namespace Opc.Ua.Client.Subscriptions
                 AvailableInRetransmissionQueue = availableSequenceNumberSnapshot;
             }
             OnPublishReceived();
-            if (!await m_messageCapacity.WaitAsync(0, m_cts.Token).ConfigureAwait(false))
+            int size = EstimateRetainedSize(message, availableSequenceNumberSnapshot.Length, stringTable);
+            bool waiting = false;
+            try
             {
-                // Link shutdown only while backpressured, not on the normal admission path.
-                using CancellationTokenSource? admission = shutdownToken.CanBeCanceled
-                    ? CancellationTokenSource.CreateLinkedTokenSource(m_cts.Token, shutdownToken)
-                    : null;
-                await m_messageCapacity.WaitAsync(admission?.Token ?? m_cts.Token).ConfigureAwait(false);
+                if (!await m_messageCapacity.WaitAsync(0, m_cts.Token).ConfigureAwait(false))
+                {
+                    if (waitPolicy != null && !waitPolicy.TryEnterWait())
+                    {
+                        OnMessageNotAdmitted(message);
+                        return false;
+                    }
+                    waiting = waitPolicy != null;
+
+                    // Link shutdown only while backpressured, not on the normal admission path.
+                    using CancellationTokenSource? admission = shutdownToken.CanBeCanceled
+                        ? CancellationTokenSource.CreateLinkedTokenSource(m_cts.Token, shutdownToken)
+                        : null;
+                    await m_messageCapacity.WaitAsync(admission?.Token ?? m_cts.Token).ConfigureAwait(false);
+                }
+                if (!TryReserveQueuedBytes(size))
+                {
+                    if (!waiting && waitPolicy != null)
+                    {
+                        if (!waitPolicy.TryEnterWait())
+                        {
+                            m_messageCapacity.Release();
+                            OnMessageNotAdmitted(message);
+                            return false;
+                        }
+                        waiting = true;
+                    }
+                    try
+                    {
+                        using CancellationTokenSource? admission = shutdownToken.CanBeCanceled
+                            ? CancellationTokenSource.CreateLinkedTokenSource(m_cts.Token, shutdownToken)
+                            : null;
+                        await ReserveQueuedBytesAsync(size, admission?.Token ?? m_cts.Token).ConfigureAwait(false);
+                    }
+                    catch
+                    {
+                        m_messageCapacity.Release();
+                        throw;
+                    }
+                }
+            }
+            finally
+            {
+                if (waiting)
+                {
+                    waitPolicy!.ExitWait();
+                }
             }
             if (!m_messages.TryWrite(new IncomingMessage(message, stringTable,
                 availableSequenceNumberSnapshot,
                 TimeProvider.GetUtcNow(),
-                generation)))
+                generation,
+                size)))
             {
+                ReleaseQueuedBytes(size);
                 m_messageCapacity.Release();
+                ReleaseDeferredBodies(message);
                 throw new ChannelClosedException();
+            }
+            return true;
+        }
+
+        /// <summary>
+        /// Number of received messages that were not admitted because the ingress
+        /// queue was full and the publish worker could not wait for room. They were
+        /// not acknowledged, so the server keeps them for Republish.
+        /// </summary>
+        internal long NotAdmittedMessageCount => Interlocked.Read(ref m_notAdmittedCount);
+
+        /// <summary>
+        /// A message is left on the server: it is neither queued nor acknowledged.
+        /// The gap it leaves is recovered with Republish once the queue has room.
+        /// </summary>
+        private void OnMessageNotAdmitted(NotificationMessage message)
+        {
+            ReleaseDeferredBodies(message);
+            if (message.NotificationData.Count != 0)
+            {
+                Interlocked.Increment(ref m_notAdmittedCount);
+                Logger.SubscriptionMessageLeftOnServer(Id, message.SequenceNumber);
+            }
+        }
+
+        /// <summary>
+        /// Estimates the memory a queued message retains. A body kept as bytes, to be
+        /// decoded on first use or because its type is unknown, counts with its
+        /// encoded length; a decoded body with a fixed amount per notification. The
+        /// available sequence numbers and the string table that are queued with the
+        /// message count as well: a server can send small messages with maximal lists.
+        /// </summary>
+        internal static int EstimateRetainedSize(
+            NotificationMessage message,
+            int availableSequenceNumberCount = 0,
+            IReadOnlyList<string>? stringTable = null)
+        {
+            long size = kMessageOverhead;
+            if (availableSequenceNumberCount > 0)
+            {
+                size += kArrayOverhead + ((long)availableSequenceNumberCount * sizeof(uint));
+            }
+            if (stringTable != null && stringTable.Count != 0)
+            {
+                size += kArrayOverhead + ((long)stringTable.Count * IntPtr.Size);
+                for (int i = 0; i < stringTable.Count; i++)
+                {
+                    string? entry = stringTable[i];
+                    if (entry != null)
+                    {
+                        size += kStringOverhead + ((long)entry.Length * sizeof(char));
+                    }
+                }
+            }
+            ArrayOf<ExtensionObject> notificationData = message.NotificationData;
+            for (int i = 0; i < notificationData.Count; i++)
+            {
+                ExtensionObject body = notificationData[i];
+                int deferred = body.DeferredBodyLength;
+                if (deferred >= 0)
+                {
+                    size += deferred;
+                }
+                else if (body.TryGetAsBinary(out ByteString binary))
+                {
+                    // A body of a type the decoder does not know stays encoded.
+                    size += binary.Length;
+                }
+                else if (body.TryGetAsJson(out string? json))
+                {
+                    size += (long)json.Length * sizeof(char);
+                }
+                else if (body.TryGetValue(out DataChangeNotification? dataChange))
+                {
+                    size += (long)dataChange.MonitoredItems.Count * kDecodedNotificationSize;
+                }
+                else if (body.TryGetValue(out EventNotificationList? events))
+                {
+                    size += (long)events.Events.Count * kDecodedEventSize;
+                }
+                else
+                {
+                    size += kDecodedNotificationSize;
+                }
+            }
+            return (int)Math.Min(size, int.MaxValue);
+        }
+
+        /// <summary>
+        /// Reserves room for a message in the byte budget of the ingress queue. A
+        /// message is always admitted into an empty queue, so a message larger than
+        /// the budget cannot block the subscription. A rejected reservation leaves
+        /// the count unchanged, so concurrent attempts never see each other's
+        /// rejected sizes and miss the release that empties the queue.
+        /// </summary>
+        private bool TryReserveQueuedBytes(int size)
+        {
+            long queued = Interlocked.Read(ref m_queuedBytes);
+            while (true)
+            {
+                long reserved = queued + size;
+                if (reserved > kMaxQueuedBytes && queued != 0)
+                {
+                    return false;
+                }
+                long seen = Interlocked.CompareExchange(ref m_queuedBytes, reserved, queued);
+                if (seen == queued)
+                {
+                    return true;
+                }
+                queued = seen;
+            }
+        }
+
+        /// <summary>
+        /// Waits until the byte budget of the ingress queue has room for a message.
+        /// </summary>
+        private async Task ReserveQueuedBytesAsync(int size, CancellationToken ct)
+        {
+            while (true)
+            {
+                // Announce the wait before checking again, so a release between the
+                // check and the wait signals this waiter.
+                Interlocked.Increment(ref m_queuedBytesWaiters);
+                try
+                {
+                    if (TryReserveQueuedBytes(size))
+                    {
+                        return;
+                    }
+                    await m_queuedBytesReleased.WaitAsync(ct).ConfigureAwait(false);
+                }
+                finally
+                {
+                    Interlocked.Decrement(ref m_queuedBytesWaiters);
+                }
+            }
+        }
+
+        /// <summary>
+        /// Returns the room of a message that left the ingress queue.
+        /// </summary>
+        private void ReleaseQueuedBytes(int size)
+        {
+            Interlocked.Add(ref m_queuedBytes, -size);
+            if (Volatile.Read(ref m_queuedBytesWaiters) != 0)
+            {
+                m_queuedBytesReleased.Release();
             }
         }
 
@@ -200,8 +370,13 @@ namespace Opc.Ua.Client.Subscriptions
                     m_messageDispatchGate.Dispose();
                     m_cts.Dispose();
                     m_messageCapacity.Dispose();
+                    m_queuedBytesReleased.Dispose();
+                    while (m_messages.TryRead(out IncomingMessage queued))
+                    {
+                        ReleaseDeferredBodies(queued.Message);
+                    }
                     m_messages.Dispose();
-                    m_pendingMessages.Clear();
+                    ClearPendingMessages();
                     Disposed = true;
                 }
             }
@@ -273,6 +448,13 @@ namespace Opc.Ua.Client.Subscriptions
         protected virtual bool HandlesNotificationMessages => false;
 
         /// <summary>
+        /// Whether the owner has begun shutting down. A derived class that cancels its
+        /// callbacks before it disposes the processor reports that here, so no further
+        /// message reaches the application in between.
+        /// </summary>
+        protected virtual bool IsShuttingDown => false;
+
+        /// <summary>
         /// Delivers a complete message when <see cref="HandlesNotificationMessages"/> is true.
         /// </summary>
         protected virtual ValueTask OnNotificationMessageAsync(
@@ -333,23 +515,24 @@ namespace Opc.Ua.Client.Subscriptions
                         }
                         finally
                         {
+                            ReleaseQueuedBytes(incoming.Size);
                             m_messageCapacity.Release();
                         }
 
                         // Check the deadline after every response so a steady
                         // backlog of keep-alives or duplicates cannot hold
                         // buffered data past the gap recovery timeout.
-                        if (m_pendingMessages.Count >= kMaxPendingMessages ||
-                            IsGapRecoveryExpired())
+                        if (IsPendingBufferFull ||
+                            IsGapDeadlineDue())
                         {
-                            await SkipExpiredGapAsync(ct).ConfigureAwait(false);
+                            await HandleGapDeadlineAsync(ct).ConfigureAwait(false);
                         }
                         continue;
                     }
 
-                    if (IsGapRecoveryExpired())
+                    if (IsGapDeadlineDue())
                     {
-                        await SkipExpiredGapAsync(ct).ConfigureAwait(false);
+                        await HandleGapDeadlineAsync(ct).ConfigureAwait(false);
                         continue;
                     }
 
@@ -369,7 +552,7 @@ namespace Opc.Ua.Client.Subscriptions
                     }
 
                     waitForMessage ??= m_messages.WaitToReadAsync(ct).AsTask();
-                    TimeSpan remaining = kGapRecoveryTimeout -
+                    TimeSpan remaining = (IsReorderGraceRunning ? kReorderGrace : kGapRecoveryTimeout) -
                         TimeProvider.GetElapsedTime(m_gapStartedTimestamp);
                     var gapTimeout = new TaskCompletionSource<bool>(
                         TaskCreationOptions.RunContinuationsAsynchronously);
@@ -382,9 +565,9 @@ namespace Opc.Ua.Client.Subscriptions
                         remaining > TimeSpan.Zero ? remaining : TimeSpan.Zero,
                         Timeout.InfiniteTimeSpan))
                     {
-                        if (IsGapRecoveryExpired())
+                        if (IsGapDeadlineDue())
                         {
-                            await SkipExpiredGapAsync(ct).ConfigureAwait(false);
+                            await HandleGapDeadlineAsync(ct).ConfigureAwait(false);
                             continue;
                         }
                         Task completed = await Task.WhenAny(waitForMessage, gapTimeout.Task)
@@ -392,7 +575,7 @@ namespace Opc.Ua.Client.Subscriptions
                         if (completed == gapTimeout.Task)
                         {
                             ct.ThrowIfCancellationRequested();
-                            await SkipExpiredGapAsync(ct).ConfigureAwait(false);
+                            await HandleGapDeadlineAsync(ct).ConfigureAwait(false);
                             continue;
                         }
                     }
@@ -457,9 +640,11 @@ namespace Opc.Ua.Client.Subscriptions
             await m_messageDispatchGate.WaitAsync(ct).ConfigureAwait(false);
             try
             {
+                BeginRecovery();
                 if (AckQueue.ShutdownToken.IsCancellationRequested ||
                     incoming.Generation != Volatile.Read(ref m_generation))
                 {
+                    ReleaseDeferredBodies(incoming.Message);
                     return;
                 }
                 await ProcessMessageCoreAsync(incoming, ct).ConfigureAwait(false);
@@ -530,6 +715,7 @@ namespace Opc.Ua.Client.Subscriptions
                             curSeqNum,
                             prevDataSeq);
                     }
+                    ReleaseDeferredBodies(incoming.Message);
                     bool firstReceipt = m_notDispatched.Remove(curSeqNum);
                     firstReceipt |= TryConsumeSkippedSequenceNumber(curSeqNum);
                     if (firstReceipt)
@@ -544,10 +730,6 @@ namespace Opc.Ua.Client.Subscriptions
                     return;
                 }
 
-                // Account for the whole gap, but only try consecutive messages
-                // from the Publish response that supplied this notification.
-                // If a sequence is not in this response or Republish fails,
-                // retain the current message and wait for its original.
                 uint gap = delta - 1;
                 if (gap != 0 && curSeqNum < prevDataSeq)
                 {
@@ -560,47 +742,22 @@ namespace Opc.Ua.Client.Subscriptions
                 if (gap != 0)
                 {
                     AccountMissingMessages(prevDataSeq, curSeqNum);
+                    if (!m_gapRecoveryAttempted)
+                    {
+                        // The missing message is usually still on its way
+                        // through another publish worker. Give it the reorder
+                        // grace before asking the server for a copy.
+                        BufferDataMessage(incoming);
+                        return;
+                    }
 
-                    var candidates = new HashSet<uint>();
-                    IReadOnlyList<uint> available = incoming.AvailableSequenceNumbers;
-                    for (int i = 0; i < available.Count; i++)
-                    {
-                        uint seq = available[i];
-                        uint offset = unchecked(seq - prevDataSeq);
-                        if (offset != 0 && offset < delta)
-                        {
-                            candidates.Add(seq);
-                        }
-                    }
-                    foreach (uint seq in m_pendingMessages.Keys)
-                    {
-                        uint offset = unchecked(seq - prevDataSeq);
-                        if (offset != 0 && offset < delta)
-                        {
-                            candidates.Add(seq);
-                        }
-                    }
-                    foreach (uint seq in SortAscendingWrapAware(candidates.ToArray()))
-                    {
-                        if (seq != GetNextSequenceNumber(LastDataSequenceNumberProcessed))
-                        {
-                            break;
-                        }
-                        if (m_pendingMessages.Remove(seq, out IncomingMessage pending))
-                        {
-                            await DispatchDataMessageAsync(pending, ct).ConfigureAwait(false);
-                        }
-                        else if (!await TryRepublishAsync(
-                            seq,
-                            curSeqNum,
-                            incoming.AvailableSequenceNumbers,
-                            ct).ConfigureAwait(false))
-                        {
-                            break;
-                        }
-                        LastDataSequenceNumberProcessed = seq;
-                        LastSequenceNumberProcessed = seq;
-                    }
+                    // The grace of this gap is over. Only try consecutive
+                    // messages from the Publish response that supplied this
+                    // notification. If a sequence is not in this response or
+                    // Republish fails, retain the current message and wait
+                    // for its original.
+                    await RepublishConsecutiveAsync(curSeqNum, incoming.AvailableSequenceNumbers, ct)
+                        .ConfigureAwait(false);
                     if (GetNextSequenceNumber(LastDataSequenceNumberProcessed) != curSeqNum)
                     {
                         BufferDataMessage(incoming);
@@ -614,27 +771,180 @@ namespace Opc.Ua.Client.Subscriptions
                 // transfer. We don't know what came before, but the
                 // server may still hold older retransmissible messages
                 // (e.g. on a transferred subscription where the first
-                // received SequenceNumber is greater than 1). Walk only
+                // received SequenceNumber is greater than 1). An older
+                // message can also still be on its way through another
+                // publish worker, so buffer this one and let the reorder
+                // grace decide; RecoverBeforeFirstMessageAsync then walks only
                 // the published AvailableInRetransmissionQueue so the
                 // cost is bounded by the server's queue size, not the
-                // raw gap. Mirrors the V1 fix in PR #3565.
-                IReadOnlyList<uint> available = incoming.AvailableSequenceNumbers;
-                for (int i = 0; i < available.Count; i++)
+                // raw gap. Mirrors the V1 fix in PR #3565. What earlier
+                // responses advertised counts too, so a response that
+                // advertises less cannot end the wait for an older message.
+                if (HasOlderSequenceNumber(curSeqNum, incoming.AvailableSequenceNumbers) ||
+                    HasOlderSequenceNumber(curSeqNum, m_gapAvailableSequenceNumbers) ||
+                    HasOlderSequenceNumber(curSeqNum, m_pendingMessages.Keys))
                 {
-                    uint seq = available[i];
-                    uint delta = unchecked(curSeqNum - seq);
-                    if (delta is not 0 and < kBackwardThreshold)
-                    {
-                        await TryRepublishAsync(
-                            seq,
-                            curSeqNum,
-                            incoming.AvailableSequenceNumbers,
-                            ct).ConfigureAwait(false);
-                    }
+                    BufferDataMessage(incoming);
+                    return;
                 }
             }
             await DispatchDataMessageAsync(incoming, ct).ConfigureAwait(false);
             await DrainPendingMessagesAsync(ct).ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// Republish the messages that directly follow the data gate, up to
+        /// <paramref name="curSeqNum"/>, delivering buffered originals on the
+        /// way. Stops at the first message that is neither buffered nor
+        /// recoverable.
+        /// </summary>
+        private async ValueTask RepublishConsecutiveAsync(
+            uint curSeqNum,
+            IReadOnlyList<uint> available,
+            CancellationToken ct)
+        {
+            uint prevDataSeq = LastDataSequenceNumberProcessed;
+            uint delta = unchecked(curSeqNum - prevDataSeq);
+            var candidates = new HashSet<uint>();
+            for (int i = 0; i < available.Count; i++)
+            {
+                uint seq = available[i];
+                uint offset = unchecked(seq - prevDataSeq);
+                if (offset != 0 && offset < delta)
+                {
+                    candidates.Add(seq);
+                }
+            }
+            foreach (uint seq in m_pendingMessages.Keys)
+            {
+                uint offset = unchecked(seq - prevDataSeq);
+                if (offset != 0 && offset < delta)
+                {
+                    candidates.Add(seq);
+                }
+            }
+            foreach (uint seq in SortAscendingWrapAware(candidates.ToArray()))
+            {
+                if (seq != GetNextSequenceNumber(LastDataSequenceNumberProcessed))
+                {
+                    break;
+                }
+                if (TryTakePending(seq, out IncomingMessage pending))
+                {
+                    await DispatchDataMessageAsync(pending, ct).ConfigureAwait(false);
+                }
+                else if (!await TryRepublishAsync(seq, curSeqNum, ct).ConfigureAwait(false))
+                {
+                    break;
+                }
+                LastDataSequenceNumberProcessed = seq;
+                LastSequenceNumberProcessed = seq;
+            }
+        }
+
+        /// <summary>
+        /// Recover what the server still holds before the oldest buffered
+        /// message when no data message was delivered yet, and deliver the
+        /// buffered messages. A failed republish does not hold back the
+        /// messages behind it because nothing delivered precedes them.
+        /// </summary>
+        private async ValueTask RecoverBeforeFirstMessageAsync(CancellationToken ct)
+        {
+            uint oldest = GetOldestPendingSequenceNumber();
+            uint[] available = GetKnownAvailableSequenceNumbers();
+            foreach (uint seq in SortAscendingWrapAware(available))
+            {
+                if (IsNewerSequenceNumber(oldest, seq))
+                {
+                    await TryRepublishAsync(seq, oldest, ct).ConfigureAwait(false);
+                }
+            }
+            if (TryTakePending(oldest, out IncomingMessage pending))
+            {
+                await DispatchDataMessageAsync(pending, ct).ConfigureAwait(false);
+            }
+            await DrainPendingMessagesAsync(ct, advanced: true).ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// The sequence numbers advertised while the gap was open together
+        /// with the latest advertised retransmission queue.
+        /// </summary>
+        private uint[] GetKnownAvailableSequenceNumbers()
+        {
+            var available = new HashSet<uint>(m_gapAvailableSequenceNumbers);
+            IReadOnlyList<uint> latestAvailable = AvailableInRetransmissionQueue;
+            for (int i = 0; i < latestAvailable.Count; i++)
+            {
+                available.Add(latestAvailable[i]);
+            }
+            return [.. available];
+        }
+
+        private static bool HasOlderSequenceNumber(uint sequenceNumber, IEnumerable<uint> others)
+        {
+            foreach (uint other in others)
+            {
+                if (IsNewerSequenceNumber(sequenceNumber, other))
+                {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        /// <summary>
+        /// Gives up the deferred bodies of a message that was dispatched or never will be:
+        /// their buffers go back to the pool. Never for a message that still awaits delivery.
+        /// </summary>
+        private static void ReleaseDeferredBodies(NotificationMessage message)
+        {
+            for (int i = 0; i < message.NotificationData.Count; i++)
+            {
+                message.NotificationData[i].ReleaseDeferredBody();
+            }
+        }
+
+        private void ClearPendingMessages()
+        {
+            foreach (IncomingMessage pending in m_pendingMessages.Values)
+            {
+                ReleaseDeferredBodies(pending.Message);
+            }
+            m_pendingMessages.Clear();
+            m_pendingBytes = 0;
+        }
+
+        /// <summary>
+        /// Removes a buffered message. Called with the dispatch gate held.
+        /// </summary>
+        private bool TryTakePending(uint sequenceNumber, out IncomingMessage pending)
+        {
+            if (m_pendingMessages.Remove(sequenceNumber, out pending))
+            {
+                m_pendingBytes -= pending.Size;
+                return true;
+            }
+            return false;
+        }
+
+        /// <summary>
+        /// The gap buffer reached its limit in messages or in retained bytes, so the
+        /// gap is skipped instead of waiting for its recovery timeout.
+        /// </summary>
+        private bool IsPendingBufferFull =>
+            m_pendingMessages.Count >= kMaxPendingMessages || m_pendingBytes >= kMaxPendingBytes;
+
+        /// <summary>
+        /// Drops a buffered copy of a message, unless it is the one about to be delivered.
+        /// </summary>
+        private void RemovePendingMessage(uint sequenceNumber, NotificationMessage? delivered)
+        {
+            if (TryTakePending(sequenceNumber, out IncomingMessage pending) &&
+                !ReferenceEquals(pending.Message, delivered))
+            {
+                ReleaseDeferredBodies(pending.Message);
+            }
         }
 
         private void BufferDataMessage(IncomingMessage incoming)
@@ -649,11 +959,14 @@ namespace Opc.Ua.Client.Subscriptions
                 Logger.SubscriptionReceivedDuplicateMessageSequenceNumber(
                     Id,
                     sequenceNumber);
+                ReleaseDeferredBodies(incoming.Message);
                 return;
             }
+            m_pendingBytes += incoming.Size;
             if (m_pendingMessages.Count == 1 && m_keepAliveGapEnd == 0)
             {
                 m_gapStartedTimestamp = TimeProvider.GetTimestamp();
+                m_gapRecoveryAttempted = false;
             }
         }
 
@@ -668,7 +981,7 @@ namespace Opc.Ua.Client.Subscriptions
             LastDataSequenceNumberProcessed = sequenceNumber;
             LastSequenceNumberProcessed = sequenceNumber;
             m_notDispatched.Remove(sequenceNumber);
-            m_pendingMessages.Remove(sequenceNumber);
+            RemovePendingMessage(sequenceNumber, incoming.Message);
             await OnNotificationReceivedAsync(
                 incoming.Message,
                 PublishState.None,
@@ -683,7 +996,7 @@ namespace Opc.Ua.Client.Subscriptions
         {
             RemoveStalePendingMessages();
             while (LastDataSequenceNumberProcessed != 0 &&
-                m_pendingMessages.Remove(
+                TryTakePending(
                     GetNextSequenceNumber(LastDataSequenceNumberProcessed),
                     out IncomingMessage pending))
             {
@@ -693,25 +1006,112 @@ namespace Opc.Ua.Client.Subscriptions
             UpdateGapTimer(advanced);
         }
 
+        /// <summary>
+        /// Run the gap deadlines that are due. The reorder grace runs first,
+        /// so a message that became recoverable is not skipped.
+        /// </summary>
+        private async Task HandleGapDeadlineAsync(CancellationToken ct)
+        {
+            if (IsReorderGraceExpired())
+            {
+                await RecoverAfterReorderGraceAsync(ct).ConfigureAwait(false);
+            }
+            if (IsPendingBufferFull || IsGapRecoveryExpired())
+            {
+                await SkipExpiredGapAsync(ct).ConfigureAwait(false);
+
+                // A skip delivers the oldest buffered message and those that follow
+                // it. Buffered messages behind further holes can keep the buffer at
+                // its limit, so skip on before the next message is admitted.
+                int pending = m_pendingMessages.Count;
+                while (IsPendingBufferFull && HasUnresolvedGap)
+                {
+                    await SkipExpiredGapAsync(ct).ConfigureAwait(false);
+                    int remaining = m_pendingMessages.Count;
+                    if (remaining >= pending)
+                    {
+                        break;
+                    }
+                    pending = remaining;
+                }
+            }
+        }
+
+        /// <summary>
+        /// The missing message did not arrive within the reorder grace, so
+        /// it is treated as lost and recovered from the server.
+        /// </summary>
+        private async Task RecoverAfterReorderGraceAsync(CancellationToken ct)
+        {
+            await m_messageDispatchGate.WaitAsync(ct).ConfigureAwait(false);
+            try
+            {
+                BeginRecovery();
+                CancellationToken shutdownToken = AckQueue.ShutdownToken;
+                if (shutdownToken.IsCancellationRequested)
+                {
+                    ClearPendingMessages();
+                    m_gapAvailableSequenceNumbers.Clear();
+                    m_gapStartedTimestamp = 0;
+                    m_gapRecoveryAttempted = false;
+                    m_keepAliveGapEnd = 0;
+                    shutdownToken.ThrowIfCancellationRequested();
+                }
+
+                RemoveStalePendingMessages();
+                if (!IsReorderGraceExpired())
+                {
+                    return;
+                }
+                m_gapRecoveryAttempted = true;
+                uint previous = LastDataSequenceNumberProcessed;
+                if (previous == 0)
+                {
+                    await RecoverBeforeFirstMessageAsync(ct).ConfigureAwait(false);
+                    return;
+                }
+                uint oldest = GetOldestPendingSequenceNumber();
+                await RepublishConsecutiveAsync(oldest, GetKnownAvailableSequenceNumbers(), ct)
+                    .ConfigureAwait(false);
+                await DrainPendingMessagesAsync(
+                    ct, advanced: LastDataSequenceNumberProcessed != previous).ConfigureAwait(false);
+            }
+            finally
+            {
+                m_messageDispatchGate.Release();
+            }
+        }
+
         private async Task SkipExpiredGapAsync(CancellationToken ct, bool force = false)
         {
             await m_messageDispatchGate.WaitAsync(ct).ConfigureAwait(false);
             try
             {
+                BeginRecovery();
                 CancellationToken shutdownToken = AckQueue.ShutdownToken;
                 if (shutdownToken.IsCancellationRequested)
                 {
-                    m_pendingMessages.Clear();
+                    ClearPendingMessages();
                     m_gapAvailableSequenceNumbers.Clear();
                     m_gapStartedTimestamp = 0;
+                    m_gapRecoveryAttempted = false;
                     m_keepAliveGapEnd = 0;
                     shutdownToken.ThrowIfCancellationRequested();
                 }
 
                 RemoveStalePendingMessages();
                 if (!HasUnresolvedGap ||
-                    (!force && m_pendingMessages.Count < kMaxPendingMessages && !IsGapRecoveryExpired()))
+                    (!force && !IsPendingBufferFull && !IsGapRecoveryExpired()))
                 {
+                    return;
+                }
+
+                if (LastDataSequenceNumberProcessed == 0)
+                {
+                    // Capacity or completion ended the grace of a first
+                    // message. There is no gate to skip from.
+                    m_gapRecoveryAttempted = true;
+                    await RecoverBeforeFirstMessageAsync(ct).ConfigureAwait(false);
                     return;
                 }
 
@@ -757,13 +1157,7 @@ namespace Opc.Ua.Client.Subscriptions
         {
             uint lastData = LastDataSequenceNumberProcessed;
             uint span = unchecked(gapEnd - lastData);
-            var availableSequenceNumbers = new HashSet<uint>(m_gapAvailableSequenceNumbers);
-            IReadOnlyList<uint> latestAvailable = AvailableInRetransmissionQueue;
-            for (int i = 0; i < latestAvailable.Count; i++)
-            {
-                availableSequenceNumbers.Add(latestAvailable[i]);
-            }
-            uint[] available = [.. availableSequenceNumbers];
+            uint[] available = GetKnownAvailableSequenceNumbers();
             var candidates = new HashSet<uint>();
             for (int i = 0; i < available.Length; i++)
             {
@@ -788,12 +1182,12 @@ namespace Opc.Ua.Client.Subscriptions
                 {
                     RecordSkippedSequenceNumbers(next, seq);
                 }
-                if (m_pendingMessages.Remove(seq, out IncomingMessage pending))
+                if (TryTakePending(seq, out IncomingMessage pending))
                 {
                     await DispatchDataMessageAsync(pending, ct).ConfigureAwait(false);
                     continue;
                 }
-                if (!await TryRepublishAsync(seq, gapEnd, available, ct)
+                if (!await TryRepublishAsync(seq, gapEnd, ct)
                     .ConfigureAwait(false))
                 {
                     RecordSkippedSequenceNumbers(seq, GetNextSequenceNumber(seq));
@@ -815,6 +1209,10 @@ namespace Opc.Ua.Client.Subscriptions
         /// </summary>
         private uint GetOldestPendingSequenceNumber()
         {
+            if (LastDataSequenceNumberProcessed == 0)
+            {
+                return SortAscendingWrapAware(m_pendingMessages.Keys.ToArray())[0];
+            }
             uint oldest = 0;
             uint oldestOffset = uint.MaxValue;
             foreach (uint sequenceNumber in m_pendingMessages.Keys)
@@ -827,6 +1225,24 @@ namespace Opc.Ua.Client.Subscriptions
                 }
             }
             return oldest;
+        }
+
+        /// <summary>
+        /// Buffered data is waiting behind a gap whose reorder grace has not
+        /// ended in a recovery attempt yet.
+        /// </summary>
+        private bool IsReorderGraceRunning => m_pendingMessages.Count != 0 && !m_gapRecoveryAttempted;
+
+
+        private bool IsReorderGraceExpired()
+        {
+            return IsReorderGraceRunning &&
+                TimeProvider.GetElapsedTime(m_gapStartedTimestamp) >= kReorderGrace;
+        }
+
+        private bool IsGapDeadlineDue()
+        {
+            return IsReorderGraceExpired() || IsGapRecoveryExpired();
         }
 
         private bool IsGapRecoveryExpired()
@@ -865,11 +1281,13 @@ namespace Opc.Ua.Client.Subscriptions
             if (!HasUnresolvedGap)
             {
                 m_gapStartedTimestamp = 0;
+                m_gapRecoveryAttempted = false;
                 m_gapAvailableSequenceNumbers.Clear();
             }
             else if (advanced || m_gapStartedTimestamp == 0)
             {
                 m_gapStartedTimestamp = TimeProvider.GetTimestamp();
+                m_gapRecoveryAttempted = false;
             }
         }
 
@@ -900,7 +1318,7 @@ namespace Opc.Ua.Client.Subscriptions
             }
             foreach (uint sequenceNumber in stale)
             {
-                m_pendingMessages.Remove(sequenceNumber);
+                RemovePendingMessage(sequenceNumber, null);
             }
             UpdateGapTimer(advanced: false);
         }
@@ -916,9 +1334,18 @@ namespace Opc.Ua.Client.Subscriptions
             uint span = unchecked(endSequenceNumber - previousSequenceNumber);
             for (int i = 0; i < availableSequenceNumbers.Count; i++)
             {
+                if (m_gapAvailableSequenceNumbers.Count >= kMaxGapAvailableSequenceNumbers)
+                {
+                    // Recovery republishes in sequence order, so the numbers seen
+                    // first are the ones it needs first. The latest response's
+                    // availability is still consulted when the gap times out.
+                    return;
+                }
                 uint sequenceNumber = availableSequenceNumbers[i];
                 uint offset = unchecked(sequenceNumber - previousSequenceNumber);
-                if (offset != 0 && offset < span)
+                if (previousSequenceNumber == 0
+                    ? IsNewerSequenceNumber(endSequenceNumber, sequenceNumber)
+                    : offset != 0 && offset < span)
                 {
                     m_gapAvailableSequenceNumbers.Add(sequenceNumber);
                 }
@@ -1125,7 +1552,7 @@ namespace Opc.Ua.Client.Subscriptions
                 {
                     break;
                 }
-                if (m_pendingMessages.Remove(seq, out IncomingMessage pending))
+                if (TryTakePending(seq, out IncomingMessage pending))
                 {
                     await DispatchDataMessageAsync(pending, ct).ConfigureAwait(false);
                     continue;
@@ -1133,7 +1560,6 @@ namespace Opc.Ua.Client.Subscriptions
                 if (!await TryRepublishAsync(
                     seq,
                     keepAliveSeqNum,
-                    availableSequenceNumbers,
                     ct)
                     .ConfigureAwait(false))
                 {
@@ -1198,8 +1624,9 @@ namespace Opc.Ua.Client.Subscriptions
                 LastDataSequenceNumberProcessed = 0;
                 LastNotificationTimestamp = 0;
                 AvailableInRetransmissionQueue = [];
-                m_pendingMessages.Clear();
+                ClearPendingMessages();
                 m_gapStartedTimestamp = 0;
+                m_gapRecoveryAttempted = false;
                 m_keepAliveGapEnd = 0;
                 m_gapAvailableSequenceNumbers.Clear();
                 m_missingAccountedThrough = 0;
@@ -1271,6 +1698,7 @@ namespace Opc.Ua.Client.Subscriptions
             await m_messageDispatchGate.WaitAsync(ct).ConfigureAwait(false);
             try
             {
+                BeginRecovery();
                 uint previousDataSequenceNumber = LastDataSequenceNumberProcessed;
                 // Buffered originals older than the newest advertised
                 // message are delivered in sequence with it; otherwise the
@@ -1321,7 +1749,7 @@ namespace Opc.Ua.Client.Subscriptions
                         }, ct).ConfigureAwait(false);
                         continue;
                     }
-                    if (m_pendingMessages.Remove(sequenceNumber, out IncomingMessage pending))
+                    if (TryTakePending(sequenceNumber, out IncomingMessage pending))
                     {
                         // The original already arrived and was buffered
                         // behind a gap. Deliver that copy instead of
@@ -1329,13 +1757,18 @@ namespace Opc.Ua.Client.Subscriptions
                         // deliver it a second time.
                         await DispatchDataMessageAsync(pending, ct).ConfigureAwait(false);
                     }
-                    else
-                    {
-                        await RepublishKnownAvailableAsync(
+                    else if (!await TryRepublishAsync(
                             sequenceNumber,
                             sequenceNumber,
                             ct)
-                            .ConfigureAwait(false);
+                            .ConfigureAwait(false) &&
+                        !m_notDispatched.Contains(sequenceNumber))
+                    {
+                        // Not recovered and no longer remembered as such: moving
+                        // the gate past it would make a later recovery acknowledge
+                        // it as delivered. Stop here, the rest stays ahead of the
+                        // gate and is recovered later.
+                        break;
                     }
                     if (IsNewerSequenceNumber(
                         sequenceNumber,
@@ -1404,41 +1837,47 @@ namespace Opc.Ua.Client.Subscriptions
         }
 
         /// <summary>
-        /// Try republish a missing message
+        /// Starts the Republish budget of a recovery. Called once the dispatch gate
+        /// is held, so each hold of the gate sends a bounded number of requests.
         /// </summary>
-        /// <param name="missing"></param>
-        /// <param name="curSeqNum"></param>
-        /// <param name="availableSequenceNumbers"></param>
-        /// <param name="ct"></param>
-        /// <returns></returns>
-        /// <returns><c>false</c> if the message is listed as available but
-        /// could not be recovered; <c>true</c> if it was dispatched or the
-        /// server no longer holds it.</returns>
+        private void BeginRecovery()
+        {
+            m_recoveryRepublishCount = 0;
+            m_recoveryRepublishFailures = 0;
+            m_recoveryNotDispatchedPruned = false;
+        }
+
+        /// <summary>
+        /// Republish a message the server lists as available, within the budget of
+        /// the current recovery. Callers pass only sequence numbers taken from the
+        /// server's availability lists. Past the budget the message is not requested
+        /// and counts as not recovered.
+        /// </summary>
+        /// <returns><c>true</c> if the message was dispatched.</returns>
         private async ValueTask<bool> TryRepublishAsync(
             uint missing,
             uint curSeqNum,
-            IReadOnlyList<uint> availableSequenceNumbers,
             CancellationToken ct)
         {
-            Interlocked.Increment(ref m_republishCount);
-            if (!availableSequenceNumbers.Contains(missing))
+            if (m_recoveryRepublishCount >= kMaxRepublishPerRecovery ||
+                m_recoveryRepublishFailures >= kMaxConsecutiveRepublishFailures)
             {
-                Logger.SubscriptionMessageSequenceNumberSeqNumberNot(
-                    Id,
-                    missing);
+                if (m_recoveryRepublishCount != int.MaxValue)
+                {
+                    // Log once per recovery.
+                    Logger.SubscriptionRecoveryLimitReached(
+                        Id,
+                        m_recoveryRepublishCount,
+                        m_recoveryRepublishFailures,
+                        missing);
+                    m_recoveryRepublishCount = int.MaxValue;
+                }
+                RememberNotDispatched(missing);
                 return false;
             }
-            return await RepublishAvailableAsync(missing, curSeqNum, ct)
-                .ConfigureAwait(false);
-        }
-
-        private async ValueTask RepublishKnownAvailableAsync(
-            uint missing,
-            uint curSeqNum,
-            CancellationToken ct)
-        {
+            m_recoveryRepublishCount++;
             Interlocked.Increment(ref m_republishCount);
-            await RepublishAvailableAsync(missing, curSeqNum, ct)
+            return await RepublishAvailableAsync(missing, curSeqNum, ct)
                 .ConfigureAwait(false);
         }
 
@@ -1468,8 +1907,9 @@ namespace Opc.Ua.Client.Subscriptions
 
                 if (ServiceResult.IsGood(republish.ResponseHeader.ServiceResult))
                 {
+                    m_recoveryRepublishFailures = 0;
                     m_notDispatched.Remove(missing);
-                    m_pendingMessages.Remove(missing);
+                    RemovePendingMessage(missing, null);
 
                     // Delivery opens the acknowledgement lifetime. A late
                     // original must not open a second one.
@@ -1484,6 +1924,7 @@ namespace Opc.Ua.Client.Subscriptions
                 Logger.SubscriptionRepublishingMessageSequenceNumberSeqNumber(
                     Id,
                     missing);
+                CountRepublishFailure(republish.ResponseHeader.ServiceResult);
             }
             catch (OperationCanceledException) when (ct.IsCancellationRequested)
             {
@@ -1496,9 +1937,25 @@ namespace Opc.Ua.Client.Subscriptions
                     ex,
                     Id,
                     missing);
+                CountRepublishFailure(ex is ServiceResultException sre
+                    ? sre.StatusCode
+                    : StatusCodes.BadUnexpectedError);
             }
             RememberNotDispatched(missing);
             return false;
+        }
+
+        /// <summary>
+        /// Counts a failed Republish towards the recovery's limit. A server that no
+        /// longer holds the message answers at once, so that does not count.
+        /// </summary>
+        private void CountRepublishFailure(StatusCode status)
+        {
+            if (status == StatusCodes.BadMessageNotAvailable)
+            {
+                return;
+            }
+            m_recoveryRepublishFailures++;
         }
 
         /// <summary>
@@ -1510,8 +1967,14 @@ namespace Opc.Ua.Client.Subscriptions
         {
             if (m_notDispatched.Count >= kMaxNotDispatched)
             {
-                IReadOnlyList<uint> available = AvailableInRetransmissionQueue;
-                m_notDispatched.RemoveWhere(s => !available.Contains(s));
+                // Pruning walks the whole availability list, so a recovery that
+                // fails many requests prunes once rather than per request.
+                if (!m_recoveryNotDispatchedPruned)
+                {
+                    m_recoveryNotDispatchedPruned = true;
+                    var available = new HashSet<uint>(AvailableInRetransmissionQueue);
+                    m_notDispatched.RemoveWhere(s => !available.Contains(s));
+                }
                 if (m_notDispatched.Count >= kMaxNotDispatched)
                 {
                     return;
@@ -1535,6 +1998,22 @@ namespace Opc.Ua.Client.Subscriptions
             IReadOnlyList<string> stringTable,
             CancellationToken ct)
         {
+            // Once the subscription or its manager shuts down, nothing more reaches the
+            // application. The drain of the reorder buffer and the recovery loops dispatch
+            // several messages in a row, and a cancelled handler only throws out of its own
+            // call, so each message checks here. Without a delivery there is nothing to
+            // acknowledge either: the server keeps the message for a transfer to pick up.
+            // Only the owners' lifetimes count: transfer recovery passes its caller's token,
+            // and cancelling that operation alone must not drop a message whose sequence
+            // number recovery has already moved past.
+            if (m_cts.IsCancellationRequested ||
+                AckQueue.ShutdownToken.IsCancellationRequested ||
+                IsShuttingDown)
+            {
+                ReleaseDeferredBodies(message);
+                return;
+            }
+
             bool shouldAcknowledge = message.NotificationData.Count != 0;
             try
             {
@@ -1574,6 +2053,11 @@ namespace Opc.Ua.Client.Subscriptions
                     ex,
                     Id);
             }
+
+            // A message that waited in the queue is in an older generation by now: left
+            // alone, it would keep what was just decoded alive until that generation is
+            // collected, although nothing can reach the message any more.
+            ReleaseDeferredBodies(message);
 
             // Acknowledge even when a handler threw. The acknowledgement only
             // tells the server it may drop the message from its retransmission
@@ -1697,12 +2181,14 @@ namespace Opc.Ua.Client.Subscriptions
         /// <param name="AvailableSequenceNumbers"></param>
         /// <param name="Enqueued"></param>
         /// <param name="Generation"></param>
+        /// <param name="Size">The estimated bytes the message retains.</param>
         private readonly record struct IncomingMessage(
             NotificationMessage Message,
             IReadOnlyList<string> StringTable,
             IReadOnlyList<uint> AvailableSequenceNumbers,
             DateTimeOffset Enqueued,
-            long Generation)
+            long Generation,
+            int Size)
         {
             public static int Compare(IncomingMessage message, IncomingMessage other)
             {
@@ -1722,7 +2208,40 @@ namespace Opc.Ua.Client.Subscriptions
         private uint m_lastServerId;
         internal long m_missingCount;
         internal long m_republishCount;
-        internal IReadOnlyList<uint> AvailableInRetransmissionQueue;
+
+        /// <summary>
+        /// The sequence numbers the server last listed as available. Reading returns
+        /// a copy. The numbers are kept in a reused array, so a long-lived subscription
+        /// does not reference a new array per response: each such write is a dirty card
+        /// every following gen0 collection has to walk.
+        /// </summary>
+        internal IReadOnlyList<uint> AvailableInRetransmissionQueue
+        {
+            get
+            {
+                lock (m_availableLock)
+                {
+                    return m_available.AsSpan(0, m_availableCount).ToArray();
+                }
+            }
+            set
+            {
+                int count = value?.Count ?? 0;
+                lock (m_availableLock)
+                {
+                    if (m_available.Length < count)
+                    {
+                        m_available = new uint[Math.Max(count * 2, 16)];
+                    }
+                    for (int i = 0; i < count; i++)
+                    {
+                        m_available[i] = value![i];
+                    }
+                    m_availableCount = count;
+                }
+            }
+        }
+
         internal readonly ILogger Logger;
         protected TimeProvider TimeProvider { get; }
 
@@ -1766,7 +2285,59 @@ namespace Opc.Ua.Client.Subscriptions
         private const int kIncomingMessageCapacity = 1024;
         private const int kMaxPendingMessages = kIncomingMessageCapacity;
         private const int kMaxNotDispatched = 1024;
+
+        /// <summary>
+        /// The most bytes the messages waiting in the ingress queue may retain.
+        /// </summary>
+        internal const long kMaxQueuedBytes = 64L * 1024 * 1024;
+
+        /// <summary>
+        /// The most bytes the messages buffered behind a sequence gap may retain.
+        /// </summary>
+        internal const long kMaxPendingBytes = 64L * 1024 * 1024;
+
+        /// <summary>
+        /// The most sequence numbers remembered as available while a gap is open.
+        /// </summary>
+        internal const int kMaxGapAvailableSequenceNumbers = 1024;
+
+        /// <summary>
+        /// The most Republish requests one recovery sends while it holds the
+        /// dispatch gate. Later messages of the walk are skipped.
+        /// </summary>
+        internal const int kMaxRepublishPerRecovery = 1024;
+
+        /// <summary>
+        /// One recovery gives up after this many Republish requests in a row failed
+        /// for another reason than the server no longer holding the message.
+        /// </summary>
+        internal const int kMaxConsecutiveRepublishFailures = 3;
+
+        private const int kMessageOverhead = 256;
+        private const int kArrayOverhead = 24;
+        private const int kStringOverhead = 24;
+        private const int kDecodedNotificationSize = 128;
+        private const int kDecodedEventSize = 512;
+        private long m_queuedBytes;
+        private long m_notAdmittedCount;
+        private int m_queuedBytesWaiters;
+#pragma warning disable CA2213 // disposed in DisposeAsync(bool)
+        private readonly SemaphoreSlim m_queuedBytesReleased = new(0);
+#pragma warning restore CA2213
+        private long m_pendingBytes;
+        private int m_recoveryRepublishCount;
+        private int m_recoveryRepublishFailures;
+        private bool m_recoveryNotDispatchedPruned;
         private static readonly TimeSpan kGapRecoveryTimeout = TimeSpan.FromMilliseconds(2500);
+
+        /// <summary>
+        /// How long a message waits behind a gap before the missing message
+        /// is republished. Publish workers complete independently, so a
+        /// response can overtake an earlier one; under load the earlier one
+        /// arrives within this time. Republishing it instead costs a service
+        /// call and delivers it without its Publish metadata.
+        /// </summary>
+        private static readonly TimeSpan kReorderGrace = TimeSpan.FromMilliseconds(100);
 
         /// <summary>
         /// Sequence numbers of the current generation whose republish failed,
@@ -1779,7 +2350,16 @@ namespace Opc.Ua.Client.Subscriptions
         /// Sequence numbers advertised as available while a gap was open.
         /// </summary>
         private readonly HashSet<uint> m_gapAvailableSequenceNumbers = [];
+        private readonly Lock m_availableLock = new();
+        private uint[] m_available = [];
+        private int m_availableCount;
         private long m_gapStartedTimestamp;
+
+        /// <summary>
+        /// The reorder grace of the open gap has ended in a recovery attempt,
+        /// so newer messages may republish right away.
+        /// </summary>
+        private bool m_gapRecoveryAttempted;
 
         /// <summary>
         /// The sequence number of a keep-alive that proved messages missing
@@ -1898,5 +2478,24 @@ namespace Opc.Ua.Client.Subscriptions
             uint subscriptionId,
             uint missing,
             uint next);
+
+        [LoggerMessage(EventId = ClientEventIds.MessageProcessor + 13, Level = LogLevel.Warning,
+            Message = "{SubscriptionId}: Message recovery stopped after {Count} Republish request(s), " +
+                "{Failures} of the last failed; sequence number #{Missing} and the rest of this " +
+                "recovery are skipped.")]
+        public static partial void SubscriptionRecoveryLimitReached(
+            this ILogger logger,
+            uint subscriptionId,
+            int count,
+            int failures,
+            uint missing);
+
+        [LoggerMessage(EventId = ClientEventIds.MessageProcessor + 14, Level = LogLevel.Debug,
+            Message = "{SubscriptionId}: Ingress queue full; message with sequence number #{SeqNumber} " +
+                "is left on the server for Republish.")]
+        public static partial void SubscriptionMessageLeftOnServer(
+            this ILogger logger,
+            uint subscriptionId,
+            uint seqNumber);
     }
 }

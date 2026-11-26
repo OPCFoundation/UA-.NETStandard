@@ -1,31 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using System.Threading;
@@ -463,6 +437,411 @@ namespace Opc.Ua.PubSub.Tests.Security.Sks
             await provider.DisposeAsync().ConfigureAwait(false);
 
             Assert.That(sks.Disposed, Is.False);
+        }
+
+        [Test]
+        [Category("SecurityRegression")]
+        public async Task ProviderFollowsTheSksKeyRotationOverManyLifetimesAsync()
+        {
+            // The provider used to stop refreshing after the SKS answered the
+            // lead-time refreshes with BadNotFound ("no newer key yet") and then
+            // kept the first key forever.
+            var clock = new FakeTimeProvider(new DateTimeOffset(2026, 1, 1, 0, 0, 0, TimeSpan.Zero));
+            var sks = new InMemorySks(clock, TimeSpan.FromMinutes(60));
+            await sks.AddGroupAsync().ConfigureAwait(false);
+            await using var provider = new PullSecurityKeyProvider(
+                GroupId,
+                sks,
+                Policy,
+                new PullSecurityKeyProviderOptions(),
+                NUnitTelemetryContext.Create(),
+                clock);
+            await provider.StartAsync().ConfigureAwait(false);
+
+            for (int hour = 1; hour <= 5; hour++)
+            {
+                // Five minutes into every new key lifetime.
+                await AdvanceAsync(clock, TimeSpan.FromMinutes(hour == 1 ? 65 : 60)).ConfigureAwait(false);
+                PubSubSecurityKey current = await provider.GetCurrentKeyAsync().ConfigureAwait(false);
+                uint sksCurrent = await sks.CurrentTokenIdAsync().ConfigureAwait(false);
+                Assert.That(current.TokenId, Is.EqualTo(sksCurrent), $"token after {hour} lifetime(s)");
+                Assert.That(current.IsExpired(clock), Is.False, $"expired after {hour} lifetime(s)");
+            }
+        }
+
+        [Test]
+        [Category("SecurityRegression")]
+        public async Task ProviderKeepsRefreshingAfterMaxConsecutiveFailuresAsync()
+        {
+            var clock = new FakeTimeProvider(new DateTimeOffset(2026, 1, 1, 0, 0, 0, TimeSpan.Zero));
+            var sks = new InMemorySks(clock, TimeSpan.FromMinutes(60));
+            await sks.AddGroupAsync().ConfigureAwait(false);
+            PullSecurityKeyProviderOptions options = new()
+            {
+                RequestedFutureKeyCount = 1,
+                ReconnectDelay = TimeSpan.FromSeconds(30),
+                MaxConsecutiveFailures = 3
+            };
+            await using var provider = new PullSecurityKeyProvider(
+                GroupId,
+                sks,
+                Policy,
+                options,
+                NUnitTelemetryContext.Create(),
+                clock);
+            await provider.StartAsync().ConfigureAwait(false);
+
+            // The SKS is unreachable for ten refreshes, well past MaxConsecutiveFailures.
+            sks.FailNextCalls = 10;
+            await AdvanceAsync(clock, TimeSpan.FromMinutes(70)).ConfigureAwait(false);
+
+            Assert.That(sks.FailNextCalls, Is.Zero, "the provider stopped retrying");
+            PubSubSecurityKey current = await provider.GetCurrentKeyAsync().ConfigureAwait(false);
+            Assert.That(current.TokenId, Is.EqualTo(await sks.CurrentTokenIdAsync().ConfigureAwait(false)));
+            Assert.That(current.IsExpired(clock), Is.False);
+        }
+
+        [Test]
+        [Category("SecurityRegression")]
+        public async Task ProviderAdoptsTheScheduleOfAForcedRotationAsync()
+        {
+            var clock = new FakeTimeProvider(new DateTimeOffset(2026, 1, 1, 0, 0, 0, TimeSpan.Zero));
+            var sks = new InMemorySks(clock, TimeSpan.FromMinutes(60));
+            await sks.AddGroupAsync().ConfigureAwait(false);
+            await using var provider = new PullSecurityKeyProvider(
+                GroupId,
+                sks,
+                Policy,
+                new PullSecurityKeyProviderOptions(),
+                NUnitTelemetryContext.Create(),
+                clock);
+            await provider.StartAsync().ConfigureAwait(false);
+
+            // Token 2 becomes current at minute 10 and now expires at minute 70,
+            // not at minute 120 as first scheduled.
+            await AdvanceAsync(clock, TimeSpan.FromMinutes(10)).ConfigureAwait(false);
+            await sks.ForceRotationAsync().ConfigureAwait(false);
+
+            // The lead-time refresh (minute 55) picks up the new schedule.
+            await AdvanceAsync(clock, TimeSpan.FromMinutes(46)).ConfigureAwait(false);
+            PubSubSecurityKey current = await provider.GetCurrentKeyAsync().ConfigureAwait(false);
+            Assert.That(current.TokenId, Is.EqualTo(2u), "the provider did not follow the forced rotation");
+            Assert.That(
+                current.IssuedAt + current.Lifetime,
+                Is.EqualTo(DateTimeUtc.From(new DateTime(2026, 1, 1, 1, 10, 0, DateTimeKind.Utc))),
+                "the provider kept the old expiry of token 2");
+
+            await AdvanceAsync(clock, TimeSpan.FromMinutes(19)).ConfigureAwait(false);
+            current = await provider.GetCurrentKeyAsync().ConfigureAwait(false);
+            Assert.That(current.TokenId, Is.EqualTo(await sks.CurrentTokenIdAsync().ConfigureAwait(false)));
+            Assert.That(current.IsExpired(clock), Is.False);
+        }
+
+        [Test]
+        [Category("SecurityRegression")]
+        public async Task ProviderStopsPublishingWhenEveryCachedKeyExpiredAsync()
+        {
+            var clock = new FakeTimeProvider(new DateTimeOffset(2026, 1, 1, 0, 0, 0, TimeSpan.Zero));
+            var sks = new InMemorySks(clock, TimeSpan.FromMinutes(60));
+            await sks.AddGroupAsync().ConfigureAwait(false);
+            await using var provider = new PullSecurityKeyProvider(
+                GroupId,
+                sks,
+                Policy,
+                new PullSecurityKeyProviderOptions(),
+                NUnitTelemetryContext.Create(),
+                clock);
+            await provider.StartAsync().ConfigureAwait(false);
+
+            // Tokens 1-5 cover five hours; the SKS is unreachable for all of them.
+            sks.FailNextCalls = int.MaxValue;
+            await AdvanceAsync(clock, TimeSpan.FromMinutes(305)).ConfigureAwait(false);
+
+            Assert.That(
+                async () => await provider.GetCurrentKeyAsync().ConfigureAwait(false),
+                Throws.InvalidOperationException);
+            Assert.That(
+                await provider.TryGetKeyAsync(5).ConfigureAwait(false),
+                Is.Not.Null,
+                "the expired key must stay available for lookup");
+
+            // Once the SKS answers again, publication resumes with a valid key.
+            sks.FailNextCalls = 0;
+            await AdvanceAsync(clock, TimeSpan.FromMinutes(1)).ConfigureAwait(false);
+            PubSubSecurityKey current = await provider.GetCurrentKeyAsync().ConfigureAwait(false);
+            Assert.That(current.IsExpired(clock), Is.False);
+        }
+
+        [Test]
+        [Category("SecurityRegression")]
+        public async Task DelayedSksResponseDoesNotExtendTheCurrentKeyAsync()
+        {
+            var clock = new FakeTimeProvider(new DateTimeOffset(2026, 1, 1, 0, 0, 0, TimeSpan.Zero));
+            var sks = new InMemorySks(clock, TimeSpan.FromMinutes(60));
+            await sks.AddGroupAsync().ConfigureAwait(false);
+            await using var provider = new PullSecurityKeyProvider(
+                GroupId,
+                sks,
+                Policy,
+                new PullSecurityKeyProviderOptions(),
+                NUnitTelemetryContext.Create(),
+                clock);
+            await provider.StartAsync().ConfigureAwait(false);
+            await AdvanceAsync(clock, TimeSpan.FromMinutes(54)).ConfigureAwait(false);
+
+            // The lead-time refresh at minute 55 reads TimeToNextKey = 5 min,
+            // but its response is processed only at minute 66: token 1 must
+            // still expire at minute 60, not at minute 71.
+            sks.DelayNextResponse = TimeSpan.FromMinutes(11);
+            await AdvanceAsync(clock, TimeSpan.FromMinutes(2)).ConfigureAwait(false);
+
+            PubSubSecurityKey current = await provider.GetCurrentKeyAsync().ConfigureAwait(false);
+            Assert.That(sks.DelayNextResponse, Is.EqualTo(TimeSpan.Zero), "the delayed refresh did not run");
+            Assert.That(current.TokenId, Is.EqualTo(await sks.CurrentTokenIdAsync().ConfigureAwait(false)));
+            Assert.That(current.IsExpired(clock), Is.False);
+        }
+
+        [Test]
+        [Category("SecurityRegression")]
+        public async Task DelayedFirstPullDoesNotExtendAnUncachedKeyAsync()
+        {
+            var clock = new FakeTimeProvider(new DateTimeOffset(2026, 1, 1, 0, 0, 0, TimeSpan.Zero));
+            var sks = new InMemorySks(clock, TimeSpan.FromMinutes(60));
+            await sks.AddGroupAsync().ConfigureAwait(false);
+            clock.Advance(TimeSpan.FromMinutes(55));
+            await using var provider = new PullSecurityKeyProvider(
+                GroupId,
+                sks,
+                Policy,
+                new PullSecurityKeyProviderOptions(),
+                NUnitTelemetryContext.Create(),
+                clock);
+
+            // The first pull reads TimeToNextKey = 5 min at minute 55 and is
+            // processed at minute 66: token 1 expired at minute 60, so it must
+            // not become current with an expiry of minute 71.
+            sks.DelayNextResponse = TimeSpan.FromMinutes(11);
+            await provider.StartAsync().ConfigureAwait(false);
+
+            PubSubSecurityKey current = await provider.GetCurrentKeyAsync().ConfigureAwait(false);
+            Assert.That(current.TokenId, Is.EqualTo(await sks.CurrentTokenIdAsync().ConfigureAwait(false)));
+            Assert.That(current.IsExpired(clock), Is.False);
+        }
+
+        [Test]
+        [Category("SecurityRegression")]
+        public async Task ForcedRotationIsFollowedEvenWhenTheReplyIsDelayedAsync()
+        {
+            var clock = new FakeTimeProvider(new DateTimeOffset(2026, 1, 1, 0, 0, 0, TimeSpan.Zero));
+            var sks = new InMemorySks(clock, TimeSpan.FromMinutes(60));
+            await sks.AddGroupAsync().ConfigureAwait(false);
+            await using var provider = new PullSecurityKeyProvider(
+                GroupId,
+                sks,
+                Policy,
+                new PullSecurityKeyProviderOptions(),
+                NUnitTelemetryContext.Create(),
+                clock);
+            await provider.StartAsync().ConfigureAwait(false);
+
+            // Token 2 is forced current at minute 50 (expiry 110 instead of
+            // 120). The lead-time refresh is built at minute 55 but received
+            // at minute 66, so the reply window overlaps the old schedule.
+            await AdvanceAsync(clock, TimeSpan.FromMinutes(50)).ConfigureAwait(false);
+            await sks.ForceRotationAsync().ConfigureAwait(false);
+            await AdvanceAsync(clock, TimeSpan.FromMinutes(4)).ConfigureAwait(false);
+            sks.DelayNextResponse = TimeSpan.FromMinutes(11);
+            await AdvanceAsync(clock, TimeSpan.FromMinutes(2)).ConfigureAwait(false);
+
+            PubSubSecurityKey current = await provider.GetCurrentKeyAsync().ConfigureAwait(false);
+            Assert.That(sks.DelayNextResponse, Is.EqualTo(TimeSpan.Zero), "the delayed refresh did not run");
+            Assert.That(current.TokenId, Is.EqualTo(2u));
+            Assert.That(
+                current.IssuedAt + current.Lifetime,
+                Is.EqualTo(DateTimeUtc.From(new DateTime(2026, 1, 1, 1, 50, 0, DateTimeKind.Utc))),
+                "the provider kept the pre-rotation expiry of token 2");
+
+            await AdvanceAsync(clock, TimeSpan.FromMinutes(43)).ConfigureAwait(false);
+            current = await provider.GetCurrentKeyAsync().ConfigureAwait(false);
+            Assert.That(current.TokenId, Is.EqualTo(await sks.CurrentTokenIdAsync().ConfigureAwait(false)));
+            Assert.That(current.IsExpired(clock), Is.False);
+        }
+
+        [Test]
+        [Category("SecurityRegression")]
+        public async Task TimelyRefreshRestoresAKeyShortenedByADelayedReplyAsync()
+        {
+            var clock = new FakeTimeProvider(new DateTimeOffset(2026, 1, 1, 0, 0, 0, TimeSpan.Zero));
+            var sks = new InMemorySks(clock, TimeSpan.FromMinutes(60));
+            await sks.AddGroupAsync().ConfigureAwait(false);
+            await using var provider = new PullSecurityKeyProvider(
+                GroupId,
+                sks,
+                Policy,
+                new PullSecurityKeyProviderOptions(),
+                NUnitTelemetryContext.Create(),
+                clock);
+            await provider.StartAsync().ConfigureAwait(false);
+            await AdvanceAsync(clock, TimeSpan.FromMinutes(54)).ConfigureAwait(false);
+
+            // The lead-time refresh is sent at minute 55 but the SKS builds
+            // its response at minute 66 (TimeToNextKey = 54 min for token 2),
+            // so token 2 is conservatively taken to expire at minute 109. The
+            // timely refresh before then restores its real expiry of 120.
+            sks.DelayBeforeNextResponse = TimeSpan.FromMinutes(11);
+            await AdvanceAsync(clock, TimeSpan.FromMinutes(2)).ConfigureAwait(false);
+            Assert.That(sks.DelayBeforeNextResponse, Is.EqualTo(TimeSpan.Zero), "the delayed refresh did not run");
+            await AdvanceAsync(clock, TimeSpan.FromMinutes(40)).ConfigureAwait(false);
+
+            PubSubSecurityKey current = await provider.GetCurrentKeyAsync().ConfigureAwait(false);
+            Assert.That(current.TokenId, Is.EqualTo(2u));
+            Assert.That(
+                current.IssuedAt + current.Lifetime,
+                Is.EqualTo(DateTimeUtc.From(new DateTime(2026, 1, 1, 2, 0, 0, DateTimeKind.Utc))));
+        }
+
+        [Test]
+        [Category("SecurityRegression")]
+        public async Task TimelyRefreshCorrectsAScheduleFromADelayedResponseAsync()
+        {
+            var clock = new FakeTimeProvider(new DateTimeOffset(2026, 1, 1, 0, 0, 0, TimeSpan.Zero));
+            var sks = new InMemorySks(clock, TimeSpan.FromMinutes(60));
+            await sks.AddGroupAsync().ConfigureAwait(false);
+            await using var provider = new PullSecurityKeyProvider(
+                GroupId,
+                sks,
+                Policy,
+                new PullSecurityKeyProviderOptions(),
+                NUnitTelemetryContext.Create(),
+                clock);
+
+            // The first pull is sent at minute 0 and answered at minute 11, so
+            // token 1 is first taken to expire at minute 49. The next, timely
+            // refresh must restore its real expiry of minute 60.
+            sks.DelayBeforeNextResponse = TimeSpan.FromMinutes(11);
+            await provider.StartAsync().ConfigureAwait(false);
+            await AdvanceAsync(clock, TimeSpan.FromMinutes(39)).ConfigureAwait(false);
+
+            PubSubSecurityKey current = await provider.GetCurrentKeyAsync().ConfigureAwait(false);
+            Assert.That(current.TokenId, Is.EqualTo(await sks.CurrentTokenIdAsync().ConfigureAwait(false)));
+            Assert.That(
+                current.IssuedAt + current.Lifetime,
+                Is.EqualTo(DateTimeUtc.From(new DateTime(2026, 1, 1, 1, 0, 0, DateTimeKind.Utc))));
+        }
+
+        private static async Task AdvanceAsync(FakeTimeProvider clock, TimeSpan duration)
+        {
+            // Small steps with a real yield let the background loop run its
+            // timers as the fake clock moves.
+            TimeSpan step = TimeSpan.FromSeconds(15);
+            for (TimeSpan elapsed = TimeSpan.Zero; elapsed < duration; elapsed += step)
+            {
+                clock.Advance(step);
+                await Task.Delay(2).ConfigureAwait(false);
+            }
+            await Task.Delay(50).ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// The in-box SKS behind an <see cref="ISecurityKeyService"/>, with
+        /// injectable failures.
+        /// </summary>
+        private sealed class InMemorySks : ISecurityKeyService
+        {
+            private const string Caller = "subscriber";
+            private readonly InMemoryPubSubKeyServiceServer m_server;
+            private readonly TimeSpan m_keyLifetime;
+            private readonly FakeTimeProvider m_clock;
+            private int m_failNextCalls;
+            private long m_delayNextResponseTicks;
+            private long m_delayBeforeNextResponseTicks;
+
+            /// <summary>
+            /// Clock time that passes between the caller sending its next
+            /// request and the SKS building the response.
+            /// </summary>
+            public TimeSpan DelayBeforeNextResponse
+            {
+                get => TimeSpan.FromTicks(Interlocked.Read(ref m_delayBeforeNextResponseTicks));
+                set => Interlocked.Exchange(ref m_delayBeforeNextResponseTicks, value.Ticks);
+            }
+
+            public InMemorySks(FakeTimeProvider clock, TimeSpan keyLifetime)
+            {
+                m_server = new InMemoryPubSubKeyServiceServer(clock);
+                m_clock = clock;
+                m_keyLifetime = keyLifetime;
+            }
+
+            /// <summary>
+            /// Clock time that passes between the SKS building its next
+            /// response and the caller receiving it.
+            /// </summary>
+            public TimeSpan DelayNextResponse
+            {
+                get => TimeSpan.FromTicks(Interlocked.Read(ref m_delayNextResponseTicks));
+                set => Interlocked.Exchange(ref m_delayNextResponseTicks, value.Ticks);
+            }
+
+#pragma warning disable CS0067 // Required by ISecurityKeyService; this test double never raises it.
+            public event EventHandler<SksAvailabilityChangedEventArgs>? AvailabilityChanged;
+#pragma warning restore CS0067
+
+            public int FailNextCalls
+            {
+                get => Volatile.Read(ref m_failNextCalls);
+                set => Volatile.Write(ref m_failNextCalls, value);
+            }
+
+            public ValueTask AddGroupAsync()
+            {
+                return m_server.AddSecurityGroupAsync(new SksSecurityGroup(
+                    GroupId,
+                    PubSubSecurityPolicyUri.PubSubAes128Ctr,
+                    m_keyLifetime,
+                    4,
+                    2,
+                    Array.Empty<PubSubSecurityKey>(),
+                    [Caller]));
+            }
+
+            public ValueTask ForceRotationAsync()
+            {
+                return m_server.ForceKeyRotationAsync(GroupId);
+            }
+
+            public async Task<uint> CurrentTokenIdAsync()
+            {
+                SksKeyResponse response = await m_server.GetSecurityKeysAsync(
+                    Caller, new SksKeyRequest(GroupId, 0, 1)).ConfigureAwait(false);
+                return response.FirstTokenId;
+            }
+
+            public async ValueTask<SksKeyResponse> GetSecurityKeysAsync(
+                SksKeyRequest request,
+                CancellationToken cancellationToken = default)
+            {
+                int remaining = Volatile.Read(ref m_failNextCalls);
+                if (remaining > 0)
+                {
+                    Interlocked.Decrement(ref m_failNextCalls);
+                    throw new OpcUaSksException(StatusCodes.BadCommunicationError, "SKS unreachable.");
+                }
+                long delayBeforeTicks = Interlocked.Exchange(ref m_delayBeforeNextResponseTicks, 0);
+                if (delayBeforeTicks > 0)
+                {
+                    m_clock.Advance(TimeSpan.FromTicks(delayBeforeTicks));
+                }
+                SksKeyResponse response = await m_server
+                    .GetSecurityKeysAsync(Caller, request, default, cancellationToken)
+                    .ConfigureAwait(false);
+                long delayTicks = Interlocked.Exchange(ref m_delayNextResponseTicks, 0);
+                if (delayTicks > 0)
+                {
+                    m_clock.Advance(TimeSpan.FromTicks(delayTicks));
+                }
+                return response;
+            }
         }
 
         private sealed class DisposableTrackingSks : ISecurityKeyService, IAsyncDisposable

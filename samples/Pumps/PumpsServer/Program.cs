@@ -1,31 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using System.Globalization;
@@ -34,6 +8,9 @@ using System.Threading;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using Opc.Ua.AMB.Server.Configuration;
+using Opc.Ua.Server.FileSystem;
+using Opc.Ua.Server.Historian.InMemory;
 using PumpsSample;
 
 HostApplicationBuilder builder = Host.CreateApplicationBuilder(args);
@@ -60,6 +37,12 @@ if (pkiRoot is not null && !Path.IsPathFullyQualified(pkiRoot))
     await Console.Error.WriteLineAsync("--pki-root must be an absolute path.").ConfigureAwait(false);
     return 2;
 }
+string? stateRoot = builder.Configuration["state-root"];
+if (stateRoot is not null && !Path.IsPathFullyQualified(stateRoot))
+{
+    await Console.Error.WriteLineAsync("--state-root must be an absolute path.").ConfigureAwait(false);
+    return 2;
+}
 bool autoAccept = true;
 if (builder.Configuration["autoaccept"] is { } acceptOption && !bool.TryParse(acceptOption, out autoAccept))
 {
@@ -80,6 +63,16 @@ string endpointUrl = new UriBuilder("opc.tcp", bindHost, port, "/PumpsServer").U
 // simulation writes the live values through the handles it keeps.
 builder.Services.AddSingleton<PumpFleet>();
 builder.Services.AddHostedService<PumpSimulation>();
+builder.Services.AddSingleton<IFileTypeBinder, FileTypeBinder>();
+builder.Services.AddSingleton(_ => new InMemoryHistorianProvider(new InMemoryHistorianOptions
+{
+    RawDataRetentionPeriod = TimeSpan.FromMinutes(5),
+    MaxSamplesPerNode = 300
+}));
+if (stateRoot is not null)
+{
+    builder.Services.AddSingleton<IAssetConfigurationStore>(_ => new FileSystemAssetConfigurationStore(stateRoot));
+}
 
 builder.Services
     .AddOpcUa()

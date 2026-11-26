@@ -1,31 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using System.Collections.Generic;
@@ -106,13 +80,18 @@ namespace Opc.Ua
                     return false;
                 }
 
-                lock (m_childrenLock)
+                BaseInstanceState[]? children = null;
+                if (Volatile.Read(ref m_childrenLock) is { } childrenLock)
                 {
-                    if (!ArrayEqualityComparer<BaseInstanceState>.Default.Equals(
-                        m_children?.ToArray(), node.m_children?.ToArray()))
+                    lock (childrenLock)
                     {
-                        return false;
+                        children = m_children?.ToArray();
                     }
+                }
+                if (!ArrayEqualityComparer<BaseInstanceState>.Default.Equals(
+                    children, node.m_children?.ToArray()))
+                {
+                    return false;
                 }
                 return true;
             }
@@ -195,8 +174,8 @@ namespace Opc.Ua
             target.m_writeMask = m_writeMask;
             target.m_userWriteMask = m_userWriteMask;
 
-            target.RolePermissions = RolePermissions;
-            target.UserRolePermissions = UserRolePermissions;
+            // the copy is new: storing the permissions does not change those of any node.
+            target.InitializeRolePermissions(RolePermissions, UserRolePermissions);
             target.AccessRestrictions = AccessRestrictions;
 
             if (GetReferenceKeys() is { } references)
@@ -204,13 +183,10 @@ namespace Opc.Ua
                 target.AddReferences(references);
             }
 
-            List<BaseInstanceState>? children;
-            lock (m_childrenLock)
-            {
-                children = m_children != null ? [.. m_children] : null;
-            }
+            List<BaseInstanceState>? children = CopyChildrenList();
             if (children != null)
             {
+                target.GetOrCreateChildrenLock();
                 target.m_children = new List<BaseInstanceState>(children.Count);
                 for (int ii = 0; ii < children.Count; ii++)
                 {
@@ -240,15 +216,11 @@ namespace Opc.Ua
         /// </summary>
         protected object CloneChildren(NodeState clone)
         {
-            List<BaseInstanceState>? children;
-
-            lock (m_childrenLock)
-            {
-                children = m_children != null ? [.. m_children] : null;
-            }
+            List<BaseInstanceState>? children = CopyChildrenList();
 
             if (children != null)
             {
+                clone.GetOrCreateChildrenLock();
                 clone.m_children = new List<BaseInstanceState>(children.Count);
 
                 for (int ii = 0; ii < children.Count; ii++)
@@ -303,7 +275,7 @@ namespace Opc.Ua
         /// <param name="initializationString">The initialization string that is used to initializes the node.</param>
         public virtual void Initialize(ISystemContext context, string initializationString)
         {
-            if (initializationString.StartsWith('<'))
+            if (initializationString.StartsWith('<', StringComparison.Ordinal))
             {
                 using var reader = new StringReader(initializationString);
                 LoadFromXml(context, reader);
@@ -943,6 +915,9 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="context">The context for the system being accessed.</param>
         /// <param name="istrm">The stream to read.</param>
+        /// <exception cref="ServiceResultException">
+        /// The child hierarchy exceeds the binary decoder's nesting limit.
+        /// </exception>
         public void LoadAsBinary(ISystemContext context, Stream istrm)
         {
             IServiceMessageContext messageContext = context.AsMessageContext();
@@ -1367,6 +1342,7 @@ namespace Opc.Ua
         /// </remarks>
         protected BaseInstanceState? UpdateChild(ISystemContext context, BinaryDecoder decoder)
         {
+            using var childScope = decoder.EnterChildNode();
             var attributesToLoad = (AttributesToSave)decoder.ReadUInt32(null);
             AttributesToSave encodedAttributes = attributesToLoad;
             string? symbolicName = null;
@@ -1945,20 +1921,11 @@ namespace Opc.Ua
             {
                 lock (m_referencesLock)
                 {
-                    ReferenceSnapshot image = CurrentReferenceSnapshot;
-                    image.EnsureMutable();
-                    if (ReferenceEquals(image, s_emptyReferenceSnapshot))
+                    EnsureReferencesMutable();
+                    m_referenceRevision++;
+                    if (m_references is not null || references.Count != 0)
                     {
-                        if (references.Count == 0)
-                        {
-                            return;
-                        }
-                        image = GetMutableReferenceSnapshot();
-                    }
-                    image.Revision++;
-                    if (image.References is not null || references.Count != 0)
-                    {
-                        image.References = references;
+                        m_references = references;
                         m_changeMasks |= NodeStateChangeMasks.References;
                     }
                 }
@@ -2918,6 +2885,13 @@ namespace Opc.Ua
         /// <summary>
         /// Reports an event produced by the node.
         /// </summary>
+        /// <remarks>
+        /// A derived override may run for each parent or inverse-notifier path reaching this node.
+        /// The base implementation tracks visited nodes to suppress repeated sink delivery during propagation.
+        /// When the caller retains a serialization gate while reporting an event, synchronous sinks must not
+        /// block on work that needs the same gate. The synchronous path also waits for asynchronous sinks,
+        /// which must not await such work.
+        /// </remarks>
         /// <param name="context">The system context.</param>
         /// <param name="e">The event to report.</param>
         public virtual void ReportEvent(ISystemContext context, IFilterTarget e)
@@ -2993,10 +2967,19 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Asynchronously reports an event produced by the node, awaiting an asynchronous report
-        /// sink (see <see cref="OnReportEventAsync"/>) so the caller is never blocked. A synchronous
-        /// sink is invoked as well.
+        /// Reports an event through the asynchronous path, awaiting asynchronous report sinks
+        /// (see <see cref="OnReportEventAsync"/>) and inverse notifiers. Synchronous sinks are
+        /// still invoked directly.
         /// </summary>
+        /// <remarks>
+        /// This method does not invoke overrides of <see cref="ReportEvent"/>. A subclass that
+        /// customizes synchronous event reporting must also override this method to apply that
+        /// customization to asynchronous calls.
+        /// A derived override may run for each parent or inverse-notifier path reaching this node.
+        /// The base implementation tracks visited nodes to suppress repeated sink delivery during propagation.
+        /// When the caller retains a serialization gate while invoking or awaiting this method, report-event sinks
+        /// must not await or synchronously block on an operation that needs the same gate.
+        /// </remarks>
         /// <param name="context">The system context.</param>
         /// <param name="e">The event to report.</param>
         /// <param name="cancellationToken">The cancellation token.</param>
@@ -3303,18 +3286,30 @@ namespace Opc.Ua
         /// <summary>
         /// Clears the change masks.
         /// </summary>
+        /// <remarks>
+        /// When the caller retains a serialization gate while clearing change masks, synchronous sinks must not block
+        /// on work that needs the same gate. This method also waits for asynchronous sinks, which must not await such
+        /// work.
+        /// </remarks>
         /// <param name="context">The context that describes how access the system containing the data..</param>
         /// <param name="includeChildren">if set to <c>true</c> clear masks recursively for all children..</param>
         public void ClearChangeMasks(ISystemContext context, bool includeChildren)
         {
             if (includeChildren)
             {
-                var children = new List<BaseInstanceState>();
-                GetChildren(context, children);
-
-                for (int ii = 0; ii < children.Count; ii++)
+                List<BaseInstanceState> children = RentClearChildren();
+                try
                 {
-                    children[ii].ClearChangeMasks(context, true);
+                    GetChildren(context, children);
+
+                    for (int ii = 0; ii < children.Count; ii++)
+                    {
+                        children[ii].ClearChangeMasks(context, true);
+                    }
+                }
+                finally
+                {
+                    ReturnClearChildren(children);
                 }
             }
 
@@ -3412,28 +3407,121 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Asynchronously clears the change masks, awaiting any asynchronous state-changed sinks
-        /// (see <see cref="OnStateChangedAsync"/> / <see cref="StateChangedAsync"/>) so the caller
-        /// is never blocked. Synchronous sinks are invoked as well.
+        /// Asynchronously clears the change masks, awaiting asynchronous state-changed sinks
+        /// (see <see cref="OnStateChangedAsync"/> / <see cref="StateChangedAsync"/>). Synchronous sinks run inline
+        /// and may block the caller.
         /// </summary>
+        /// <remarks>
+        /// When the caller retains a serialization gate while invoking or awaiting this method, state-change sinks
+        /// must not await or synchronously block on an operation that needs the same gate.
+        /// Nodes bound for asynchronous notification dispatch retain notification admission throughout each
+        /// traversal, even when no masks were pending at entry. Their dispatch rejects synchronous writes and
+        /// permits nested asynchronous writes from the state-change sink.
+        /// </remarks>
         /// <param name="context">The context that describes how to access the system containing the data.</param>
         /// <param name="includeChildren">if set to <c>true</c> clear masks recursively for all children.</param>
         /// <param name="cancellationToken">The cancellation token.</param>
-        public async ValueTask ClearChangeMasksAsync(
+        public ValueTask ClearChangeMasksAsync(
             ISystemContext context,
             bool includeChildren,
             CancellationToken cancellationToken = default)
         {
+            if (m_writeOperationExecutor is { } executor &&
+                Volatile.Read(ref m_asynchronousChangeMaskNotifications) != 0)
+            {
+                return ClearChangeMasksThroughExecutorAsync(executor, context, includeChildren, cancellationToken);
+            }
+
+            return ClearChangeMasksCoreAsync(context, includeChildren, cancellationToken);
+        }
+
+        /// <summary>
+        /// Runs the change-mask clear through the bound executor. A separate method, so the closure
+        /// over the arguments is only allocated when an executor is bound, not on every clear.
+        /// </summary>
+        private ValueTask ClearChangeMasksThroughExecutorAsync(
+            NodeWriteOperationExecutor executor,
+            ISystemContext context,
+            bool includeChildren,
+            CancellationToken cancellationToken)
+        {
+            return executor.ExecuteNotificationsAsync(
+                ct => ClearChangeMasksCoreAsync(context, includeChildren, ct),
+                cancellationToken);
+        }
+
+        /// <summary>
+        /// Largest child list kept for reuse; a node with more children allocates its own,
+        /// so a thread does not hold on to a large array.
+        /// </summary>
+        private const int kMaxCachedClearChildren = 64;
+
+        /// <summary>
+        /// One child list per thread for <see cref="ClearChangeMasks"/> and
+        /// <see cref="ClearChangeMasksAsync"/>, which run for every written node.
+        /// </summary>
+        [ThreadStatic]
+        private static List<BaseInstanceState>? t_clearChildren;
+
+        /// <summary>
+        /// Takes the thread's child list, or a new one when it is in use by an outer
+        /// (nested) clear on this thread. The caller owns the list until it returns it.
+        /// </summary>
+        private static List<BaseInstanceState> RentClearChildren()
+        {
+            List<BaseInstanceState>? children = t_clearChildren;
+            if (children == null)
+            {
+                return new List<BaseInstanceState>();
+            }
+            t_clearChildren = null;
+            return children;
+        }
+
+        /// <summary>
+        /// Clears a list taken by <see cref="RentClearChildren"/> and keeps it for the
+        /// current thread, unless it grew too large.
+        /// </summary>
+        private static void ReturnClearChildren(List<BaseInstanceState> children)
+        {
+            if (children.Capacity > kMaxCachedClearChildren)
+            {
+                return;
+            }
+            children.Clear();
+            t_clearChildren = children;
+        }
+
+        /// <summary>
+        /// Clears change masks and awaits state-change sinks without acquiring notification admission.
+        /// </summary>
+        /// <param name="context">The context that describes how to access the system containing the data.</param>
+        /// <param name="includeChildren">Whether to clear masks recursively for all children.</param>
+        /// <param name="cancellationToken">The cancellation token.</param>
+        private async ValueTask ClearChangeMasksCoreAsync(
+            ISystemContext context,
+            bool includeChildren,
+            CancellationToken cancellationToken)
+        {
             if (includeChildren)
             {
-                var children = new List<BaseInstanceState>();
-                GetChildren(context, children);
-
-                for (int ii = 0; ii < children.Count; ii++)
+                List<BaseInstanceState> children = RentClearChildren();
+                try
                 {
-                    await children[ii]
-                        .ClearChangeMasksAsync(context, true, cancellationToken)
-                        .ConfigureAwait(false);
+                    GetChildren(context, children);
+
+                    for (int ii = 0; ii < children.Count; ii++)
+                    {
+                        await children[ii]
+                            .ClearChangeMasksAsync(context, true, cancellationToken)
+                            .ConfigureAwait(false);
+                    }
+                }
+                finally
+                {
+                    // may run on another thread than the rent after an await; the list is
+                    // owned by this call until here, so it can go to whichever thread it is on.
+                    ReturnClearChildren(children);
                 }
             }
 
@@ -3902,7 +3990,15 @@ namespace Opc.Ua
             IEnumerable<IReference>? additionalReferences,
             bool internalOnly)
         {
-            NodeBrowser? browser = OnCreateBrowser?.Invoke(
+            bool guarded = context is INodeStateSnapshotBrowserGuard { RequiresSnapshotSafeBrowser: true };
+            NodeStateCreateBrowserEventHandler? createBrowser = OnCreateBrowser;
+            NodeStatePopulateBrowserEventHandler? populateBrowser = guarded ? OnPopulateBrowser : null;
+            if (guarded && (createBrowser is not null || populateBrowser is not null))
+            {
+                throw new ServiceResultException(StatusCodes.BadNotSupported);
+            }
+
+            NodeBrowser? browser = createBrowser?.Invoke(
                 context,
                 this,
                 view,
@@ -3934,7 +4030,7 @@ namespace Opc.Ua
                 {
                     PopulateBrowser(context, browser);
 
-                    OnPopulateBrowser?.Invoke(context, this, browser);
+                    (guarded ? populateBrowser : OnPopulateBrowser)?.Invoke(context, this, browser);
                 }
 
                 newBrowser = null;
@@ -3968,9 +4064,16 @@ namespace Opc.Ua
 
             lock (GetOrCreateBrowseLock())
             {
+                bool guarded = context is INodeStateSnapshotBrowserGuard { RequiresSnapshotSafeBrowser: true };
+                NodeStatePopulateBrowserEventHandler? populateBrowser = guarded ? OnPopulateBrowser : null;
+                if (guarded && populateBrowser is not null)
+                {
+                    throw new ServiceResultException(StatusCodes.BadNotSupported);
+                }
+
                 PopulateBrowser(context, browser);
 
-                OnPopulateBrowser?.Invoke(context, this, browser);
+                (guarded ? populateBrowser : OnPopulateBrowser)?.Invoke(context, this, browser);
             }
         }
 
@@ -4046,7 +4149,7 @@ namespace Opc.Ua
             lock (m_referencesLock)
             {
                 // index any references.
-                if (CurrentReferenceSnapshot.References is { } table)
+                if (m_references is { } table)
                 {
                     foreach (IReference reference in table.Keys)
                     {
@@ -4107,10 +4210,9 @@ namespace Opc.Ua
         {
             lock (m_referencesLock)
             {
-                ReferenceSnapshot image = CurrentReferenceSnapshot;
-                image.EnsureMutable();
+                EnsureReferencesMutable();
                 // check if there are references to update.
-                if (image.References is { } table)
+                if (m_references is { } table)
                 {
                     var referencesToAdd = new List<IReference>();
                     var referencesToRemove = new List<IReference>();
@@ -4141,7 +4243,7 @@ namespace Opc.Ua
 
                     if (referencesToRemove.Count != 0)
                     {
-                        image.Revision++;
+                        m_referenceRevision++;
                     }
 
                     // remove old references.
@@ -4263,7 +4365,22 @@ namespace Opc.Ua
             lock (m_referencesLock)
             {
                 // add any arbitrary references.
-                if (CurrentReferenceSnapshot.References is { } table)
+                if (context is INodeStateReferenceView view &&
+                    view.TryGetReferences(this, out ArrayOf<IReference> capturedReferences))
+                {
+                    foreach (IReference reference in capturedReferences)
+                    {
+                        if (referenceTypeId.IsNull
+                            ? (reference.IsInverse
+                                ? browserBrowseDirection != BrowseDirection.Forward
+                                : browserBrowseDirection != BrowseDirection.Inverse)
+                            : browser.IsRequired(reference.ReferenceTypeId, reference.IsInverse))
+                        {
+                            referencesToAdd.Add(reference);
+                        }
+                    }
+                }
+                else if (m_references is { } table)
                 {
                     if (referenceTypeId.IsNull)
                     {
@@ -4879,18 +4996,35 @@ namespace Opc.Ua
             NumericRange indexRange,
             DataValue value)
         {
+            if (attributeId == Attributes.Value && m_writeOperationExecutor is { } executor)
+            {
+                return WriteValueThroughExecutor(executor, context, indexRange, value);
+            }
             return WriteAttributeCore(context, attributeId, indexRange, value);
+        }
+
+        /// <summary>
+        /// Runs a synchronous Value write through the bound executor. A separate method, so the
+        /// closure over the arguments is only allocated when an executor is bound, not on every write.
+        /// </summary>
+        private ServiceResult WriteValueThroughExecutor(
+            NodeWriteOperationExecutor executor,
+            ISystemContext context,
+            NumericRange indexRange,
+            DataValue value)
+        {
+            return executor.ExecuteSynchronously(
+                () => WriteAttributeCore(context, Attributes.Value, indexRange, value));
         }
 
         /// <summary>
         /// Writes an attribute.
         /// </summary>
         /// <remarks>
-        /// Deliberately takes no node-wide lock, for the same reason as the read path:
-        /// writing dispatches to caller-supplied handlers (<c>OnWriteValue</c> and its
-        /// siblings) which may take locks of their own, and holding a lock on the node
-        /// across one gives the node no fixed place in the lock order. The individual
-        /// attribute fields guard themselves.
+        /// The node does not take a node-wide lock around caller-supplied handlers because
+        /// those handlers may take locks of their own. Individual attribute fields guard
+        /// themselves. A runtime may bind an internal operation executor to coordinate a
+        /// complete Value write without exposing its synchronization mechanism.
         /// </remarks>
         /// <param name="context">The context for the current operation.</param>
         /// <param name="attributeId">The attribute id.</param>
@@ -5084,27 +5218,121 @@ namespace Opc.Ua
         /// <summary>
         /// Asynchronous sibling of
         /// <see cref="WriteAttribute(ISystemContext, uint, NumericRange, DataValue)"/>.
-        /// The default implementation wraps the synchronous call so behaviour is
-        /// bit-identical for every
-        /// <see cref="NodeState"/> that does not override it. Derived
-        /// types (notably <see cref="BaseVariableState"/>) can override
-        /// this method to dispatch to true asynchronous write hooks
-        /// without blocking a thread.
+        /// Derived types customize Value writes through <see cref="WriteAttributeCoreAsync"/>.
         /// </summary>
+        /// <remarks>
+        /// This public entrypoint is non-virtual so it can admit a complete Value write before virtual core
+        /// dispatch. Non-Value attributes dispatch to the core without Value-write admission.
+        /// Derived implementations must override <see cref="WriteAttributeCoreAsync"/> instead.
+        /// </remarks>
         /// <param name="context">The context for the current operation.</param>
         /// <param name="attributeId">The attribute id.</param>
         /// <param name="indexRange">The index range.</param>
         /// <param name="value">The value to write.</param>
         /// <param name="cancellationToken">Cancellation token.</param>
-        public virtual ValueTask<ServiceResult> WriteAttributeAsync(
+        public ValueTask<ServiceResult> WriteAttributeAsync(
             ISystemContext context,
             uint attributeId,
             NumericRange indexRange,
             DataValue value,
             CancellationToken cancellationToken = default)
         {
-            ServiceResult result = WriteAttribute(context, attributeId, indexRange, value);
-            return new ValueTask<ServiceResult>(result);
+            if (attributeId != Attributes.Value)
+            {
+                return WriteAttributeCoreAsync(context, attributeId, indexRange, value, cancellationToken);
+            }
+
+            if (m_writeOperationExecutor is not { } executor)
+            {
+                return WriteAttributeCoreAsync(context, attributeId, indexRange, value, cancellationToken);
+            }
+
+            return WriteValueThroughExecutorAsync(executor, context, indexRange, value, cancellationToken);
+        }
+
+        /// <summary>
+        /// Runs an asynchronous Value write through the bound executor. A separate method, so the
+        /// closure over the arguments is only allocated when an executor is bound: the compiler
+        /// creates the closure at the entry of the method whose parameters it captures, which
+        /// would charge every unbound write for it.
+        /// </summary>
+        private ValueTask<ServiceResult> WriteValueThroughExecutorAsync(
+            NodeWriteOperationExecutor executor,
+            ISystemContext context,
+            NumericRange indexRange,
+            DataValue value,
+            CancellationToken cancellationToken)
+        {
+            return executor.ExecuteAsynchronouslyAsync(
+                ct => WriteAttributeCoreAsync(context, Attributes.Value, indexRange, value, ct),
+                cancellationToken);
+        }
+
+        /// <summary>
+        /// Runs the asynchronous Value-write core.
+        /// </summary>
+        /// <remarks>
+        /// Derived implementations that need to retain native validation, callbacks, and cache commit must call
+        /// this method with <see langword="base"/>. The public <see cref="WriteAttributeAsync"/> method admits
+        /// a complete Value write before calling this virtual method. A Value-write core must not await another
+        /// public Value write for the same node; that call waits behind the current admission until it is
+        /// cancelled, while the outer write retains admission.
+        /// The base implementation returns BadNotSupported for executor-bound Value writes without invoking
+        /// synchronous validation, write handlers, or cache updates. Unbound Value writes and non-Value
+        /// attributes retain the ordinary synchronous fallback.
+        /// </remarks>
+        /// <param name="context">The context for the current operation.</param>
+        /// <param name="attributeId">The attribute id.</param>
+        /// <param name="indexRange">The elements to write, or a null range for the complete value.</param>
+        /// <param name="value">The value, status, and timestamp to write.</param>
+        /// <param name="cancellationToken">The operation cancellation token.</param>
+        /// <returns>The validation, callback, and cache-commit result.</returns>
+        protected virtual ValueTask<ServiceResult> WriteAttributeCoreAsync(
+            ISystemContext context,
+            uint attributeId,
+            NumericRange indexRange,
+            DataValue value,
+            CancellationToken cancellationToken = default)
+        {
+            if (attributeId == Attributes.Value && m_writeOperationExecutor != null)
+            {
+                return new ValueTask<ServiceResult>(ServiceResult.Create(
+                    StatusCodes.BadNotSupported,
+                    "Executor-bound asynchronous Value writes require a native asynchronous implementation."));
+            }
+            return new ValueTask<ServiceResult>(WriteAttributeCore(context, attributeId, indexRange, value));
+        }
+
+        /// <summary>
+        /// Binds an internal executor for complete Value writes on this node.
+        /// </summary>
+        /// <param name="executor">The operation executor.</param>
+        /// <param name="asynchronousChangeMaskNotifications">
+        /// Whether asynchronous clears retain notification admission throughout dispatch.
+        /// </param>
+        internal void BindWriteOperationExecutor(
+            NodeWriteOperationExecutor executor,
+            bool asynchronousChangeMaskNotifications = false)
+        {
+            m_writeOperationExecutor = executor ?? throw new ArgumentNullException(nameof(executor));
+            if (asynchronousChangeMaskNotifications)
+            {
+                Volatile.Write(ref m_asynchronousChangeMaskNotifications, 1);
+            }
+        }
+
+        /// <summary>
+        /// Marks change-mask notifications for dispatch after an executor-bound Value write releases admission.
+        /// </summary>
+        protected bool DeferChangeMaskNotificationsUntilWriteAdmissionEnds()
+        {
+            if (m_writeOperationExecutor is null)
+            {
+                return false;
+            }
+
+            Volatile.Write(ref m_asynchronousChangeMaskNotifications, 1);
+            return true;
         }
 
         /// <summary>
@@ -5527,7 +5755,12 @@ namespace Opc.Ua
                 return child;
             }
 
-            lock (m_childrenLock)
+            if (Volatile.Read(ref m_childrenLock) is not { } childrenLock)
+            {
+                return null;
+            }
+
+            lock (childrenLock)
             {
                 if (m_children == null)
                 {
@@ -5627,11 +5860,21 @@ namespace Opc.Ua
         /// <remarks>
         /// Returns <c>false</c> for an ordinary child so that importing a node
         /// does not evict an application-authored child which happens to share
-        /// its browse name.
+        /// its browse name. A slot which cannot hold the replacement directly,
+        /// because it is not of the slot's generated class, materializes a new
+        /// typed child copied from the replacement; that typed child is returned
+        /// through <paramref name="adopted"/> and represents the replacement
+        /// from then on. A previously held child is detached first, so it is
+        /// never overwritten in place and is reported through
+        /// <paramref name="replaced"/>.
         /// </remarks>
         /// <param name="context">The system context.</param>
         /// <param name="replacement">The replacement child.</param>
         /// <param name="replaced">The displaced explicitly defined child.</param>
+        /// <param name="adopted">
+        /// The child the slot holds afterwards: the replacement itself, or the
+        /// typed child copied from it.
+        /// </param>
         /// <param name="explicitSlotFound">
         /// Whether the browse name maps to an explicitly defined child slot.
         /// </param>
@@ -5642,9 +5885,11 @@ namespace Opc.Ua
             ISystemContext context,
             BaseInstanceState replacement,
             out BaseInstanceState? replaced,
+            out BaseInstanceState? adopted,
             out bool explicitSlotFound)
         {
             replaced = null;
+            adopted = null;
             explicitSlotFound = false;
 
             BaseInstanceState? existing = FindChild(
@@ -5667,28 +5912,59 @@ namespace Opc.Ua
                 }
             }
 
+            BaseInstanceState? detached = null;
+            if (existing is not null && !ReferenceEquals(existing, replacement))
+            {
+                // A slot which cannot adopt the replacement directly would copy
+                // it onto the held child, or ignore it. Empty the slot so it
+                // materializes a fresh typed child and the held child survives
+                // unchanged for the caller.
+                RemoveChild(existing);
+                if (FindChild(
+                    context,
+                    replacement.BrowseName,
+                    createOrReplace: false,
+                    replacement: null) is null)
+                {
+                    detached = existing;
+                }
+            }
+
             // A state which declares the child adopts the replacement into its
-            // slot; the base implementation appends it to the ordinary child
-            // collection instead.
-            BaseInstanceState? adopted = FindChild(
+            // slot, or materializes a typed child copied from it; the base
+            // implementation appends it to the ordinary child collection.
+            BaseInstanceState? slotChild = FindChild(
                 context,
                 replacement.BrowseName,
                 createOrReplace: true,
                 replacement);
-            if (!ReferenceEquals(adopted, replacement))
+            if (slotChild is null ||
+                ContainsBaseChildReference(slotChild) ||
+                (!ReferenceEquals(slotChild, replacement) &&
+                    (ReferenceEquals(slotChild, existing) ||
+                        slotChild.BrowseName != replacement.BrowseName)))
             {
-                return false;
-            }
-            if (ContainsBaseChildReference(replacement))
-            {
-                // There was no slot. Undo the append so the caller can attach
-                // the child the ordinary way.
-                RemoveChild(replacement);
+                // Either there was no slot, or the slot kept its child without
+                // taking anything over from the replacement.
+                if (slotChild is not null && ContainsBaseChildReference(slotChild))
+                {
+                    // Undo the append so the caller can attach the child the
+                    // ordinary way.
+                    RemoveChild(slotChild);
+                }
+                if (detached is not null)
+                {
+                    // Restore the held child into its slot.
+                    FindChild(context, detached.BrowseName, createOrReplace: true, detached);
+                }
                 return false;
             }
 
             explicitSlotFound = true;
-            if (existing is not null && !ReferenceEquals(existing, replacement))
+            adopted = slotChild;
+            if (existing is not null &&
+                !ReferenceEquals(existing, replacement) &&
+                !ReferenceEquals(existing, slotChild))
             {
                 existing.Parent = null;
                 replaced = existing;
@@ -5698,7 +5974,12 @@ namespace Opc.Ua
 
         private bool ContainsBaseChildReference(BaseInstanceState child)
         {
-            lock (m_childrenLock)
+            if (Volatile.Read(ref m_childrenLock) is not { } childrenLock)
+            {
+                return false;
+            }
+
+            lock (childrenLock)
             {
                 if (m_children is null)
                 {
@@ -5754,7 +6035,7 @@ namespace Opc.Ua
                 }
             }
 
-            lock (m_childrenLock)
+            lock (GetOrCreateChildrenLock())
             {
                 (m_children ??= []).Add(child);
                 m_changeMasks |= NodeStateChangeMasks.Children;
@@ -5815,7 +6096,7 @@ namespace Opc.Ua
         /// </summary>
         public virtual void RemoveChild(BaseInstanceState child)
         {
-            lock (m_childrenLock)
+            lock (GetOrCreateChildrenLock())
             {
                 if (m_children != null)
                 {
@@ -6144,7 +6425,7 @@ namespace Opc.Ua
         {
             lock (m_referencesLock)
             {
-                ReferenceDictionary<object?>? references = CurrentReferenceSnapshot.References;
+                ReferenceDictionary<object?>? references = m_references;
                 if (references == null || referenceTypeId.IsNull || targetId.IsNull)
                 {
                     return false;
@@ -6206,6 +6487,19 @@ namespace Opc.Ua
             bool isInverse,
             ExpandedNodeId targetId)
         {
+            return AddReferenceIfMissing(referenceTypeId, isInverse, targetId, out _);
+        }
+
+        /// <summary>
+        /// Reports whether storage changed before invoking the reference observer.
+        /// </summary>
+        internal bool AddReferenceIfMissing(
+            NodeId referenceTypeId,
+            bool isInverse,
+            ExpandedNodeId targetId,
+            out bool added)
+        {
+            added = false;
             if (referenceTypeId.IsNull)
             {
                 throw new ArgumentNullException(nameof(referenceTypeId));
@@ -6228,6 +6522,7 @@ namespace Opc.Ua
                 }
 
                 references.Add(reference, null);
+                added = true;
             }
 
             m_changeMasks |= NodeStateChangeMasks.References;
@@ -6260,13 +6555,12 @@ namespace Opc.Ua
 
             lock (m_referencesLock)
             {
-                ReferenceSnapshot image = CurrentReferenceSnapshot;
-                image.EnsureMutable();
-                removed = image.References?.Remove(
+                EnsureReferencesMutable();
+                removed = m_references?.Remove(
                     new NodeStateReference(referenceTypeId, isInverse, targetId)) == true;
                 if (removed)
                 {
-                    image.Revision++;
+                    m_referenceRevision++;
                 }
             }
 
@@ -6343,9 +6637,8 @@ namespace Opc.Ua
 
             lock (m_referencesLock)
             {
-                ReferenceSnapshot image = CurrentReferenceSnapshot;
-                image.EnsureMutable();
-                if (image.References is not { } references)
+                EnsureReferencesMutable();
+                if (m_references is not { } references)
                 {
                     return false;
                 }
@@ -6363,7 +6656,7 @@ namespace Opc.Ua
                 }
                 if (refsToRemove.Count != 0)
                 {
-                    image.Revision++;
+                    m_referenceRevision++;
                     m_changeMasks |= NodeStateChangeMasks.References;
                 }
             }
@@ -6387,7 +6680,12 @@ namespace Opc.Ua
         /// </remarks>
         public virtual void GetChildren(ISystemContext context, IList<BaseInstanceState> children)
         {
-            lock (m_childrenLock)
+            if (Volatile.Read(ref m_childrenLock) is not { } childrenLock)
+            {
+                return;
+            }
+
+            lock (childrenLock)
             {
                 if (m_children != null)
                 {
@@ -6418,7 +6716,15 @@ namespace Opc.Ua
         {
             lock (m_referencesLock)
             {
-                if (CurrentReferenceSnapshot.References is { } table)
+                if (context is INodeStateReferenceView view &&
+                    view.TryGetReferences(this, out ArrayOf<IReference> capturedReferences))
+                {
+                    foreach (IReference reference in capturedReferences)
+                    {
+                        references.Add(reference);
+                    }
+                }
+                else if (m_references is { } table)
                 {
                     foreach (IReference reference in table.Keys)
                     {
@@ -6443,7 +6749,18 @@ namespace Opc.Ua
         {
             lock (m_referencesLock)
             {
-                if (CurrentReferenceSnapshot.References is { } table)
+                if (context is INodeStateReferenceView view &&
+                    view.TryGetReferences(this, out ArrayOf<IReference> capturedReferences))
+                {
+                    foreach (IReference reference in capturedReferences)
+                    {
+                        if (reference.IsInverse == isInverse && reference.ReferenceTypeId == referenceTypeId)
+                        {
+                            references.Add(reference);
+                        }
+                    }
+                }
+                else if (m_references is { } table)
                 {
                     foreach (IReference reference in table.Keys)
                     {
@@ -6504,34 +6821,12 @@ namespace Opc.Ua
             BaseInstanceState? found = null;
             bool adopted = false;
 
-            lock (m_childrenLock)
+            // without a children lock there are no children to find or replace.
+            if (Volatile.Read(ref m_childrenLock) is { } childrenLock)
             {
-                if (m_children != null)
+                lock (childrenLock)
                 {
-                    BaseInstanceState? child = m_children.Count >= kChildNameIndexThreshold
-                        ? FindIndexedChild(m_children, browseName)
-                        : FindFirstChild(m_children, browseName);
-
-                    if (child != null)
-                    {
-                        if (createOrReplace && replacement != null)
-                        {
-                            for (int ii = 0; ii < m_children.Count; ii++)
-                            {
-                                if (ReferenceEquals(m_children[ii], child))
-                                {
-                                    m_children[ii] = child = replacement;
-                                    break;
-                                }
-                            }
-
-                            m_changeMasks |= NodeStateChangeMasks.Children;
-                            adopted = true;
-                            s_childNameIndexes.Remove(m_children);
-                        }
-
-                        found = child;
-                    }
+                    found = FindOrReplaceChild(browseName, createOrReplace, replacement, out adopted);
                 }
             }
 
@@ -6563,6 +6858,45 @@ namespace Opc.Ua
         }
 
         /// <summary>
+        /// Finds the child with the browse name and replaces it when asked.
+        /// Must be called while holding the children lock.
+        /// </summary>
+        private BaseInstanceState? FindOrReplaceChild(
+            QualifiedName browseName,
+            bool createOrReplace,
+            BaseInstanceState? replacement,
+            out bool adopted)
+        {
+            adopted = false;
+            if (m_children == null)
+            {
+                return null;
+            }
+
+            BaseInstanceState? child = m_children.Count >= kChildNameIndexThreshold
+                ? FindIndexedChild(m_children, browseName)
+                : FindFirstChild(m_children, browseName);
+
+            if (child != null && createOrReplace && replacement != null)
+            {
+                for (int ii = 0; ii < m_children.Count; ii++)
+                {
+                    if (ReferenceEquals(m_children[ii], child))
+                    {
+                        m_children[ii] = child = replacement;
+                        break;
+                    }
+                }
+
+                m_changeMasks |= NodeStateChangeMasks.Children;
+                adopted = true;
+                s_childNameIndexes.Remove(m_children);
+            }
+
+            return child;
+        }
+
+        /// <summary>
         /// Returns the first child in <paramref name="children"/> with the browse name.
         /// </summary>
         private static BaseInstanceState? FindFirstChild(
@@ -6583,7 +6917,7 @@ namespace Opc.Ua
         /// <summary>
         /// Returns the first child with the browse name using the browse name index of
         /// the children list, building the index when it is missing or out of date.
-        /// Must be called while holding <see cref="m_childrenLock"/>.
+        /// Must be called while holding the children lock.
         /// </summary>
         private BaseInstanceState? FindIndexedChild(
             List<BaseInstanceState> children,
@@ -6640,7 +6974,10 @@ namespace Opc.Ua
                 return;
             }
 
-            lock (parent.m_childrenLock)
+            // always under the parent's lock, even if it has no children yet: a rename that
+            // skipped the lock could interleave with a concurrent AddChild of this node and
+            // an index build, which would then keep the previous name.
+            lock (parent.GetOrCreateChildrenLock())
             {
                 m_browseName = browseName;
 
@@ -6656,7 +6993,9 @@ namespace Opc.Ua
         /// </summary>
         internal void InvalidateChildNameIndex()
         {
-            lock (m_childrenLock)
+            // like the rename, never skip the lock: an index built concurrently with a
+            // lock-free check could otherwise keep the re-parented child.
+            lock (GetOrCreateChildrenLock())
             {
                 if (m_children != null)
                 {
@@ -6823,6 +7162,40 @@ namespace Opc.Ua
             return Interlocked.CompareExchange(ref m_browseLock, candidate, null) ?? candidate;
         }
 
+        /// <summary>
+        /// Gets the existing children lock or publishes a fresh one. Every path that
+        /// assigns or fills <see cref="m_children"/> calls this first.
+        /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private Lock GetOrCreateChildrenLock()
+        {
+            Lock? existing = Volatile.Read(ref m_childrenLock);
+            if (existing is not null)
+            {
+                return existing;
+            }
+
+            var candidate = new Lock();
+            return Interlocked.CompareExchange(ref m_childrenLock, candidate, null) ?? candidate;
+        }
+
+        /// <summary>
+        /// Copies the children list under the children lock, or returns null when the
+        /// node has no children.
+        /// </summary>
+        private List<BaseInstanceState>? CopyChildrenList()
+        {
+            if (Volatile.Read(ref m_childrenLock) is not { } childrenLock)
+            {
+                return null;
+            }
+
+            lock (childrenLock)
+            {
+                return m_children != null ? [.. m_children] : null;
+            }
+        }
+
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private NodeStateDesignMetadata GetOrCreateDesignMetadata()
         {
@@ -6866,10 +7239,46 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Changes whenever the RolePermissions or UserRolePermissions of any node change, so
-        /// that cached permission verdicts can be invalidated without a reference to the node.
+        /// Stores the role permissions of a node that was just created, such as a copy or an
+        /// event field, without moving <see cref="RolePermissionsVersion"/>.
+        /// </summary>
+        /// <remarks>
+        /// No permission check has seen the new node yet, so no cached verdict depends on its
+        /// permissions; the permissions it copies changed the version when they were set on
+        /// their own node. Moving the version here would retire every cached verdict of the
+        /// server each time an event or a snapshot is created.
+        /// </remarks>
+        /// <param name="rolePermissions">The role permissions.</param>
+        /// <param name="userRolePermissions">The user role permissions.</param>
+        internal void InitializeRolePermissions(
+            ArrayOf<RolePermissionType> rolePermissions,
+            ArrayOf<RolePermissionType> userRolePermissions)
+        {
+            NodeStateSecurityData? data = rolePermissions.IsNull && userRolePermissions.IsNull
+                ? Volatile.Read(ref m_securityData)
+                : GetOrCreateSecurityData();
+            if (data != null)
+            {
+                data.RolePermissions = rolePermissions;
+                data.UserRolePermissions = userRolePermissions;
+            }
+        }
+
+        /// <summary>
+        /// Changes when role-permission attributes change or address-space membership may
+        /// replace the node resolved for a NodeId.
+        /// Cached permission verdicts use this version without retaining every resolved node.
         /// </summary>
         internal static long RolePermissionsVersion => Interlocked.Read(ref s_rolePermissionsVersion);
+
+        /// <summary>
+        /// Advances the permission cache version around node-management operations that can
+        /// replace the node resolved for a NodeId.
+        /// </summary>
+        internal static void InvalidateRolePermissionsCache()
+        {
+            Interlocked.Increment(ref s_rolePermissionsVersion);
+        }
 
         private static long s_rolePermissionsVersion;
 
@@ -6926,11 +7335,31 @@ namespace Opc.Ua
 
         private bool m_initializedFromSource;
 
+        /// <summary>
+        /// The executor for complete Value-write operations, when one is bound.
+        /// </summary>
+        private NodeWriteOperationExecutor? m_writeOperationExecutor;
+
+        /// <summary>
+        /// Whether asynchronous mask clearing must retain notification admission for this node's lifetime.
+        /// </summary>
+        private int m_asynchronousChangeMaskNotifications;
+
         /// <summary>Lazily published; see <see cref="GetOrCreateNotifiersLock"/>.</summary>
         private Lock? m_notifiersLock;
 
         private readonly Lock m_referencesLock = new();
-        private readonly Lock m_childrenLock = new();
+
+        /// <summary>
+        /// Lazily published; see <see cref="GetOrCreateChildrenLock"/>. Leaf nodes never
+        /// add a child, so most nodes of a large address space never allocate it.
+        /// </summary>
+        /// <remarks>
+        /// Invariant: <see cref="m_children"/> is only ever assigned a list after this lock
+        /// was published. A reader that finds no lock may therefore treat the node as
+        /// having no children without taking any lock.
+        /// </remarks>
+        private Lock? m_childrenLock;
 
         /// <summary>Lazily published; see <see cref="GetOrCreateBrowseLock"/>.</summary>
         private Lock? m_browseLock;
@@ -7188,6 +7617,17 @@ namespace Opc.Ua
         /// handler remains responsible for applying the requested range to its authoritative data.
         /// </remarks>
         public bool SuppressCacheUpdate { get; init; }
+
+        /// <summary>
+        /// Gets whether the native core owns an ordinary cache write, including copying and range rejection.
+        /// </summary>
+        internal bool UseOrdinaryCacheWrite { get; init; }
+
+        /// <summary>
+        /// Gets the mandatory dependent-state update run after an ordinary cache commit, outside its lock.
+        /// Exceptions report a failed operation without rolling back the committed cache.
+        /// </summary>
+        internal Action? AfterOrdinaryCacheCommit { get; init; }
     }
 
     /// <summary>

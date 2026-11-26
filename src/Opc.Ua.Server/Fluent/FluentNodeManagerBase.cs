@@ -1,31 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using System.Collections.Generic;
@@ -897,6 +871,62 @@ namespace Opc.Ua.Server.Fluent
         }
 
         /// <summary>
+        /// Registers a published authoring pass, resuming at the interrupted root after failure or cancellation.
+        /// </summary>
+        /// <remarks>
+        /// Completed roots are not replayed and graph authoring stays closed after the first attempt.
+        /// The interrupted subtree may have been partially indexed; its registration must be idempotent.
+        /// Ordinary private startup preparation continues to use the one-shot
+        /// <see cref="RegisterAuthoredNodesAsync"/> path and aborts on failure.
+        /// </remarks>
+        /// <param name="builder">The builder whose staged roots to register.</param>
+        /// <param name="cancellationToken">The cancellation token.</param>
+        protected ValueTask ResumeAuthoredNodesRegistrationAsync(
+            NodeManagerBuilder builder,
+            CancellationToken cancellationToken = default)
+        {
+            if (builder is null)
+            {
+                throw new ArgumentNullException(nameof(builder));
+            }
+            return builder.ResumeAuthoredNodesRegistrationAsync(
+                (node, ct) => AddPredefinedNodeAsync(SystemContext, node, ct),
+                cancellationToken);
+        }
+
+        /// <summary>
+        /// Raises <c>NotifyNodeAdded</c> on <paramref name="builder"/> for a
+        /// node registered after <see cref="SealConfigurationAsync"/> sealed it.
+        /// </summary>
+        /// <remarks>
+        /// Call it from <c>OnPredefinedNodeAdded</c>. A node registered before
+        /// the seal is skipped: the seal replays the notification for every
+        /// predefined node, so notifying it here as well would run its
+        /// <c>OnNodeAdded</c> handler twice, the first time before
+        /// configuration has finished.
+        /// </remarks>
+        /// <param name="builder">The builder the Configure pass used.</param>
+        /// <param name="context">The system context of the registration.</param>
+        /// <param name="node">The registered node.</param>
+        /// <exception cref="ArgumentNullException">
+        /// <paramref name="builder"/> is <c>null</c>.
+        /// </exception>
+        protected void NotifyPredefinedNodeAdded(
+            NodeManagerBuilder builder,
+            ISystemContext context,
+            NodeState node)
+        {
+            if (builder == null)
+            {
+                throw new ArgumentNullException(nameof(builder));
+            }
+            if (builder.IsGraphAuthoringSealed)
+            {
+                builder.Dispatcher.NotifyNodeAdded(context, node);
+            }
+        }
+
+        /// <summary>
         /// Seals the builder, replays <c>NotifyNodeAdded</c> for every node
         /// this manager owns, and then completes the registrations the
         /// <c>Configure</c> pass could not finish synchronously and starts
@@ -925,6 +955,11 @@ namespace Opc.Ua.Server.Fluent
             {
                 throw new ArgumentNullException(nameof(builder));
             }
+            if (m_publishedConfiguration is { IsComplete: false } pending &&
+                ReferenceEquals(pending.Builder, builder))
+            {
+                return default;
+            }
 
             builder.SealGraphAuthoring();
 
@@ -934,6 +969,151 @@ namespace Opc.Ua.Server.Fluent
             }
 
             return builder.CompleteSealAsync(cancellationToken);
+        }
+
+        /// <summary>
+        /// Defers shared-service configuration and this builder's final seal until published readiness.
+        /// </summary>
+        /// <param name="builder">The builder that must stay open for the callback.</param>
+        /// <param name="configure">The callback, which must support retry if it fails after performing side effects.</param>
+        /// <remarks>
+        /// Lifecycle readiness serializes callback attempts and completes this configuration after the callback
+        /// returns. A manager can call <see cref="CompletePublishedConfigurationAsync(CancellationToken)"/> when
+        /// later callback work depends on the configured services.
+        /// Steps for the same original builder run in registration order; register them all before readiness starts.
+        /// Registration fails during configuration when the manager does not participate in readiness.
+        /// </remarks>
+        /// <exception cref="ArgumentNullException"><paramref name="configure"/> is null.</exception>
+        protected void DeferConfigurationUntilReady(
+            INodeManagerBuilder builder,
+            Func<CancellationToken, ValueTask> configure)
+        {
+            if (configure is null)
+            {
+                throw new ArgumentNullException(nameof(configure));
+            }
+            DeferConfigurationUntilReady(builder, (_, token) => configure(token));
+        }
+
+        /// <summary>
+        /// Defers configuration and supplies the initializer's readiness admission to the callback.
+        /// </summary>
+        /// <param name="builder">The builder kept open until configuration completes.</param>
+        /// <param name="configure">
+        /// The retryable callback. Direct initialization may provide no readiness context.
+        /// </param>
+        protected void DeferConfigurationUntilReady(
+            INodeManagerBuilder builder,
+            Func<NodeManagerReadinessContext?, CancellationToken, ValueTask> configure)
+        {
+            if (configure is null)
+            {
+                throw new ArgumentNullException(nameof(configure));
+            }
+            NodeManagerBuilder attached = ResolveAttachedBuilder(builder, "published configuration");
+            EnsureReadinessParticipant(attached, "published configuration");
+            if (m_publishedConfiguration is { } pending)
+            {
+                pending.Add(attached, configure);
+                return;
+            }
+            m_publishedConfiguration = new PublishedConfiguration(attached, configure);
+        }
+
+        /// <summary>
+        /// Defers an additional authoring pass until publication, retaining its progress through readiness retries.
+        /// </summary>
+        /// <remarks>
+        /// The pass owns a separate attached builder. It runs before later shared-service callbacks, registers
+        /// its roots and external references, then closes its graph authoring without activating shared behaviors.
+        /// Completed callbacks, roots and source groups are not replayed.
+        /// An interrupted callback, subtree or reference group must support idempotent retry.
+        /// The original preparation builder remains open until all registered shared-service steps complete.
+        /// </remarks>
+        /// <param name="builder">The original preparation builder whose final seal must wait.</param>
+        /// <param name="configure">The published authoring callback.</param>
+        /// <exception cref="ArgumentNullException"><paramref name="configure"/> is null.</exception>
+        protected void DeferPublishedAuthoringUntilReady(
+            INodeManagerBuilder builder,
+            Func<INodeManagerBuilder, CancellationToken, ValueTask> configure)
+        {
+            if (configure is null)
+            {
+                throw new ArgumentNullException(nameof(configure));
+            }
+            DeferPublishedAuthoringUntilReady(builder, (published, _, token) => configure(published, token));
+        }
+
+        /// <summary>
+        /// Defers published authoring and supplies the initializer's readiness admission to the callback.
+        /// </summary>
+        /// <param name="builder">The original preparation builder.</param>
+        /// <param name="configure">The retryable authoring callback.</param>
+        protected void DeferPublishedAuthoringUntilReady(
+            INodeManagerBuilder builder,
+            Func<INodeManagerBuilder, NodeManagerReadinessContext?, CancellationToken, ValueTask> configure)
+        {
+            if (configure is null)
+            {
+                throw new ArgumentNullException(nameof(configure));
+            }
+            NodeManagerBuilder attached = ResolveAttachedBuilder(builder, "published authoring");
+            EnsureReadinessParticipant(attached, "published authoring");
+            string namespaceUri = attached.Context.NamespaceUris.GetString(attached.DefaultNamespaceIndex)
+                ?? throw new InvalidOperationException("The authoring builder has no default namespace.");
+            var pass = new PublishedAuthoringPass(this, namespaceUri, configure);
+            DeferConfigurationUntilReady(attached, pass.RunAsync);
+        }
+
+        private static void EnsureReadinessParticipant(NodeManagerBuilder builder, string feature)
+        {
+            if (!NodeManagerReadiness.IsParticipant(builder.NodeManager))
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadConfigurationError,
+                    "{0} requires {1} to implement INodeManagerReadinessNotification.OnServerReadyAsync " +
+                    "and call CompletePublishedConfigurationAsync from that callback.",
+                    feature,
+                    builder.NodeManager.GetType().FullName ?? "(unknown)");
+            }
+        }
+
+        /// <summary>
+        /// Completes the deferred callback before sealing, without repeating a callback that already succeeded.
+        /// </summary>
+        protected ValueTask CompletePublishedConfigurationAsync(CancellationToken cancellationToken = default)
+        {
+            return CompletePublishedConfigurationAsync(null, cancellationToken);
+        }
+
+        /// <summary>
+        /// Completes deferred configuration with the initializer's explicit readiness context.
+        /// </summary>
+        /// <param name="readiness">The readiness capability, if invoked by the lifecycle.</param>
+        /// <param name="cancellationToken">The readiness attempt's cancellation token.</param>
+        protected async ValueTask CompletePublishedConfigurationAsync(
+            NodeManagerReadinessContext? readiness,
+            CancellationToken cancellationToken)
+        {
+            if (m_publishedConfiguration is not { IsSealed: false } pending)
+            {
+                return;
+            }
+            await pending.RunAsync(readiness, cancellationToken).ConfigureAwait(false);
+            await SealConfigurationAsync(pending.Builder, cancellationToken).ConfigureAwait(false);
+            pending.CompleteSeal();
+        }
+
+        /// <summary>
+        /// Completes deferred configuration from the lifecycle readiness scope.
+        /// </summary>
+        /// <param name="readiness">The initializer's context.</param>
+        /// <param name="cancellationToken">The readiness attempt's cancellation token.</param>
+        internal ValueTask CompleteDeferredConfigurationForLifecycleAsync(
+            NodeManagerReadinessContext readiness,
+            CancellationToken cancellationToken)
+        {
+            return CompletePublishedConfigurationAsync(readiness, cancellationToken);
         }
 
         /// <inheritdoc/>
@@ -1540,10 +1720,172 @@ namespace Opc.Ua.Server.Fluent
             }
         }
 
+        /// <summary>
+        /// Ordered shared-service callbacks tied to one original builder's final seal.
+        /// </summary>
+        private sealed class PublishedConfiguration
+        {
+            /// <summary>
+            /// Starts a configuration sequence during private preparation.
+            /// </summary>
+            public PublishedConfiguration(
+                NodeManagerBuilder builder, Func<NodeManagerReadinessContext?, CancellationToken, ValueTask> configure)
+            {
+                Builder = builder;
+                m_steps.Add(configure);
+            }
+
+            /// <summary>
+            /// Gets the original builder retained until every step completes.
+            /// </summary>
+            public NodeManagerBuilder Builder { get; }
+
+            /// <summary>
+            /// Gets whether all shared-service callbacks succeeded before the potentially retried final seal.
+            /// </summary>
+            public bool IsComplete => IsSealed || m_completedSteps == m_steps.Count;
+
+            /// <summary>
+            /// Gets whether the original builder's final seal completed.
+            /// </summary>
+            public bool IsSealed { get; private set; }
+
+            /// <summary>
+            /// Appends a callback before readiness starts, preserving registration order and one builder owner.
+            /// </summary>
+            public void Add(
+                NodeManagerBuilder builder, Func<NodeManagerReadinessContext?, CancellationToken, ValueTask> configure)
+            {
+                if (m_started || !ReferenceEquals(Builder, builder))
+                {
+                    throw new InvalidOperationException(
+                        "Published configuration must use the original builder and be registered before readiness.");
+                }
+                m_steps.Add(configure);
+            }
+
+            /// <summary>
+            /// Retries only the first unfinished step; lifecycle readiness serializes attempts.
+            /// </summary>
+            public async ValueTask RunAsync(NodeManagerReadinessContext? readiness, CancellationToken cancellationToken)
+            {
+                m_started = true;
+                while (!IsComplete)
+                {
+                    await m_steps[m_completedSteps](readiness, cancellationToken).ConfigureAwait(false);
+                    m_completedSteps++;
+                }
+            }
+
+            /// <summary>
+            /// Releases completed callbacks while preserving the closed registration state.
+            /// </summary>
+            public void CompleteSeal()
+            {
+                IsSealed = true;
+                m_steps.Clear();
+            }
+
+            /// <summary>The shared-service steps in registration order.</summary>
+            private readonly List<Func<NodeManagerReadinessContext?, CancellationToken, ValueTask>> m_steps = [];
+
+            /// <summary>The number of successfully completed callbacks.</summary>
+            private int m_completedSteps;
+
+            /// <summary>Whether the callback sequence is closed for further registrations.</summary>
+            private bool m_started;
+        }
+
+        /// <summary>
+        /// Owns a published authoring pass and its configuration, registration, reference and seal checkpoints.
+        /// </summary>
+        private sealed class PublishedAuthoringPass
+        {
+            /// <summary>
+            /// Captures the prepared namespace intent without creating or exposing a published builder yet.
+            /// </summary>
+            public PublishedAuthoringPass(
+                FluentNodeManagerBase owner,
+                string namespaceUri,
+                Func<INodeManagerBuilder, NodeManagerReadinessContext?, CancellationToken, ValueTask> configure)
+            {
+                m_owner = owner;
+                m_namespaceUri = namespaceUri;
+                m_configure = configure;
+            }
+
+            /// <summary>
+            /// Completes only unfinished work, retaining the manager's ownership when an attempt fails.
+            /// </summary>
+            public async ValueTask RunAsync(NodeManagerReadinessContext? readiness, CancellationToken cancellationToken)
+            {
+                if (m_builder is null)
+                {
+                    int namespaceIndex = m_owner.Server.NamespaceUris.GetIndex(m_namespaceUri);
+                    if (namespaceIndex < 0)
+                    {
+                        throw new InvalidOperationException("The published authoring namespace is not registered.");
+                    }
+                    m_builder = m_owner.CreateFluentBuilder(checked((ushort)namespaceIndex));
+                }
+                if (!m_configured)
+                {
+                    await m_configure(m_builder, readiness, cancellationToken).ConfigureAwait(false);
+                    m_configured = true;
+                }
+                if (!m_registered)
+                {
+                    await m_owner.ResumeAuthoredNodesRegistrationAsync(m_builder, cancellationToken)
+                        .ConfigureAwait(false);
+                    m_registered = true;
+                }
+                if (m_references is null)
+                {
+                    var externalReferences = new Dictionary<NodeId, IList<IReference>>();
+                    await m_owner.CompleteConfigureAsync(externalReferences, cancellationToken).ConfigureAwait(false);
+                    m_references = new Queue<KeyValuePair<NodeId, IList<IReference>>>(externalReferences);
+                }
+                while (m_references.Count != 0)
+                {
+                    cancellationToken.ThrowIfCancellationRequested();
+                    KeyValuePair<NodeId, IList<IReference>> entry = m_references.Peek();
+                    await m_owner.Server.NodeManager.AddReferencesAsync(entry.Key, entry.Value, cancellationToken)
+                        .ConfigureAwait(false);
+                    m_references.Dequeue();
+                }
+                m_builder.SealGraphAuthoring();
+            }
+
+            /// <summary>The manager that owns the attached builder and all pass resources.</summary>
+            private readonly FluentNodeManagerBase m_owner;
+
+            /// <summary>The namespace URI captured from private preparation rather than a transient numeric index.</summary>
+            private readonly string m_namespaceUri;
+
+            /// <summary>The published authoring callback.</summary>
+            private readonly Func<INodeManagerBuilder, NodeManagerReadinessContext?, CancellationToken, ValueTask>
+                m_configure;
+
+            /// <summary>The attached builder, created only after publication.</summary>
+            private NodeManagerBuilder? m_builder;
+
+            /// <summary>Whether the authoring callback succeeded.</summary>
+            private bool m_configured;
+
+            /// <summary>Whether every staged root was registered successfully.</summary>
+            private bool m_registered;
+
+            /// <summary>The unfinished external source groups.</summary>
+            private Queue<KeyValuePair<NodeId, IList<IReference>>>? m_references;
+        }
+
         private readonly Lock m_attachedBuildersLock = new();
         private readonly List<NodeManagerBuilder> m_attachedBuilders = [];
         private readonly Lock m_behaviorActivationsLock = new();
         private readonly List<NodeBehaviorActivation> m_behaviorActivations = [];
+
+        /// <summary>The ordered shared-service callbacks retained through published readiness and final seal.</summary>
+        private PublishedConfiguration? m_publishedConfiguration;
     }
 
     /// <summary>

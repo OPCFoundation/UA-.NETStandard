@@ -1,31 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using System.Collections.Generic;
@@ -34,12 +8,15 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Time.Testing;
 using Moq;
 using NUnit.Framework;
 using Opc.Ua.PubSub.Application;
 using Opc.Ua.PubSub.Configuration;
 using Opc.Ua.PubSub.Diagnostics;
+using Opc.Ua.PubSub.Groups;
 using Opc.Ua.PubSub.MetaData;
+using Opc.Ua.PubSub.Redundancy;
 using Opc.Ua.PubSub.Scheduling;
 using Opc.Ua.PubSub.Security;
 using Opc.Ua.PubSub.Security.Sks;
@@ -184,6 +161,28 @@ namespace Opc.Ua.PubSub.Tests.DependencyInjection
         }
 
         [Test]
+        public void AddPubSubFluentAppliesUnauthenticatedMetaDataLimits()
+        {
+            var services = new ServiceCollection();
+            services.AddSingleton(NUnitTelemetryContext.Create());
+            services.AddLogging();
+            services.AddOpcUa().AddPubSub(
+                pubsub =>
+                    pubsub.AddSubscriber().Configure(
+                        options =>
+                        {
+                            options.MaxUnauthenticatedMetaDataCost = 4096;
+                            options.UnauthenticatedMetaDataIdleTimeout = TimeSpan.Zero;
+                        }));
+            ServiceProvider sp = services.BuildServiceProvider();
+
+            IPubSubApplication app = sp.GetRequiredService<IPubSubApplication>();
+            var registry = (DataSetMetaDataRegistry)app.MetaDataRegistry;
+            Assert.That(registry.MaxUnauthenticatedCost, Is.EqualTo(4096));
+            Assert.That(registry.UnauthenticatedIdleTimeout, Is.EqualTo(TimeSpan.Zero));
+        }
+
+        [Test]
         public void AddPubSubFluent_AddSecurityKeyProvider_RegistersProvider()
         {
             var keyProvider = new Mock<IPubSubSecurityKeyProvider>();
@@ -296,6 +295,80 @@ namespace Opc.Ua.PubSub.Tests.DependencyInjection
             Assert.That(sp.GetRequiredService<IPubSubIdAllocator>(), Is.SameAs(idAllocator));
             Assert.That(sp.GetRequiredService<IPubSubRuntimeStateStore>(), Is.SameAs(runtimeStateStore));
             Assert.That(sp.GetRequiredService<IPubSubSecurityKeyStore>(), Is.SameAs(securityKeyStore));
+        }
+
+        [Test]
+        public async Task FluentPubSubRestoresRuntimeStateAndReadsCheckpointOnActivationAsync()
+        {
+            const string runtimeId = "pubsub:writer:Connection:Group:Writer";
+            const string activationId = "pubsub:writergroup:Connection:Group";
+            const ushort writerId = 7;
+            var stateStore = new Mock<IPubSubRuntimeStateStore>();
+            stateStore.Setup(store => store.GetStateAsync(runtimeId, It.IsAny<CancellationToken>()))
+                .ReturnsAsync(PubSubState.Paused);
+            var checkpointStore = new Mock<IPubSubWriterCheckpointStore>();
+            checkpointStore.Setup(store =>
+                store.GetSequenceNumberAsync(activationId, writerId, It.IsAny<CancellationToken>()))
+                .ReturnsAsync(42u);
+            var coordinator = new Mock<IPubSubActivationCoordinator>();
+            coordinator.Setup(value => value.GetRoleAsync(activationId, It.IsAny<CancellationToken>()))
+                .ReturnsAsync(PubSubComponentRole.Active);
+            var services = new ServiceCollection();
+            services.AddSingleton(NUnitTelemetryContext.Create());
+            services.AddLogging();
+            services.AddSingleton<TimeProvider>(new FakeTimeProvider());
+            services.AddSingleton(checkpointStore.Object);
+            services.AddPubSubTransportFactory(_ => new StubTransportFactory());
+            services.AddOpcUa().AddPubSub(pubsub => pubsub
+                .WithRuntimeStateStore(stateStore.Object)
+                .WithActivationCoordinator(coordinator.Object)
+                .UseConfiguration(new PubSubConfigurationDataType
+                {
+                    Enabled = true,
+                    PublishedDataSets = [new PublishedDataSetDataType { Name = "DataSet" }],
+                    Connections =
+                    [
+                        new PubSubConnectionDataType
+                        {
+                            Name = "Connection",
+                            Enabled = true,
+                            TransportProfileUri = Profiles.PubSubUdpUadpTransport,
+                            Address = new ExtensionObject(
+                                new NetworkAddressUrlDataType { Url = "opc.udp://224.0.0.22:4840" }),
+                            WriterGroups =
+                            [
+                                new WriterGroupDataType
+                                {
+                                    Name = "Group",
+                                    Enabled = true,
+                                    WriterGroupId = 1,
+                                    PublishingInterval = 1000,
+                                    DataSetWriters =
+                                    [
+                                        new DataSetWriterDataType
+                                        {
+                                            Name = "Writer",
+                                            Enabled = true,
+                                            DataSetName = "DataSet",
+                                            DataSetWriterId = writerId
+                                        }
+                                    ]
+                                }
+                            ]
+                        }
+                    ]
+                }));
+
+            await using ServiceProvider provider = services.BuildServiceProvider();
+            IPubSubApplication application = provider.GetRequiredService<IPubSubApplication>();
+            var group = (WriterGroup)application.Connections[0].WriterGroups[0];
+            Assert.That(group.DataSetWriters[0].State.State, Is.EqualTo(PubSubState.Paused));
+
+            await application.StartAsync().ConfigureAwait(false);
+            await group.PublishOnceAsync().ConfigureAwait(false);
+
+            checkpointStore.Verify(store =>
+                store.GetSequenceNumberAsync(activationId, writerId, It.IsAny<CancellationToken>()), Times.Once);
         }
 
         [Test]

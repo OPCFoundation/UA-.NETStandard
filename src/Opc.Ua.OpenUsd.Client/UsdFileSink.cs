@@ -1,31 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using System.Collections.Generic;
@@ -82,6 +56,15 @@ namespace Opc.Ua.OpenUsd.Client
             m_path = path;
         }
 
+        /// <summary>
+        /// Optional further restriction on composition targets, given the full
+        /// local path an accepted reference resolves to. A host that knows the
+        /// exact asset closure it fetched (and inspected) narrows references to
+        /// that closure; without it every relative layer path beneath the
+        /// layer's directory is admitted.
+        /// </summary>
+        internal Func<string, bool>? AssetPathFilter { get; set; }
+
         /// <inheritdoc/>
         public void ComposePrim(string primPath, OpenUsdCompositionArc arc,
             string? assetReference, bool active)
@@ -96,7 +79,7 @@ namespace Opc.Ua.OpenUsd.Client
                 {
                     m_primOrder.Add(primPath);
                 }
-                m_prims[primPath] = (arc, assetReference, active);
+                m_prims[primPath] = (arc, AdmitAssetReference(arc, assetReference), active);
                 WriteOrDefer();
             }
         }
@@ -212,14 +195,27 @@ namespace Opc.Ua.OpenUsd.Client
             }
         }
 
+        /// <summary>
+        /// The deepest prim path the sink authors. Prim paths come from the
+        /// binding model of the server and every segment is one nesting level
+        /// of the layer, so the depth of the authored hierarchy must not be
+        /// the choice of the server.
+        /// </summary>
+        internal const int MaxPrimPathDepth = 64;
+
+        /// <summary>
+        /// The longest prim path, in characters, the sink authors.
+        /// </summary>
+        internal const int MaxPrimPathLength = 4096;
+
         private static bool IsValidPrimPath(string primPath)
         {
-            if (string.IsNullOrEmpty(primPath))
+            if (string.IsNullOrEmpty(primPath) || primPath.Length > MaxPrimPathLength)
             {
                 return false;
             }
             string[] segs = primPath.Split(s_pathSeparator, StringSplitOptions.RemoveEmptyEntries);
-            if (segs.Length == 0)
+            if (segs.Length == 0 || segs.Length > MaxPrimPathDepth)
             {
                 return false;
             }
@@ -379,7 +375,7 @@ namespace Opc.Ua.OpenUsd.Client
                 (OpenUsdCompositionArc arc, string? asset, bool active) = m_prims[prim];
                 Node node = NavigateTo(root, rootOrder, prim);
                 node.Active = active;
-                if (arc != OpenUsdCompositionArc.Child && IsSafeAssetRef(asset))
+                if (arc != OpenUsdCompositionArc.Child && asset != null)
                 {
                     if (arc == OpenUsdCompositionArc.Payload)
                     {
@@ -409,7 +405,40 @@ namespace Opc.Ua.OpenUsd.Client
             File.WriteAllText(m_path, sb.ToString());
         }
 
+        /// <summary>
+        /// Writes a prim and all prims below it. The hierarchy is walked with
+        /// an explicit stack, because its depth follows the prim paths of the
+        /// server.
+        /// </summary>
         private static void Emit(StringBuilder sb, Node node, string name, string indent)
+        {
+            var open = new Stack<(Node Node, string Indent, int NextChild)>();
+            EmitOpen(sb, node, name, indent);
+            open.Push((node, indent, 0));
+            while (open.Count > 0)
+            {
+                (Node current, string currentIndent, int nextChild) = open.Pop();
+                if (nextChild < current.ChildOrder.Count)
+                {
+                    open.Push((current, currentIndent, nextChild + 1));
+                    string childName = current.ChildOrder[nextChild];
+                    Node child = current.Children[childName];
+                    string childIndent = currentIndent + "    ";
+                    EmitOpen(sb, child, childName, childIndent);
+                    open.Push((child, childIndent, 0));
+                }
+                else
+                {
+                    sb.Append(currentIndent).Append("}\n");
+                }
+            }
+        }
+
+        /// <summary>
+        /// Writes the header, the composition metadata and the properties of
+        /// a prim and leaves its block open for the child prims.
+        /// </summary>
+        private static void EmitOpen(StringBuilder sb, Node node, string name, string indent)
         {
             sb.Append(indent).Append("over \"").Append(name).Append('"');
             // Composition metadata block (references/payload/instanceable/active).
@@ -451,23 +480,37 @@ namespace Opc.Ua.OpenUsd.Client
                 sb.Append(indent).Append("    ").Append(usdType).Append(' ')
                   .Append(prop).Append(".timeSamples = ").Append(block).Append('\n');
             }
-            foreach (string child in node.ChildOrder)
-            {
-                Emit(sb, node.Children[child], child, indent + "    ");
-            }
-            sb.Append(indent).Append("}\n");
         }
 
         /// <summary>
-        /// A USD asset reference (for example <c>@pump.usda@</c>) must not contain characters
-        /// that would break the layer syntax; reject newlines and quotes.
+        /// Admits a composition reference (for example <c>@pump.usda@&lt;/Pump&gt;</c>)
+        /// only when it is a relative USD layer path beneath this layer's directory,
+        /// optionally followed by an absolute prim path, and re-emits it from its
+        /// parsed parts. The reference usually comes from the server, and native USD
+        /// resolves whatever is written here: an absolute, UNC or URL path would make
+        /// a viewer open files the server chose, and any text after the closing
+        /// delimiter would author further layer metadata.
         /// </summary>
-        /// <param name="assetRef"></param>
-        /// <returns></returns>
-        private static bool IsSafeAssetRef(string? assetRef)
+        /// <param name="arc">The composition arc.</param>
+        /// <param name="assetReference">The reference as supplied.</param>
+        /// <returns>The normalized reference, or <c>null</c> when it is refused.</returns>
+        private string? AdmitAssetReference(OpenUsdCompositionArc arc, string? assetReference)
         {
-            return !string.IsNullOrEmpty(assetRef) &&
-                assetRef!.IndexOfAny(['\n', '\r', '"']) < 0;
+            if (arc == OpenUsdCompositionArc.Child ||
+                !UsdAssetPaths.TryNormalizeReference(assetReference, out string normalized))
+            {
+                return null;
+            }
+            Func<string, bool>? filter = AssetPathFilter;
+            if (filter != null)
+            {
+                string path = normalized.Substring(1, UsdAssetPaths.IndexOfOrdinal(normalized, '@', 1) - 1);
+                if (!filter(UsdAssetPaths.Resolve(m_path, path)))
+                {
+                    return null;
+                }
+            }
+            return normalized;
         }
 
         private static string F(double x)

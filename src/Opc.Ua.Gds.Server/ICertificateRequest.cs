@@ -1,31 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 
@@ -133,6 +107,12 @@ namespace Opc.Ua.Gds.Server
         /// <param name="certificateTypeId">The certificate type.</param>
         /// <param name="signedCertificate">The signed certificate.</param>
         /// <param name="privateKey">The private key, if requested.</param>
+        /// <exception cref="ServiceResultException">
+        /// Thrown with <see cref="StatusCodes.BadUserAccessDenied"/> when the request is bound to an initiating
+        /// client certificate. Use
+        /// <see cref="IClientCertificateBoundCertificateRequestStore.FinishBoundRequest"/> with the matching
+        /// client-certificate fingerprint to finish a bound request.
+        /// </exception>
         CertificateRequestState FinishRequest(
             NodeId applicationId,
             NodeId requestId,
@@ -163,5 +143,80 @@ namespace Opc.Ua.Gds.Server
             out string[]? domainNames,
             out string? privateKeyFormat,
             out ReadOnlySpan<char> privateKeyPassword);
+    }
+
+    /// <summary>
+    /// A certificate request store that binds request completion to the initiating client certificate.
+    /// </summary>
+    public interface IClientCertificateBoundCertificateRequestStore : ICertificateRequest
+    {
+        /// <summary>
+        /// Starts a signing request bound to the initiating SecureChannel client certificate.
+        /// </summary>
+        /// <param name="applicationId">The application that owns the request.</param>
+        /// <param name="certificateGroupId">The target certificate group.</param>
+        /// <param name="certificateTypeId">The requested certificate type.</param>
+        /// <param name="certificateRequest">The certificate signing request.</param>
+        /// <param name="clientCertificateFingerprint">
+        /// The SHA-256 fingerprint of the initiating client certificate.
+        /// </param>
+        /// <param name="authorityId">The authority requesting the certificate.</param>
+        /// <returns>The identifier of the new request.</returns>
+        NodeId StartBoundSigningRequest(
+            NodeId applicationId,
+            string certificateGroupId,
+            string certificateTypeId,
+            ByteString certificateRequest,
+            ByteString clientCertificateFingerprint,
+            string authorityId);
+
+        /// <summary>
+        /// Starts a new-key-pair request bound to the initiating SecureChannel client certificate.
+        /// </summary>
+        /// <param name="applicationId">The application that owns the request.</param>
+        /// <param name="certificateGroupId">The target certificate group.</param>
+        /// <param name="certificateTypeId">The requested certificate type.</param>
+        /// <param name="subjectName">The certificate subject name.</param>
+        /// <param name="domainNames">The certificate subject alternative names.</param>
+        /// <param name="privateKeyFormat">The private-key format.</param>
+        /// <param name="privateKeyPassword">The private-key password.</param>
+        /// <param name="clientCertificateFingerprint">
+        /// The SHA-256 fingerprint of the initiating client certificate.
+        /// </param>
+        /// <param name="authorityId">The authority requesting the certificate.</param>
+        /// <returns>The identifier of the new request.</returns>
+        NodeId StartBoundNewKeyPairRequest(
+            NodeId applicationId,
+            string certificateGroupId,
+            string certificateTypeId,
+            string subjectName,
+            ArrayOf<string> domainNames,
+            string privateKeyFormat,
+            ReadOnlySpan<char> privateKeyPassword,
+            ByteString clientCertificateFingerprint,
+            string authorityId);
+
+        /// <summary>
+        /// Finishes a certificate request only when its client-certificate fingerprint matches the supplied
+        /// value.
+        /// </summary>
+        /// <param name="applicationId">The application that owns the request.</param>
+        /// <param name="requestId">The request identifier.</param>
+        /// <param name="clientCertificateFingerprint">
+        /// The SHA-256 fingerprint of the current client certificate.
+        /// </param>
+        /// <param name="certificateGroupId">The target certificate group.</param>
+        /// <param name="certificateTypeId">The requested certificate type.</param>
+        /// <param name="signedCertificate">The issued certificate.</param>
+        /// <param name="privateKey">The private key, if the request generated a key pair.</param>
+        /// <returns>The state of the request.</returns>
+        CertificateRequestState FinishBoundRequest(
+            NodeId applicationId,
+            NodeId requestId,
+            ByteString clientCertificateFingerprint,
+            out string? certificateGroupId,
+            out string? certificateTypeId,
+            out ByteString signedCertificate,
+            out ByteString privateKey);
     }
 }

@@ -3,7 +3,7 @@
   "specification": "OPC-30010",
   "referenceEdition": "1.01",
   "referenceUrl": "https://reference.opcfoundation.org/AutoID/v101/docs/",
-  "hashNormalization": "UTF-8 source bytes; the publication uses LF line endings and .gitattributes keeps them on every platform.",
+  "hashNormalization": "UTF-8 source bytes; the publication uses LF line endings and .gitattributes keeps them on every platform; the OPC Foundation MIT license banner is replaced by the SPDX header.",
   "model": {
     "ModelUri": "http://opcfoundation.org/UA/AutoID/",
     "Version": "1.01",
@@ -26,7 +26,7 @@
       "file": "Opc.Ua.AutoID.NodeSet2.xml",
       "url": "https://raw.githubusercontent.com/OPCFoundation/UA-Nodeset/9f6c7660b94af24d32c4248d4b13bf60adab0301/AutoID/Opc.Ua.AutoID.NodeSet2.xml",
       "gitBlob": "2cdca69cd86c4f46c61ea4da9ce7d625a02ed53a",
-      "sha256": "c3d5e77aaeeed03862620e307cdf4974e5998267e8faa992c1f1a24f9be6a4ba"
+      "sha256": "a5db37d8deefbaabc279bcb6d50c3976e25e48f501eca1f5bf9600cdfaa7653f"
     },
     {
       "file": "Opc.Ua.AutoID.NodeIds.csv",
@@ -35,6 +35,21 @@
       "sha256": "e8f1d80fbce4f76e9d42f3a652c6cc8c6daf68c289b2629bcce68c5879746cd6"
     }
   ],
+  "localCorrections": {
+    "file": "Opc.Ua.AutoID.NodeSet2.xml",
+    "sha256": "5794c9a971da730c63f0c9fa62ce43c10cf1eec97052148d87c5ee2cd7ec6f05",
+    "authority": "https://reference.opcfoundation.org/specs/OPC-30010/6.4.3.1",
+    "changes": [
+      {
+        "nodeId": "ns=1;i=6076",
+        "methodId": "ns=1;i=7054",
+        "argument": "Results",
+        "publishedDataType": "ns=1;i=3027",
+        "effectiveDataType": "ns=1;i=3030",
+        "reason": "OpticalVerifierDeviceType.Scan returns OpticalVerifierScanResult[] according to OPC 30010 6.4.3.1, not WGS84Coordinate[]. NodeIds, rank, argument order and model identity are unchanged."
+      }
+    ]
+  },
   "derivedIdentifierTable": {
     "file": "Opc.Ua.AutoID.Derived.NodeIds.csv",
     "tool": "tools/nodesets/derive-identifier-table.py",

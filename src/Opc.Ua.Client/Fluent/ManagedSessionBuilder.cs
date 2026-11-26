@@ -1,31 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using System.Net.Http;
@@ -631,7 +605,9 @@ namespace Opc.Ua.Client
         }
 
         /// <summary>
-        /// Enable server redundancy with a default handler.
+        /// Enables server redundancy with a default handler. Configure
+        /// <see cref="ServerRedundancyOptions.ExpectedServerApplicationUri"/> through
+        /// <see cref="WithServerRedundancyOptions"/>.
         /// </summary>
         public ManagedSessionBuilder WithServerRedundancy()
         {
@@ -641,7 +617,9 @@ namespace Opc.Ua.Client
         }
 
         /// <summary>
-        /// Enable server redundancy with the supplied handler.
+        /// Enables server redundancy with the supplied handler. Configure
+        /// <see cref="ServerRedundancyOptions.ExpectedServerApplicationUri"/> through
+        /// <see cref="WithServerRedundancyOptions"/>.
         /// </summary>
         /// <exception cref="ArgumentNullException"></exception>
         public ManagedSessionBuilder WithServerRedundancy(IServerRedundancyHandler handler)
@@ -653,10 +631,8 @@ namespace Opc.Ua.Client
         }
 
         /// <summary>
-        /// Sets the timeouts the default server redundancy handler uses for the
-        /// redundancy metadata read and peer endpoint lookup. Raise them on a
-        /// high-latency link. Takes effect when server redundancy is enabled and
-        /// no custom handler is supplied.
+        /// Sets the initial peer identity and selection settings for a redundant session.
+        /// The default handler also uses these options to bound peer discovery.
         /// </summary>
         /// <exception cref="ArgumentNullException"><paramref name="options"/> is <c>null</c>.</exception>
         public ManagedSessionBuilder WithServerRedundancyOptions(ServerRedundancyOptions options)
@@ -776,6 +752,24 @@ namespace Opc.Ua.Client
         }
 
         /// <summary>
+        /// Decodes notifications when the Publish response arrives instead of
+        /// right before they are dispatched, which is the default.
+        /// </summary>
+        /// <remarks>
+        /// Has no effect when the classic subscription engine is in
+        /// use; this option only applies to the V2
+        /// <see cref="Subscriptions.ISubscriptionManager"/>.
+        /// </remarks>
+        public ManagedSessionBuilder WithoutDeferredNotificationDecoding()
+        {
+            m_options = m_options with
+            {
+                DeferNotificationDecoding = false
+            };
+            return this;
+        }
+
+        /// <summary>
         /// Enables address-space model change tracking. The session
         /// auto-starts a <see cref="ModelChange.IModelChangeTracker"/>
         /// after connect that invalidates the node cache and exposes
@@ -876,11 +870,7 @@ namespace Opc.Ua.Client
         public async Task<ManagedSession> ConnectAsync(CancellationToken ct = default)
         {
             ManagedSessionOptions opts = m_options;
-            if (opts.Endpoint == null && opts.TakeoverFrom?.Session.ConfiguredEndpoint != null)
-            {
-                opts = opts with { Endpoint = CoreUtils.Clone(opts.TakeoverFrom.Session.ConfiguredEndpoint) };
-            }
-            if (opts.Endpoint == null)
+            if (opts.Endpoint == null && opts.TakeoverFrom?.Session.ConfiguredEndpoint == null)
             {
                 throw new InvalidOperationException(
                     "ManagedSessionBuilder.UseEndpoint or TakeOver must be called before ConnectAsync.");
@@ -903,15 +893,6 @@ namespace Opc.Ua.Client
             IReconnectPolicy reconnect =
                 m_reconnectPolicy ?? new ReconnectPolicy(opts.ReconnectPolicy);
 
-            // Redundancy is transparent and on by default: a non-redundant server simply
-            // reports RedundancySupport.None and no failover occurs, while transparent and
-            // non-transparent redundant servers are handled without any special connect API.
-            IServerRedundancyHandler redundancy = m_redundancyHandler ??
-                new DefaultServerRedundancyHandler(
-                    DefaultServerRedundancyHandler.CreateEndpointResolver(opts.ServerRedundancy, m_telemetry),
-                    opts.TimeProvider,
-                    opts.ServerRedundancy);
-
             IClientChannelManager? channelManager = m_channelManager;
             ClientChannelManager? ownedChannelManager = null;
             ServiceProviderHttpClientFactory? ownedHttpClientFactory = null;
@@ -933,7 +914,8 @@ namespace Opc.Ua.Client
                         securityPolicies: m_securityPolicies);
                     channelManager = ownedChannelManager;
                 }
-                else if (channelManager == null && IsWebApiEndpoint(opts.Endpoint))
+                else if (channelManager == null &&
+                    IsWebApiEndpoint(opts.Endpoint ?? opts.TakeoverFrom?.Session.ConfiguredEndpoint))
                 {
                     ownedChannelManager = new ClientChannelManager(
                         m_configuration,
@@ -951,7 +933,7 @@ namespace Opc.Ua.Client
                     m_configuration,
                     sessionFactory,
                     reconnect,
-                    redundancy,
+                    m_redundancyHandler,
                     m_telemetry,
                     channelManager,
                     m_reverseConnectManager,

@@ -1,31 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using System.Collections.Generic;
@@ -108,6 +82,27 @@ namespace Opc.Ua.Server.Tests.Fluent
             });
         }
 
+        [Test]
+        public async Task NodeAddedHookNotifiesOnlyAfterSealAsync()
+        {
+            int added = 0;
+            using var manager = new PipelineTestManager(builder =>
+                builder.AddFolder("Devices").OnNodeAdded((_, _) => added++))
+            {
+                NotifyFromHook = true
+            };
+
+            await manager.CreateAddressSpaceAsync(
+                new Dictionary<NodeId, IList<IReference>>()).ConfigureAwait(false);
+
+            // registration ran the hook before the seal; only the replay notifies.
+            Assert.That(added, Is.EqualTo(1));
+
+            // a node registered after the seal is notified from the hook.
+            manager.NotifyAdded(manager.FindByBrowseName("Devices")!);
+            Assert.That(added, Is.EqualTo(2));
+        }
+
         private sealed class PipelineTestManager : FluentNodeManagerBase
         {
             public PipelineTestManager(Action<INodeManagerBuilder> configure)
@@ -117,6 +112,25 @@ namespace Opc.Ua.Server.Tests.Fluent
             }
 
             public int ConfigureCount { get; private set; }
+
+            /// <summary>
+            /// Wires <c>OnPredefinedNodeAdded</c> as the generated template does.
+            /// </summary>
+            public bool NotifyFromHook { get; init; }
+
+            public void NotifyAdded(NodeState node)
+            {
+                NotifyPredefinedNodeAdded(m_builder!, SystemContext, node);
+            }
+
+            protected override void OnPredefinedNodeAdded(ISystemContext context, NodeState node)
+            {
+                base.OnPredefinedNodeAdded(context, node);
+                if (NotifyFromHook && m_builder is { } builder)
+                {
+                    NotifyPredefinedNodeAdded(builder, context, node);
+                }
+            }
 
             public NodeState? FindByBrowseName(string name)
             {
@@ -135,6 +149,7 @@ namespace Opc.Ua.Server.Tests.Fluent
                 CancellationToken cancellationToken)
             {
                 ConfigureCount++;
+                m_builder = (NodeManagerBuilder)builder;
                 m_configure(builder);
                 return default;
             }
@@ -160,6 +175,7 @@ namespace Opc.Ua.Server.Tests.Fluent
             }
 
             private readonly Action<INodeManagerBuilder> m_configure;
+            private NodeManagerBuilder? m_builder;
         }
     }
 }

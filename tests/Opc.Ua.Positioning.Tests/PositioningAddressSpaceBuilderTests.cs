@@ -1,38 +1,16 @@
-/* ========================================================================
- * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
+using System.Threading;
 using System.Threading.Tasks;
+using Moq;
 using NUnit.Framework;
 using Opc.Ua.Gpos;
 using Opc.Ua.Positioning.Server;
+using Opc.Ua.Positioning.Server.Hosting;
 using Opc.Ua.Rsl;
+using Opc.Ua.Server;
 
 namespace Opc.Ua.Positioning.Tests
 {
@@ -326,6 +304,29 @@ namespace Opc.Ua.Positioning.Tests
                 Assert.That(rsl.NamespaceVersion!.Value, Is.EqualTo("1.00.1"));
                 Assert.That(gpos.NamespaceVersion!.Value, Is.EqualTo("1.0.0"));
             });
+        }
+
+        [Test]
+        public async Task EnsureNamespaceMetadataKeepsExistingUntypedMetadataAsync()
+        {
+            // An untyped metadata object of the namespace (e.g. from an untyped NodeSet
+            // import) is kept: the configuration node manager returns no typed state.
+            PositioningNodeManager manager = m_fixture!.Manager;
+            var configuration = new Mock<IConfigurationNodeManager>(MockBehavior.Strict);
+            configuration
+                .Setup(value => value.CreateNamespaceMetadataStateAsync(
+                    Opc.Ua.Rsl.Namespaces.RSL, It.IsAny<CancellationToken>()))
+                .Returns(new ValueTask<NamespaceMetadataState?>((NamespaceMetadataState?)null));
+
+            await PositioningNamespaceMetadata.EnsureAsync(
+                manager,
+                configuration.Object,
+                Opc.Ua.Rsl.Namespaces.RSL,
+                "1.00.1",
+                new DateTime(2023, 1, 12, 0, 0, 0, DateTimeKind.Utc),
+                CancellationToken.None).ConfigureAwait(false);
+
+            configuration.VerifyAll();
         }
     }
 }

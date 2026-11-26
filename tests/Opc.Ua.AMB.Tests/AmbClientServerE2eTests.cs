@@ -1,31 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using System.Collections.Generic;
@@ -70,6 +44,65 @@ namespace Opc.Ua.AMB.Tests
         private static readonly DateTimeUtc s_planned = new(new DateTime(2027, 3, 1, 8, 0, 0, DateTimeKind.Utc));
         private static readonly TimeSpan s_timeout = TimeSpan.FromSeconds(30);
         private static readonly string[] s_levels = ["Plant1", "Plant1/Hall3", "Plant1/Hall3/Line2"];
+
+        [Test]
+        public async Task RemoteSubAssetsAreFollowedAcrossTwoHostedServersWithoutTakingSessionOwnershipAsync()
+        {
+            const string sourceUri = "urn:localhost:AmbRemoteSource";
+            const string targetUri = "urn:localhost:AmbRemoteTarget";
+            await using Plant source = await Plant.StartAsync("AmbRemoteSource", null).ConfigureAwait(false);
+            await using Plant target = await Plant.StartAsync("AmbRemoteTarget", null).ConfigureAwait(false);
+            uint targetIndex = source.Server.Server.ServerUris.GetIndexOrAppend(targetUri);
+            uint sourceIndex = target.Server.Server.ServerUris.GetIndexOrAppend(sourceUri);
+            NodeState sourceMotor = await source.Server.FindNodeAsync<NodeState>(source.Motor!.NodeId)
+                .ConfigureAwait(false);
+            NodeState targetMotor = await target.Server.FindNodeAsync<NodeState>(target.Motor!.NodeId)
+                .ConfigureAwait(false);
+            ExpandedNodeId remotePump = NodeId.ToExpandedNodeId(
+                target.Pump!.NodeId, target.Server.Server.NamespaceUris).WithServerIndex(targetIndex);
+            sourceMotor.AddReference(Ua.ReferenceTypeIds.HasComponent, false, remotePump);
+            targetMotor.AddReference(Ua.ReferenceTypeIds.HasComponent, false, NodeId.ToExpandedNodeId(
+                source.Pump!.NodeId, source.Server.Server.NamespaceUris).WithServerIndex(sourceIndex));
+            await using Connection local = await Connection.OpenAsync(source.Server, "remote-source")
+                .ConfigureAwait(false);
+            await using Connection remote = await Connection.OpenAsync(target.Server, "remote-target")
+                .ConfigureAwait(false);
+            using var timeout = new CancellationTokenSource(s_timeout);
+            int resolutions = 0;
+            var client = new AmbClient(local.Session, NUnitTelemetryContext.Create(), new AmbClientOptions
+            {
+                MaximumBrowseReferences = 4096,
+                RemoteSessionResolver = (uri, token) =>
+                {
+                    token.ThrowIfCancellationRequested();
+                    Assert.That(uri, Is.EqualTo(targetUri));
+                    resolutions++;
+                    return Task.FromResult(remote.Session);
+                }
+            });
+            var found = new List<AssetSubAssetReference>();
+
+            await foreach (AssetSubAssetReference subAsset in client
+                .EnumerateSubAssetsAcrossServersAsync(source.Pump.NodeId, timeout.Token).ConfigureAwait(false))
+            {
+                found.Add(subAsset);
+            }
+
+            Assert.That(found, Is.EqualTo(new[]
+            {
+                new AssetSubAssetReference(sourceUri, NodeId.ToExpandedNodeId(
+                    source.Motor.NodeId, local.Session.NamespaceUris)),
+                new AssetSubAssetReference(targetUri, NodeId.ToExpandedNodeId(
+                    target.Pump.NodeId, remote.Session.NamespaceUris)),
+                new AssetSubAssetReference(targetUri, NodeId.ToExpandedNodeId(
+                    target.Motor.NodeId, remote.Session.NamespaceUris))
+            }));
+            Assert.That(resolutions, Is.EqualTo(1), "The cycle to the source reuses the root session.");
+            DataValue alive = await remote.Session.ReadValueAsync(
+                Ua.VariableIds.Server_NamespaceArray, timeout.Token).ConfigureAwait(false);
+            Assert.That(alive.StatusCode, Is.EqualTo(StatusCodes.Good));
+            Assert.That(remote.Session.Disposed, Is.False);
+        }
 
         [Test]
         public async Task BoundedClientReadsAndEditsThePlantOnABorrowedSessionAsync()
@@ -827,9 +860,8 @@ namespace Opc.Ua.AMB.Tests
                 ITelemetryContext telemetry = NUnitTelemetryContext.Create();
                 var fixture = new ClientFixture(telemetry);
                 await fixture.LoadClientConfigurationAsync(Path.Combine(
-                    TestContext.CurrentContext.WorkDirectory,
-                    nameof(AmbClientServerE2eTests),
-                    Guid.NewGuid().ToString("N"),
+                    Path.GetTempPath(),
+                    "amb-client-" + Guid.NewGuid().ToString("N"),
                     "client-pki")).ConfigureAwait(false);
                 EndpointDescription? endpoint = await CoreClientUtils.SelectEndpointAsync(
                     fixture.Config,

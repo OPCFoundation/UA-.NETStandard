@@ -1,31 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using System.Collections.Generic;
@@ -48,6 +22,7 @@ namespace Opc.Ua.Server
     /// </remarks>
     public sealed class PushConfigurationTransactionCoordinator :
         IPushConfigurationTransactionCoordinator,
+        IPushConfigurationFileWriteCoordinator,
         IPushConfigurationTransactionCompletion
     {
         /// <summary>
@@ -131,6 +106,13 @@ namespace Opc.Ua.Server
 
             lock (m_lock)
             {
+                if (m_openTrustListWriters.Count > 0)
+                {
+                    throw new ServiceResultException(
+                        StatusCodes.BadTransactionPending,
+                        "A PushManagement transaction cannot be staged while a file is open for writing.");
+                }
+
                 ThrowIfConflictingOwner(sessionId);
 
                 if (m_isCommitting)
@@ -218,6 +200,29 @@ namespace Opc.Ua.Server
         }
 
         /// <inheritdoc/>
+        public void OpenConfigurationFileWrite(NodeId configurationFileId, NodeId sessionId)
+        {
+            lock (m_lock)
+            {
+                if (m_isActive && !m_ownerSessionId.Equals(sessionId))
+                {
+                    throw new ServiceResultException(
+                        StatusCodes.BadTransactionPending,
+                        "Another Session owns the active PushManagement transaction.");
+                }
+
+                if (m_isCommitting)
+                {
+                    throw new ServiceResultException(
+                        StatusCodes.BadInvalidState,
+                        "The active PushManagement transaction is being committed.");
+                }
+
+                m_openTrustListWriters.Add(configurationFileId);
+            }
+        }
+
+        /// <inheritdoc/>
         public ArrayOf<PushConfigurationOperation> GetStagedOperations()
         {
             lock (m_lock)
@@ -282,13 +287,12 @@ namespace Opc.Ua.Server
             {
                 if (m_openTrustListWriters.Count > 0)
                 {
-                    // §7.10.9: ApplyChanges returns Bad_InvalidState if any
-                    // TrustList is still open for writing. This precedence
-                    // holds even when no transaction is active, so the caller
-                    // learns to close the writer and retry rather than
-                    // receiving BadNothingToDo. Do not change transaction
-                    // state: the caller may retry once every open TrustList
-                    // handle has been closed.
+                    // §7.10.9: ApplyChanges returns Bad_InvalidState if a
+                    // TrustList is still open for writing. Part 12 §7.10.20
+                    // also requires file write handles to exclude transactions
+                    // through apply or rollback. This precedence holds even
+                    // when no transaction is active; the caller can close the
+                    // writer and retry without changing transaction state.
                     return StatusCodes.BadInvalidState;
                 }
 

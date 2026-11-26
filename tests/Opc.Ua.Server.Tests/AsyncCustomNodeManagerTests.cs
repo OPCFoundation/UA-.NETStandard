@@ -1,31 +1,7 @@
-/* ========================================================================
- * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
+
+#pragma warning disable CS0618, UA0031 // Covers the deprecated synchronous node manager API on purpose.
 
 // CA2000: test code; many disposables are ownership-transferred to test fixtures or short-lived,
 // making CA2000 noisy without a real leak risk. Disabled file-level for the suite.
@@ -1340,7 +1316,7 @@ namespace Opc.Ua.Server.Tests
             foreignManager.Setup(value => value.NamespaceUris).Returns([ForeignNamespaceUri]);
             foreignManager.Setup(value => value.GetManagerHandleAsync(
                     foreignTarget.NodeId, It.IsAny<CancellationToken>()))
-                .Returns(new ValueTask<object>(foreignTarget));
+                .Returns(new ValueTask<object?>(foreignTarget));
             foreignManager.Setup(value => value.DeleteReferenceAsync(
                     foreignTarget, ReferenceTypeIds.HasCause, true, id, false, It.IsAny<CancellationToken>()))
                 .Returns(() =>
@@ -1358,7 +1334,7 @@ namespace Opc.Ua.Server.Tests
                 .Returns(new Mock<ICoreNodeManager>().Object);
             m_mockServer.Setup(value => value.MainNodeManagerFactory).Returns(factory.Object);
             using var master = new MasterNodeManager(
-                m_mockServer.Object, m_configuration, null, [foreignManager.Object]);
+                m_mockServer.Object, m_configuration, null, [manager, foreignManager.Object]);
             m_mockServer.Setup(value => value.NodeManager).Returns(master);
             m_mockServer.Invocations.Clear();
 
@@ -1742,6 +1718,93 @@ namespace Opc.Ua.Server.Tests
         }
 
         /// <summary>
+        /// A node installed during deletion remains indexed even when it compares equal to the old node.
+        /// </summary>
+        [Test]
+        public async Task DeleteAddressSpacePreservesEqualReplacementInstalledDuringDeletionAsync()
+        {
+            using ITestNodeManager manager = CreateManager();
+            ServerSystemContext context = manager.SystemContext;
+            ushort namespaceIndex = manager.NamespaceIndexes[0];
+            var original = new EqualReplacementProbeState(null);
+            original.CreateAsPredefinedNode(context);
+            original.NodeId = new NodeId("Replacement", namespaceIndex);
+            original.BrowseName = new QualifiedName("Replacement", namespaceIndex);
+            var replacement = new EqualReplacementProbeState(null);
+            replacement.CreateAsPredefinedNode(context);
+            replacement.NodeId = original.NodeId;
+            replacement.BrowseName = original.BrowseName;
+            original.BeforeDelete = () => manager.PredefinedNodes[original.NodeId] = replacement;
+            manager.PredefinedNodes[original.NodeId] = original;
+            SetDeletionFailureCallback(
+                manager, original, new InvalidOperationException("The replaced node was removed from the index."));
+
+            Assert.That(original, Is.EqualTo(replacement));
+            await manager.DeleteAddressSpaceAsync().ConfigureAwait(false);
+
+            Assert.That(manager.PredefinedNodes[original.NodeId], Is.SameAs(replacement));
+            Assert.That(replacement.DeleteCount, Is.Zero);
+        }
+
+        /// <summary>
+        /// Removing a captured subtree does not remove a replacement installed while its parent is cleaned up.
+        /// </summary>
+        [Test]
+        public async Task DeleteNodePreservesEqualChildReplacementInstalledDuringParentCleanupAsync()
+        {
+            using ITestNodeManager manager = CreateManager();
+            ServerSystemContext context = manager.SystemContext;
+            ushort namespaceIndex = manager.NamespaceIndexes[0];
+            var parent = new BaseObjectState(null);
+            parent.CreateAsPredefinedNode(context);
+            parent.NodeId = new NodeId("Parent", namespaceIndex);
+            parent.BrowseName = new QualifiedName("Parent", namespaceIndex);
+            var child = new EqualReplacementProbeState(parent);
+            child.CreateAsPredefinedNode(context);
+            child.NodeId = new NodeId("Child", namespaceIndex);
+            child.BrowseName = new QualifiedName("Child", namespaceIndex);
+            parent.AddChild(child);
+            var replacement = new EqualReplacementProbeState(null);
+            replacement.CreateAsPredefinedNode(context);
+            replacement.NodeId = child.NodeId;
+            replacement.BrowseName = child.BrowseName;
+            manager.PredefinedNodes[parent.NodeId] = parent;
+            manager.PredefinedNodes[child.NodeId] = child;
+
+            bool childRemoved = false;
+            void OnRemoved(NodeState removed)
+            {
+                if (ReferenceEquals(removed, parent))
+                {
+                    manager.PredefinedNodes[child.NodeId] = replacement;
+                }
+                if (ReferenceEquals(removed, child))
+                {
+                    childRemoved = true;
+                }
+            }
+            if (manager is TestableAsyncCustomNodeManager asynchronous)
+            {
+                asynchronous.NodeRemovedCallback = (removed, _) =>
+                {
+                    OnRemoved(removed);
+                    return default;
+                };
+            }
+            else
+            {
+                ((TestableCustomNodeManager2)manager.SyncNodeManager).NodeRemovedCallback = OnRemoved;
+            }
+
+            Assert.That(child, Is.EqualTo(replacement));
+            Assert.That(await manager.DeleteNodeAsync(context, parent.NodeId).ConfigureAwait(false), Is.True);
+
+            Assert.That(manager.PredefinedNodes[child.NodeId], Is.SameAs(replacement));
+            Assert.That(childRemoved, Is.False);
+            Assert.That(replacement.DeleteCount, Is.Zero);
+        }
+
+        /// <summary>
         /// Verifies that address-space deletion invokes node-state deletion callbacks.
         /// </summary>
         [Test]
@@ -2092,7 +2155,7 @@ namespace Opc.Ua.Server.Tests
             NodeId nodeID = await manager.AddNodeAsync(context, default, baseObject).ConfigureAwait(false);
 
             // Act
-            object handle = await manager.GetManagerHandleAsync(baseObject.NodeId).ConfigureAwait(false);
+            object handle = (await manager.GetManagerHandleAsync(baseObject.NodeId).ConfigureAwait(false))!;
 
             // Assert
             Assert.That(nodeID, Is.Not.EqualTo(NodeId.Null));
@@ -2101,7 +2164,7 @@ namespace Opc.Ua.Server.Tests
             Assert.That(nodeHandle!.NodeId, Is.EqualTo(baseObject.NodeId));
             Assert.That(nodeHandle.Node, Is.SameAs(baseObject));
             Assert.That(nodeHandle.Validated, Is.True);
-            object invalidHandle = await manager.GetManagerHandleAsync(ObjectIds.Server).ConfigureAwait(false);
+            object? invalidHandle = await manager.GetManagerHandleAsync(ObjectIds.Server).ConfigureAwait(false);
             Assert.That(invalidHandle, Is.Null);
         }
 
@@ -2129,12 +2192,12 @@ namespace Opc.Ua.Server.Tests
 
             await manager.AddNodeAsync(context, default, variable).ConfigureAwait(false);
 
-            object handle = await manager.GetManagerHandleAsync(variable.NodeId).ConfigureAwait(false);
+            object handle = (await manager.GetManagerHandleAsync(variable.NodeId).ConfigureAwait(false))!;
 
-            NodeMetadata metadata = await manager.GetNodeMetadataAsync(
+            NodeMetadata metadata = (await manager.GetNodeMetadataAsync(
                 new OperationContext(new RequestHeader(), null, RequestType.Read, RequestLifetime.None),
                 handle,
-                BrowseResultMask.All).ConfigureAwait(false);
+                BrowseResultMask.All).ConfigureAwait(false))!;
 
             Assert.That(metadata, Is.Not.Null);
             Assert.That(metadata.NodeClass, Is.EqualTo(NodeClass.Variable));
@@ -2325,7 +2388,7 @@ namespace Opc.Ua.Server.Tests
             child.BrowseName = new QualifiedName("TranslateChild", nsIdx);
             await manager.AddNodeAsync(context, parent.NodeId, child).ConfigureAwait(false);
 
-            object handle = await manager.GetManagerHandleAsync(parent.NodeId).ConfigureAwait(false);
+            object handle = (await manager.GetManagerHandleAsync(parent.NodeId).ConfigureAwait(false))!;
             var targetIds = new List<ExpandedNodeId>();
             var unresolved = new List<NodeId>();
 
@@ -2369,7 +2432,7 @@ namespace Opc.Ua.Server.Tests
             child.BrowseName = new QualifiedName("Child", nsIdx);
             await manager.AddNodeAsync(context, parent.NodeId, child).ConfigureAwait(false);
 
-            object handle = await manager.GetManagerHandleAsync(parent.NodeId).ConfigureAwait(false);
+            object handle = (await manager.GetManagerHandleAsync(parent.NodeId).ConfigureAwait(false))!;
             var continuationPoint = new ContinuationPoint
             {
                 NodeToBrowse = handle,
@@ -2415,7 +2478,7 @@ namespace Opc.Ua.Server.Tests
             parent.BrowseName = new QualifiedName("ViewParamParent", nsIdx);
             await manager.AddNodeAsync(context, default, parent).ConfigureAwait(false);
 
-            object handle = await manager.GetManagerHandleAsync(parent.NodeId).ConfigureAwait(false);
+            object handle = (await manager.GetManagerHandleAsync(parent.NodeId).ConfigureAwait(false))!;
             var continuationPoint = new ContinuationPoint
             {
                 NodeToBrowse = handle,
@@ -2470,7 +2533,7 @@ namespace Opc.Ua.Server.Tests
                 children,
                 created => browser = created).ConfigureAwait(false);
 
-            object handle = await manager.GetManagerHandleAsync(parent.NodeId).ConfigureAwait(false);
+            object handle = (await manager.GetManagerHandleAsync(parent.NodeId).ConfigureAwait(false))!;
             var continuationPoint = new ContinuationPoint
             {
                 NodeToBrowse = handle,
@@ -2536,7 +2599,7 @@ namespace Opc.Ua.Server.Tests
                 children,
                 created => browser = created).ConfigureAwait(false);
 
-            object handle = await manager.GetManagerHandleAsync(parent.NodeId).ConfigureAwait(false);
+            object handle = (await manager.GetManagerHandleAsync(parent.NodeId).ConfigureAwait(false))!;
             var targetIds = new List<ExpandedNodeId>();
             var unresolved = new List<NodeId>();
             var relativePath = new RelativePathElement
@@ -2790,7 +2853,7 @@ namespace Opc.Ua.Server.Tests
                 new QualifiedName("RuntimeChild", ns),
                 child).ConfigureAwait(false);
 
-            object handle = await manager.GetManagerHandleAsync(parent.NodeId).ConfigureAwait(false);
+            object handle = (await manager.GetManagerHandleAsync(parent.NodeId).ConfigureAwait(false))!;
             var continuationPoint = new ContinuationPoint
             {
                 NodeToBrowse = handle,
@@ -3244,6 +3307,127 @@ namespace Opc.Ua.Server.Tests
             {
                 Assert.That(monitoredItem.IsReadyToPublish, Is.False);
             }
+        }
+
+        /// <summary>
+        /// The classic Write reports its audit events after releasing the node-manager lock.
+        /// The monitored items of the owner of a semantic Property must be marked before
+        /// that: a value of the owner published while the audit is reported (another Write,
+        /// a Publish) must carry the SemanticsChanged bit.
+        /// </summary>
+        [Test]
+        public async Task ClassicWriteMarksSemanticsChangedBeforeReportingAuditEventsAsync()
+        {
+            Assume.That(
+                m_managerType == AsyncCustomNodeManagerType.CustomNodeManager2ViaAdapter,
+                "Covers the classic CustomNodeManager2.Write");
+            using ITestNodeManager manager = CreateManager();
+            ServerSystemContext context = manager.SystemContext;
+            ushort nsIdx = manager.NamespaceIndexes[0];
+            var variable = new AnalogItemState(null);
+            variable.CreateAsPredefinedNode(context);
+            variable.NodeId = new NodeId("SemanticAuditVar", nsIdx);
+            variable.BrowseName = new QualifiedName("SemanticAuditVar", nsIdx);
+            variable.Value = 0;
+            variable.DataType = DataTypeIds.Int32;
+            variable.ValueRank = ValueRanks.Scalar;
+            variable.AccessLevel = AccessLevels.CurrentReadOrWrite;
+            variable.UserAccessLevel = AccessLevels.CurrentReadOrWrite;
+
+            var euProperty = new PropertyState(null);
+            euProperty.CreateAsPredefinedNode(context);
+            euProperty.NodeId = new NodeId("SemanticAuditVar_EURange", nsIdx);
+            euProperty.BrowseName = QualifiedName.From(BrowseNames.EURange);
+            euProperty.Value = 0;
+            euProperty.DataType = DataTypeIds.Int32;
+            euProperty.ValueRank = ValueRanks.Scalar;
+            euProperty.ReferenceTypeId = ReferenceTypeIds.HasProperty;
+            euProperty.AccessLevel = AccessLevels.CurrentReadOrWrite;
+            euProperty.UserAccessLevel = AccessLevels.CurrentReadOrWrite;
+            variable.AddChild(euProperty);
+
+            await manager.AddNodeAsync(context, default, variable).ConfigureAwait(false);
+
+            var itemsToCreate = new List<MonitoredItemCreateRequest>
+            {
+                new()
+                {
+                    ItemToMonitor = new ReadValueId { NodeId = variable.NodeId, AttributeId = Attributes.Value },
+                    MonitoringMode = MonitoringMode.Reporting,
+                    RequestedParameters = new MonitoringParameters { ClientHandle = 1, SamplingInterval = 0, QueueSize = 10 }
+                }
+            };
+            var createErrors = new List<ServiceResult> { null! };
+            var filterErrors = new List<MonitoringFilterResult> { null! };
+            var monitoredItems = new List<IMonitoredItem> { null! };
+            await manager.CreateMonitoredItemsAsync(
+                CreateMonitoredItemsContext(),
+                1,
+                1000,
+                TimestampsToReturn.Both,
+                itemsToCreate,
+                createErrors,
+                filterErrors,
+                monitoredItems,
+                false,
+                new MonitoredItemIdFactory()).ConfigureAwait(false);
+            Assert.That(ServiceResult.IsGood(createErrors[0]), Is.True);
+            var monitoredItem = (IDataChangeMonitoredItem)monitoredItems[0];
+
+            // drain the initial value.
+            var notifications = new Queue<MonitoredItemNotification>();
+            var diagnostics = new Queue<DiagnosticInfo>();
+            var publishContext = new OperationContext(
+                new RequestHeader(), null, RequestType.Publish, RequestLifetime.None);
+            for (int retry = 0; retry < 50 && !monitoredItem.IsReadyToPublish; retry++)
+            {
+                await Task.Delay(20).ConfigureAwait(false);
+            }
+            monitoredItem.Publish(publishContext, notifications, diagnostics, 10, m_mockLogger.Object);
+            notifications.Clear();
+            diagnostics.Clear();
+
+            // while the audit event of the EURange write is reported, the owner publishes a new value.
+            bool? semanticsChangedDuringAudit = null;
+            Exception? callbackError = null;
+            m_mockServer.Setup(s => s.Auditing).Returns(true);
+            m_mockServer
+                .Setup(s => s.ReportAuditEvent(It.IsAny<ISystemContext>(), It.IsAny<AuditEventState>()))
+                .Callback(() =>
+                {
+                    try
+                    {
+                        monitoredItem.QueueValue(new DataValue(new Variant(42)), null);
+                        var published = new Queue<MonitoredItemNotification>();
+                        monitoredItem.Publish(
+                            publishContext, published, new Queue<DiagnosticInfo>(), 10, m_mockLogger.Object);
+                        // The bit goes on the next published value only. The node's consumer
+                        // may already have queued the semantic resample value ahead of 42,
+                        // so only the first notification carries it.
+                        semanticsChangedDuringAudit = published.Count > 0 &&
+                            published.Peek().Value.StatusCode.SemanticsChanged;
+                    }
+                    catch (Exception ex)
+                    {
+                        callbackError = ex;
+                    }
+                });
+
+            var writeErrors = new List<ServiceResult> { null! };
+            using var writeContext = new OperationContext(
+                new RequestHeader(), null, RequestType.Write, RequestLifetime.None,
+                new UserIdentity(new AnonymousIdentityToken()));
+            await manager.WriteAsync(
+                writeContext,
+                [new WriteValue { NodeId = euProperty.NodeId, AttributeId = Attributes.Value, Value = new DataValue(new Variant(123)) }],
+                writeErrors).ConfigureAwait(false);
+
+            Assert.That(ServiceResult.IsGood(writeErrors[0]), Is.True);
+            Assert.That(callbackError, Is.Null);
+            Assert.That(euProperty.Value, Is.EqualTo(new Variant(123)), writeErrors[0]?.ToString());
+            Assert.That(semanticsChangedDuringAudit, Is.Not.Null, "the write reports an audit event");
+            Assert.That(semanticsChangedDuringAudit, Is.True,
+                "a value published after the semantic write carries the SemanticsChanged bit");
         }
 
         /// <summary>
@@ -3962,7 +4146,7 @@ namespace Opc.Ua.Server.Tests
             source.AddReference(ReferenceTypeIds.Organizes, false, target.NodeId);
             target.AddReference(ReferenceTypeIds.Organizes, true, source.NodeId);
 
-            object handle = await manager.GetManagerHandleAsync(source.NodeId).ConfigureAwait(false);
+            object handle = (await manager.GetManagerHandleAsync(source.NodeId).ConfigureAwait(false))!;
 
             ServiceResult result = await manager.DeleteReferenceAsync(
                 handle,
@@ -4094,7 +4278,7 @@ namespace Opc.Ua.Server.Tests
             if (m_managerType == AsyncCustomNodeManagerType.CustomNodeManager2ViaAdapter)
             {
                 // The sync CustomNodeManager2 binds items through an adapter wrapping it directly.
-                Assert.That(monitoredItem.NodeManager.SyncNodeManager, Is.SameAs(manager.SyncNodeManager));
+                Assert.That(monitoredItem.NodeManager?.SyncNodeManager, Is.SameAs(manager.SyncNodeManager));
             }
             else
             {
@@ -4107,13 +4291,8 @@ namespace Opc.Ua.Server.Tests
             // the sync manager once allocated a fresh adapter per created item.
             Assert.That(monitoredItems[1].NodeManager, Is.SameAs(monitoredItem.NodeManager));
 
-            // The bound NodeManager must expose the monitored-item lifecycle; a double-wrapped
-            // adapter chain hides it and reports an empty snapshot.
-            Assert.That(monitoredItem.NodeManager, Is.InstanceOf<INodeManagerMonitoredItemLifecycle>());
-            IReadOnlyList<IMonitoredItem> snapshot =
-                await ((INodeManagerMonitoredItemLifecycle)monitoredItem.NodeManager)
-                    .GetMonitoredItemsSnapshotAsync().ConfigureAwait(false);
-            Assert.That(snapshot, Does.Contain(monitoredItem));
+            Assert.That(monitoredItem.NodeManager, Is.InstanceOf<INodeManagerMonitoredItemSource>());
+            Assert.That(manager.MonitoredItems[monitoredItem.Id], Is.SameAs(monitoredItem));
         }
 
         /// <summary>
@@ -6639,7 +6818,10 @@ namespace Opc.Ua.Server.Tests
             bool unknownView = await manager
                 .IsNodeInViewAsync(context, new NodeId("UnknownView", nsIdx), handle)
                 .ConfigureAwait(false);
-            Assert.That(unknownView, Is.False);
+
+            // A View owned by another node manager (Part 4 §5.9.2) does not filter
+            // the nodes of this one.
+            Assert.That(unknownView, Is.True);
 
             // A placeholder handle that carries no validated node reports false.
             var placeholder = new NodeHandle { NodeId = new NodeId("Ghost", nsIdx) };
@@ -6700,7 +6882,7 @@ namespace Opc.Ua.Server.Tests
 
             await manager.AddNodeAsync(context, default, node).ConfigureAwait(false);
 
-            object handle = await manager.GetManagerHandleAsync(node.NodeId).ConfigureAwait(false);
+            object handle = (await manager.GetManagerHandleAsync(node.NodeId).ConfigureAwait(false))!;
             var cache = new Dictionary<NodeId, Variant[]>
             {
                 [node.NodeId] = []
@@ -7096,7 +7278,7 @@ namespace Opc.Ua.Server.Tests
             eventSource.EventNotifier = EventNotifiers.SubscribeToEvents;
             await manager.AddNodeAsync(context, default, eventSource).ConfigureAwait(false);
 
-            object handle = await manager.GetManagerHandleAsync(eventSource.NodeId).ConfigureAwait(false);
+            object handle = (await manager.GetManagerHandleAsync(eventSource.NodeId).ConfigureAwait(false))!;
             var monitoredItem = new TestEventMonitoredItem
             {
                 NodeId = eventSource.NodeId,
@@ -7137,7 +7319,7 @@ namespace Opc.Ua.Server.Tests
             eventSource.EventNotifier = EventNotifiers.SubscribeToEvents;
             await manager.AddNodeAsync(context, default, eventSource).ConfigureAwait(false);
 
-            object handle = await manager.GetManagerHandleAsync(eventSource.NodeId).ConfigureAwait(false);
+            object handle = (await manager.GetManagerHandleAsync(eventSource.NodeId).ConfigureAwait(false))!;
             var monitoredItem = new TestEventMonitoredItem
             {
                 NodeId = eventSource.NodeId,
@@ -7177,7 +7359,7 @@ namespace Opc.Ua.Server.Tests
             nonEventSource.EventNotifier = EventNotifiers.None; // no subscribe flag
             await manager.AddNodeAsync(context, default, nonEventSource).ConfigureAwait(false);
 
-            object handle = await manager.GetManagerHandleAsync(nonEventSource.NodeId).ConfigureAwait(false);
+            object handle = (await manager.GetManagerHandleAsync(nonEventSource.NodeId).ConfigureAwait(false))!;
             var monitoredItem = new TestEventMonitoredItem { NodeId = nonEventSource.NodeId, Id = 77 };
 
             ServiceResult result = await manager.SubscribeToEventsAsync(
@@ -7208,7 +7390,7 @@ namespace Opc.Ua.Server.Tests
             await manager.AddNodeAsync(context, default, notifier).ConfigureAwait(false);
             await manager.AddRootNotifierPublicAsync(notifier).ConfigureAwait(false);
 
-            object handle = await manager.GetManagerHandleAsync(notifier.NodeId).ConfigureAwait(false);
+            object handle = (await manager.GetManagerHandleAsync(notifier.NodeId).ConfigureAwait(false))!;
             var monitoredItem = new TestEventMonitoredItem
             {
                 NodeId = notifier.NodeId,
@@ -7245,7 +7427,7 @@ namespace Opc.Ua.Server.Tests
             eventSource.EventNotifier = EventNotifiers.SubscribeToEvents;
             await manager.AddNodeAsync(context, default, eventSource).ConfigureAwait(false);
 
-            object handle = await manager.GetManagerHandleAsync(eventSource.NodeId).ConfigureAwait(false);
+            object handle = (await manager.GetManagerHandleAsync(eventSource.NodeId).ConfigureAwait(false))!;
             var monitoredItem = new TestEventMonitoredItem
             {
                 NodeId = eventSource.NodeId,
@@ -10352,7 +10534,7 @@ namespace Opc.Ua.Server.Tests
                                 break;
                             }
                             case 2: // Browse folder for children
-                                object browseHandle = await manager.GetManagerHandleAsync(folder.NodeId).ConfigureAwait(false);
+                                object browseHandle = (await manager.GetManagerHandleAsync(folder.NodeId).ConfigureAwait(false))!;
                                 if (browseHandle != null)
                                 {
                                     var cp = new ContinuationPoint
@@ -10894,7 +11076,7 @@ namespace Opc.Ua.Server.Tests
         private static Mock<IConfigurationNodeManager> CreateUnrestrictedConfigurationNodeManager()
         {
             var configuration = new Mock<IConfigurationNodeManager>();
-            NamespaceMetadataState? noMetadata = null;
+            NamespaceMetadataNode? noMetadata = null;
             configuration.As<INamespaceMetadataSnapshot>()
                 .Setup(manager => manager.TryGetNamespaceMetadataState(It.IsAny<ushort>(), out noMetadata))
                 .Returns(true);
@@ -10952,6 +11134,35 @@ namespace Opc.Ua.Server.Tests
             if (value is IDisposable disposable)
             {
                 disposable.Dispose();
+            }
+        }
+
+        private sealed class EqualReplacementProbeState : BaseObjectState
+        {
+            public EqualReplacementProbeState(NodeState? parent)
+                : base(parent)
+            {
+            }
+
+            public Action? BeforeDelete { get; set; }
+
+            public int DeleteCount { get; private set; }
+
+            public override bool Equals(object? obj)
+            {
+                return obj is EqualReplacementProbeState;
+            }
+
+            public override int GetHashCode()
+            {
+                return 0;
+            }
+
+            protected override void OnBeforeDelete(ISystemContext context)
+            {
+                DeleteCount++;
+                BeforeDelete?.Invoke();
+                base.OnBeforeDelete(context);
             }
         }
 
@@ -11019,7 +11230,7 @@ namespace Opc.Ua.Server.Tests
     /// <summary>
     /// Exposes asynchronous node-manager state and lifecycle hooks for shared behavior and failure-injection scenarios.
     /// </summary>
-    public sealed class TestableAsyncCustomNodeManager : AsyncCustomNodeManager, ITestNodeManager
+    public class TestableAsyncCustomNodeManager : AsyncCustomNodeManager, ITestNodeManager
     {
         /// <summary>
         /// Gets or sets the predefined nodes supplied when the address space is loaded.
@@ -11055,19 +11266,59 @@ namespace Opc.Ua.Server.Tests
         }
 
         /// <summary>
+        /// Creates a testable asynchronous node manager that lets the base class choose its logger.
+        /// </summary>
+        public TestableAsyncCustomNodeManager(
+           IServerInternal server,
+           ApplicationConfiguration configuration,
+           bool useSamplingGroups,
+           params string[] namespaceUris)
+           : base(server, configuration, useSamplingGroups, namespaceUris)
+        {
+            m_testServer = server;
+        }
+
+        /// <summary>
         /// Gets the logger used by the node manager.
         /// </summary>
         public ILogger Logger => m_logger;
 
         /// <summary>
+        /// Returns the nodes reported to <see cref="OnPredefinedNodeAdded"/> since
+        /// the last call, in call order, and clears them.
+        /// </summary>
+        public NodeState[] TakePredefinedNodeAddedNotifications()
+        {
+            lock (m_predefinedNodeAddedLock)
+            {
+                NodeState[] nodes = [.. m_predefinedNodeAddedNotifications];
+                m_predefinedNodeAddedNotifications.Clear();
+                return nodes;
+            }
+        }
+
+        /// <inheritdoc/>
+        protected override void OnPredefinedNodeAdded(ISystemContext context, NodeState node)
+        {
+            base.OnPredefinedNodeAdded(context, node);
+            lock (m_predefinedNodeAddedLock)
+            {
+                m_predefinedNodeAddedNotifications.Add(node);
+            }
+        }
+
+        private readonly Lock m_predefinedNodeAddedLock = new();
+        private readonly List<NodeState> m_predefinedNodeAddedNotifications = [];
+
+        /// <summary>
         /// Gets the registered predefined nodes for fixture inspection.
         /// </summary>
-        public new NodeIdDictionary<NodeState> PredefinedNodes => base.PredefinedNodes;
+        public new PredefinedNodeDictionary PredefinedNodes => base.PredefinedNodes;
 
         /// <summary>
         /// Gets the registered root event notifiers for fixture inspection.
         /// </summary>
-        public new NodeIdDictionary<NodeState> RootNotifiers => base.RootNotifiers;
+        public new IDictionary<NodeId, NodeState> RootNotifiers => base.RootNotifiers;
 
         /// <summary>
         /// Gets the monitored nodes maintained by the node manager.
@@ -11118,6 +11369,16 @@ namespace Opc.Ua.Server.Tests
         internal int DetachedNotificationCount => Volatile.Read(ref m_detachedNotificationCount);
 
         /// <summary>
+        /// Gets or sets an injected post-native adoption callback.
+        /// </summary>
+        internal Func<CancellationToken, ValueTask>? MonitoredItemAttachedCallback { get; set; }
+
+        /// <summary>
+        /// Gets or sets an injected source-release callback.
+        /// </summary>
+        internal Func<CancellationToken, ValueTask>? MonitoredItemDetachedCallback { get; set; }
+
+        /// <summary>
         /// Replaces monitored-item management with a sampling-group manager that records calls and injects failures.
         /// </summary>
         internal TrackingSamplingGroupManager InstallTrackingSamplingGroupManager()
@@ -11155,6 +11416,18 @@ namespace Opc.Ua.Server.Tests
             return EventSubscriptionCallback?.Invoke(unsubscribe, cancellationToken) ?? default;
         }
 
+        /// <inheritdoc/>
+        protected override ValueTask OnMonitoredItemAttachedAsync(
+            ServerSystemContext context,
+            NodeHandle handle,
+            ISampledDataChangeMonitoredItem monitoredItem,
+            CancellationToken cancellationToken = default)
+        {
+            return MonitoredItemAttachedCallback?.Invoke(cancellationToken) ??
+                base.OnMonitoredItemAttachedAsync(context, handle, monitoredItem, cancellationToken);
+        }
+
+        /// <inheritdoc/>
         protected override ValueTask OnMonitoredItemDetachedAsync(
             ServerSystemContext context,
             NodeHandle handle,
@@ -11162,7 +11435,8 @@ namespace Opc.Ua.Server.Tests
             CancellationToken cancellationToken = default)
         {
             Interlocked.Increment(ref m_detachedNotificationCount);
-            return base.OnMonitoredItemDetachedAsync(context, handle, monitoredItem, cancellationToken);
+            return MonitoredItemDetachedCallback?.Invoke(cancellationToken) ??
+                base.OnMonitoredItemDetachedAsync(context, handle, monitoredItem, cancellationToken);
         }
 
         protected override ValueTask OnNodeRemovedAsync(
@@ -11660,7 +11934,7 @@ namespace Opc.Ua.Server.Tests
         /// <summary>
         /// Reports that the stub has no publishable event notifications.
         /// </summary>
-        public bool Publish(OperationContext context, Queue<EventFieldList> notifications, uint maxNotificationsPerPublish)
+        public bool Publish(OperationContext context, Queue<QueuedEvent> notifications, uint maxNotificationsPerPublish)
         {
             return false;
         }
@@ -11848,7 +12122,7 @@ namespace Opc.Ua.Server.Tests
         /// <summary>
         /// Gets the predefined nodes registered by the selected node-manager implementation.
         /// </summary>
-        NodeIdDictionary<NodeState> PredefinedNodes { get; }
+        PredefinedNodeDictionary PredefinedNodes { get; }
 
         /// <summary>
         /// Gets the monitored nodes maintained by the selected implementation.
@@ -12030,7 +12304,7 @@ namespace Opc.Ua.Server.Tests
         /// <summary>
         /// Gets the root notifiers dictionary.
         /// </summary>
-        NodeIdDictionary<NodeState> RootNotifiers { get; }
+        IDictionary<NodeId, NodeState> RootNotifiers { get; }
 
         /// <summary>
         /// Adds a root notifier.
@@ -12147,7 +12421,7 @@ namespace Opc.Ua.Server.Tests
         /// <summary>
         /// Gets the legacy node manager's registered predefined nodes.
         /// </summary>
-        public new NodeIdDictionary<NodeState> PredefinedNodes => base.PredefinedNodes;
+        public new PredefinedNodeDictionary PredefinedNodes => base.PredefinedNodes;
 
         /// <summary>
         /// Gets the legacy node manager's monitored nodes.
@@ -12199,6 +12473,14 @@ namespace Opc.Ua.Server.Tests
         public void AddPredefinedNodePublic(ISystemContext context, NodeState node)
         {
             AddPredefinedNode(context, node);
+        }
+
+        /// <summary>
+        /// Exposes the startup reference-wiring pass for the legacy node manager.
+        /// </summary>
+        public void AddReverseReferencesPublic(IDictionary<NodeId, IList<IReference>> references)
+        {
+            AddReverseReferences(references);
         }
 
         protected override void OnSubscribeToEvents(
@@ -12375,7 +12657,7 @@ namespace Opc.Ua.Server.Tests
         /// <summary>
         /// ITestNodeManager state properties — delegate to m_cnm2
         /// </summary>
-        public NodeIdDictionary<NodeState> PredefinedNodes => m_cnm2.PredefinedNodes;
+        public PredefinedNodeDictionary PredefinedNodes => m_cnm2.PredefinedNodes;
 
         /// <summary>
         /// Gets the monitored nodes from the wrapped legacy node manager.
@@ -12627,7 +12909,7 @@ namespace Opc.Ua.Server.Tests
         /// <summary>
         /// Resolves a manager handle through the asynchronous adapter.
         /// </summary>
-        public ValueTask<object> GetManagerHandleAsync(NodeId nodeId, CancellationToken cancellationToken = default)
+        public ValueTask<object?> GetManagerHandleAsync(NodeId nodeId, CancellationToken cancellationToken = default)
         {
             return m_adapter.GetManagerHandleAsync(nodeId, cancellationToken);
         }
@@ -12660,7 +12942,7 @@ namespace Opc.Ua.Server.Tests
         /// <summary>
         /// Retrieves node metadata through the asynchronous adapter.
         /// </summary>
-        public ValueTask<NodeMetadata> GetNodeMetadataAsync(
+        public ValueTask<NodeMetadata?> GetNodeMetadataAsync(
             OperationContext context,
             object targetHandle,
             BrowseResultMask resultMask,
@@ -12995,7 +13277,7 @@ namespace Opc.Ua.Server.Tests
         /// <summary>
         /// Gets a snapshot of root event notifiers from the wrapped legacy node manager.
         /// </summary>
-        public NodeIdDictionary<NodeState> RootNotifiers => m_cnm2.RootNotifiersDictionary;
+        public IDictionary<NodeId, NodeState> RootNotifiers => m_cnm2.RootNotifiersDictionary;
 
         /// <summary>
         /// Registers a legacy root notifier and returns a completed asynchronous operation.

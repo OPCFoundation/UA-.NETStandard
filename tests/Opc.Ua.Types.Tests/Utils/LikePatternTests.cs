@@ -1,31 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using System.Diagnostics;
@@ -260,6 +234,78 @@ namespace Opc.Ua.Types.Tests.Utils
             Assert.That(elapsed.Elapsed, Is.LessThan(TimeSpan.FromSeconds(2)));
             Assert.That(pattern!.IsMatch(matching, TimeSpan.FromSeconds(5)), Is.True);
             Assert.That(pattern.IsMatch(matching), Is.True);
+        }
+
+        /// <summary>
+        /// Matching within a step budget decides like the unbounded match and charges
+        /// about one step per target character for patterns that do not retry.
+        /// </summary>
+        [TestCase("mainserver", "main%", true)]
+        [TestCase("content", "%en%", true)]
+        [TestCase("alpha", "%en%", false)]
+        [TestCase("ABC6", "ABC[^13-5]", true)]
+        [TestCase("ABC3", "ABC[^13-5]", false)]
+        [TestCase("This is fine", "Th[ia][ts]%", true)]
+        [TestCase("urn:OPCFoundation:ComplianceTestToolEmbeddedServer", "%_erver%", true)]
+        [TestCase("", "%", true)]
+        [TestCase("", "_", false)]
+        public void MatchWithinStepBudgetAgreesWithIsMatch(string target, string text, bool expected)
+        {
+            Assert.That(LikePattern.TryParse(text, out LikePattern? pattern), Is.True);
+            int budget = 10_000;
+            Assert.That(pattern!.TryMatch(target, ref budget, out bool isMatch), Is.True);
+            Assert.That(isMatch, Is.EqualTo(expected));
+            Assert.That(isMatch, Is.EqualTo(pattern.IsMatch(target)));
+            Assert.That(10_000 - budget, Is.LessThanOrEqualTo(4 * (target.Length + 1)));
+
+            budget = 0;
+            Assert.That(pattern.TryMatch(null, ref budget, out isMatch), Is.True);
+            Assert.That(isMatch, Is.False);
+        }
+
+        /// <summary>
+        /// A match that retries many wildcard positions, or scans long character lists,
+        /// stops when the step budget runs out, leaving no budget.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public void MatchStopsWhenTheStepBudgetRunsOut(bool characterList)
+        {
+            string text = characterList ? "%[" + new string('a', 10_000) + "]b" : "%" + new string('a', 8192) + "b";
+            string target = characterList ? new string('z', 1000) : new string('a', 32768);
+            Assert.That(LikePattern.TryParse(text, out LikePattern? pattern), Is.True);
+
+            int budget = 100_000;
+            Assert.That(pattern!.TryMatch(target, ref budget, out bool isMatch), Is.False);
+            Assert.That(isMatch, Is.False);
+            Assert.That(budget, Is.Zero);
+
+            // the pattern is unaffected: a target it matches is decided within budget.
+            budget = 100_000;
+            string matching = characterList ? "ab" : new string('a', 8192) + "b";
+            Assert.That(pattern.TryMatch(matching, ref budget, out isMatch), Is.True);
+            Assert.That(isMatch, Is.True);
+        }
+
+        /// <summary>
+        /// Only the ranges of a character list that are compared count as steps: a
+        /// character that hits an early range matches within a small budget, and a scan
+        /// stops at the budget instead of finishing the list.
+        /// </summary>
+        [Test]
+        public void CharacterListChargesTheRangesItCompares()
+        {
+            Assert.That(LikePattern.TryParse("[a" + new string('b', 10_000) + "]", out LikePattern? pattern), Is.True);
+
+            int budget = 10;
+            Assert.That(pattern!.TryMatch("a", ref budget, out bool isMatch), Is.True);
+            Assert.That(isMatch, Is.True);
+            Assert.That(budget, Is.EqualTo(8));
+
+            budget = 100;
+            Assert.That(pattern.TryMatch("z", ref budget, out isMatch), Is.False);
+            Assert.That(isMatch, Is.False);
+            Assert.That(budget, Is.Zero);
         }
     }
 }

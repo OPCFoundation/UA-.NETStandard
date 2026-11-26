@@ -1,31 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System.Collections.Immutable;
 using Microsoft.CodeAnalysis;
@@ -43,6 +17,8 @@ namespace Opc.Ua.SourceGeneration
         public void Initialize(IncrementalGeneratorInitializationContext context)
         {
             SourceGenerator.AttachDebuggerIfRequested();
+            EcmFieldCopyGeneration.Register(context);
+            Isa95V2TransitionGeneration.Register(context);
 
             // Pair every AdditionalFile with its own per-file analyzer config
             // options once, up front, so both the design/NodeSet2 filter and
@@ -57,7 +33,9 @@ namespace Opc.Ua.SourceGeneration
             IncrementalValueProvider<ImmutableArray<(AdditionalText Left, NodesetFileOptions)>> xmlInputFiles =
                 textsWithOptions
                     .Where(static pair => pair.Text.IsDesignOrNodeset2File())
-                    .Select(static (pair, _) => (pair.Text, pair.Options.ToNodeSetOptions()))
+                    .Select(static (pair, ct) => (
+                        (AdditionalText)new AdditionalTextSnapshot(pair.Text, ct),
+                        pair.Options.ToNodeSetOptions()))
                     .Collect();
 
             // Snapshot the structural per-file options before conversion so
@@ -70,7 +48,10 @@ namespace Opc.Ua.SourceGeneration
                     .Select(static (pair, _) => (
                         pair.Text,
                         Options: pair.Options.ToNodeSetOptions()))
-                    .Where(static pair => !pair.Options.Ignore);
+                    .Where(static pair => !pair.Options.Ignore)
+                    .Select(static (pair, ct) => (
+                        (AdditionalText)new AdditionalTextSnapshot(pair.Text, ct),
+                        pair.Options));
 
             // Every active WoT input is converted independently: parse, bounds,
             // missing preservation/native mapping, dependency/resolver and
@@ -110,10 +91,12 @@ namespace Opc.Ua.SourceGeneration
             IncrementalValueProvider<ImmutableArray<AdditionalText>> identifierFiles =
                 context.AdditionalTextsProvider
                     .Where(f => f.IsIdentifierFile())
+                    .Select(static (text, ct) => (AdditionalText)new AdditionalTextSnapshot(text, ct))
                     .Collect();
             IncrementalValueProvider<ImmutableArray<AdditionalText>> csvFiles =
                 context.AdditionalTextsProvider
                     .Where(f => f.HasFileExtension("csv"))
+                    .Select(static (text, ct) => (AdditionalText)new AdditionalTextSnapshot(text, ct))
                     .Collect();
             IncrementalValueProvider<ModelCompilationOptions> options =
                 context.AnalyzerConfigOptionsProvider

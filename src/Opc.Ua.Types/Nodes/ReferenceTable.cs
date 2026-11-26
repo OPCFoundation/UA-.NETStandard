@@ -1,31 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using System.Collections;
@@ -621,9 +595,9 @@ namespace Opc.Ua
                         {
                             m_list.Remove(node);
                         }
-
-                        entry.InverseTargets = null;
                     }
+
+                    entry.InverseTargets = null;
                 }
 
                 if (entry.InverseExternalTargets != null)
@@ -761,7 +735,7 @@ namespace Opc.Ua
             // handle reference to internal target.
             else
             {
-                NodeIdDictionary<LinkedListNode<KeyValuePair<IReference, T>>>? targets;
+                Dictionary<NodeId, LinkedListNode<KeyValuePair<IReference, T>>>? targets;
                 if (key.IsInverse)
                 {
                     targets = entry.InverseTargets;
@@ -922,9 +896,9 @@ namespace Opc.Ua
                     : (ForwardTargets?.Count ?? 0) + (ForwardExternalTargets?.Count ?? 0);
             }
 
-            public NodeIdDictionary<LinkedListNode<KeyValuePair<IReference, T>>>? ForwardTargets { get; set; }
+            public Dictionary<NodeId, LinkedListNode<KeyValuePair<IReference, T>>>? ForwardTargets { get; set; }
             public Dictionary<ExpandedNodeId, LinkedListNode<KeyValuePair<IReference, T>>>? ForwardExternalTargets { get; set; }
-            public NodeIdDictionary<LinkedListNode<KeyValuePair<IReference, T>>>? InverseTargets { get; set; }
+            public Dictionary<NodeId, LinkedListNode<KeyValuePair<IReference, T>>>? InverseTargets { get; set; }
             public Dictionary<ExpandedNodeId, LinkedListNode<KeyValuePair<IReference, T>>>? InverseExternalTargets { get; set; }
 
             /// <summary>
@@ -1057,7 +1031,7 @@ namespace Opc.Ua
             // handle reference to internal target.
             else
             {
-                NodeIdDictionary<LinkedListNode<KeyValuePair<IReference, T>>>? targets;
+                Dictionary<NodeId, LinkedListNode<KeyValuePair<IReference, T>>>? targets;
                 if (key.IsInverse)
                 {
                     targets = entry.InverseTargets;
@@ -1152,7 +1126,7 @@ namespace Opc.Ua
             // handle reference to internal target.
             else
             {
-                NodeIdDictionary<LinkedListNode<KeyValuePair<IReference, T>>>? targets;
+                Dictionary<NodeId, LinkedListNode<KeyValuePair<IReference, T>>>? targets;
                 if (key.IsInverse)
                 {
                     entry.InverseTargets ??= [];
@@ -1230,7 +1204,7 @@ namespace Opc.Ua
             // handle reference to internal target.
             else
             {
-                NodeIdDictionary<LinkedListNode<KeyValuePair<IReference, T>>>? targets;
+                Dictionary<NodeId, LinkedListNode<KeyValuePair<IReference, T>>>? targets;
                 if (reference.IsInverse)
                 {
                     targets = entry.InverseTargets;
@@ -1303,7 +1277,14 @@ namespace Opc.Ua
             }
         }
 
-        private readonly NodeIdDictionary<ReferenceTypeEntry> m_references;
+        /// <summary>
+        /// Plain dictionaries: this type is not thread safe (nor is the linked
+        /// list) and callers such as <see cref="NodeState"/> guard it with
+        /// their own lock. A concurrent dictionary allocates lock
+        /// objects and counters per processor, which made every node with
+        /// references cost kilobytes on many-core machines.
+        /// </summary>
+        private readonly Dictionary<NodeId, ReferenceTypeEntry> m_references;
         private readonly LinkedList<KeyValuePair<IReference, T>> m_list;
     }
 }

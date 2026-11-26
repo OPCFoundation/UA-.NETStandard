@@ -1,32 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using System.Collections.Concurrent;
@@ -209,6 +182,68 @@ namespace Opc.Ua.Client.Tests.ManagedSession
             Assert.That(received.Subscription, Is.Not.SameAs(original));
             Assert.That(received.Change.Value.WrappedValue.TryGetValue(out int value), Is.True);
             Assert.That(value, Is.EqualTo(42));
+        }
+
+        /// <summary>
+        /// Retirement waits for a monitored-item creation the server has already received instead
+        /// of canceling it. The handoff then holds the server handle, and the session that takes
+        /// over does not create the monitored item a second time.
+        /// </summary>
+        [Test]
+        public async Task RetireWaitsForMonitoredItemsInFlightAsync()
+        {
+            await using var harness = new ManagedSessionReconnectHarness
+            {
+                RecoveryActivationStatus = StatusCodes.Good
+            };
+            var response = new AsyncOperationGate();
+            harness.MonitoredItemsResponse = response;
+            await harness.ConnectAsync(false).ConfigureAwait(false);
+            harness.AddSubscription();
+            await harness.NextMonitoredItemsAsync().AsTask().WaitAsync(PhaseTimeout).ConfigureAwait(false);
+
+            Task<SessionHandoff> retirement = harness.Session.RetireAsync().AsTask();
+            await Task.WhenAny(retirement, response.Cancelled, Task.Delay(200)).ConfigureAwait(false);
+            Assert.That(response.Cancelled.IsCompleted, Is.False);
+            Assert.That(retirement.IsCompleted, Is.False);
+
+            response.Release();
+            SessionHandoff handoff = await retirement.WaitAsync(PhaseTimeout).ConfigureAwait(false);
+            harness.RecoveryActivation.Release();
+            int mark = harness.Requests.Count;
+
+            await harness.TakeOverAsync(handoff).ConfigureAwait(false);
+
+            IServiceRequest[] takeover = [.. harness.Requests.ToList().Skip(mark)];
+            Assert.Multiple(() =>
+            {
+                Assert.That(handoff.Subscriptions[0].MonitoredItems[0].ServerId, Is.Not.Zero);
+                Assert.That(takeover, Has.None.InstanceOf<CreateMonitoredItemsRequest>());
+            });
+        }
+
+        /// <summary>
+        /// The caller can bound the wait for a subscription update in flight. A retirement canceled
+        /// that way hands nothing over and closes the server session like a normal disposal.
+        /// </summary>
+        [Test]
+        public async Task RetireCanceledWhileWaitingForMonitoredItemsClosesTheServerSessionAsync()
+        {
+            await using var harness = new ManagedSessionReconnectHarness();
+            harness.MonitoredItemsResponse = new AsyncOperationGate();
+            await harness.ConnectAsync(false).ConfigureAwait(false);
+            harness.AddSubscription();
+            await harness.NextMonitoredItemsAsync().AsTask().WaitAsync(PhaseTimeout).ConfigureAwait(false);
+
+            using var cancellation = new CancellationTokenSource();
+            Task<SessionHandoff> retirement = harness.Session.RetireAsync(cancellation.Token).AsTask();
+            cancellation.Cancel();
+
+            await Assert.ThatAsync(
+                () => retirement.WaitAsync(PhaseTimeout),
+                Throws.InstanceOf<OperationCanceledException>());
+            Assert.That(harness.Session.Disposed, Is.True);
+            Assert.That(harness.Requests.ToList(), Has.Some.InstanceOf<CloseSessionRequest>());
         }
 
         /// <summary>
@@ -437,7 +472,7 @@ namespace Opc.Ua.Client.Tests.ManagedSession
         [Test]
         public async Task FallbackIdentityIsRetainedUntilConnectSetupSucceedsAsync()
         {
-            await using var harness = new ManagedSessionReconnectHarness
+            await using var harness = new ManagedSessionReconnectHarness(authenticatePeer: true)
             {
                 TakeoverActivationStatus = StatusCodes.BadSessionIdInvalid
             };
@@ -478,6 +513,9 @@ namespace Opc.Ua.Client.Tests.ManagedSession
         {
             await using var harness = new ManagedSessionReconnectHarness();
             await harness.ConnectAsync(false).ConfigureAwait(false);
+            // The first keep-alive read is sent from a background worker and can arrive after connect
+            // returns. Fake time sends no further one, so the count below can only grow by a takeover.
+            await harness.InitialKeepAliveRead.WaitAsync(PhaseTimeout).ConfigureAwait(false);
             SessionHandoff handoff = CreateForeignHandoff(harness);
             int mark = harness.Requests.Count;
 
@@ -495,7 +533,14 @@ namespace Opc.Ua.Client.Tests.ManagedSession
                 () => harness.TakeOverAsync(withSubscriptions, new SessionTakeoverOptions()),
                 Throws.ArgumentException);
 
-            Assert.That(harness.Requests.Count, Is.EqualTo(mark));
+            // The connected session may still send its keep-alive; only a session request would
+            // mean a takeover started.
+            IServiceRequest[] after = [.. harness.Requests.ToList().Skip(mark)];
+            Assert.Multiple(() =>
+            {
+                Assert.That(after, Has.None.InstanceOf<CreateSessionRequest>());
+                Assert.That(after, Has.None.InstanceOf<ActivateSessionRequest>());
+            });
         }
 
         /// <summary>
@@ -548,7 +593,7 @@ namespace Opc.Ua.Client.Tests.ManagedSession
         [Test]
         public async Task TakeoverFailingAfterBindingRetriesTheTakeoverWithoutClosingAsync()
         {
-            await using var harness = new ManagedSessionReconnectHarness();
+            await using var harness = new ManagedSessionReconnectHarness(authenticatePeer: true);
             await harness.ConnectAsync(false).ConfigureAwait(false);
             SessionHandoff handoff = CreateForeignHandoff(harness);
             var redundancy = new Mock<IServerRedundancyHandler>();

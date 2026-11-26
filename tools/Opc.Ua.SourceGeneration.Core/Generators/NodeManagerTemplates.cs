@@ -1,31 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 namespace Opc.Ua.SourceGeneration
 {
@@ -238,15 +212,16 @@ namespace Opc.Ua.SourceGeneration
                     }
 
                     /// <inheritdoc/>
-                    protected override async global::System.Threading.Tasks.ValueTask AddPredefinedNodeAsync(
+                    protected override void OnPredefinedNodeAdded(
                         global::Opc.Ua.ISystemContext context,
-                        global::Opc.Ua.NodeState node,
-                        global::System.Threading.CancellationToken cancellationToken = default)
+                        global::Opc.Ua.NodeState node)
                     {
-                        await base.AddPredefinedNodeAsync(context, node, cancellationToken).ConfigureAwait(false);
+                        base.OnPredefinedNodeAdded(context, node);
+                        // nodes registered before the seal are notified by
+                        // its replay; notify only the ones added after it.
                         if (__m_builder is { } __b)
                         {
-                            __b.Dispatcher.NotifyNodeAdded(context, node);
+                            NotifyPredefinedNodeAdded(__b, context, node);
                         }
                     }
 
@@ -407,7 +382,7 @@ namespace Opc.Ua.SourceGeneration
             namespace {{Tokens.NamespacePrefix}}
             {
                 /// <summary>
-                /// Source-generated <see cref="global::Opc.Ua.Server.INodeManagerFactory"/>
+                /// Source-generated <see cref="global::Opc.Ua.Server.IAsyncNodeManagerFactory"/>
                 /// for the <c>{{Tokens.NamespaceUri}}</c> namespace.
                 /// </summary>
                 [global::System.CodeDom.Compiler.GeneratedCodeAttribute("{{Tokens.Tool}}", "{{Tokens.Version}}")]

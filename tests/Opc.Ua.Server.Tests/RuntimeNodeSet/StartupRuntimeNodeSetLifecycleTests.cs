@@ -1,31 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using System.Collections.Generic;
@@ -38,8 +12,10 @@ using Microsoft.Extensions.Logging;
 using NUnit.Framework;
 using Opc.Ua.Server.RuntimeNodeSet;
 using Opc.Ua.Server.TestFramework;
+using Opc.Ua.Server.Tests.NodeManager;
 using Opc.Ua.Tests;
 using Quickstarts.ReferenceServer;
+using static Opc.Ua.Server.Tests.NodeManager.LifecycleInspection;
 
 namespace Opc.Ua.Server.Tests.RuntimeNodeSet
 {
@@ -77,9 +53,8 @@ namespace Opc.Ua.Server.Tests.RuntimeNodeSet
         public async Task OneTimeSetUpAsync()
         {
             m_pkiRoot = Path.Combine(
-                TestContext.CurrentContext.WorkDirectory,
-                nameof(StartupRuntimeNodeSetLifecycleTests),
-                Guid.NewGuid().ToString("N"));
+                Path.GetTempPath(),
+                "ua-rns-startup-" + Guid.NewGuid().ToString("N"));
 
             m_fixture = new ServerFixture<StartupRuntimeNodeSetServer>(
                 telemetry => new StartupRuntimeNodeSetServer(telemetry, m_includeArgumentParentHints))
@@ -134,6 +109,25 @@ namespace Opc.Ua.Server.Tests.RuntimeNodeSet
             {
                 Directory.Delete(m_pkiRoot, recursive: true);
             }
+        }
+
+        /// <summary>
+        /// Startup factories prepare an unrouted candidate after the system managers are available.
+        /// </summary>
+        [Test]
+        public void StartupUsesInitialAddPublication()
+        {
+            Assert.Multiple(() =>
+            {
+                Assert.That(m_server.Probe.FactorySawMaster, Is.True);
+                Assert.That(m_server.Probe.FactoryRejectedRuntimeCapture, Is.True);
+                Assert.That(m_server.Probe.WasPublishedDuringPreparation, Is.False);
+                Assert.That(m_server.Probe.CreateAddressSpaceCount, Is.EqualTo(1));
+                Assert.That(m_server.Probe.ReadinessCount, Is.EqualTo(1));
+                // Readiness runs while the server is still in the Startup state; requests are
+                // admitted only after every initial generation is ready.
+                Assert.That(m_server.Probe.WasRunningAtReadiness, Is.False);
+            });
         }
 
         /// <summary>
@@ -217,15 +211,18 @@ namespace Opc.Ua.Server.Tests.RuntimeNodeSet
                 registration.NamespaceUris);
 
             Assert.That(
-                async () => await m_server.NodeManagerLifecycle
-                    .AddAsync(factory, null)
-                    .ConfigureAwait(false),
+                async () => LifecycleInspection.Registration(
+                    (await CommitChangeAsync(
+                    m_server.NodeManagerLifecycle, LifecycleChange.Add(
+                    factory), CancellationToken.None).ConfigureAwait(false)).Registrations[0]),
                 Throws.TypeOf<NodeManagerAlreadyRegisteredException>()
                     .With.Message.EqualTo("The NodeManager is already registered."));
             Assert.That(
-                async () => await m_server.NodeManagerLifecycle
-                    .ReloadAsync(registration, factory, null)
-                    .ConfigureAwait(false),
+                async () => LifecycleInspection.Registration(
+                    (await CommitChangeAsync(
+                    LifecycleInspection.Capture(
+                    m_server.NodeManagerLifecycle, registration), LifecycleChange.Replace(
+                    registration.Slot, factory), CancellationToken.None).ConfigureAwait(false)).Registrations[0]),
                 Throws.TypeOf<NodeManagerAlreadyRegisteredException>()
                     .With.Message.EqualTo("The NodeManager is already registered."));
 
@@ -291,12 +288,13 @@ namespace Opc.Ua.Server.Tests.RuntimeNodeSet
                 expectedPrimary: true,
                 expectedPeer: true);
 
-            NodeManagerRegistration reloaded = await m_server.NodeManagerLifecycle
-                .ReloadRuntimeNodeSetAsync(
-                    primary,
-                    StartupRuntimeNodeSetServer.CreatePrimaryOptions(generation: 2),
-                    callerContext: null)
-                .ConfigureAwait(false);
+            LifecycleResult publicationResult1 = await CommitChangeAsync(
+                Capture(
+                m_server.NodeManagerLifecycle, primary), LifecycleChange.Replace(
+                primary.Slot, new RuntimeNodeSetNodeManagerFactory(
+                StartupRuntimeNodeSetServer.CreatePrimaryOptions(
+                generation: 2))), CancellationToken.None).ConfigureAwait(false);
+            NodeManagerRegistration reloaded = Registration(publicationResult1.Registrations[0]);
 
             Assert.Multiple(() =>
             {
@@ -305,8 +303,9 @@ namespace Opc.Ua.Server.Tests.RuntimeNodeSet
             });
             Assert.That(await ReadPrimaryValueAsync().ConfigureAwait(false), Is.EqualTo(2));
 
-            await m_server.NodeManagerLifecycle
-                .RemoveAsync(reloaded, callerContext: null)
+            await CommitChangeAsync(
+                Capture(
+                m_server.NodeManagerLifecycle, reloaded), LifecycleChange.Remove(reloaded.Slot), CancellationToken.None)
                 .ConfigureAwait(false);
 
             ushort primaryNamespaceIndex = (ushort)server.NamespaceUris.GetIndex(
@@ -383,6 +382,79 @@ namespace Opc.Ua.Server.Tests.RuntimeNodeSet
         }
 
         /// <summary>
+        /// Startup failure on either side of the runtime boundary reclaims the published initial generation.
+        /// </summary>
+        [TestCase(false, false)]
+        [TestCase(true, false)]
+        [TestCase(false, true)]
+        public async Task InitialPublicationFailureReclaimsPublishedGenerationAsync(
+            bool failAtReadiness,
+            bool cancelBeforeRuntime)
+        {
+            using var cancellation = new CancellationTokenSource();
+            string pkiRoot = Path.Combine(
+                Path.GetTempPath(),
+                "ua-initial-" + Guid.NewGuid().ToString("N"));
+            FailingInitialPublicationServer? failedServer = null;
+            var fixture = new ServerFixture<FailingInitialPublicationServer>(
+                telemetry =>
+                {
+                    failedServer = new FailingInitialPublicationServer(
+                        telemetry,
+                        failAtReadiness,
+                        cancelBeforeRuntime ? cancellation : null);
+                    return failedServer;
+                })
+            {
+                UriScheme = Utils.UriSchemeOpcTcp,
+                SecurityNone = true,
+                AutoAccept = true
+            };
+            try
+            {
+                if (cancelBeforeRuntime)
+                {
+                    Assert.That(
+                        () => fixture.StartAsync(pkiRoot),
+                        Throws.InstanceOf<OperationCanceledException>());
+                }
+                else if (failAtReadiness)
+                {
+                    Assert.That(
+                        () => fixture.StartAsync(pkiRoot),
+                        Throws.TypeOf<InvalidOperationException>()
+                            .With.Message.EqualTo("Initial generation reconciliation failed."));
+                }
+                else
+                {
+                    Assert.That(
+                        () => fixture.StartAsync(pkiRoot),
+                        Throws.TypeOf<ServiceResultException>());
+                }
+                Assert.That(failedServer, Is.Not.Null);
+                Assert.Multiple(() =>
+                {
+                    Assert.That(failedServer.NodeManagerLifecycle.Registrations, Is.Empty);
+                    Assert.That(failedServer.Probe.CreateAddressSpaceCount, Is.EqualTo(1));
+                    Assert.That(failedServer.Probe.ReadinessCount, Is.EqualTo(failAtReadiness ? 1 : 0));
+                    Assert.That(failedServer.Probe.DeleteAddressSpaceCount, Is.EqualTo(1));
+                    Assert.That(failedServer.Probe.DisposeCount, Is.EqualTo(1));
+                    // readiness failure stops through the virtual entry point, closing the listeners
+                    Assert.That(failedServer.StopCount, failAtReadiness ? Is.GreaterThanOrEqualTo(1) : Is.Zero);
+                });
+            }
+            finally
+            {
+                await fixture.StopAsync().ConfigureAwait(false);
+                failedServer?.Dispose();
+                if (Directory.Exists(pkiRoot))
+                {
+                    Directory.Delete(pkiRoot, recursive: true);
+                }
+            }
+        }
+
+        /// <summary>
         /// A stopped server must re-arm its lifecycle provider and adopt the
         /// newly created startup NodeManager generations on restart.
         /// </summary>
@@ -391,9 +463,8 @@ namespace Opc.Ua.Server.Tests.RuntimeNodeSet
         public async Task ServerRestartRecreatesStartupRegistrationsAsync()
         {
             string pkiRoot = Path.Combine(
-                TestContext.CurrentContext.WorkDirectory,
-                nameof(ServerRestartRecreatesStartupRegistrationsAsync),
-                Guid.NewGuid().ToString("N"));
+                Path.GetTempPath(),
+                "ua-rns-restart-" + Guid.NewGuid().ToString("N"));
             var fixture = new ServerFixture<StartupRuntimeNodeSetServer>(
                 telemetry => new StartupRuntimeNodeSetServer(telemetry))
             {
@@ -537,7 +608,7 @@ namespace Opc.Ua.Server.Tests.RuntimeNodeSet
         public StartupRuntimeNodeSetServer(ITelemetryContext telemetry, bool includeArgumentParentHints = true)
             : base(telemetry)
         {
-            Probe = new StartupNodeManagerProbe();
+            Probe = new StartupNodeManagerProbe(NodeManagerLifecycle);
             AddNodeManager(new RuntimeNodeSetNodeManagerFactory(
                 CreatePrimaryOptions(generation: 1, includeArgumentParentHints)));
             AddNodeManager(new RuntimeNodeSetNodeManagerFactory(
@@ -740,6 +811,49 @@ namespace Opc.Ua.Server.Tests.RuntimeNodeSet
 
     internal sealed class StartupNodeManagerProbe
     {
+        /// <summary>
+        /// Captures the public lifecycle independently of the candidate's bootstrap context.
+        /// </summary>
+        public StartupNodeManagerProbe(INodeManagerLifecycle lifecycle)
+        {
+            m_lifecycle = lifecycle;
+        }
+
+        /// <summary>
+        /// Gets whether factory creation could access the initialized master.
+        /// </summary>
+        public bool FactorySawMaster { get; private set; }
+
+        /// <summary>
+        /// Gets whether bootstrap rejected a public runtime publication capture.
+        /// </summary>
+        public bool FactoryRejectedRuntimeCapture { get; private set; }
+
+        /// <summary>
+        /// Gets whether the candidate was already routable when preparation began.
+        /// </summary>
+        public bool WasPublishedDuringPreparation { get; private set; }
+
+        /// <summary>
+        /// Gets the number of address-space preparations.
+        /// </summary>
+        public int CreateAddressSpaceCount { get; private set; }
+
+        /// <summary>
+        /// Gets the number of completed readiness notifications.
+        /// </summary>
+        public int ReadinessCount { get; private set; }
+
+        /// <summary>
+        /// Gets whether readiness observed the running server.
+        /// </summary>
+        public bool WasRunningAtReadiness { get; private set; }
+
+        /// <summary>
+        /// Gets or sets whether the readiness callback fails after recording its admission.
+        /// </summary>
+        public bool FailAtReadiness { get; set; }
+
         public int DeleteAddressSpaceCount =>
             Volatile.Read(ref m_deleteAddressSpaceCount);
 
@@ -756,8 +870,49 @@ namespace Opc.Ua.Server.Tests.RuntimeNodeSet
             Interlocked.Increment(ref m_disposeCount);
         }
 
+        /// <summary>
+        /// Captures the factory's system-manager availability before constructing the candidate.
+        /// </summary>
+        public void RecordFactory(IServerInternal server)
+        {
+            FactorySawMaster = server.NodeManager is not null;
+            try
+            {
+                _ = m_lifecycle.CaptureChanges();
+            }
+            catch (InvalidOperationException)
+            {
+                FactoryRejectedRuntimeCapture = true;
+            }
+        }
+
+        /// <summary>
+        /// Captures visibility at the actual address-space preparation callback.
+        /// </summary>
+        public void RecordPreparation(bool published)
+        {
+            WasPublishedDuringPreparation = published;
+            CreateAddressSpaceCount++;
+        }
+
+        /// <summary>
+        /// Captures readiness after the server's runtime components have started.
+        /// </summary>
+        public void RecordReadiness(bool running)
+        {
+            WasRunningAtReadiness = running;
+            ReadinessCount++;
+            if (FailAtReadiness)
+            {
+                throw new InvalidOperationException("Fail initial generation readiness.");
+            }
+        }
+
         private int m_deleteAddressSpaceCount;
         private int m_disposeCount;
+
+        /// <summary>The public lifecycle that must not inherit bootstrap admission.</summary>
+        private readonly INodeManagerLifecycle m_lifecycle;
     }
 
     internal sealed class ExistingNodeManagerFactory : IAsyncNodeManagerFactory
@@ -800,6 +955,69 @@ namespace Opc.Ua.Server.Tests.RuntimeNodeSet
         }
     }
 
+    /// <summary>
+    /// Fails startup with a published initial generation before or after the runtime boundary.
+    /// </summary>
+    internal sealed class FailingInitialPublicationServer : ReferenceServer
+    {
+        /// <summary>
+        /// Registers a probe whose preparation and destruction remain observable after startup failure.
+        /// </summary>
+        public FailingInitialPublicationServer(
+            ITelemetryContext telemetry,
+            bool failAtReadiness,
+            CancellationTokenSource? startupCancellation)
+            : base(telemetry)
+        {
+            Probe = new StartupNodeManagerProbe(NodeManagerLifecycle) { FailAtReadiness = failAtReadiness };
+            m_startupCancellation = startupCancellation;
+            AddNodeManager(new StartupProbeNodeManagerFactory(Probe));
+        }
+
+        /// <summary>
+        /// Gets the generation callbacks retained for assertions.
+        /// </summary>
+        public StartupNodeManagerProbe Probe { get; }
+
+        /// <summary>
+        /// Gets how often the server was stopped through its virtual entry point.
+        /// </summary>
+        public int StopCount => Volatile.Read(ref m_stopCount);
+
+        /// <inheritdoc/>
+        public override ValueTask StopAsync(CancellationToken cancellationToken = default)
+        {
+            Interlocked.Increment(ref m_stopCount);
+            return base.StopAsync(cancellationToken);
+        }
+
+        /// <inheritdoc/>
+        protected override ValueTask StartApplicationAsync(
+            ApplicationConfiguration configuration,
+            CancellationToken cancellationToken = default)
+        {
+            return base.StartApplicationAsync(configuration, m_startupCancellation?.Token ?? cancellationToken);
+        }
+
+        /// <inheritdoc/>
+        protected override async ValueTask OnNodeManagerStartedAsync(
+            IServerInternal server,
+            CancellationToken cancellationToken = default)
+        {
+            await base.OnNodeManagerStartedAsync(server, cancellationToken).ConfigureAwait(false);
+            m_startupCancellation?.Cancel();
+            cancellationToken.ThrowIfCancellationRequested();
+            if (!Probe.FailAtReadiness)
+            {
+                throw new InvalidOperationException("Fail startup before runtime components are initialized.");
+            }
+        }
+
+        /// <summary>The cancellation boundary controlled independently of the fixture's startup API.</summary>
+        private readonly CancellationTokenSource? m_startupCancellation;
+        private int m_stopCount;
+    }
+
     internal sealed class StartupProbeNodeManagerFactory : IAsyncNodeManagerFactory
     {
         public StartupProbeNodeManagerFactory(StartupNodeManagerProbe probe)
@@ -815,6 +1033,7 @@ namespace Opc.Ua.Server.Tests.RuntimeNodeSet
             ApplicationConfiguration configuration,
             CancellationToken cancellationToken = default)
         {
+            m_probe.RecordFactory(server);
             return new ValueTask<IAsyncNodeManager>(
                 new StartupProbeNodeManager(
                     server,
@@ -826,7 +1045,7 @@ namespace Opc.Ua.Server.Tests.RuntimeNodeSet
         private readonly StartupNodeManagerProbe m_probe;
     }
 
-    internal sealed class StartupProbeNodeManager : AsyncCustomNodeManager
+    internal sealed class StartupProbeNodeManager : AsyncCustomNodeManager, INodeManagerReadinessNotification
     {
         public StartupProbeNodeManager(
             IServerInternal server,
@@ -836,6 +1055,22 @@ namespace Opc.Ua.Server.Tests.RuntimeNodeSet
             : base(server, configuration, namespaceUri)
         {
             m_probe = probe;
+        }
+
+        /// <inheritdoc/>
+        public override ValueTask CreateAddressSpaceAsync(
+            IDictionary<NodeId, IList<IReference>> externalReferences,
+            CancellationToken cancellationToken = default)
+        {
+            m_probe.RecordPreparation(Server.NodeManager.AsyncNodeManagers.Contains(this));
+            return base.CreateAddressSpaceAsync(externalReferences, cancellationToken);
+        }
+
+        /// <inheritdoc/>
+        public ValueTask OnServerReadyAsync(CancellationToken cancellationToken = default)
+        {
+            m_probe.RecordReadiness(Server.IsRunning);
+            return default;
         }
 
         public override ValueTask DeleteAddressSpaceAsync(

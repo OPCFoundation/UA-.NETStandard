@@ -1,34 +1,9 @@
-/* ========================================================================
- * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
+using System.IO;
+using System.Security.Cryptography.X509Certificates;
 using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
@@ -76,6 +51,48 @@ namespace Opc.Ua.Server.Tests.Identity
 
             Assert.That(result.Outcome, Is.EqualTo(AuthenticationOutcome.Rejected));
             Assert.That(result.Error!.Code, Is.EqualTo((uint)StatusCodes.BadIdentityTokenRejected));
+        }
+
+        /// <summary>
+        /// The rejection carries the certificate validation status as its inner result,
+        /// so the session manager can raise the AuditCertificate event (Part 4 §6.5.6).
+        /// </summary>
+        [Test]
+        public async Task AuthenticateAsyncRejectionCarriesValidationStatus()
+        {
+            using Certificate certificate = CreateCertificate("CN=UntrustedAuditUser");
+            var validationResult = new CertificateValidationResult(
+                false,
+                StatusCodes.BadCertificateUntrusted,
+                [],
+                false);
+            var authenticator = new X509Authenticator(new TestCertificateValidator(validationResult));
+
+            AuthenticationResult result = await authenticator.AuthenticateAsync(
+                CreateContext(CreateHandler(certificate)))
+                .ConfigureAwait(false);
+
+            Assert.That(result.Error!.InnerResult, Is.Not.Null);
+            Assert.That(result.Error.InnerResult!.Code, Is.EqualTo((uint)StatusCodes.BadCertificateUntrusted));
+        }
+
+        /// <summary>
+        /// Part 4 §7.40.5: the credentials of an X.509 user token expire with the certificate.
+        /// </summary>
+        [Test]
+        public async Task AuthenticateAsyncIdentityExpiresWithCertificate()
+        {
+            using Certificate certificate = CreateCertificate("CN=ExpiringUser");
+            var authenticator = new X509Authenticator(
+                new TestCertificateValidator(CertificateValidationResult.Success));
+
+            AuthenticationResult result = await authenticator.AuthenticateAsync(
+                CreateContext(CreateHandler(certificate)))
+                .ConfigureAwait(false);
+
+            var expiration = result.Identity as IIdentityExpiration;
+            Assert.That(expiration, Is.Not.Null);
+            Assert.That(expiration!.ExpiresAt, Is.EqualTo(certificate.NotAfter.ToUniversalTime()));
         }
 
         [Test]
@@ -174,6 +191,140 @@ namespace Opc.Ua.Server.Tests.Identity
             Assert.That(accepted.Identity, Is.SameAs(acceptedIdentity));
             Assert.That(rejected.Outcome, Is.EqualTo(AuthenticationOutcome.Rejected));
             Assert.That(mapped.Error!.Code, Is.EqualTo((uint)StatusCodes.BadIdentityTokenInvalid));
+        }
+
+        [Test]
+        public async Task AuthenticateAsyncUserCertificateValidationIgnoresAutoAcceptUntrusted()
+        {
+            using Certificate certificate = CreateCertificate("CN=UntrustedUser");
+            string usersPath = CreateTempDirectory();
+            try
+            {
+                await using var manager = new CertificateManager(NUnitTelemetryContext.Create());
+                manager.RegisterTrustList(TrustListIdentifier.Users, usersPath);
+                manager.AutoAcceptUntrustedCertificates = true;
+                var authenticator = new X509Authenticator(manager);
+
+                AuthenticationResult result = await authenticator.AuthenticateAsync(
+                    CreateContext(CreateHandler(certificate)))
+                    .ConfigureAwait(false);
+
+                Assert.That(result.Outcome, Is.EqualTo(AuthenticationOutcome.Rejected));
+                Assert.That(result.Error!.Code, Is.EqualTo((uint)StatusCodes.BadIdentityTokenRejected));
+                Assert.That(result.Identity, Is.Null);
+            }
+            finally
+            {
+                DeleteDirectory(usersPath);
+            }
+        }
+
+        [Test]
+        public async Task AuthenticateAsyncUserCertificateValidationIgnoresManagerAcceptError()
+        {
+            using Certificate certificate = CreateCertificate("CN=UntrustedUser");
+            string usersPath = CreateTempDirectory();
+            try
+            {
+                await using var manager = new CertificateManager(NUnitTelemetryContext.Create());
+                manager.RegisterTrustList(TrustListIdentifier.Users, usersPath);
+                int acceptErrorCalls = 0;
+                manager.AcceptError = (_, _) =>
+                {
+                    Interlocked.Increment(ref acceptErrorCalls);
+                    return true;
+                };
+                var authenticator = new X509Authenticator(manager);
+
+                AuthenticationResult result = await authenticator.AuthenticateAsync(
+                    CreateContext(CreateHandler(certificate)))
+                    .ConfigureAwait(false);
+
+                Assert.That(result.Outcome, Is.EqualTo(AuthenticationOutcome.Rejected));
+                Assert.That(result.Error!.Code, Is.EqualTo((uint)StatusCodes.BadIdentityTokenRejected));
+                Assert.That(acceptErrorCalls, Is.Zero);
+            }
+            finally
+            {
+                DeleteDirectory(usersPath);
+            }
+        }
+
+        [Test]
+        public async Task AuthenticateAsyncUserCertificateInTrustedUserStoreAccepted()
+        {
+            using Certificate certificate = CreateCertificate("CN=TrustedStoreUser");
+            await AssertAcceptedFromTrustedUserStoreAsync(certificate).ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// A user certificate only signs: a trusted RSA certificate whose key usage
+        /// permits digital signatures but not data encipherment is accepted.
+        /// </summary>
+        [Test]
+        public async Task AuthenticateAsyncSignatureOnlyUserCertificateAccepted()
+        {
+            using Certificate certificate = CertificateBuilder.Create("CN=SignatureOnlyUser")
+                .AddExtension(new X509KeyUsageExtension(X509KeyUsageFlags.DigitalSignature, critical: true))
+                .SetRSAKeySize(CertificateFactory.DefaultKeySize)
+                .CreateForRSA();
+            await AssertAcceptedFromTrustedUserStoreAsync(certificate).ConfigureAwait(false);
+        }
+
+        private static async Task AssertAcceptedFromTrustedUserStoreAsync(Certificate certificate)
+        {
+            using Certificate publicCertificate = Certificate.FromRawData(certificate.RawData);
+            string usersPath = CreateTempDirectory();
+            try
+            {
+                await using var manager = new CertificateManager(NUnitTelemetryContext.Create());
+                manager.RegisterTrustList(TrustListIdentifier.Users, usersPath);
+                manager.AutoAcceptUntrustedCertificates = true;
+                using (ICertificateStore store = manager.OpenTrustedStore(TrustListIdentifier.Users))
+                {
+                    await store.AddAsync(publicCertificate).ConfigureAwait(false);
+                }
+                var authenticator = new X509Authenticator(manager);
+
+                AuthenticationResult result = await authenticator.AuthenticateAsync(
+                    CreateContext(CreateHandler(certificate)))
+                    .ConfigureAwait(false);
+
+                Assert.That(result.Outcome, Is.EqualTo(AuthenticationOutcome.Accepted));
+                var claims = result.Identity as IIdentityClaims;
+                Assert.That(claims, Is.Not.Null);
+                Assert.That(claims!.Subject, Is.EqualTo(certificate.Subject));
+            }
+            finally
+            {
+                DeleteDirectory(usersPath);
+            }
+        }
+
+        private static string CreateTempDirectory()
+        {
+            string path = Path.Combine(Path.GetTempPath(), "x509auth-" + Guid.NewGuid().ToString("N"));
+            Directory.CreateDirectory(path);
+            return path;
+        }
+
+        private static void DeleteDirectory(string path)
+        {
+            try
+            {
+                if (Directory.Exists(path))
+                {
+                    Directory.Delete(path, true);
+                }
+            }
+            catch (IOException)
+            {
+                // best effort cleanup
+            }
+            catch (UnauthorizedAccessException)
+            {
+                // best effort cleanup
+            }
         }
 
         private static Certificate CreateCertificate(string subject)

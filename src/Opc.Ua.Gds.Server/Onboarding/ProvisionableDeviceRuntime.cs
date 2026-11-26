@@ -1,26 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person obtaining a
- * copy of this software and associated documentation files (the "Software"),
- * to deal in the Software without restriction, including without limitation
- * the rights to use, copy, modify, merge, publish, distribute, sublicense,
- * and/or sell copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following conditions:
- *
- * The above copyright notice and this permission notice shall be included
- * in all copies or substantial portions of the Software.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
- * OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL
- * THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR
- * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
- * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using System.Collections.Generic;
@@ -94,11 +73,35 @@ namespace Opc.Ua.Gds.Server.Onboarding
             IOnboardingTicketValidator validator,
             IProvisionableDeviceRegistrarStore registrars,
             IProvisionableDeviceSecurity? security = null)
+            : this(isSingleton, ticketIds, tickets, validator, registrars, security, null)
+        {
+        }
+
+        /// <summary>
+        /// Creates a runtime with an independently injected registrar coordinator bound to the selected security owner.
+        /// </summary>
+        public ProvisionableDeviceRuntime(
+            bool isSingleton,
+            ArrayOf<string> ticketIds,
+            ITicketStore tickets,
+            IOnboardingTicketValidator validator,
+            IProvisionableDeviceRegistrarStore registrars,
+            IProvisionableDeviceSecurity? security,
+            IProvisionableDeviceRegistrarConfiguration? registrarConfiguration)
         {
             m_tickets = tickets ?? throw new ArgumentNullException(nameof(tickets));
             m_validator = validator ?? throw new ArgumentNullException(nameof(validator));
             m_registrars = registrars ?? throw new ArgumentNullException(nameof(registrars));
             m_security = security;
+            m_registrarConfiguration = registrarConfiguration ?? security as IProvisionableDeviceRegistrarConfiguration;
+            if (m_registrarConfiguration != null &&
+                !ReferenceEquals(m_registrarConfiguration, security) &&
+                (security == null || !ReferenceEquals(m_registrarConfiguration.Security, security)))
+            {
+                throw new ArgumentException(
+                    "The registrar coordinator must coordinate the selected device security owner.",
+                    nameof(registrarConfiguration));
+            }
             var identifiers = new HashSet<string>(StringComparer.Ordinal);
             foreach (string id in ticketIds)
             {
@@ -164,13 +167,21 @@ namespace Opc.Ua.Gds.Server.Onboarding
             {
                 throw new ServiceResultException(StatusCodes.BadUserAccessDenied);
             }
-            AuthorizationHelper.HasAuthorization(context, [Role.SecurityAdmin]);
+            AuthorizationHelper.HasAuthorization(context, ServerAuthorizationDecision.DeviceOnboarding, [Role.SecurityAdmin]);
             ArrayOf<ApplicationDescription> detached = SnapshotRegistrars(registrars);
-            if (m_security != null)
+            if (m_registrarConfiguration is { } configuration)
             {
-                await m_security.RequireRegistrarAsync(context, cancellationToken).ConfigureAwait(false);
+                await configuration.ReplaceRegistrarEndpointsAsync(context, m_registrars, detached, cancellationToken)
+                    .ConfigureAwait(false);
             }
-            await m_registrars.ReplaceAsync(detached, cancellationToken).ConfigureAwait(false);
+            else
+            {
+                if (m_security != null)
+                {
+                    await m_security.RequireRegistrarAsync(context, cancellationToken).ConfigureAwait(false);
+                }
+                await m_registrars.ReplaceAsync(detached, cancellationToken).ConfigureAwait(false);
+            }
         }
 
         /// <summary>
@@ -225,6 +236,9 @@ namespace Opc.Ua.Gds.Server.Onboarding
 
         /// <summary>The optional host-selected device trust and reset gate.</summary>
         private readonly IProvisionableDeviceSecurity? m_security;
+
+        /// <summary>The optional coordinator bound to the selected security owner's transitions.</summary>
+        private readonly IProvisionableDeviceRegistrarConfiguration? m_registrarConfiguration;
 
         /// <summary>The strict decoder preserves signed envelopes without replacement characters.</summary>
         private static readonly UTF8Encoding s_utf8 = new(false, true);

@@ -1,31 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using System.Collections.Generic;
@@ -74,6 +48,7 @@ namespace Opc.Ua.Server.Hosting
         private IApplicationInstance? m_application;
 #pragma warning restore CA2213
         private StandardServer? m_server;
+        private readonly Lock m_serverDisposalLock = new();
         private bool m_ownsApplication;
 
         /// <summary>
@@ -179,6 +154,19 @@ namespace Opc.Ua.Server.Hosting
         }
 
         /// <summary>
+        /// Applies the anonymous access default unless the server factory already set its own
+        /// namespace default role permissions.
+        /// </summary>
+        internal static void ApplyAnonymousAccess(StandardServer server, OpcUaServerOptions options)
+        {
+            if (options.AnonymousAccess == AnonymousAccess.ReadOnly &&
+                server.NamespaceDefaultRolePermissions.IsEmpty)
+            {
+                server.NamespaceDefaultRolePermissions = ServerDefaultRolePermissions.AnonymousReadOnly;
+            }
+        }
+
+        /// <summary>
         /// Applies an optional DI policy while preserving a policy supplied by the server factory when absent.
         /// </summary>
         internal static void ApplyRequestParking(ServerBase server, IServiceProvider services)
@@ -264,7 +252,9 @@ namespace Opc.Ua.Server.Hosting
 
             m_server = m_serverFactory.CreateServer(m_telemetry, m_timeProvider);
             m_services.GetService<ServerApplicationCertificateActivator>()?.Attach(m_server);
-            m_nodeManagerLifecycle.Attach(m_server.NodeManagerLifecycle);
+            StandardServer server = m_server;
+            m_nodeManagerLifecycle.Attach(
+                server.NodeManagerLifecycle, () => ResumeServerDisposalAsync(server));
             if (m_server is not DependencyInjectionStandardServer)
             {
                 OpcUaServerRegistrationStaging.Apply(m_server, m_services);
@@ -329,6 +319,7 @@ namespace Opc.Ua.Server.Hosting
                 m_server.SessionBindingProvider = sessionBindingProvider;
             }
             ApplyResourceIsolation(m_server, m_services, m_options);
+            ApplyAnonymousAccess(m_server, m_options);
 
             foreach (OpcUaServerNodeManagerRegistration reg in
                 m_services.GetServices<OpcUaServerNodeManagerRegistration>())
@@ -341,14 +332,20 @@ namespace Opc.Ua.Server.Hosting
                             "The node-manager factories callback returned a null factory."));
                 }
 
+#pragma warning disable CS0618, UA0031 // Hosted legacy INodeManagerFactory registrations still start.
                 if (reg.SyncFactory is not null)
                 {
                     m_server.AddNodeManager(reg.SyncFactory);
                 }
+#pragma warning restore CS0618, UA0031
             }
 
             RegisterIdentityAuthenticators();
             RegisterIdentityAugmenters();
+
+            // The endpoints are bound by StartAsync but serve clients only
+            // once the startup tasks below have run.
+            m_server.AcceptConnectionsOnStart = m_options.ServeClientsDuringStartupTasks;
             await application.StartAsync(m_server, stoppingToken).ConfigureAwait(false);
             await BindKeyCredentialPushAsync(stoppingToken).ConfigureAwait(false);
 
@@ -377,6 +374,8 @@ namespace Opc.Ua.Server.Hosting
                     throw;
                 }
             }
+
+            await m_server.StartAcceptingConnectionsAsync(stoppingToken).ConfigureAwait(false);
 
             foreach (string url in GetListenEndpointUrls(configuration))
             {
@@ -415,6 +414,7 @@ namespace Opc.Ua.Server.Hosting
                 OpcUaServerApplicationConfigurationFeature.Configure(
                     m_application.Build(m_options.ApplicationUri, m_options.ProductUri),
                     m_options);
+            ApplyDependencyInjectedCertificateManager(certificateManager);
             ArrayOf<CertificateIdentifier> certificates =
                 ApplicationConfigurationBuilder.CreateDefaultApplicationCertificates(
                     subject,
@@ -431,7 +431,6 @@ namespace Opc.Ua.Server.Hosting
             }
 
             await securityOptions.CreateAsync(ct).ConfigureAwait(false);
-            ApplyDependencyInjectedCertificateManager(certificateManager);
         }
 
         /// <summary>
@@ -687,7 +686,7 @@ namespace Opc.Ua.Server.Hosting
                 return;
             }
 
-            m_application.ApplicationConfiguration.CertificateManager = certificateManager;
+            m_application.ApplicationConfiguration.SetBorrowedCertificateManager(certificateManager);
         }
 
         private static async Task<bool> HasApplicationCertificateAsync(
@@ -805,11 +804,6 @@ namespace Opc.Ua.Server.Hosting
 
         private async ValueTask StopApplicationAsync(CancellationToken cancellationToken)
         {
-            if (m_server is not null)
-            {
-                m_nodeManagerLifecycle.Detach(m_server.NodeManagerLifecycle);
-            }
-
             IApplicationInstance? application = Interlocked.Exchange(ref m_application, null);
             if (application != null)
             {
@@ -833,24 +827,76 @@ namespace Opc.Ua.Server.Hosting
                     }
                     finally
                     {
-                        m_server?.Dispose();
-                        m_server = null;
+                        DisposeServer();
                     }
                 }
             }
         }
 
         /// <summary>
-        /// Detaches the node-manager lifecycle and disposes the server and background service.
+        /// Disposes the server before detaching its lifecycle and disposing the background service.
         /// </summary>
         public override void Dispose()
         {
-            if (m_server is not null)
+            try
             {
-                m_nodeManagerLifecycle.Detach(m_server.NodeManagerLifecycle);
+                DisposeServer();
             }
-            m_server?.Dispose();
-            base.Dispose();
+            finally
+            {
+                base.Dispose();
+            }
+        }
+
+        /// <summary>
+        /// Detaches the server lifecycle, disposes the server and releases the reference.
+        /// </summary>
+        /// <remarks>
+        /// The hosted lifecycle is detached even when disposal fails, because the server no
+        /// longer runs. The hosted-service disposal and the cancelled execution can both reach
+        /// this method, so disposal is serialized. A failed server disposal keeps its remaining
+        /// resources, so the server stays referenced until a later disposal succeeds.
+        /// </remarks>
+        private void DisposeServer()
+        {
+            lock (m_serverDisposalLock)
+            {
+                if (m_server is null)
+                {
+                    return;
+                }
+
+                INodeManagerLifecycle lifecycle = m_server.NodeManagerLifecycle;
+                bool disposed = false;
+                try
+                {
+                    m_server.Dispose();
+                    m_server = null;
+                    disposed = true;
+                }
+                finally
+                {
+                    m_nodeManagerLifecycle.Detach(lifecycle, disposed);
+                }
+            }
+        }
+
+        /// <summary>
+        /// Resumes a detached server's ordered disposal after a verified cleanup confirmation.
+        /// </summary>
+        /// <param name="server">The exact server retained by the host.</param>
+        /// <returns>A task that completes after server disposal finishes.</returns>
+        private async ValueTask ResumeServerDisposalAsync(StandardServer server)
+        {
+            await server.DisposeAsync().ConfigureAwait(false);
+            lock (m_serverDisposalLock)
+            {
+                if (ReferenceEquals(m_server, server))
+                {
+                    m_server = null;
+                }
+            }
+            m_nodeManagerLifecycle.Detach(server.NodeManagerLifecycle, disposed: true);
         }
     }
 

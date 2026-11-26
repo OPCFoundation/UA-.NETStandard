@@ -383,6 +383,25 @@ successful-message counter advances only when a message is returned.
 
 ## Publish acknowledgements
 
+V2 Publish request timeouts account for concurrent workers waiting on a quiet
+subscription. With `K` equal to the largest server-revised publishing interval
+times keep-alive count, and `W` equal to the current worker count (at least one),
+the initial budget is `W * K + max(K, 1 second)`, capped at 30 minutes and rounded
+up to whole milliseconds. The extra period, with a one-second minimum, provides
+scheduling headroom rather than assuming queued keepalives arrive exactly on
+their deadlines. Each worker retains its larger budget across subsequent
+requests; timeout retries add one second without exceeding the same cap.
+Settings and worker count are checked again after acknowledgement preparation.
+
+The server's enclosing request lifetime still enforces the Publish timeout hint.
+The session Publish queue's separate 500 ms timer grace does not extend it.
+Acknowledgements are processed before waiting for a response, so a timed-out
+request may already have removed the acknowledged message. Its later absence
+from the retransmission queue is not proof of a successful acknowledgement
+result at the client. Cancellation and `NotRetained` outcomes are unchanged.
+Scheduling delays beyond the margin, or keepalive/worker configurations whose
+required budget exceeds the cap, can still time out.
+
 V2 Publish workers select at least one queued acknowledgement when the queue is
 non-empty, even when there are more workers than pending acknowledgements.
 Progress does not depend on the worker entering its wait-for-ack path: that wait
@@ -469,7 +488,36 @@ The immutable envelope preserves payload order, the physical partition's acknowl
 identity, publish time and diagnostic string table. Each payload identifies data changes,
 events or a status change. Its arrays do not borrow pooled wire containers, so they can be
 retained after the callback returns; monitored-item references remain live SDK objects.
-`MoreNotifications` describes further Publish responses, not additional parts of this envelope.
+`message.MoreNotifications` preserves the originating Publish response's flag for that
+physical subscription, including through V2 partition forwarding and classic whole-message
+delivery. `true` means further notifications are queued; `false` means that Publish response
+reported no more queued notifications. Republish responses do not contain this flag, so the
+property is `null` (unknown) for republished messages, not a fabricated `false`. Manually
+constructed envelopes also default to `null`.
+
+The flag describes further Publish responses, not additional parts of this envelope or a
+larger acknowledgement unit. Applications that batch across responses must retain each
+message's handle and confirm each only after all of its downstream work succeeds. Do not
+interpret `null` as proof that a burst ended; apply an explicit recovery/batching policy.
+For example:
+
+```csharp
+switch (message.MoreNotifications)
+{
+    case true:
+        // More notifications were queued when this Publish response was sent.
+        break;
+    case false:
+        // This live Publish response reported an end to the queued burst.
+        break;
+    case null:
+        // Republish (or manually constructed message): the original flag is unknown.
+        break;
+}
+```
+
+The existing constructor and deconstruction shape are unchanged; the metadata is an
+additional immutable init property. Existing payload callbacks are unchanged.
 Whole-message delivery is opt-in and does not allocate an envelope for existing handlers.
 Data-change diagnostics are projected from the indexed wire diagnostic array, independently
 of classic monitored-item caching and local client-handle registration.
@@ -1192,7 +1240,7 @@ reconciliation, etc.) along with the recommended V2 alternative.
 
 | Classic | V2 |
 |---|---|
-| `s.RepublishAsync(seq, ct)` | Not on V2. The V2 engine auto-republishes on gap detection via `MessageProcessor.TryRepublishAsync`; there is no user-driven variant. Callers needing raw access can call `session.RepublishAsync(null, subscriptionId, seq, ct)`. |
+| `s.RepublishAsync(seq, ct)` | Not on V2. The V2 engine auto-republishes on gap detection via `MessageProcessor.TryRepublishAsync`, about 100 ms after the gap opens so that a response overtaken on another publish worker is not fetched again; there is no user-driven variant. Callers needing raw access can call `session.RepublishAsync(null, subscriptionId, seq, ct)`. |
 | `s.ResendDataAsync(ct)` | Not on V2. Callers needing raw access call `session.CallAsync(null, ResendData methodId, ...)`. |
 | `s.ConditionRefreshAsync(ct)` | `s.ConditionRefreshAsync(ct)` — same shape. |
 | `s.ConditionRefresh2Async(monitoredItemId, ct)` | `item.ConditionRefreshAsync(ct)` on `IMonitoredItem` (per-item; no `monitoredItemId` arg needed). |

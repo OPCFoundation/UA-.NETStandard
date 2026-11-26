@@ -27,9 +27,11 @@
     </ProjectReference>
   </ItemGroup>
   <!-- Model\Opc.Ua.AutoID.NodeSet2.xml and Model\Opc.Ua.AutoID.NodeIds.csv
-       are the unmodified OPC Foundation publication from
+       originate from the OPC Foundation publication from
        UA-Nodeset/latest/AutoID; Model\provenance.json pins the revision and
-       the SHA-256 of both files.
+       the upstream SHA-256 of both files. The NodeSet applies the documented
+       OpticalVerifier Scan Results correction from OPC 30010 6.4.3.1.
+       The effective hash and exact change are recorded in localCorrections.
 
        The published NodeIds.csv still lists the 1.00 symbols and lacks the
        nodes the 1.01 NodeSet added, so it is kept out of AdditionalFiles.

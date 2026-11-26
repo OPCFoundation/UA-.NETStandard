@@ -1,31 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using System.Threading;
@@ -74,12 +48,9 @@ namespace Opc.Ua.MachineTool.Server
                     return Refused(Isa95JobReturnStatus.InvalidRequest,
                         "The job and its sole work master must match an explicit program descriptor.");
                 }
-                ChangeKind changes = operation switch
-                {
-                    Isa95JobOrderOperationV2.Cancel or Isa95JobOrderOperationV2.Clear => ChangeKind.Catalog,
-                    Isa95JobOrderOperationV2.Update => ChangeKind.Status | ChangeKind.Catalog,
-                    _ => ChangeKind.Status
-                };
+                ChangeKind changes = operation is Isa95JobOrderOperationV2.Cancel or Isa95JobOrderOperationV2.Clear
+                    ? ChangeKind.Catalog
+                    : ChangeKind.Status | ChangeKind.Catalog;
                 int revisions = operation == Isa95JobOrderOperationV2.Cancel ? 2 : 1;
                 if (!HasCapacity(changes, revisions))
                 {
@@ -139,7 +110,12 @@ namespace Opc.Ua.MachineTool.Server
             try
             {
                 ThrowIfDisposed();
-                if (!HasCapacity(ChangeKind.Status, 1))
+                ChangeKind changes = transition is Isa95JobExecutionTransition.MarkReady or
+                    Isa95JobExecutionTransition.MarkNotReady or Isa95JobExecutionTransition.Load or
+                    Isa95JobExecutionTransition.Unload or Isa95JobExecutionTransition.Close
+                    ? ChangeKind.Catalog
+                    : ChangeKind.Status | ChangeKind.Catalog;
+                if (!HasCapacity(changes, 1))
                 {
                     return Refused(Isa95JobReturnStatus.UnableToAccept, "A delivery backlog is full.");
                 }
@@ -193,7 +169,7 @@ namespace Opc.Ua.MachineTool.Server
                 {
                     m_activeJob = jobOrderId;
                 }
-                AccountChanges(ChangeKind.Status);
+                AccountChanges(changes);
                 await CommitAsync().ConfigureAwait(false);
                 return receipt;
             }

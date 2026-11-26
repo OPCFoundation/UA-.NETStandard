@@ -1,34 +1,9 @@
-/* ========================================================================
- * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using System.Linq;
 using System.Threading;
@@ -96,6 +71,7 @@ namespace Opc.Ua.Server
             m_logger = server.Telemetry.CreateLogger<SamplingGroup>();
             m_backgroundWork = new BackgroundTaskScope(nameof(SamplingGroup), server.Telemetry);
             m_nodeManager = nodeManager ?? throw new ArgumentNullException(nameof(nodeManager));
+            m_systemContextTemplate = new ServerSystemContext(server);
             m_samplingRates = samplingRates ??
                 throw new ArgumentNullException(nameof(samplingRates));
             m_session = context.Session;
@@ -710,14 +686,13 @@ namespace Opc.Ua.Server
                 // read values for all enabled items.
                 if (items != null && items.Count > 0)
                 {
-                    bool admitted = MasterNodeManager.TryCaptureSourceEmission(
-                        m_server, m_nodeManager, out var emission);
+                    bool admitted = MasterNodeManager.TryCaptureItemEmission(
+                        m_server, m_nodeManager, null, out var emission);
                     using var emissionLease = emission;
                     if (!admitted)
                     {
                         return;
                     }
-                    using var emissionScope = emission?.EnterSourceEmission();
                     if (m_session == null)
                     {
                         // if session of the Sampling group is not set yet, adopt the session of the first monitored item.
@@ -730,7 +705,7 @@ namespace Opc.Ua.Server
                         .GroupBy(item => (object?)item.Session ?? item.EffectiveIdentity))
                     {
                         List<ISampledDataChangeMonitoredItem> ownedItems = [.. owned];
-                        await SampleItemsAsync(ownedItems, loopCts, cancellationToken).ConfigureAwait(false);
+                        await SampleItemsAsync(ownedItems, loopCts, emission, cancellationToken).ConfigureAwait(false);
                     }
                 }
             }
@@ -750,9 +725,15 @@ namespace Opc.Ua.Server
         private async ValueTask SampleItemsAsync(
             List<ISampledDataChangeMonitoredItem> items,
             CancellationTokenSource? loopCts,
+            MasterNodeManager.SourceEmissionAdmission? sourceEmission,
             CancellationToken cancellationToken)
         {
-            using OperationContext context = MonitoredReadAuthorization.CreateContext(items[0], m_diagnosticsMask);
+            _ = MonitoredReadAuthorization.TryRefreshIdentity(m_server, items[0].Session);
+            // The weak subscriber entry owns this context; callers must not dispose it.
+            // TODO: Remove suppression when CA2000 recognizes shared context ownership.
+#pragma warning disable CA2000
+            OperationContext context = MonitoredReadAuthorization.GetSubscriberContext(items[0], m_diagnosticsMask);
+#pragma warning restore CA2000
             var itemsToRead = new List<ReadValueId>(items.Count);
             var values = new List<DataValue>(items.Count);
             var errors = new List<ServiceResult>(items.Count);
@@ -771,6 +752,7 @@ namespace Opc.Ua.Server
             // read values.
             await m_nodeManager.ReadAsync(context, 0, itemsToRead, values, errors, cancellationToken).ConfigureAwait(false);
 
+            ServerSystemContext systemContext = GetSampleSystemContext(context);
             // update monitored items, unless the group stopped while reading: its items
             // may already be deleted.
             for (int ii = 0; ii < items.Count; ii++)
@@ -788,8 +770,9 @@ namespace Opc.Ua.Server
                         cancellationToken)
                     .ConfigureAwait(false);
 
-                permissionResult = await ValidateSampleReadAccessAsync(
-                    items[ii], context, permissionResult, cancellationToken).ConfigureAwait(false);
+                (permissionResult, _, _) = await ValidateSampleReadAccessAsync(
+                    items[ii], ResolveSampledNode(items[ii]), context, systemContext, permissionResult, cancellationToken)
+                    .ConfigureAwait(false);
 
                 // the group may have stopped while the permission check was suspended.
                 if (IsSamplingStopped(loopCts, cancellationToken))
@@ -797,65 +780,109 @@ namespace Opc.Ua.Server
                     return;
                 }
 
-                QueueSample(items[ii], context, values[ii], errors[ii], permissionResult);
+                QueueSample(items[ii], context, values[ii], errors[ii], permissionResult, sourceEmission);
             }
         }
 
         /// <summary>
-        /// Rechecks each NodeState-backed sample's current subscriber policy and endpoint before queueing its value.
+        /// Gets the stable system-context copy for this sampling group and subscriber.
         /// </summary>
-        private async ValueTask<ServiceResult> ValidateSampleReadAccessAsync(
-            ISampledDataChangeMonitoredItem item,
-            OperationContext readContext,
-            ServiceResult permission,
-            CancellationToken cancellationToken)
+        private ServerSystemContext GetSampleSystemContext(OperationContext context)
         {
-            if (ServiceResult.IsBad(permission))
-            {
-                return permission;
-            }
-            NodeState? node = item.ManagerHandle switch
+            return context.GetSystemContext(
+                (m_nodeManager as AsyncCustomNodeManager)?.SystemContext ?? m_systemContextTemplate);
+        }
+
+        /// <summary>
+        /// Resolves the exact sampled source, leaving provider-specific handles to their existing contracts.
+        /// </summary>
+        private NodeState? ResolveSampledNode(ISampledDataChangeMonitoredItem item)
+        {
+            return item.ManagerHandle switch
             {
                 NodeHandle handle => handle.Node,
                 NodeState state => state,
                 _ => (m_nodeManager as AsyncCustomNodeManager)?.Find(item.NodeId)
             };
-            if (node == null)
+        }
+
+        /// <summary>
+        /// Checks that a sampling pass still belongs to the current item owner.
+        /// </summary>
+        private static bool IsCurrentOwner(ISampledDataChangeMonitoredItem item, OperationContext context)
+        {
+            ISession? session = item.Session;
+            return ReferenceEquals(context.Session, session) &&
+                ReferenceEquals(context.UserIdentity, session?.EffectiveIdentity ?? item.EffectiveIdentity) &&
+                (session is null ||
+                (context.ChannelContext?.SecureChannelId ?? string.Empty) ==
+                    (session.SecureChannelId ?? string.Empty)) &&
+                (session is not Session concreteSession ||
+                    ReferenceEquals(context.NotificationAuthorization, concreteSession.NotificationAuthorization));
+        }
+
+        /// <summary>
+        /// Reuses only an exact-source grant for the current owner and permission epoch.
+        /// </summary>
+        private bool TryReuseSampleReadAccess(
+            ISampledDataChangeMonitoredItem item,
+            NodeState node,
+            OperationContext context,
+            in PermissionVerdict verdict,
+            [NotNullWhen(true)] out ServiceResult? result)
+        {
+            result = null;
+            return verdict.Read != null &&
+                ReferenceEquals(verdict.ReadNode, node) &&
+                verdict.Epoch == PermissionEpoch &&
+                IsCurrentOwner(item, context) &&
+                (item.Session is Session ||
+                    verdict.IdentityGeneration == (item.Session?.CaptureIdentityRefreshSnapshot().Generation ?? 0)) &&
+                MonitoredReadVerdict.TryReuse(
+                    verdict.Read, m_server, m_nodeManager, node, item.AttributeId,
+                    MonitoredReadInputs.Capture(item.Session, node), out result);
+        }
+
+        /// <summary>
+        /// Rechecks a sampled source and retains a grant only while all captured inputs remain current.
+        /// </summary>
+        private async ValueTask<(ServiceResult Result, MonitoredReadVerdict? Verdict, long Epoch)>
+            ValidateSampleReadAccessAsync(
+            ISampledDataChangeMonitoredItem item,
+            NodeState? node,
+            OperationContext readContext,
+            ServerSystemContext systemContext,
+            ServiceResult permission,
+            CancellationToken cancellationToken)
+        {
+            if (ServiceResult.IsBad(permission) || node == null)
             {
                 // Provider-specific non-NodeState handles retain their existing Read and role validation contracts.
-                return permission;
+                return (permission, null, 0);
             }
             try
             {
                 while (true)
                 {
                     cancellationToken.ThrowIfCancellationRequested();
-                    if (!ReferenceEquals(readContext.Session, item.Session) ||
-                        !ReferenceEquals(readContext.UserIdentity,
-                            item.Session?.EffectiveIdentity ?? item.EffectiveIdentity))
+                    if (!IsCurrentOwner(item, readContext) || item.Session?.IsIdentityStale == true)
                     {
-                        return StatusCodes.BadUserAccessDenied;
+                        return (StatusCodes.BadUserAccessDenied, null, 0);
                     }
-                    EndpointDescription? endpoint = MonitoredReadAuthorization.GetEndpoint(item.Session);
-                    MessageSecurityMode? securityMode = endpoint?.SecurityMode;
-                    string? transport = endpoint?.TransportProfileUri;
-                    AccessRestrictionType? restrictions = node.AccessRestrictions;
+                    MonitoredReadInputs inputs = MonitoredReadInputs.Capture(item.Session, node);
                     long epoch = PermissionEpoch;
-                    using OperationContext current = MonitoredReadAuthorization.CreateContext(item, m_diagnosticsMask);
-                    var systemContext = new ServerSystemContext(m_server, current);
-                    ServiceResult result = await MonitoredReadAuthorization.ValidateAsync(
-                        m_nodeManager, node, systemContext, item.AttributeId, cancellationToken).ConfigureAwait(false);
-                    EndpointDescription? currentEndpoint = MonitoredReadAuthorization.GetEndpoint(item.Session);
-                    if (ReferenceEquals(readContext.Session, item.Session) &&
-                        ReferenceEquals(readContext.UserIdentity,
-                            item.Session?.EffectiveIdentity ?? item.EffectiveIdentity) &&
-                        ReferenceEquals(endpoint, currentEndpoint) &&
-                        securityMode == currentEndpoint?.SecurityMode &&
-                        transport == currentEndpoint?.TransportProfileUri &&
-                        restrictions == node.AccessRestrictions &&
+                    long identityGeneration = item.Session is Session
+                        ? 0 : item.Session?.CaptureIdentityRefreshSnapshot().Generation ?? 0;
+                    (ServiceResult result, MonitoredReadVerdict? verdict) = await MonitoredReadVerdict.ValidateAsync(
+                        m_server, m_nodeManager, node, systemContext, item.AttributeId, inputs, cancellationToken)
+                        .ConfigureAwait(false);
+                    if (IsCurrentOwner(item, readContext) &&
+                        (item.Session is Session ||
+                            identityGeneration == (item.Session?.CaptureIdentityRefreshSnapshot().Generation ?? 0)) &&
+                        inputs.IsCurrent(item.Session, node) &&
                         epoch == PermissionEpoch)
                     {
-                        return result;
+                        return (result, verdict, epoch);
                     }
                 }
             }
@@ -865,17 +892,17 @@ namespace Opc.Ua.Server
             }
             catch (ObjectDisposedException)
             {
-                return StatusCodes.BadShutdown;
+                return (StatusCodes.BadShutdown, null, 0);
             }
             catch (ServiceResultException error)
             {
-                return error.Result;
+                return (error.Result, null, 0);
             }
             catch (Exception error) when (
                 error is not OutOfMemoryException and not StackOverflowException and not AccessViolationException)
             {
-                return ServiceResult.Create(
-                    error, StatusCodes.BadUnexpectedError, "A sampled Value read authorization failed.");
+                return (ServiceResult.Create(
+                    error, StatusCodes.BadUnexpectedError, "A sampled Value read authorization failed."), null, 0);
             }
         }
 
@@ -887,7 +914,8 @@ namespace Opc.Ua.Server
             OperationContext context,
             DataValue value,
             ServiceResult error,
-            ServiceResult permissionResult)
+            ServiceResult permissionResult,
+            MasterNodeManager.SourceEmissionAdmission? sourceEmission)
         {
             if (ServiceResult.IsBad(permissionResult))
             {
@@ -905,7 +933,7 @@ namespace Opc.Ua.Server
 
             if (item is MonitoredItem concreteItem)
             {
-                concreteItem.QueueValueIfCurrent(context, value, error);
+                concreteItem.QueueValueIfCurrent(context, value, error, sourceEmission: sourceEmission);
             }
             else
             {
@@ -1005,7 +1033,13 @@ namespace Opc.Ua.Server
                         continue;
                     }
 
-                    readValueId.Handle = item.ManagerHandle;
+                    if (item.ManagerHandle is not { } handle)
+                    {
+                        m_enabled[ii] = false;
+                        readValueId.Processed = true;
+                        continue;
+                    }
+                    readValueId.Handle = handle;
                     object? itemOwner = (object?)item.Session ?? item.EffectiveIdentity;
                     if (first == null)
                     {
@@ -1043,14 +1077,29 @@ namespace Opc.Ua.Server
                 // if session of the Sampling group is not set yet, adopt the session of the first monitored item.
                 m_group.m_session ??= first.Session;
 
-                using OperationContext context = MonitoredReadAuthorization.CreateContext(
+                bool admitted = MasterNodeManager.TryCaptureItemEmission(
+                    m_group.m_server, m_group.m_nodeManager, null, out var emission);
+                using var emissionLease = emission;
+                if (!admitted)
+                {
+                    return;
+                }
+
+                _ = MonitoredReadAuthorization.TryRefreshIdentity(m_group.m_server, first.Session);
+                // The weak subscriber entry owns this context; callers must not dispose it.
+                // TODO: Remove suppression when CA2000 recognizes shared context ownership.
+#pragma warning disable CA2000
+                OperationContext context = MonitoredReadAuthorization.GetSubscriberContext(
                     first, m_group.m_diagnosticsMask);
+#pragma warning restore CA2000
 
                 await m_group.m_nodeManager.ReadAsync(
                     context, 0, m_readValueIds, m_values, m_errors, cancellationToken).ConfigureAwait(false);
 
                 long epoch = m_group.PermissionEpoch;
                 int slice = (int)(m_cycle++ % m_revalidationStride);
+                long identityGeneration = context.Session?.CaptureIdentityRefreshSnapshot().Generation ?? 0;
+                ServerSystemContext? systemContext = null;
 
                 // update monitored items, unless the group stopped while reading: its items
                 // may already be deleted.
@@ -1072,6 +1121,8 @@ namespace Opc.Ua.Server
                     if (permissionResult == null ||
                         ii % m_revalidationStride == slice ||
                         verdict.Epoch != epoch ||
+                        verdict.IdentityGeneration != identityGeneration ||
+                        !ReferenceEquals(verdict.Context, context) ||
                         !ReferenceEquals(verdict.Session, context.Session) ||
                         !ReferenceEquals(verdict.Identity, context.UserIdentity) ||
                         !ReferenceEquals(verdict.Handle, readValueId.Handle))
@@ -1090,17 +1141,37 @@ namespace Opc.Ua.Server
                             return;
                         }
 
-                        m_verdicts[ii] = new PermissionVerdict(
-                            permissionResult, epoch, context.Session, context.UserIdentity, readValueId.Handle);
+                        verdict = new PermissionVerdict(
+                            permissionResult, epoch, context.Session, context.UserIdentity, readValueId.Handle,
+                            identityGeneration, context);
+                        m_verdicts[ii] = verdict;
                     }
 
-                    permissionResult = await m_group.ValidateSampleReadAccessAsync(
-                        items[ii], context, permissionResult, cancellationToken).ConfigureAwait(false);
+                    NodeState? node = m_group.ResolveSampledNode(items[ii]);
+                    if (node != null &&
+                        ServiceResult.IsGood(permissionResult) &&
+                        context.Session?.IsIdentityStale != true &&
+                        m_group.TryReuseSampleReadAccess(items[ii], node, context, verdict, out ServiceResult? reused))
+                    {
+                        permissionResult = reused;
+                    }
+                    else
+                    {
+                        systemContext ??= m_group.GetSampleSystemContext(context);
+                        (permissionResult, MonitoredReadVerdict? read, long readEpoch) =
+                            await m_group.ValidateSampleReadAccessAsync(
+                                items[ii], node, context, systemContext, permissionResult, cancellationToken)
+                                .ConfigureAwait(false);
+                        if (read != null && readEpoch == verdict.Epoch)
+                        {
+                            m_verdicts[ii] = verdict with { Read = read, ReadNode = node };
+                        }
+                    }
                     if (m_group.IsSamplingStopped(m_loopCts, cancellationToken))
                     {
                         return;
                     }
-                    m_group.QueueSample(items[ii], context, m_values[ii], m_errors[ii], permissionResult);
+                    m_group.QueueSample(items[ii], context, m_values[ii], m_errors[ii], permissionResult, emission);
                 }
             }
 
@@ -1137,12 +1208,25 @@ namespace Opc.Ua.Server
         /// <summary>
         /// The cached result of a role permission validation and the inputs it is valid for.
         /// </summary>
+        /// <param name="Result">The role permission result.</param>
+        /// <param name="Epoch">The group permission epoch.</param>
+        /// <param name="Session">The owning session.</param>
+        /// <param name="Identity">The effective subscriber identity.</param>
+        /// <param name="Handle">The current sampled handle.</param>
+        /// <param name="IdentityGeneration">The session activation or role refresh generation.</param>
+        /// <param name="Context">The shared authorization context captured for the sample.</param>
+        /// <param name="Read">An optional reusable exact-source grant.</param>
+        /// <param name="ReadNode">The exact node authorized by the grant.</param>
         private readonly record struct PermissionVerdict(
             ServiceResult? Result,
             long Epoch,
             ISession? Session,
             IUserIdentity? Identity,
-            object? Handle);
+            object? Handle,
+            long IdentityGeneration,
+            OperationContext Context,
+            MonitoredReadVerdict? Read = null,
+            NodeState? ReadNode = null);
 
         /// <summary>
         /// The longest time a cached role permission verdict of a sampled item is used
@@ -1156,6 +1240,10 @@ namespace Opc.Ua.Server
         private readonly IServerInternal m_server;
         private readonly TimeProvider m_timeProvider;
         private readonly IAsyncNodeManager m_nodeManager;
+
+        /// <summary>Stable fallback template for provider-specific sampling managers.</summary>
+        private readonly ServerSystemContext m_systemContextTemplate;
+
         private ISession? m_session;
         private readonly IUserIdentity? m_effectiveIdentity;
         private readonly DiagnosticsMasks m_diagnosticsMask;

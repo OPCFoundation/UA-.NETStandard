@@ -1,33 +1,7 @@
-/* ========================================================================
- * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
-#if NET10_0
+#if NET10_0_OR_GREATER
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -142,12 +116,14 @@ namespace Opc.Ua.Tools.Tests
                 ("OPCFoundation.NetStandard.Opc.Ua.Mcp.Di.Debug", false),
                 ("OPCFoundation.NetStandard.Opc.Ua.Mcp.ISA95", false),
                 ("OPCFoundation.NetStandard.Opc.Ua.Mcp.ISA95.Debug", false),
-                ("OPCFoundation.NetStandard.Opc.Ua.Mcp.Positioning", false),
-                ("OPCFoundation.NetStandard.Opc.Ua.Mcp.Positioning.Debug", false),
-                ("OPCFoundation.NetStandard.Opc.Ua.Mcp.WotCon", false),
-                ("OPCFoundation.NetStandard.Opc.Ua.Mcp.WotCon.Debug", false),
-                ("OPCFoundation.NetStandard.Opc.Ua.Mcp.XRegistry", false),
-                ("OPCFoundation.NetStandard.Opc.Ua.Mcp.XRegistry.Debug", false),
+                // These depend on preview-only families, so a stable root
+                // cannot pack them as stable (NU5104).
+                ("OPCFoundation.NetStandard.Opc.Ua.Mcp.Positioning", true),
+                ("OPCFoundation.NetStandard.Opc.Ua.Mcp.Positioning.Debug", true),
+                ("OPCFoundation.NetStandard.Opc.Ua.Mcp.WotCon", true),
+                ("OPCFoundation.NetStandard.Opc.Ua.Mcp.WotCon.Debug", true),
+                ("OPCFoundation.NetStandard.Opc.Ua.Mcp.XRegistry", true),
+                ("OPCFoundation.NetStandard.Opc.Ua.Mcp.XRegistry.Debug", true),
                 // A package that merely starts with the same prefix text
                 // must not be matched (family boundary is a dot, not a
                 // substring).
@@ -652,6 +628,9 @@ namespace Opc.Ua.Tools.Tests
                 "Opc.Ua.AI",
                 "Opc.Ua.Mcp.Robotics",
                 "Opc.Ua.Mcp.CranesHoists",
+                "Opc.Ua.Mcp.Positioning",
+                "Opc.Ua.Mcp.WotCon",
+                "Opc.Ua.Mcp.XRegistry",
                 "Opc.Ua.OpenUsd.Connector",
                 "Opc.Ua.OpenUsd.Connector.Viewer"
             ];
@@ -1308,7 +1287,7 @@ namespace Opc.Ua.Tools.Tests
             [
                 .. workflow[..checkout]
                     .Split('\n')
-                    .Where(l => !l.TrimStart().StartsWith('#'))
+                    .Where(l => !l.TrimStart().StartsWith('#', StringComparison.Ordinal))
             ];
 
             Assert.Multiple(
@@ -1320,7 +1299,7 @@ namespace Opc.Ua.Tools.Tests
                         "No repository script may run before the candidate checkout.");
                     Assert.That(
                         workflow[checkout..],
-                        Does.StartWith("uses: actions/checkout@v6"),
+                        Does.StartWith("uses: actions/checkout@v7"),
                         "The candidate checkout must be the first checkout in the job.");
                     Assert.That(
                         workflow.Substring(checkout, Math.Min(200, workflow.Length - checkout)),
@@ -1426,7 +1405,7 @@ namespace Opc.Ua.Tools.Tests
                 () =>
                 {
                     Assert.That(versions, Has.Length.EqualTo(8));
-                    Assert.That(versions, Is.All.EqualTo("0.16.6-alpha"));
+                    Assert.That(versions, Is.All.EqualTo("0.17.0-alpha"));
                 });
         }
 
@@ -1540,7 +1519,7 @@ namespace Opc.Ua.Tools.Tests
                     Is.Zero,
                     $"package-version-policy.ps1 script failed:\n{output}\n{error}");
 
-                return JsonDocument.Parse(output).RootElement;
+                return JsonElement.Parse(output);
             }
             finally
             {
@@ -1548,19 +1527,12 @@ namespace Opc.Ua.Tools.Tests
             }
         }
 
+        /// <summary>
+        /// Resolves the checkout containing the package-version policy.
+        /// </summary>
         private static string FindRepositoryRoot()
         {
-            string? current = TestContext.CurrentContext.TestDirectory;
-            while (!string.IsNullOrWhiteSpace(current))
-            {
-                if (File.Exists(Path.Combine(current, "version.targets")))
-                {
-                    return current;
-                }
-                current = Directory.GetParent(current)?.FullName;
-            }
-
-            throw new InvalidOperationException("Could not find the repository root.");
+            return RepositoryTestRoot.Find(Path.Combine(".azurepipelines", "package-version-policy.ps1"));
         }
 
         /// <summary>
@@ -1594,6 +1566,10 @@ namespace Opc.Ua.Tools.Tests
                 ("OPCFoundation.NetStandard.Opc.Ua.Mcp.CranesHoists", true),
                 ("OPCFoundation.NetStandard.Opc.Ua.Robotics.Server", true),
                 ("OPCFoundation.NetStandard.Opc.Ua.Mcp.Robotics", true),
+                ("OPCFoundation.NetStandard.Opc.Ua.Mcp.Positioning", true),
+                ("OPCFoundation.NetStandard.Opc.Ua.Mcp.WotCon", true),
+                ("OPCFoundation.NetStandard.Opc.Ua.Mcp.XRegistry", true),
+                ("OPCFoundation.NetStandard.Opc.Ua.Mcp.WotConExtra", false),
                 ("OPCFoundation.NetStandard.Opc.Ua.CranesHoistsExtra", false),
                 ("OPCFoundation.NetStandard.Opc.Ua.Mcp.CranesHoistsExtra", false),
                 ("OPCFoundation.NetStandard.Opc.Ua.Mcp.CranesHoists.Child", false),

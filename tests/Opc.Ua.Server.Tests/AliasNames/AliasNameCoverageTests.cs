@@ -1,31 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using System.Collections.Generic;
@@ -354,21 +328,27 @@ namespace Opc.Ua.Server.Tests.AliasNames
             AliasNameNodeManager manager = CreateManager(mockServer, store, true);
             try
             {
+                Assert.That(registry.Stores, Does.Not.Contain(store));
                 var externalReferences = new Dictionary<NodeId, IList<IReference>>();
                 await manager.CreateAddressSpaceAsync(externalReferences, CancellationToken.None).ConfigureAwait(false);
+                Assert.That(registry.Stores, Does.Not.Contain(store));
 
-                Assert.That(registry.Stores, Does.Contain(store));
+                await manager.OnServerReadyAsync(CancellationToken.None).ConfigureAwait(false);
+                await manager.OnServerReadyAsync(CancellationToken.None).ConfigureAwait(false);
+
+                Assert.That(registry.Stores, Is.EqualTo(new[] { store }));
             }
             finally
             {
                 manager.Dispose();
+                await manager.DisposeAsync().ConfigureAwait(false);
             }
 
             Assert.That(registry.Stores, Does.Not.Contain(store));
         }
 
         [Test]
-        public Task RegistryRegistrationConflictIsSwallowedAsync()
+        public async Task RegistryRegistrationConflictIsSwallowedAsync()
         {
             var categoryId = new NodeId("SharedCategory", 1);
             var descriptor = new AliasNameCategoryDescriptor(
@@ -382,19 +362,18 @@ namespace Opc.Ua.Server.Tests.AliasNames
 
             using var store = new InMemoryAliasNameStore([descriptor]);
             Mock<IServerInternal> mockServer = CreateMockServer(registry);
-            using AliasNameNodeManager manager = CreateManager(mockServer, store, true);
+            await using AliasNameNodeManager manager = CreateManager(mockServer, store, true);
 
             var externalReferences = new Dictionary<NodeId, IList<IReference>>();
-            Assert.That(
-                async () => await manager.CreateAddressSpaceAsync(
-                    externalReferences, CancellationToken.None).ConfigureAwait(false),
-                Throws.Nothing);
+            await manager.CreateAddressSpaceAsync(externalReferences, CancellationToken.None).ConfigureAwait(false);
+            Assert.That(registry.Stores, Is.EqualTo(new[] { blocker }));
+            await Assert.ThatAsync(() => manager.OnServerReadyAsync(CancellationToken.None).AsTask(), Throws.Nothing)
+                .ConfigureAwait(false);
 
             // Registration was rejected, so only the pre-existing blocker
             // store remains registered.
             Assert.That(registry.Stores, Does.Not.Contain(store));
             Assert.That(registry.Stores, Does.Contain(blocker));
-            return Task.CompletedTask;
         }
     }
 }

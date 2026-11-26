@@ -1,32 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using System.Collections.Generic;
@@ -61,6 +34,9 @@ namespace Opc.Ua.Wot
         /// The optional invocation-scoped derivations shared across the validations of one
         /// call, or <c>null</c> to derive the facts for this document alone.
         /// </param>
+        /// <param name="resolvedArgumentProperties">
+        /// Captured dependency argument properties used to verify externally referenced method signatures.
+        /// </param>
         internal static void ValidatePreservedReadableFacts(
             WotDocument document,
             UANodeSet baseline,
@@ -69,7 +45,8 @@ namespace Opc.Ua.Wot
             UANodeSet? archiveContext = null,
             IReadOnlyDictionary<string, string>? carrierEventIds = null,
             List<string>? missingWitnesses = null,
-            ArchiveDerivations? derivations = null)
+            ArchiveDerivations? derivations = null,
+            IReadOnlyDictionary<string, WotArgumentProperty>? resolvedArgumentProperties = null)
         {
             // Identity normalization may append namespaces. It must never change
             // the authoritative NodeSet, even when a readable identity conflicts.
@@ -136,7 +113,8 @@ namespace Opc.Ua.Wot
             }
             using WotDocument? readable = needsProjection
                 ? CreatePreservedReadableProjection(
-                    document, baseline, referenceTypes, root, projectedNodes, options, diagnostics)
+                    document, baseline, referenceTypes, root, projectedNodes, options, diagnostics,
+                    resolvedArgumentProperties)
                 : null;
             if (needsProjection && readable is null)
             {
@@ -303,7 +281,7 @@ namespace Opc.Ua.Wot
                 }
                 if (member.Name is InputMember or OutputMember or "uav:dataTypeDefinition" or
                     "uav:dataTypeDefinitions" or InverseNameTerm or SymmetricTerm or DataMember or
-                    EngineeringUnitsTerm or InstrumentRangeTerm or MinimumMember or MaximumMember or
+                    EngineeringUnitsTerm or EuRangeTerm or InstrumentRangeTerm or MinimumMember or MaximumMember or
                     ConditionTypeTerm or ConditionTypeIdTerm or ConditionActionTerm or ActsOnTerm)
                 {
                     return true;
@@ -319,7 +297,8 @@ namespace Opc.Ua.Wot
             UANode root,
             HashSet<string> projectedNodes,
             WotNodeSetConverterOptions options,
-            List<WotDiagnostic> diagnostics)
+            List<WotDiagnostic> diagnostics,
+            IReadOnlyDictionary<string, WotArgumentProperty>? resolvedArgumentProperties)
         {
             var projectionDiagnostics = new List<WotDiagnostic>();
             try
@@ -327,7 +306,8 @@ namespace Opc.Ua.Wot
                 byte[] regenerated = WriteReadableDocument(
                     baseline, root, document.Title ?? string.Empty, explicitTitle: true, [],
                     nativeProjection: null, emitEnvelope: false, options, projectionDiagnostics,
-                    projectedNodeIds: projectedNodes, referenceTypes: referenceTypes);
+                    projectedNodeIds: projectedNodes, referenceTypes: referenceTypes,
+                    resolvedArgumentProperties: resolvedArgumentProperties);
                 if (HasErrors(projectionDiagnostics))
                 {
                     return null;
@@ -471,7 +451,8 @@ namespace Opc.Ua.Wot
                 string? conditionOwner = null;
                 if (collection == "properties")
                 {
-                    string? explicitOwner = ReadComponentOfParent(affordance.Value, identities, diagnostics);
+                    string? explicitOwner = ReadAffordanceParent(
+                        document, affordance.Value, identities, diagnostics);
                     if (explicitOwner is not null)
                     {
                         owner = explicitOwner;
@@ -784,8 +765,6 @@ namespace Opc.Ua.Wot
                     case SymmetricTerm:
                     case DataMember:
                     case InstrumentRangeTerm:
-                    case MinimumMember:
-                    case MaximumMember:
                     case ConditionActionTerm:
                     case ActsOnTerm:
                         if (regenerated.ValueKind == JsonValueKind.Object &&
@@ -797,6 +776,46 @@ namespace Opc.Ua.Wot
                             ReportArchiveConflict(location, member.Name, diagnostics);
                         }
                         break;
+                    case MinimumMember:
+                    case MaximumMember:
+                        if (!UsesSeparateEngineeringRange(authored) &&
+                            regenerated.ValueKind == JsonValueKind.Object &&
+                            regenerated.TryGetProperty(member.Name, out JsonElement expectedBound) &&
+                            !IsArchivedJsonSubset(member.Value, expectedBound))
+                        {
+                            ReportArchiveConflict(location, member.Name, diagnostics);
+                        }
+                        break;
+                    case EuRangeTerm:
+                        if (member.Value.ValueKind != JsonValueKind.Object)
+                        {
+                            ReportArchiveConflict(location, EuRangeTerm, diagnostics);
+                            break;
+                        }
+                        foreach (string endpoint in new[] { MinimumMember, MaximumMember })
+                        {
+                            if (!member.Value.TryGetProperty(endpoint, out JsonElement actualEndpoint))
+                            {
+                                continue;
+                            }
+                            if (regenerated.ValueKind == JsonValueKind.Object &&
+                                regenerated.TryGetProperty(endpoint, out JsonElement expectedEndpoint))
+                            {
+                                if (!IsArchivedJsonSubset(actualEndpoint, expectedEndpoint))
+                                {
+                                    ReportArchiveConflict(location + "/" + endpoint, EuRangeTerm, diagnostics);
+                                }
+                            }
+                            else if (TryReadArchivedEngineeringEndpoint(
+                                node, baseline, index, aliases, referenceTypes, endpoint, out double expectedValue) &&
+                                (actualEndpoint.ValueKind != JsonValueKind.Number ||
+                                    !actualEndpoint.TryGetDouble(out double actualValue) ||
+                                    actualValue != expectedValue))
+                            {
+                                ReportArchiveConflict(location + "/" + endpoint, EuRangeTerm, diagnostics);
+                            }
+                        }
+                        break;
                     case "uav:dataTypeDefinitions":
                         CompareArchivedDefinitions(
                             document, member.Value, regenerated, index, identities, aliases,
@@ -805,6 +824,43 @@ namespace Opc.Ua.Wot
                 }
             }
             AttachPreservedNodeIdentity(diagnostics, firstDiagnostic, node.NodeId);
+        }
+
+        /// <summary>
+        /// Reads an archived endpoint independently when the complete range has no readable JSON projection.
+        /// </summary>
+        private static bool TryReadArchivedEngineeringEndpoint(
+            UANode node,
+            UANodeSet baseline,
+            Dictionary<string, UANode?> index,
+            INodeSetAliasResolver aliases,
+            WotReferenceTypeNames referenceTypes,
+            string endpoint,
+            out double value)
+        {
+            foreach (UANode candidate in baseline.Items ?? [])
+            {
+                if (candidate is not UAVariable range ||
+                    !IsBaseNamespaceBrowseName(range.BrowseName, EuRangeBrowseName) ||
+                    !HasArchivedReference(
+                        node, index, aliases, null, isForward: true,
+                        ResolveArchivedAlias(range.NodeId, aliases), referenceTypes))
+                {
+                    continue;
+                }
+                System.Xml.XmlElement? body = TryGetExtensionBody(range.Value, RangeXmlEncoding, "Range");
+                System.Xml.XmlElement? field = body is null
+                    ? null
+                    : FindChild(body, endpoint == MinimumMember ? "Low" : "High");
+                if (field is not null &&
+                    double.TryParse(field.InnerText.Trim(), System.Globalization.NumberStyles.Float,
+                        System.Globalization.CultureInfo.InvariantCulture, out value))
+                {
+                    return true;
+                }
+            }
+            value = default;
+            return false;
         }
 
         private static void CompareArchivedEngineeringUnits(
@@ -1073,7 +1129,7 @@ namespace Opc.Ua.Wot
             using (var writer = new Utf8JsonWriter(output))
             {
                 writer.WriteStartObject();
-                WriteVariableValue(writer, node);
+                WriteVariableValue(writer, node, member: "const");
                 writer.WriteEndObject();
             }
             using var expected = JsonDocument.Parse(output.ToArray());
@@ -1182,6 +1238,42 @@ namespace Opc.Ua.Wot
                         {
                             matches.Add(new WotResolvedReferenceType(
                                 ToPortableNodeId(inverseId, baseline.NamespaceUris)!, rel, false));
+                        }
+                        if (GetElementString(link, "uav:refId") is { } pinnedId)
+                        {
+                            string id = NormalizeArchivedIdentity(
+                                document, pinnedId, identities, aliases, diagnostics, link);
+                            if (nodes.TryGetValue("id:" + id, out UANode? pinnedNode) &&
+                                pinnedNode is UAReferenceType pinnedType)
+                            {
+                                matches.Clear();
+                                if (name == NormalizeArchivedBrowseName(pinnedType.BrowseName))
+                                {
+                                    matches.Add(new WotResolvedReferenceType(pinnedId, rel, true));
+                                }
+                                if (!pinnedType.Symmetric)
+                                {
+                                    string qualified = NormalizeArchivedBrowseName(pinnedType.BrowseName) ??
+                                        string.Empty;
+                                    int separator = qualified.IndexOf(':', StringComparison.Ordinal);
+                                    string prefix = separator < 0 ? string.Empty : qualified[..(separator + 1)];
+                                    foreach (Export.LocalizedText inverseName in pinnedType.InverseName ?? [])
+                                    {
+                                        if (name == prefix + inverseName.Value)
+                                        {
+                                            matches.Add(new WotResolvedReferenceType(pinnedId, rel, false));
+                                            break;
+                                        }
+                                    }
+                                }
+                                if (matches.Count == 0)
+                                {
+                                    ReportArchiveConflict(
+                                        pointer + "/" + index.ToString(System.Globalization.CultureInfo.InvariantCulture),
+                                        "ReferenceType", diagnostics);
+                                    continue;
+                                }
+                            }
                         }
                         answer = WotReferenceTypeAnswer.FromMatches(matches.ToArrayOf());
                     }

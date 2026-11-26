@@ -1,35 +1,10 @@
-/* ========================================================================
- * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using System.Collections.Generic;
 using System.Threading;
+using System.Threading.Channels;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Time.Testing;
 using Moq;
@@ -181,6 +156,333 @@ namespace Opc.Ua.PubSub.Tests.Redundancy
         }
 
         [Test]
+        public async Task RenewalFailurePausesPublishingBeforeTakeoverAsync()
+        {
+            var clock = new LeaseLoopClock();
+            var store = new InMemoryPubSubLeaseStore(clock);
+            var faultyStore = new Mock<IPubSubLeaseStore>(MockBehavior.Strict);
+            faultyStore
+                .Setup(x => x.TryAcquireAsync(WriterComponentId, "publisher-a", s_leaseDuration,
+                    It.IsAny<CancellationToken>()))
+                .Returns((string key, string owner, TimeSpan duration, CancellationToken ct) =>
+                    store.TryAcquireAsync(key, owner, duration, ct));
+            faultyStore
+                .Setup(x => x.TryRenewAsync(It.IsAny<PubSubLease>(), s_leaseDuration, It.IsAny<CancellationToken>()))
+                .ThrowsAsync(new TimeoutException("Store unavailable."));
+            faultyStore
+                .Setup(x => x.ReleaseAsync(It.IsAny<PubSubLease>(), CancellationToken.None))
+                .Returns((PubSubLease lease, CancellationToken ct) => store.ReleaseAsync(lease, ct));
+            await using var coordinator = new LeaseActivationCoordinator(
+                faultyStore.Object,
+                NUnitTelemetryContext.Create(),
+                ownerId: "publisher-a",
+                leaseDuration: s_leaseDuration,
+                renewInterval: s_testInterval,
+                retryInterval: s_leaseDuration,
+                timeProvider: clock);
+
+            var messages = new List<PubSubNetworkMessage>();
+            coordinator.RoleChanged += (_, e) =>
+            {
+                if (e.Role == PubSubComponentRole.Standby)
+                {
+                    throw new InvalidOperationException("Role listener failed.");
+                }
+            };
+            WriterGroup writer = CreateWriterGroup(coordinator, messages, clock);
+            await writer.EnableAsync().ConfigureAwait(false);
+            ChannelReader<PubSubComponentRole> roles = ObserveRoles(coordinator);
+
+            await StartWriterLeaseAsync(coordinator).ConfigureAwait(false);
+            Assert.That(await ReadAsync(roles).ConfigureAwait(false), Is.EqualTo(PubSubComponentRole.Active));
+            await writer.PublishOnceAsync().ConfigureAwait(false);
+            Assert.That(messages, Has.Count.EqualTo(1));
+
+            Assert.That(await clock.GetScheduledDelayAsync().ConfigureAwait(false), Is.EqualTo(s_testInterval));
+            clock.Advance(s_testInterval);
+            Assert.That(await ReadAsync(roles).ConfigureAwait(false), Is.EqualTo(PubSubComponentRole.Standby));
+            Assert.That(await coordinator.GetRoleAsync(WriterComponentId).ConfigureAwait(false),
+                Is.EqualTo(PubSubComponentRole.Standby));
+            await writer.PublishOnceAsync().ConfigureAwait(false);
+            Assert.That(writer.State.State, Is.EqualTo(PubSubState.Paused));
+            Assert.That(messages, Has.Count.EqualTo(1));
+            Assert.That(await store.TryAcquireAsync(WriterComponentId, "publisher-b", s_leaseDuration)
+                .ConfigureAwait(false), Is.Null);
+
+            _ = await clock.GetScheduledDelayAsync().ConfigureAwait(false);
+            Assert.That(await clock.GetScheduledDelayAsync().ConfigureAwait(false), Is.EqualTo(s_leaseDuration));
+            clock.Advance(s_leaseDuration - s_testInterval);
+            PubSubLease? peer = await store.TryAcquireAsync(WriterComponentId, "publisher-b", s_leaseDuration)
+                .ConfigureAwait(false);
+            Assert.That(peer, Is.Not.Null);
+            await writer.PublishOnceAsync().ConfigureAwait(false);
+            Assert.That(messages, Has.Count.EqualTo(1));
+
+            await store.ReleaseAsync(peer.GetValueOrDefault()).ConfigureAwait(false);
+            clock.Advance(s_testInterval);
+            Assert.That(await ReadAsync(roles).ConfigureAwait(false), Is.EqualTo(PubSubComponentRole.Active));
+            await writer.PublishOnceAsync().ConfigureAwait(false);
+            Assert.That(messages, Has.Count.EqualTo(2));
+            faultyStore.Verify(x => x.TryRenewAsync(It.IsAny<PubSubLease>(), s_leaseDuration,
+                It.IsAny<CancellationToken>()), Times.Once);
+        }
+
+        [Test]
+        public async Task AcquireFailuresStayStandbyAndRetryAtConfiguredIntervalAsync()
+        {
+            var clock = new LeaseLoopClock();
+            var store = new Mock<IPubSubLeaseStore>(MockBehavior.Strict);
+            var attempts = Channel.CreateUnbounded<DateTimeOffset>();
+            int calls = 0;
+            store
+                .Setup(x => x.TryAcquireAsync(WriterComponentId, "publisher-a", s_leaseDuration,
+                    It.IsAny<CancellationToken>()))
+                .Returns(() =>
+                {
+                    DateTimeOffset now = clock.GetUtcNow();
+                    _ = attempts.Writer.TryWrite(now);
+                    return ++calls switch
+                    {
+                        1 => throw new TimeoutException("Store unavailable."),
+                        2 => throw new OperationCanceledException("Store canceled its own request."),
+                        _ => new ValueTask<PubSubLease?>(
+                            new PubSubLease(WriterComponentId, "publisher-a", 1, now + s_leaseDuration))
+                    };
+                });
+            store.Setup(x => x.ReleaseAsync(It.IsAny<PubSubLease>(), CancellationToken.None))
+                .Returns(default(ValueTask));
+            await using var coordinator = CreateLeaseCoordinator(store.Object, clock);
+            ChannelReader<PubSubComponentRole> roles = ObserveRoles(coordinator);
+
+            DateTimeOffset start = clock.GetUtcNow();
+            await StartWriterLeaseAsync(coordinator).ConfigureAwait(false);
+            for (int attempt = 0; attempt < 2; attempt++)
+            {
+                Assert.That(await ReadAsync(attempts.Reader).ConfigureAwait(false),
+                    Is.EqualTo(start.AddTicks(attempt * s_testInterval.Ticks)));
+                Assert.That(await clock.GetScheduledDelayAsync().ConfigureAwait(false), Is.EqualTo(s_testInterval));
+                Assert.That(await coordinator.GetRoleAsync(WriterComponentId).ConfigureAwait(false),
+                    Is.EqualTo(PubSubComponentRole.Standby));
+                Assert.That(roles.TryRead(out _), Is.False);
+                clock.Advance(s_testInterval);
+            }
+
+            Assert.That(await ReadAsync(attempts.Reader).ConfigureAwait(false),
+                Is.EqualTo(start.AddTicks(2 * s_testInterval.Ticks)));
+            Assert.That(await ReadAsync(roles).ConfigureAwait(false), Is.EqualTo(PubSubComponentRole.Active));
+        }
+
+        [Test]
+        public async Task RenewalDeadlineRejectsLateSuccessBeforeReacquiringAsync()
+        {
+            var clock = new LeaseLoopClock();
+            var store = new Mock<IPubSubLeaseStore>(MockBehavior.Strict);
+            var renewalStarted = new TaskCompletionSource<PubSubLease>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            var pendingRenewal = new TaskCompletionSource<PubSubLease?>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            var reacquisition = new TaskCompletionSource<PubSubLease?>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            int acquisitions = 0;
+            store
+                .Setup(x => x.TryAcquireAsync(WriterComponentId, "publisher-a", s_leaseDuration,
+                    It.IsAny<CancellationToken>()))
+                .Returns(() => Interlocked.Increment(ref acquisitions) == 1
+                    ? new ValueTask<PubSubLease?>(CreateTestLease(clock))
+                    : new ValueTask<PubSubLease?>(reacquisition.Task));
+            store
+                .Setup(x => x.TryRenewAsync(It.IsAny<PubSubLease>(), s_leaseDuration, It.IsAny<CancellationToken>()))
+                .Returns((PubSubLease lease, TimeSpan _, CancellationToken _) =>
+                {
+                    renewalStarted.SetResult(lease);
+                    return new ValueTask<PubSubLease?>(pendingRenewal.Task);
+                });
+            store.Setup(x => x.ReleaseAsync(It.IsAny<PubSubLease>(), CancellationToken.None))
+                .Returns(default(ValueTask));
+            await using var coordinator = CreateLeaseCoordinator(store.Object, clock);
+            ChannelReader<PubSubComponentRole> roles = ObserveRoles(coordinator);
+
+            try
+            {
+                await StartWriterLeaseAsync(coordinator).ConfigureAwait(false);
+                Assert.That(await ReadAsync(roles).ConfigureAwait(false), Is.EqualTo(PubSubComponentRole.Active));
+                clock.Advance(await clock.GetScheduledDelayAsync().ConfigureAwait(false));
+                PubSubLease initial = await renewalStarted.Task.WaitAsync(s_testTimeout).ConfigureAwait(false);
+                Assert.That(await coordinator.GetRoleAsync(WriterComponentId).ConfigureAwait(false),
+                    Is.EqualTo(PubSubComponentRole.Active));
+                clock.Advance(await clock.GetScheduledDelayAsync().ConfigureAwait(false));
+
+                Assert.That(await ReadAsync(roles).ConfigureAwait(false), Is.EqualTo(PubSubComponentRole.Standby));
+                Assert.That(clock.GetUtcNow(), Is.LessThan(initial.ExpiresAt));
+                Assert.That(await coordinator.GetRoleAsync(WriterComponentId).ConfigureAwait(false),
+                    Is.EqualTo(PubSubComponentRole.Standby));
+                Assert.That(Volatile.Read(ref acquisitions), Is.EqualTo(1));
+
+                pendingRenewal.SetResult(initial with { ExpiresAt = clock.GetUtcNow() + s_leaseDuration });
+                Assert.That(await clock.GetScheduledDelayAsync().ConfigureAwait(false), Is.EqualTo(s_testInterval));
+                Assert.That(roles.TryRead(out _), Is.False);
+                Assert.That(await coordinator.GetRoleAsync(WriterComponentId).ConfigureAwait(false),
+                    Is.EqualTo(PubSubComponentRole.Standby));
+                Assert.That(Volatile.Read(ref acquisitions), Is.EqualTo(1));
+
+                reacquisition.SetResult(CreateTestLease(clock));
+                clock.Advance(s_testInterval);
+                Assert.That(await ReadAsync(roles).ConfigureAwait(false), Is.EqualTo(PubSubComponentRole.Active));
+                Assert.That(Volatile.Read(ref acquisitions), Is.EqualTo(2));
+            }
+            finally
+            {
+                _ = pendingRenewal.TrySetResult(null);
+                _ = reacquisition.TrySetResult(null);
+            }
+        }
+
+        [Test]
+        public async Task ExpiredAcquireReplyDoesNotActivateAsync()
+        {
+            var clock = new LeaseLoopClock();
+            PubSubLease expired = CreateTestLease(clock);
+            var store = new Mock<IPubSubLeaseStore>(MockBehavior.Strict);
+            var requested = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var reply = new TaskCompletionSource<PubSubLease?>(TaskCreationOptions.RunContinuationsAsynchronously);
+            store
+                .Setup(x => x.TryAcquireAsync(WriterComponentId, "publisher-a", s_leaseDuration,
+                    It.IsAny<CancellationToken>()))
+                .Returns(() =>
+                {
+                    _ = requested.TrySetResult(true);
+                    return new ValueTask<PubSubLease?>(reply.Task);
+                });
+            await using var coordinator = CreateLeaseCoordinator(store.Object, clock);
+            ChannelReader<PubSubComponentRole> roles = ObserveRoles(coordinator);
+
+            try
+            {
+                await StartWriterLeaseAsync(coordinator).ConfigureAwait(false);
+                await requested.Task.WaitAsync(s_testTimeout).ConfigureAwait(false);
+                clock.Advance(s_leaseDuration);
+                reply.SetResult(expired);
+                Assert.That(await clock.GetScheduledDelayAsync().ConfigureAwait(false), Is.EqualTo(s_testInterval));
+                Assert.That(await coordinator.GetRoleAsync(WriterComponentId).ConfigureAwait(false),
+                    Is.EqualTo(PubSubComponentRole.Standby));
+                Assert.That(roles.TryRead(out _), Is.False);
+            }
+            finally
+            {
+                _ = reply.TrySetResult(null);
+            }
+        }
+
+        [Test]
+        public async Task MissedRenewalDoesNotContinueWithExpiredLeaseAsync()
+        {
+            var clock = new LeaseLoopClock();
+            PubSubLease lease = CreateTestLease(clock);
+            var store = new Mock<IPubSubLeaseStore>(MockBehavior.Strict);
+            store
+                .Setup(x => x.TryAcquireAsync(WriterComponentId, "publisher-a", s_leaseDuration,
+                    It.IsAny<CancellationToken>()))
+                .Returns(new ValueTask<PubSubLease?>(lease));
+            await using var coordinator = CreateLeaseCoordinator(store.Object, clock);
+            ChannelReader<PubSubComponentRole> roles = ObserveRoles(coordinator);
+
+            await StartWriterLeaseAsync(coordinator).ConfigureAwait(false);
+            Assert.That(await ReadAsync(roles).ConfigureAwait(false), Is.EqualTo(PubSubComponentRole.Active));
+            _ = await clock.GetScheduledDelayAsync().ConfigureAwait(false);
+
+            clock.Advance(s_leaseDuration);
+            Assert.That(await coordinator.GetRoleAsync(WriterComponentId).ConfigureAwait(false),
+                Is.EqualTo(PubSubComponentRole.Standby));
+            Assert.That(await ReadAsync(roles).ConfigureAwait(false), Is.EqualTo(PubSubComponentRole.Standby));
+            Assert.That(await clock.GetScheduledDelayAsync().ConfigureAwait(false), Is.EqualTo(s_testInterval));
+            store.Verify(x => x.TryRenewAsync(lease, s_leaseDuration, It.IsAny<CancellationToken>()), Times.Never);
+        }
+
+        [Test]
+        public async Task StopDemotesBeforeReleasingLeaseAsync()
+        {
+            var clock = new LeaseLoopClock();
+            PubSubLease lease = CreateTestLease(clock);
+            var store = new Mock<IPubSubLeaseStore>(MockBehavior.Strict);
+            store
+                .Setup(x => x.TryAcquireAsync(WriterComponentId, "publisher-a", s_leaseDuration,
+                    It.IsAny<CancellationToken>()))
+                .Returns(new ValueTask<PubSubLease?>(lease));
+            bool notifiedBeforeRelease = false;
+            await using var coordinator = CreateLeaseCoordinator(store.Object, clock);
+            ChannelReader<PubSubComponentRole> roles = ObserveRoles(coordinator);
+            store
+                .Setup(x => x.ReleaseAsync(lease, CancellationToken.None))
+                .Callback(() => notifiedBeforeRelease =
+                    roles.TryRead(out PubSubComponentRole role) && role == PubSubComponentRole.Standby)
+                .ThrowsAsync(new TimeoutException("Release unavailable."));
+
+            await StartWriterLeaseAsync(coordinator).ConfigureAwait(false);
+            Assert.That(await ReadAsync(roles).ConfigureAwait(false), Is.EqualTo(PubSubComponentRole.Active));
+            await coordinator.StopAsync().AsTask().WaitAsync(s_testTimeout).ConfigureAwait(false);
+            Assert.That(notifiedBeforeRelease, Is.True);
+            Assert.That(await coordinator.GetRoleAsync(WriterComponentId).ConfigureAwait(false),
+                Is.EqualTo(PubSubComponentRole.Standby));
+
+            await coordinator.DisposeAsync().ConfigureAwait(false);
+            clock.Advance(s_leaseDuration);
+            store.Verify(x => x.ReleaseAsync(lease, CancellationToken.None), Times.Once);
+            store.Verify(x => x.TryAcquireAsync(WriterComponentId, "publisher-a", s_leaseDuration,
+                It.IsAny<CancellationToken>()), Times.Once);
+            store.VerifyNoOtherCalls();
+        }
+
+        [Test]
+        public async Task DisposeCancelsPendingRenewalWithoutRetryingAsync()
+        {
+            var clock = new LeaseLoopClock();
+            PubSubLease lease = CreateTestLease(clock);
+            var store = new Mock<IPubSubLeaseStore>(MockBehavior.Strict);
+            var renewalStarted = new TaskCompletionSource<CancellationToken>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            var pendingRenewal = new TaskCompletionSource<PubSubLease?>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            store
+                .Setup(x => x.TryAcquireAsync(WriterComponentId, "publisher-a", s_leaseDuration,
+                    It.IsAny<CancellationToken>()))
+                .Returns(new ValueTask<PubSubLease?>(lease));
+            store
+                .Setup(x => x.TryRenewAsync(lease, s_leaseDuration, It.IsAny<CancellationToken>()))
+                .Returns((PubSubLease _, TimeSpan _, CancellationToken cancellationToken) =>
+                {
+                    renewalStarted.SetResult(cancellationToken);
+                    return new ValueTask<PubSubLease?>(pendingRenewal.Task);
+                });
+            await using var coordinator = CreateLeaseCoordinator(store.Object, clock);
+            ChannelReader<PubSubComponentRole> roles = ObserveRoles(coordinator);
+
+            try
+            {
+                await StartWriterLeaseAsync(coordinator).ConfigureAwait(false);
+                Assert.That(await ReadAsync(roles).ConfigureAwait(false), Is.EqualTo(PubSubComponentRole.Active));
+                clock.Advance(await clock.GetScheduledDelayAsync().ConfigureAwait(false));
+                CancellationToken renewalToken = await renewalStarted.Task.WaitAsync(s_testTimeout)
+                    .ConfigureAwait(false);
+
+                await coordinator.DisposeAsync().AsTask().WaitAsync(s_testTimeout).ConfigureAwait(false);
+                Assert.That(renewalToken.IsCancellationRequested, Is.True);
+                Assert.That(await ReadAsync(roles).ConfigureAwait(false), Is.EqualTo(PubSubComponentRole.Standby));
+
+                pendingRenewal.SetResult(lease);
+                clock.Advance(s_leaseDuration);
+                Assert.That(roles.TryRead(out _), Is.False);
+                store.Verify(x => x.TryAcquireAsync(WriterComponentId, "publisher-a", s_leaseDuration,
+                    It.IsAny<CancellationToken>()), Times.Once);
+                store.Verify(x => x.TryRenewAsync(lease, s_leaseDuration, It.IsAny<CancellationToken>()), Times.Once);
+                store.VerifyNoOtherCalls();
+            }
+            finally
+            {
+                _ = pendingRenewal.TrySetResult(null);
+            }
+        }
+
+        [Test]
         [TestSpec("9.1.6")]
         public async Task InMemoryLeaseStore_IncrementsFencingTokenOnOwnershipChangeAsync()
         {
@@ -280,6 +582,46 @@ namespace Opc.Ua.PubSub.Tests.Redundancy
                 Assert.That(group.State.State, Is.EqualTo(PubSubState.Operational));
                 Assert.That(captured, Has.Count.EqualTo(1));
             });
+        }
+
+        [Test]
+        public async Task WriterGroupCheckpointsOnlyWithTheFenceHeldAcrossPublicationAsync()
+        {
+            var clock = new FakeTimeProvider();
+            using var backend = new InMemorySharedKeyValueStore();
+            var checkpoints = new SharedStorePubSubWriterCheckpointStore(backend);
+            Mock<IPubSubActivationCoordinator> coordinator =
+                CreateCoordinatorMock(WriterComponentId, () => PubSubComponentRole.Active);
+            var fenceProvider = new Mock<IPubSubActivationFenceProvider>();
+            long firstFence = 1;
+            long secondFence = 2;
+            fenceProvider.Setup(x => x.TryGetActiveFence(WriterComponentId, out firstFence)).Returns(true);
+            List<PubSubNetworkMessage> messages = [];
+            await using WriterGroup group = CreateWriterGroup(coordinator.Object, messages, clock);
+            group.ConfigureActivationCoordinator(WriterComponentId, coordinator.Object, fenceProvider.Object);
+            group.ConfigureWriterCheckpointStore(checkpoints);
+            group.PublishSink = (message, _) =>
+            {
+                messages.Add(message);
+                fenceProvider.Setup(x => x.TryGetActiveFence(WriterComponentId, out secondFence)).Returns(true);
+                return default;
+            };
+            await group.EnableAsync().ConfigureAwait(false);
+            clock.Advance(TimeSpan.FromSeconds(1));
+
+            await group.PublishOnceAsync().ConfigureAwait(false);
+            Assert.That(await checkpoints.GetSequenceNumberAsync(WriterComponentId, 1).ConfigureAwait(false), Is.Null);
+
+            await group.PublishOnceAsync().ConfigureAwait(false);
+            uint publishedSequence = GetSingleDataSetMessage(messages[^1]).SequenceNumber;
+            Assert.That(messages, Has.Count.EqualTo(2));
+            Assert.That(
+                await checkpoints.GetSequenceNumberAsync(WriterComponentId, 1).ConfigureAwait(false),
+                Is.EqualTo(publishedSequence));
+            Assert.That(
+                async () => await checkpoints.SetSequenceNumberAsync(WriterComponentId, 1, 5u, firstFence)
+                    .ConfigureAwait(false),
+                Throws.InvalidOperationException);
         }
 
         [Test]
@@ -734,6 +1076,81 @@ namespace Opc.Ua.PubSub.Tests.Redundancy
             }
 
             Assert.Fail("The expected HA role transition did not occur.");
+        }
+
+        private static LeaseActivationCoordinator CreateLeaseCoordinator(IPubSubLeaseStore store, TimeProvider clock)
+        {
+            return new LeaseActivationCoordinator(
+                store,
+                NUnitTelemetryContext.Create(),
+                ownerId: "publisher-a",
+                leaseDuration: s_leaseDuration,
+                renewInterval: s_testInterval,
+                retryInterval: s_testInterval,
+                timeProvider: clock);
+        }
+
+        private static PubSubLease CreateTestLease(TimeProvider clock)
+        {
+            return new PubSubLease(WriterComponentId, "publisher-a", 1, clock.GetUtcNow() + s_leaseDuration);
+        }
+
+        private static async Task StartWriterLeaseAsync(LeaseActivationCoordinator coordinator)
+        {
+            await coordinator.StartAsync().ConfigureAwait(false);
+            _ = await coordinator.GetRoleAsync(WriterComponentId).ConfigureAwait(false);
+        }
+
+        private static ChannelReader<PubSubComponentRole> ObserveRoles(LeaseActivationCoordinator coordinator)
+        {
+            var roles = Channel.CreateUnbounded<PubSubComponentRole>();
+            coordinator.RoleChanged += (_, e) => roles.Writer.TryWrite(e.Role);
+            return roles.Reader;
+        }
+
+        private static async Task<T> ReadAsync<T>(ChannelReader<T> reader)
+        {
+            using var timeout = new CancellationTokenSource(s_testTimeout);
+            return await reader.ReadAsync(timeout.Token).ConfigureAwait(false);
+        }
+
+        private static readonly TimeSpan s_leaseDuration = TimeSpan.FromSeconds(8);
+        private static readonly TimeSpan s_testInterval = TimeSpan.FromSeconds(1);
+        private static readonly TimeSpan s_testTimeout = TimeSpan.FromSeconds(10);
+
+        private sealed class LeaseLoopClock : TimeProvider
+        {
+            public override long TimestampFrequency => m_clock.TimestampFrequency;
+
+            public override DateTimeOffset GetUtcNow()
+            {
+                return m_clock.GetUtcNow();
+            }
+
+            public override long GetTimestamp()
+            {
+                return m_clock.GetTimestamp();
+            }
+
+            public override ITimer CreateTimer(TimerCallback callback, object? state, TimeSpan dueTime, TimeSpan period)
+            {
+                ITimer timer = m_clock.CreateTimer(callback, state, dueTime, period);
+                _ = m_delays.Writer.TryWrite(dueTime);
+                return timer;
+            }
+
+            public void Advance(TimeSpan duration)
+            {
+                m_clock.Advance(duration);
+            }
+
+            public Task<TimeSpan> GetScheduledDelayAsync()
+            {
+                return ReadAsync(m_delays.Reader);
+            }
+
+            private readonly FakeTimeProvider m_clock = new();
+            private readonly Channel<TimeSpan> m_delays = Channel.CreateUnbounded<TimeSpan>();
         }
 
         private sealed class CountingSource : IPublishedDataSetSource

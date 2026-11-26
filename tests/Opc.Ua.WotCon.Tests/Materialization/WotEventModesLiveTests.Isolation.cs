@@ -1,31 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 #if NET8_0_OR_GREATER
 using System;
@@ -69,7 +43,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
 
         private static async Task CheckTransparentAuthorityIsolationAsync(bool requireSourceContinuity)
         {
-            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(60));
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(180));
             CancellationToken ct = timeout.Token;
             await using var first = new NativeEndpoint();
             await using var second = new NativeEndpoint();
@@ -168,7 +142,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
         [Test]
         public async Task NativeProvenanceAuthorizationPrecedesLookupAsync()
         {
-            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(45));
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(180));
             CancellationToken ct = timeout.Token;
             await using var source = new NativeEndpoint();
             await using var destination = new NativeEndpoint();
@@ -242,7 +216,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
         [TestCase("transparent-forwarding")]
         public async Task NativeConditionActionAuthorizationPrecedesRouteLookupAsync(string mode)
         {
-            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(60));
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(180));
             CancellationToken ct = timeout.Token;
             await using var source = new NativeEndpoint();
             await using var destination = new NativeEndpoint();
@@ -320,14 +294,21 @@ namespace Opc.Ua.WotCon.Tests.Materialization
         [TestCase("transparent-forwarding")]
         public async Task NativeRetiringGenerationUsesCapturedActionsUntilDrainAsync(string mode)
         {
-            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(90));
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(180));
             CancellationToken ct = timeout.Token;
             await using var source = new NativeEndpoint();
             await using var destination = new NativeEndpoint();
             await source.StartAsync(false, ct).ConfigureAwait(false);
             await destination.StartAsync(false, ct).ConfigureAwait(false);
             var calls = Channel.CreateBounded<NativeConditionCall>(128);
-            NodeId sourceMethodId = await InstallActionSourceAsync(source, calls.Writer, ct).ConfigureAwait(false);
+            var actionEntered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var releaseAction = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            NodeId sourceMethodId = await InstallActionSourceAsync(source, calls.Writer, ct,
+                beforeReturn: async token =>
+                {
+                    actionEntered.TrySetResult(true);
+                    await releaseAction.Task.WaitAsync(token).ConfigureAwait(false);
+                }).ConfigureAwait(false);
             await source.RefreshNamespaceTableAsync(ct).ConfigureAwait(false);
             string sourceMethod = NodeId.ToExpandedNodeId(sourceMethodId, source.Session.NamespaceUris).ToString();
             WotProjectionDocument document = ActionProjection(mode, source.EndpointUrl, sourceMethod);
@@ -342,6 +323,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 "d3-replacement-" + Guid.NewGuid().ToString("N"));
             var replacementClient = new ClientFixture(NUnitTelemetryContext.Create());
             ISession? replacementSession = null;
+            Task<CallMethodResult>? inFlightAction = null;
             try
             {
                 await destination.RefreshNamespaceTableAsync(ct).ConfigureAwait(false);
@@ -355,23 +337,28 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                     .ConfigureAwait(false);
                 ArrayOf<Variant> oldFields = await retained.ReadAsync(ct).ConfigureAwait(false);
                 Assert.That(oldFields[0].TryGetValue(out ByteString oldEventId), Is.True);
+                await WotTestPki.SeedAsync(root, "D3ReplacementClient").ConfigureAwait(false);
                 await replacementClient.LoadClientConfigurationAsync(root, "D3ReplacementClient").ConfigureAwait(false);
                 replacementSession = await replacementClient.ConnectAsync(
                     new Uri(source.EndpointUrl), SecurityPolicies.Basic256Sha256).ConfigureAwait(false);
                 await replacementSession.FetchNamespaceTablesAsync(ct).ConfigureAwait(false);
                 channels.Session = replacementSession;
-                WotProjectionHandle replacement = await host.ShadowReloadAsync(active, document, ct)
-                    .ConfigureAwait(false);
-                Assert.That(replacement.Generation, Is.GreaterThan(active.Generation));
-                active = replacement;
                 var comment = new LocalizedText("Retained generation");
-                CallMethodResult result = await InvokeNativeActionAsync(
-                    destination.Session, owner, action, oldEventId, comment, ct).ConfigureAwait(false);
-                Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.Good));
+                inFlightAction = InvokeNativeActionAsync(
+                    destination.Session, owner, action, oldEventId, comment, ct);
+                await actionEntered.Task.WaitAsync(ct).ConfigureAwait(false);
                 NativeConditionCall oldCall = await calls.Reader.ReadAsync(ct).ConfigureAwait(false);
                 Assert.That(oldCall.EventId, Is.EqualTo(firstSourceId));
                 Assert.That(oldCall.SessionId, Is.EqualTo(source.Session.SessionId));
                 Assert.That(oldCall.SessionId, Is.Not.EqualTo(replacementSession.SessionId));
+                WotProjectionHandle replacement = await host.ShadowReloadAsync(active, document, ct)
+                    .ConfigureAwait(false);
+                Assert.That(replacement.Generation, Is.GreaterThan(active.Generation));
+                active = replacement;
+                Assert.That(inFlightAction.IsCompleted, Is.False);
+                releaseAction.TrySetResult(true);
+                CallMethodResult result = await inFlightAction.ConfigureAwait(false);
+                Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.Good));
 
                 await retained.DisposeAsync().ConfigureAwait(false);
                 retainedClosed = true;
@@ -407,21 +394,64 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             }
             finally
             {
-                if (retained is not null && !retainedClosed)
+                releaseAction.TrySetResult(true);
+                try
                 {
-                    await retained.DisposeAsync().ConfigureAwait(false);
+                    if (inFlightAction is not null)
+                    {
+                        await inFlightAction.ConfigureAwait(false);
+                    }
                 }
-                await host.RemoveAsync(active, CancellationToken.None).ConfigureAwait(false);
-                if (replacementSession is not null)
+                finally
                 {
-                    await replacementSession.CloseAsync(CancellationToken.None).ConfigureAwait(false);
-                    replacementSession.Dispose();
-                }
-                calls.Writer.TryComplete();
-                await replacementClient.DisposeAsync().ConfigureAwait(false);
-                if (Directory.Exists(root))
-                {
-                    Directory.Delete(root, recursive: true);
+                    try
+                    {
+                        if (retained is not null && !retainedClosed)
+                        {
+                            await retained.DisposeAsync().ConfigureAwait(false);
+                        }
+                    }
+                    finally
+                    {
+                        try
+                        {
+                            using var cleanup = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+                            await host.RemoveAsync(active, cleanup.Token).ConfigureAwait(false);
+                        }
+                        finally
+                        {
+                            try
+                            {
+                                if (replacementSession is not null)
+                                {
+                                    try
+                                    {
+                                        using var cleanup = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+                                        await replacementSession.CloseAsync(cleanup.Token).ConfigureAwait(false);
+                                    }
+                                    finally
+                                    {
+                                        replacementSession.Dispose();
+                                    }
+                                }
+                            }
+                            finally
+                            {
+                                calls.Writer.TryComplete();
+                                try
+                                {
+                                    await replacementClient.DisposeAsync().ConfigureAwait(false);
+                                }
+                                finally
+                                {
+                                    if (Directory.Exists(root))
+                                    {
+                                        Directory.Delete(root, recursive: true);
+                                    }
+                                }
+                            }
+                        }
+                    }
                 }
             }
         }

@@ -1,31 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 
@@ -34,7 +8,8 @@ namespace Opc.Ua.Server
     /// <summary>
     /// A generic implementation for ISystemContext interface.
     /// </summary>
-    public class ServerSystemContext : SessionSystemContext
+    public class ServerSystemContext :
+        SessionSystemContext, INodeStateReferenceView, INodeStateSnapshotBrowserGuard
     {
         /// <summary>
         /// Initializes a new instance of the <see cref="SystemContext"/> class.
@@ -70,7 +45,11 @@ namespace Opc.Ua.Server
         public ServerSystemContext(IServerInternal server, ISession session)
              : this(server, (OperationContext)null!)
         {
-            SetSessionValues(session.Id, session.Identity, session.PreferredLocales);
+            SetSessionValues(
+                session.Id,
+                session.Identity,
+                ClientUserIdResolver.ResolveSession(session),
+                session.PreferredLocales);
         }
 
         /// <summary>
@@ -82,6 +61,7 @@ namespace Opc.Ua.Server
             : base(source)
         {
             Server = source.Server;
+            SourceEmissionOrigin = source.SourceEmissionOrigin;
         }
 
         /// <summary>
@@ -100,6 +80,11 @@ namespace Opc.Ua.Server
         internal ServerSystemContext? CopiedFrom { get; set; }
 
         /// <summary>
+        /// Gets or sets the revocable source of an explicitly propagated root event.
+        /// </summary>
+        internal MasterNodeManager.SourceEmissionOrigin? SourceEmissionOrigin { get; set; }
+
+        /// <summary>
         /// The operation context associated with system context.
         /// </summary>
         /// <value>The operation context.</value>
@@ -113,6 +98,27 @@ namespace Opc.Ua.Server
             get => base.OperationContext as OperationContext;
             set => base.OperationContext = value;
         }
+
+        /// <inheritdoc/>
+        bool INodeStateReferenceView.TryGetReferences(NodeState node, out ArrayOf<IReference> references)
+        {
+            if (OperationContext?.RoutingSnapshot is { } snapshot)
+            {
+                return snapshot.TryGetReferences(node, out references);
+            }
+            references = default;
+            return false;
+        }
+
+        /// <inheritdoc/>
+        bool INodeStateReferenceView.IsOverridden(NodeId nodeId)
+        {
+            return OperationContext?.RoutingSnapshot?.NodeOverrides.ContainsKey(nodeId) == true;
+        }
+
+        /// <inheritdoc/>
+        bool INodeStateSnapshotBrowserGuard.RequiresSnapshotSafeBrowser =>
+            OperationContext?.RoutingSnapshot?.NodeOverrides.Count > 0;
 
         /// <summary>
         /// Creates a copy of the context that can be used with the specified operation context.
@@ -157,11 +163,15 @@ namespace Opc.Ua.Server
 
             if (session != null)
             {
-                copy.SetSessionValues(session.Id, session.Identity, session.PreferredLocales);
+                copy.SetSessionValues(
+                    session.Id,
+                    session.Identity,
+                    ClientUserIdResolver.ResolveSession(session),
+                    session.PreferredLocales);
             }
             else
             {
-                copy.SetSessionValues(default, null, default);
+                copy.SetSessionValues(default, null, null, default);
             }
 
             return copy;

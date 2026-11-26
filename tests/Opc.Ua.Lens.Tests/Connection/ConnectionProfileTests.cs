@@ -1,31 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using System.Text;
@@ -281,20 +255,19 @@ public sealed class ConnectionProfileTests
     }
 
     [Test]
-    public void AutomaticFailoverCannotCarryATrustDecisionToAnotherEndpoint()
+    public async Task ConnectionBackendRejectsAnEndpointOutsideTheSelectedProfileAsync()
     {
         (EndpointDescription endpoint, ConnectionProfile profile) = CreateUserNameProfile();
-        var current = new ConfiguredEndpoint(null, endpoint, null);
-        var other = new ConfiguredEndpoint(null, (EndpointDescription)endpoint.Clone(), null);
-        other.Description.EndpointUrl = "opc.tcp://localhost:4901/other";
-        var information = new ServerRedundancyInfo { Mode = RedundancySupport.Hot };
-        var inner = new Mock<IServerRedundancyHandler>();
-        inner.Setup(value => value.SelectFailoverTarget(information, current)).Returns(other);
-        var handler = new ProfileRedundancyHandler(profile, inner.Object);
+        endpoint.EndpointUrl = "opc.tcp://localhost:4901/other";
+        ITelemetryContext telemetry = CreateMessageContext().Telemetry;
+        var configuration = new ApplicationConfiguration(telemetry);
+        await using var backend = new StackConnectionBackend(telemetry, _ => Task.FromResult(configuration));
 
-        Assert.That(
-            () => handler.SelectFailoverTarget(information, current),
-            Throws.InstanceOf<ServiceResultException>());
+        await Assert.ThatAsync(
+            () => backend.ConnectAsync(
+                configuration, endpoint, profile, Mock.Of<IClientIdentityProvider>(), CancellationToken.None),
+            Throws.InstanceOf<ServiceResultException>().With.Property("StatusCode")
+                .EqualTo(StatusCodes.BadSecurityPolicyRejected)).ConfigureAwait(false);
     }
 
     private static ServiceMessageContext CreateMessageContext()

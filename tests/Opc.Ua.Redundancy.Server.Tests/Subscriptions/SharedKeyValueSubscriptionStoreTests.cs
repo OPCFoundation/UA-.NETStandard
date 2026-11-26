@@ -1,31 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 // CA2000: system-under-test disposables are created per test and released at teardown;
 //   there is no cross-test resource leak. Suppressed file-level for the suite.
@@ -84,6 +58,41 @@ namespace Opc.Ua.Server.Tests.Redundancy
             var actual = (StoredSubscription)result.Subscriptions!.Single();
             AssertSubscription(actual, expected);
             AssertMonitoredItem((StoredMonitoredItem)actual.MonitoredItems.Single(), NewItem(100, 10));
+        }
+
+        /// <summary>
+        /// Terminal items survive persistence without requiring newer definitions for unaffected subscriptions.
+        /// </summary>
+        [TestCase(false, false, 5)]
+        [TestCase(false, true, 6)]
+        [TestCase(true, false, 7)]
+        [TestCase(true, true, 7)]
+        public async Task StoreAndRestorePreservesTerminalInvalidationAsync(
+            bool terminal, bool triggering, int expectedVersion)
+        {
+            using var kv = new InMemorySharedKeyValueStore();
+            SharedKeyValueSubscriptionStore store = CreateStore(kv);
+            StoredSubscription expected = NewSubscription(100, 10);
+            var item = (StoredMonitoredItem)expected.MonitoredItems.Single();
+            item.IsTerminal = terminal;
+            item.IsDeleted = true;
+            item.IsDetached = true;
+            if (triggering)
+            {
+                expected.TriggeringLinks = new Dictionary<uint, IReadOnlyList<uint>>
+                {
+                    [10] = [11]
+                };
+            }
+
+            Assert.That(ReadDefinitionVersion(store, expected), Is.EqualTo(expectedVersion));
+            Assert.That(await store.StoreSubscriptionsAsync([expected]).ConfigureAwait(false), Is.True);
+            RestoreSubscriptionResult restored = await store.RestoreSubscriptionsAsync().ConfigureAwait(false);
+
+            Assert.That(restored.Success, Is.True);
+            var actual = (StoredMonitoredItem)restored.Subscriptions!.Single().MonitoredItems.Single();
+            Assert.That(actual.IsTerminal, Is.EqualTo(terminal));
+            AssertMonitoredItem(actual, item);
         }
 
         /// <summary>
@@ -1393,7 +1402,7 @@ namespace Opc.Ua.Server.Tests.Redundancy
         public void RestoreQueueFallbacksReturnNull()
         {
             using var kv = new InMemorySharedKeyValueStore();
-            SharedKeyValueSubscriptionStore store = CreateStore(kv);
+            ISubscriptionStore store = CreateStore(kv);
 
             Assert.That(store.RestoreDataChangeMonitoredItemQueue(1), Is.Null);
             Assert.That(store.RestoreEventMonitoredItemQueue(1), Is.Null);
@@ -2001,7 +2010,7 @@ namespace Opc.Ua.Server.Tests.Redundancy
 
         private static string GenerationPrefixOf(string generationRecordKey)
         {
-            int separator = generationRecordKey.LastIndexOf('/');
+            int separator = generationRecordKey.LastIndexOf('/', StringComparison.Ordinal);
             Assert.That(separator, Is.GreaterThan(-1));
             return generationRecordKey[..(separator + 1)];
         }
@@ -2102,6 +2111,7 @@ namespace Opc.Ua.Server.Tests.Redundancy
 
         private static void AssertMonitoredItem(StoredMonitoredItem actual, StoredMonitoredItem expected)
         {
+            Assert.That(actual.IsTerminal, Is.EqualTo(expected.IsTerminal));
             Assert.That(actual.IsDeleted, Is.EqualTo(expected.IsDeleted));
             Assert.That(actual.IsDetached, Is.EqualTo(expected.IsDetached));
             Assert.That(actual.SubscriptionId, Is.EqualTo(expected.SubscriptionId));

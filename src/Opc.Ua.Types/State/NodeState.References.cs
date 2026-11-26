@@ -1,31 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using System.Collections.Generic;
@@ -38,123 +12,119 @@ namespace Opc.Ua
     /// </summary>
     public abstract partial class NodeState
     {
-        private ReferenceSnapshot CurrentReferenceSnapshot =>
-            m_referenceSelector?.Invoke(this) ?? m_referenceSnapshot ?? s_emptyReferenceSnapshot;
-
         /// <summary>
-        /// Allocates per-node storage only for a mutation or publication owner.
+        /// Precomputes ordered edits without selecting per-request reference storage.
         /// </summary>
-        private ReferenceSnapshot GetMutableReferenceSnapshot()
+        internal ReferenceUpdate PrepareReferences(ArrayOf<IReference> additions, ArrayOf<IReference> removals)
         {
-            return m_referenceSelector?.Invoke(this) ?? (m_referenceSnapshot ??= new ReferenceSnapshot());
-        }
-
-        /// <summary>
-        /// Prepares isolated reference changes without publishing them or notifying observers.
-        /// </summary>
-        /// <param name="selector">The owner's serving-image selector.</param>
-        /// <param name="additions">The references to add.</param>
-        /// <param name="removals">The references to remove.</param>
-        /// <exception cref="ArgumentNullException"></exception>
-        /// <exception cref="InvalidOperationException"></exception>
-        internal ReferenceUpdate PrepareReferences(
-            Func<NodeState, ReferenceSnapshot?> selector,
-            ArrayOf<IReference> additions,
-            ArrayOf<IReference> removals)
-        {
-            if (selector is null)
-            {
-                throw new ArgumentNullException(nameof(selector));
-            }
             lock (m_referencesLock)
             {
-                if (m_referenceSelector is not null && m_referenceSelector != selector)
-                {
-                    throw new InvalidOperationException("The node references already have a publication owner.");
-                }
-                ReferenceSnapshot source = GetMutableReferenceSnapshot();
-                source.EnsureMutable();
-                ReferenceSnapshot next = source.Copy();
-                var added = new List<IReference>();
+                EnsureReferencesMutable();
+                ReferenceDictionary<object?> before = CopyReferences(m_references);
+                ReferenceDictionary<object?> afterRemovals = CopyReferences(before);
                 var removed = new List<IReference>();
                 foreach (IReference reference in removals)
                 {
-                    if (next.References?.Remove(reference) == true)
+                    NodeStateReference copy = CopyReference(reference);
+                    if (afterRemovals.Remove(copy))
                     {
-                        removed.Add(CopyReference(reference));
+                        removed.Add(copy);
                     }
                 }
+                ReferenceDictionary<object?> afterAdditions = CopyReferences(afterRemovals);
+                var added = new List<IReference>();
                 foreach (IReference reference in additions)
                 {
-                    IReference copy = CopyReference(reference);
-                    next.References ??= [];
-                    if (!next.References.ContainsKey(copy))
+                    NodeStateReference copy = CopyReference(reference);
+                    if (!afterAdditions.ContainsKey(copy))
                     {
-                        next.References.Add(copy, null);
+                        afterAdditions.Add(copy, null);
                         added.Add(copy);
                     }
                 }
-                m_referenceSelector = selector;
-                return new ReferenceUpdate(this, source, next, [.. added], [.. removed]);
+                return new ReferenceUpdate(
+                    this, m_referenceRevision, [.. before.Keys],
+                    afterRemovals, afterAdditions, [.. afterAdditions.Keys], [.. added], [.. removed]);
             }
         }
 
         /// <summary>
-        /// Releases the selected image into independent node-owned reference storage.
+        /// Gets node-owned writable storage, allocated only on mutation.
         /// </summary>
-        /// <param name="selector">The owner's serving-image selector.</param>
-        /// <param name="image">The reference snapshot.</param>
-        /// <exception cref="InvalidOperationException"></exception>
-        internal void ReleaseReferenceView(
-            Func<NodeState, ReferenceSnapshot?> selector,
-            ReferenceSnapshot? image)
-        {
-            lock (m_referencesLock)
-            {
-                if (m_referenceSelector != selector)
-                {
-                    throw new InvalidOperationException("The node reference publication owner changed.");
-                }
-                image ??= m_referenceSnapshot ??
-                    throw new InvalidOperationException("The node has no owned reference image.");
-                image.EnsureMutable();
-                m_referenceSnapshot = image.Copy();
-                image.Retired = true;
-                m_referenceSelector = null;
-            }
-        }
-
         private ReferenceDictionary<object?> GetWritableReferences()
         {
-            ReferenceSnapshot image = GetMutableReferenceSnapshot();
-            image.EnsureMutable();
-            image.Revision++;
-            return image.References ??= [];
+            EnsureReferencesMutable();
+            m_referenceRevision++;
+            return m_references ??= [];
         }
 
+        /// <summary>
+        /// Resets node-owned reference storage.
+        /// </summary>
         private void ResetReferences()
         {
             lock (m_referencesLock)
             {
-                ReferenceSnapshot image = CurrentReferenceSnapshot;
-                image.EnsureMutable();
-                if (ReferenceEquals(image, s_emptyReferenceSnapshot))
-                {
-                    return;
-                }
-                image.Revision++;
-                image.References = null;
+                EnsureReferencesMutable();
+                m_referenceRevision++;
+                m_references = null;
             }
         }
 
+        /// <summary>
+        /// Copies keys for callers that enumerate without holding the node lock.
+        /// </summary>
         private IReference[]? GetReferenceKeys()
         {
             lock (m_referencesLock)
             {
-                return CurrentReferenceSnapshot.References?.Keys.ToArray();
+                return m_references?.Keys.ToArray();
             }
         }
 
+        /// <summary>
+        /// Copies the operation's stored references without retaining local target objects.
+        /// </summary>
+        internal ArrayOf<IReference> CaptureStoredReferences(ISystemContext context)
+        {
+            lock (m_referencesLock)
+            {
+                var copy = new List<IReference>();
+                if (context is INodeStateReferenceView view &&
+                    view.TryGetReferences(this, out ArrayOf<IReference> image))
+                {
+                    foreach (IReference reference in image)
+                    {
+                        copy.Add(new NodeStateReference(
+                            reference.ReferenceTypeId, reference.IsInverse, reference.TargetId));
+                    }
+                }
+                else if (m_references is { } table)
+                {
+                    foreach (IReference reference in table.Keys)
+                    {
+                        copy.Add(new NodeStateReference(
+                            reference.ReferenceTypeId, reference.IsInverse, reference.TargetId));
+                    }
+                }
+                return [.. copy];
+            }
+        }
+
+        /// <summary>
+        /// Rejects mutation of references reserved by a pending lifecycle decision.
+        /// </summary>
+        private void EnsureReferencesMutable()
+        {
+            if (m_referencePublicationPending)
+            {
+                throw new NodeReferencesReservedException();
+            }
+        }
+
+        /// <summary>
+        /// Copies and validates a reference before the durable decision.
+        /// </summary>
         private static NodeStateReference CopyReference(IReference reference)
         {
             if (reference is null)
@@ -170,175 +140,198 @@ namespace Opc.Ua
                 (reference as NodeStateReference)?.Target);
         }
 
-        private ReferenceSnapshot? m_referenceSnapshot;
-        private Func<NodeState, ReferenceSnapshot?>? m_referenceSelector;
-
-        /// <summary>An empty read view that is never mutated or reserved.</summary>
-        private static readonly ReferenceSnapshot s_emptyReferenceSnapshot = new();
-
         /// <summary>
-        /// Holds an isolated reference table and its publication state.
+        /// Materializes edits before publication; no reference comparer or user code runs during installation.
         /// </summary>
-        internal sealed class ReferenceSnapshot
+        private static ReferenceDictionary<object?> CopyReferences(ReferenceDictionary<object?>? source)
         {
-            /// <summary>
-            /// Copies reference keys while preserving intentional internal target identities.
-            /// </summary>
-            internal ReferenceSnapshot Copy()
+            var copy = new ReferenceDictionary<object?>();
+            if (source is not null)
             {
-                var copy = new ReferenceSnapshot();
-                if (References is not null)
+                foreach (IReference reference in source.Keys)
                 {
-                    copy.References = [];
-                    foreach (IReference reference in References.Keys)
-                    {
-                        copy.References.Add(CopyReference(reference), null);
-                    }
-                }
-                return copy;
-            }
-
-            /// <summary>
-            /// Rejects writes to a reserved or retired image.
-            /// </summary>
-            /// <exception cref="InvalidOperationException"></exception>
-            internal void EnsureMutable()
-            {
-                if (PublicationPending || Retired)
-                {
-                    throw new InvalidOperationException(
-                        "The reference image belongs to a pending or completed publication and cannot be changed.");
+                    copy.Add(CopyReference(reference), null);
                 }
             }
-
-            internal ReferenceDictionary<object?>? References;
-            internal long Revision;
-
-            /// <summary>
-            /// The publication pending used by <c>ReferenceSnapshot</c>.
-            /// </summary>
-            internal bool PublicationPending;
-            internal bool Retired;
+            return copy;
         }
 
+        /// <summary>Stores references directly on the node and remains lazy for empty nodes.</summary>
+        private ReferenceDictionary<object?>? m_references;
+
+        /// <summary>Detects changes between preparing and reserving reference edits.</summary>
+        private long m_referenceRevision;
+
+        /// <summary>Rejects writes while an undecided publication reserves this node.</summary>
+        private bool m_referencePublicationPending;
+
         /// <summary>
-        /// Reserves a captured reference image and releases postpublication notifications once.
+        /// Reserves direct node-owned reference edits until publication or abandonment.
         /// </summary>
-        internal sealed class ReferenceUpdate : IDisposable
+        internal sealed class ReferenceUpdate(
+            NodeState owner,
+            long revision,
+            ArrayOf<IReference> before,
+            ReferenceDictionary<object?> afterRemovals,
+            ReferenceDictionary<object?> afterAdditions,
+            ArrayOf<IReference> after,
+            ArrayOf<IReference> added,
+            ArrayOf<IReference> removed) : IDisposable
         {
             /// <summary>
-            /// Initializes a new <c>ReferenceUpdate</c> instance.
+            /// Gets the node whose references are being updated.
             /// </summary>
-            /// <param name="owner">The node state used to initialize the instance.</param>
-            /// <param name="source">The reference snapshot used to initialize the instance.</param>
-            /// <param name="next">The next used to initialize the instance.</param>
-            /// <param name="added">The added used to initialize the instance.</param>
-            /// <param name="removed">The removed used to initialize the instance.</param>
-            internal ReferenceUpdate(
-                NodeState owner,
-                ReferenceSnapshot source,
-                ReferenceSnapshot next,
-                ArrayOf<IReference> added,
-                ArrayOf<IReference> removed)
-            {
-                m_owner = owner;
-                m_source = source;
-                m_revision = source.Revision;
-                Next = next;
-                m_added = added;
-                m_removed = removed;
-            }
+            internal NodeState Owner => owner;
 
             /// <summary>
-            /// Gets the prepared image to select at publication.
+            /// Gets the explicit references observed during preparation.
             /// </summary>
-            internal ReferenceSnapshot Next { get; }
+            internal ArrayOf<IReference> Before => before;
 
             /// <summary>
-            /// Reserves the unchanged source so no serving mutation can invalidate preparation.
+            /// Gets the explicit references prepared for the published view.
             /// </summary>
-            /// <exception cref="InvalidOperationException"></exception>
+            internal ArrayOf<IReference> After => after;
+
+            /// <summary>
+            /// Validates and reserves the node before the decision callback.
+            /// </summary>
             internal void Reserve()
             {
-                lock (m_owner.m_referencesLock)
+                lock (owner.m_referencesLock)
                 {
                     if (m_reserved || m_completed || m_disposed)
                     {
-                        throw new InvalidOperationException("The reference publication is no longer preparable.");
+                        throw new InvalidOperationException(
+                            "The prepared reference update cannot be reserved in its current state.");
                     }
-                    if (!ReferenceEquals(m_owner.CurrentReferenceSnapshot, m_source) ||
-                        m_source.Revision != m_revision)
+                    if (owner.m_referenceRevision != revision)
                     {
-                        throw new InvalidOperationException("Serving references changed during batch preparation.");
+                        throw new OptimisticPublicationConflictException(
+                            "Serving references changed during preparation.");
                     }
-                    m_source.EnsureMutable();
-                    m_source.PublicationPending = true;
+                    owner.EnsureReferencesMutable();
+                    owner.m_referencePublicationPending = true;
                     m_reserved = true;
                 }
             }
 
             /// <summary>
-            /// Retires the source after its replacement has been selected.
+            /// Removes dropped targets before routes can withdraw their owners.
             /// </summary>
-            /// <exception cref="InvalidOperationException"></exception>
+            internal void Remove()
+            {
+                lock (owner.m_referencesLock)
+                {
+                    if (!m_reserved || m_disposed || m_removalsApplied)
+                    {
+                        throw new InvalidOperationException("Reference removals require an unused reservation.");
+                    }
+                    if (removed.Count != 0)
+                    {
+                        owner.m_references = afterRemovals;
+                        owner.m_referenceRevision++;
+                    }
+                    m_removalsApplied = true;
+                }
+            }
+
+            /// <summary>
+            /// Installs additions only after their target owners have become visible.
+            /// </summary>
             internal void Complete()
             {
-                lock (m_owner.m_referencesLock)
+                lock (owner.m_referencesLock)
                 {
-                    if (!m_reserved || m_disposed)
+                    if (!m_reserved || m_disposed || !m_removalsApplied || m_completed)
                     {
-                        throw new InvalidOperationException("The reference publication has not been reserved.");
+                        throw new InvalidOperationException("Reference additions must follow reserved removals.");
                     }
-                    m_source.Retired = true;
+                    if (added.Count != 0)
+                    {
+                        owner.m_references = afterAdditions;
+                        owner.m_referenceRevision++;
+                    }
                     m_completed = true;
                 }
             }
 
             /// <summary>
-            /// Releases notifications once after publication, reporting each observer failure.
+            /// Notifies observers after routing and reference publication, never during the swap.
             /// </summary>
-            /// <param name="reportFailure">The callback for reporting observer failures.</param>
-            /// <exception cref="InvalidOperationException"></exception>
             internal void Notify(Action<Exception> reportFailure)
             {
-                lock (m_owner.m_referencesLock)
+                lock (owner.m_referencesLock)
                 {
                     if (!m_completed)
                     {
-                        throw new InvalidOperationException("Private reference changes cannot release notifications.");
+                        throw new InvalidOperationException("Private reference changes cannot notify observers.");
                     }
                     if (m_notified)
                     {
                         return;
                     }
-                    m_notified = true;
-                }
-                if (m_added.Count != 0 || m_removed.Count != 0)
-                {
-                    m_owner.m_changeMasks |= NodeStateChangeMasks.References;
-                }
-                foreach (IReference reference in m_removed)
-                {
-                    try
+                    if (m_notifying)
                     {
-                        m_owner.OnReferenceRemoved?.Invoke(
-                            m_owner, reference.ReferenceTypeId, reference.IsInverse, reference.TargetId);
+                        throw new InvalidOperationException("Reference observers are already being notified.");
                     }
-                    catch (Exception failure) when (failure is not OutOfMemoryException)
+                    if (m_notifications is null)
                     {
-                        reportFailure(failure);
+                        m_notifications = [];
+                        foreach (IReference reference in removed)
+                        {
+                            if (owner.OnReferenceRemoved is not { } removedCallback)
+                            {
+                                continue;
+                            }
+                            foreach (NodeStateReferenceRemoved callback in removedCallback.GetInvocationList())
+                            {
+                                m_notifications.Add(() => callback(
+                                    owner, reference.ReferenceTypeId, reference.IsInverse, reference.TargetId));
+                            }
+                        }
+                        foreach (IReference reference in added)
+                        {
+                            if (owner.OnReferenceAdded is not { } addedCallback)
+                            {
+                                continue;
+                            }
+                            foreach (NodeStateReferenceAdded callback in addedCallback.GetInvocationList())
+                            {
+                                m_notifications.Add(() => callback(
+                                    owner, reference.ReferenceTypeId, reference.IsInverse, reference.TargetId));
+                            }
+                        }
+                        m_notifying = true;
                     }
                 }
-                foreach (IReference reference in m_added)
+                if (added.Count != 0 || removed.Count != 0)
                 {
-                    try
+                    owner.m_changeMasks |= NodeStateChangeMasks.References;
+                }
+                bool complete = true;
+                try
+                {
+                    for (int ii = 0; ii < m_notifications.Count; ii++)
                     {
-                        m_owner.OnReferenceAdded?.Invoke(
-                            m_owner, reference.ReferenceTypeId, reference.IsInverse, reference.TargetId);
+                        try
+                        {
+                            m_notifications[ii]?.Invoke();
+                            m_notifications[ii] = null;
+                        }
+                        catch (Exception failure) when (failure is not OutOfMemoryException)
+                        {
+                            complete = false;
+                            reportFailure(failure);
+                        }
                     }
-                    catch (Exception failure) when (failure is not OutOfMemoryException)
+                }
+                finally
+                {
+                    lock (owner.m_referencesLock)
                     {
-                        reportFailure(failure);
+                        m_notifying = false;
+                        m_notified = complete;
                     }
                 }
             }
@@ -346,26 +339,37 @@ namespace Opc.Ua
             /// <inheritdoc/>
             public void Dispose()
             {
-                lock (m_owner.m_referencesLock)
+                lock (owner.m_referencesLock)
                 {
                     if (m_reserved)
                     {
-                        m_source.PublicationPending = false;
+                        owner.m_referencePublicationPending = false;
                         m_reserved = false;
                     }
                     m_disposed = true;
                 }
             }
 
-            private readonly NodeState m_owner;
-            private readonly ReferenceSnapshot m_source;
-            private readonly long m_revision;
-            private readonly ArrayOf<IReference> m_added;
-            private readonly ArrayOf<IReference> m_removed;
+            /// <summary>Tracks ownership of the node's mutation reservation.</summary>
             private bool m_reserved;
+
+            /// <summary>Tracks the ordered removal phase.</summary>
+            private bool m_removalsApplied;
+
+            /// <summary>Tracks installation of the post-publication additions.</summary>
             private bool m_completed;
+
+            /// <summary>Prevents reuse after releasing the reservation.</summary>
             private bool m_disposed;
+
+            /// <summary>Prevents duplicate observer callbacks.</summary>
             private bool m_notified;
+
+            /// <summary>Excludes overlapping observer attempts without holding a lock during callbacks.</summary>
+            private bool m_notifying;
+
+            /// <summary>Captures observer identity and retains only callbacks that still need notification.</summary>
+            private List<Action?>? m_notifications;
         }
     }
 }

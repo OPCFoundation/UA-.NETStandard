@@ -1,31 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using System.Collections.Generic;
@@ -64,6 +38,16 @@ namespace Opc.Ua.Client.TestFramework
         public TokenValidatorMock TokenValidator { get; set; } = new TokenValidatorMock();
         public bool SingleSession { get; set; } = true;
         public bool AllNodeManagers { get; set; }
+
+        /// <summary>
+        /// Whether the server and client fixtures seed their PKI folder with
+        /// certificates created earlier in this process
+        /// (<see cref="TestCertificateCache"/>). On by default: the framework
+        /// owns one server and one client per private PKI folder. A derived
+        /// fixture that needs key pairs of its own sets it to <c>false</c>
+        /// before <c>OneTimeSetUpAsync</c>.
+        /// </summary>
+        public bool ReuseCachedCertificates { get; set; } = true;
         public int MaxChannelCount { get; set; } = 103;
         public int MaxSessionCount { get; set; } = 100;
 
@@ -331,7 +315,10 @@ namespace Opc.Ua.Client.TestFramework
                     .ConfigureAwait(false);
             }
 
-            ClientFixture = new ClientFixture(enableClientSideTracing, disableActivityLogging, Telemetry);
+            ClientFixture = new ClientFixture(enableClientSideTracing, disableActivityLogging, Telemetry)
+            {
+                ReuseCachedCertificates = ReuseCachedCertificates
+            };
 
             // If a derived fixture pinned the engine factory, propagate
             // it. Default = null = use Session default (currently the
@@ -400,7 +387,7 @@ namespace Opc.Ua.Client.TestFramework
         {
             // start Ref server
             ServerFixture = new ServerFixture<ReferenceServer>(
-                t => new ReferenceServer(t),
+                CreateReferenceServer,
                 enableTracing,
                 disableActivityLogging)
             {
@@ -410,7 +397,8 @@ namespace Opc.Ua.Client.TestFramework
                 AllNodeManagers = AllNodeManagers,
                 OperationLimits = true,
                 UseSamplingGroupsInReferenceNodeManager = UseSamplingGroupsInReferenceNodeManager,
-                TransportBindingRegistry = TransportBindingRegistry
+                TransportBindingRegistry = TransportBindingRegistry,
+                ReuseCachedCertificates = ReuseCachedCertificates
             };
 
             await ServerFixture.LoadConfigurationAsync(PkiRoot).ConfigureAwait(false);
@@ -485,6 +473,14 @@ namespace Opc.Ua.Client.TestFramework
         }
 
         /// <summary>
+        /// Creates the reference server while retaining the shared fixture configuration and startup sequence.
+        /// </summary>
+        protected virtual ReferenceServer CreateReferenceServer(ITelemetryContext telemetry)
+        {
+            return new ReferenceServer(telemetry);
+        }
+
+        /// <summary>
         /// Tear down the Server and the Client.
         /// </summary>
         public virtual async Task OneTimeTearDownAsync()
@@ -512,7 +508,6 @@ namespace Opc.Ua.Client.TestFramework
                 {
                     m_logger.LogError(e, "Error stopping server during teardown.");
                 }
-                await Task.Delay(100).ConfigureAwait(false);
             }
             if (ClientFixture != null)
             {

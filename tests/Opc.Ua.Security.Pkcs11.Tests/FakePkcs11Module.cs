@@ -1,34 +1,9 @@
-/* ========================================================================
- * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
@@ -121,24 +96,64 @@ namespace Opc.Ua.Security.Pkcs11.Tests
         public byte[] EccId { get; } = [0x02];
 
         /// <summary>
-        /// How many times a session was logged in.
+        /// How many times the token was logged in.
         /// </summary>
         public int Logins { get; private set; }
 
         /// <summary>
-        /// How many times the session was logged out.
+        /// How many times the token was logged out.
         /// </summary>
         public int Logouts { get; private set; }
 
         /// <summary>
         /// Whether the loaded library was disposed.
         /// </summary>
-        public bool LibraryDisposed { get; private set; }
+        public bool LibraryDisposed => LibraryDisposals > 0;
 
         /// <summary>
         /// Whether the session was disposed.
         /// </summary>
-        public bool SessionDisposed { get; private set; }
+        public bool SessionDisposed => SessionsClosed > 0;
+
+        /// <summary>
+        /// The number of module initializations.
+        /// </summary>
+        public int LibraryLoads { get; private set; }
+
+        /// <summary>
+        /// The number of module finalizations.
+        /// </summary>
+        public int LibraryDisposals { get; private set; }
+
+        /// <summary>
+        /// The number of separate sessions opened.
+        /// </summary>
+        public int SessionsOpened { get; private set; }
+
+        /// <summary>
+        /// The number of sessions closed.
+        /// </summary>
+        public int SessionsClosed { get; private set; }
+
+        /// <summary>
+        /// The PIN accepted by this fake token.
+        /// </summary>
+        public string UserPin { get; set; } = "1234";
+
+        /// <summary>
+        /// Models a login that the store does not own.
+        /// </summary>
+        public bool ExternallyLoggedIn { get; set; }
+
+        /// <summary>
+        /// A separate token on another slot of this module.
+        /// </summary>
+        public FakePkcs11Module? SecondToken { get; set; }
+
+        /// <summary>
+        /// Rejects requests to open a session on this token.
+        /// </summary>
+        public bool ThrowOnOpenSession { get; set; }
 
         /// <summary>
         /// Set to make <see cref="ISession.Logout"/> throw, which the token has
@@ -154,7 +169,14 @@ namespace Opc.Ua.Security.Pkcs11.Tests
         /// <inheritdoc/>
         public IPkcs11Library Load(Pkcs11InteropFactories factories, string modulePath)
         {
+            if (m_initialized)
+            {
+                throw new Pkcs11Exception("C_Initialize", CKR.CKR_CRYPTOKI_ALREADY_INITIALIZED);
+            }
+
             LoadedModulePath = modulePath;
+            LibraryLoads++;
+            m_initialized = true;
             return m_library;
         }
 
@@ -184,7 +206,7 @@ namespace Opc.Ua.Security.Pkcs11.Tests
         {
             return new Pkcs11TokenOptions
             {
-                ModulePath = "/fake/module.so",
+                ModulePath = Path.GetFullPath(Path.Combine("fake", "module.so")),
                 TokenLabel = TokenLabel,
                 Pin = pin
             };
@@ -198,8 +220,24 @@ namespace Opc.Ua.Security.Pkcs11.Tests
 
         private IPkcs11Library BuildLibrary()
         {
-            Mock<ISession> session = BuildSession();
+            ISlot slot = BuildSlot(() => m_initialized);
+            var library = new Mock<IPkcs11Library>();
+            library
+                .Setup(l => l.GetSlotList(It.IsAny<SlotsType>()))
+                .Returns(() => NoSlots
+                    ? []
+                    : SecondToken is { } second ? [slot, second.BuildSlot(() => m_initialized)] : [slot]);
+            library.Setup(l => l.Dispose()).Callback(() =>
+            {
+                LibraryDisposals++;
+                m_initialized = false;
+            });
 
+            return library.Object;
+        }
+
+        private ISlot BuildSlot(Func<bool> isInitialized)
+        {
             var tokenInfo = new Mock<ITokenInfo>();
             tokenInfo.SetupGet(t => t.Label).Returns(() => TokenLabel);
             tokenInfo.SetupGet(t => t.SerialNumber).Returns(() => Serial);
@@ -207,24 +245,48 @@ namespace Opc.Ua.Security.Pkcs11.Tests
             var slot = new Mock<ISlot>();
             slot.SetupGet(s => s.SlotId).Returns(() => SlotId);
             slot.Setup(s => s.GetTokenInfo()).Returns(tokenInfo.Object);
-            slot.Setup(s => s.OpenSession(It.IsAny<SessionType>())).Returns(session.Object);
+            slot.Setup(s => s.OpenSession(SessionType.ReadWrite)).Returns(() =>
+            {
+                if (ThrowOnOpenSession)
+                {
+                    throw new Pkcs11Exception("C_OpenSession", CKR.CKR_SESSION_COUNT);
+                }
 
-            var library = new Mock<IPkcs11Library>();
-            library
-                .Setup(l => l.GetSlotList(It.IsAny<SlotsType>()))
-                .Returns(() => NoSlots ? [] : [slot.Object]);
-            library.Setup(l => l.Dispose()).Callback(() => LibraryDisposed = true);
+                SessionsOpened++;
+                return BuildSession(isInitialized).Object;
+            });
 
-            return library.Object;
+            return slot.Object;
         }
 
-        private Mock<ISession> BuildSession()
+        private Mock<ISession> BuildSession(Func<bool> isInitialized)
         {
             var session = new Mock<ISession>();
+            bool closed = false;
 
             session
-                .Setup(s => s.Login(It.IsAny<CKU>(), It.IsAny<string>()))
-                .Callback(() => Logins++);
+                .Setup(s => s.Login(CKU.CKU_USER, It.IsAny<byte[]>()))
+                .Callback((CKU _, byte[] pin) =>
+                {
+                    if (m_loggedIn || ExternallyLoggedIn)
+                    {
+                        throw new Pkcs11Exception("C_Login", CKR.CKR_USER_ALREADY_LOGGED_IN);
+                    }
+
+                    if (!ConvertUtils.Utf8StringToBytes(UserPin).AsSpan().SequenceEqual(pin))
+                    {
+                        throw new Pkcs11Exception("C_Login", CKR.CKR_PIN_INCORRECT);
+                    }
+
+                    m_loggedIn = true;
+                    Logins++;
+                });
+
+            var info = new Mock<ISessionInfo>();
+            info.SetupGet(i => i.State).Returns(() => m_loggedIn || ExternallyLoggedIn
+                ? CKS.CKS_RW_USER_FUNCTIONS
+                : CKS.CKS_RW_PUBLIC_SESSION);
+            session.Setup(s => s.GetSessionInfo()).Returns(info.Object);
 
             session
                 .Setup(s => s.Logout())
@@ -235,14 +297,33 @@ namespace Opc.Ua.Security.Pkcs11.Tests
                         throw new Pkcs11Exception("Logout", CKR.CKR_DEVICE_REMOVED);
                     }
 
+                    m_loggedIn = false;
                     Logouts++;
                 });
 
-            session.Setup(s => s.Dispose()).Callback(() => SessionDisposed = true);
+            session.Setup(s => s.Dispose()).Callback(() =>
+            {
+                closed = true;
+                SessionsClosed++;
+                if (SessionsClosed == SessionsOpened)
+                {
+                    m_loggedIn = false;
+                }
+            });
 
             session
                 .Setup(s => s.FindAllObjects(It.IsAny<List<IObjectAttribute>>()))
-                .Returns((List<IObjectAttribute> search) => FindObjects(search));
+                .Returns((List<IObjectAttribute> search) =>
+                {
+                    CheckSession();
+                    if (!m_loggedIn && !ExternallyLoggedIn &&
+                        ValueOf(search, (ulong)CKA.CKA_CLASS) == (ulong)CKO.CKO_PRIVATE_KEY)
+                    {
+                        return [];
+                    }
+
+                    return FindObjects(search);
+                });
 
             session
                 .Setup(s => s.CreateObject(It.IsAny<List<IObjectAttribute>>()))
@@ -262,15 +343,38 @@ namespace Opc.Ua.Security.Pkcs11.Tests
                 .Setup(s => s.Sign(
                     It.IsAny<IMechanism>(), It.IsAny<IObjectHandle>(), It.IsAny<byte[]>()))
                 .Returns((IMechanism mechanism, IObjectHandle key, byte[] data) =>
-                    Sign(mechanism, key, data));
+                {
+                    CheckPrivateOperation();
+                    return Sign(mechanism, key, data);
+                });
 
             session
                 .Setup(s => s.Decrypt(
                     It.IsAny<IMechanism>(), It.IsAny<IObjectHandle>(), It.IsAny<byte[]>()))
                 .Returns((IMechanism mechanism, IObjectHandle key, byte[] data) =>
-                    Decrypt(mechanism, data));
+                {
+                    CheckPrivateOperation();
+                    return Decrypt(mechanism, data);
+                });
 
             return session;
+
+            void CheckSession()
+            {
+                if (closed || !isInitialized())
+                {
+                    throw new Pkcs11Exception("session operation", CKR.CKR_SESSION_HANDLE_INVALID);
+                }
+            }
+
+            void CheckPrivateOperation()
+            {
+                CheckSession();
+                if (!m_loggedIn && !ExternallyLoggedIn)
+                {
+                    throw new Pkcs11Exception("private operation", CKR.CKR_USER_NOT_LOGGED_IN);
+                }
+            }
         }
 
         private List<IObjectHandle> FindObjects(List<IObjectAttribute> search)
@@ -576,6 +680,8 @@ namespace Opc.Ua.Security.Pkcs11.Tests
         // Disposing it here as well would make that assertion meaningless.
 #pragma warning disable CA2213
         private readonly IPkcs11Library m_library;
+        private bool m_initialized;
+        private bool m_loggedIn;
 #pragma warning restore CA2213
 
         private readonly List<FakeObject> m_objects = [];

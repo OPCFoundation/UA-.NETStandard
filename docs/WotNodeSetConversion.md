@@ -1,5 +1,7 @@
 # WoT / NodeSet conversion
 
+For command-line export, see the [.NET 10 global tool](WotExportTool.md).
+
 `Opc.Ua.Wot.WotNodeSetConverter` converts OPC UA NodeSet2 documents to
 WoT Thing Models / Thing Descriptions and materializes WoT documents back
 to NodeSet2. The converter preserves a byte-exact `uav:nodeSet` envelope
@@ -130,6 +132,20 @@ ModellingRule Object at all. The four rules therefore map as:
 Both conversion directions derive these identifiers from one pair of constants,
 so a round trip preserves the modelling rule it started with.
 
+Generated Thing Models also list affordances with `Optional`,
+`OptionalPlaceholder`, or `MandatoryPlaceholder` modelling rules in the
+top-level `tm:optional` array.
+The entries are JSON Pointers to the emitted affordance names, with `/` and
+`~` escaped according to RFC 6901. `Mandatory` members and members without a
+modelling rule are not added. Thing Descriptions do not receive this array.
+
+`tm:optional` lets standard W3C Thing Model processors recognize optional
+interactions. It does not replace `uav:modellingRule` or implement UA
+placeholder expansion. The UA annotation retains the distinction between an
+optional declaration and a placeholder template. Lists derived from these
+annotations do not add preservation residue when converted back to NodeSet2;
+authored lists that differ from the derived list remain preserved as residue.
+
 ## WoT to NodeSet defaults
 
 The table below lists the defaults the current WoT-to-NodeSet
@@ -188,7 +204,7 @@ them.
 | `uav:instrumentRange` (Section 6.4.1) | **Default** / **Fails** | Absent: no `InstrumentRange` Property. Malformed, or an engineering range not contained in it: `InvalidRangeValue` error. Present and valid: an `InstrumentRange` Property (`Range` `i=884`, `HasModellingRule` `Optional`) holding the interval. |
 | `uav:scaleFactor` (Section 6.4) | **Default** / **Fails** | Absent: identity scaling (factor `1`). Malformed (not a non-zero number): `InvalidModelVocabularyValue` error. Present and valid: preserved via residue. It is a static presentation and transport transform, never derived from — nor used to derive — `EngineeringUnits`, `EURange` or `InstrumentRange`. |
 | `uav:decimalPlaces` (Section 6.4) | **Default** / **Fails** | Absent: no rounding is recorded. Malformed (not an integer greater than or equal to zero; `2.0` is rejected as a non-integer literal): `InvalidModelVocabularyValue` error. Present and valid: preserved via residue. |
-| `titles` / `descriptions` (Section 9.1.1) | **Default** / **Fails** | Absent: the singular member materializes one `LocalizedText` using its effective language. Present: every plural entry is authoritative. The singular member repeats the default-locale entry when present; otherwise it repeats the code-point-first language entry and uses a node-local language-neutral override. A missing default locale is valid. A missing singular member, an inconsistent fallback, or an incorrectly language-tagged fallback produces `InvalidLocalizedText`. |
+| `titles` / `descriptions` (Section 9.1.1) | **Default** / **Fails** | Absent: the singular member materializes one `LocalizedText` using its effective language. Present: every plural entry is authoritative. The singular member repeats the default-locale entry when present; otherwise it repeats the code-point-first language entry and uses a node-local override for that source locale. A missing default locale is valid. A missing singular member, an inconsistent fallback, or an incorrectly language-tagged fallback produces `InvalidLocalizedText`. |
 | `uav:semanticId` (Section 6.7) | **Default** / **Fails** | Absent: no semantic reference is recorded. Malformed (not an absolute IRI with a scheme): `NonAbsoluteIri` error. Present and valid: preserved via residue. |
 | `uav:metadata` (Section 6.7) | **Default** | Absent: nothing is recorded. Present: opaque; carried verbatim through residue, never validated and never a reason to reject the document (Section 6.7). |
 | `uav:propertyConfiguration` (Section 6.7) | **Default** | Absent: nothing is recorded. Present: opaque per-affordance configuration; carried verbatim through residue and never validated. |
@@ -208,8 +224,10 @@ measurements used for preserved JSON values.
 `WotNodeSetConverter.FromNodeSetDocumentsAsync` exports a linked set and
 reconstructs it before returning success. Each document root owns a disjoint
 partition of the source. Methods, their argument Properties, and nested
-Variables stay with their owner; nested Objects and EventTypes have separate
-document roots. References can point at Nodes in other partitions.
+Variables stay with their owner. Instance declarations, including nested Objects,
+stay in their owning type's partition. Standalone nested Object instances and
+EventTypes have separate document roots. References can point at Nodes in other
+partitions.
 
 Complete readable partitions omit `uav:nodes`. A partition requiring exceptional
 preservation carries its complete authoritative `uav:nodes` representation,
@@ -217,6 +235,18 @@ not a delta to overlay on readable siblings. The namespace/model/alias tables,
 values, permissions, and extensions remain part of the fidelity check. Duplicate
 native ownership, conflicting shared headers, and attempts to add readable Nodes
 to another native partition are rejected.
+
+Native records retain explicit empty strings and arrays as distinct from absent
+members. Readable structures can resolve authoritative DataType definitions in
+native sibling partitions without copying those Nodes into their own partition.
+Readable structure definitions include the complete inherited field prefix;
+native preservation keeps the source's original field list when it declares
+only new fields. Scalar Values remain scalar when the ValueRank also permits
+arrays; no array rank is inferred from the current Value alone.
+Generated event data is checked against the event's identity and the complete
+set of inherited fields before it is excluded from JSON residue. A typed link
+with a shared inverse name uses `uav:refId` to select the exact ReferenceType;
+the reference direction and target must still agree with the source.
 
 `WotNodeSetConverter.CompareDocumentSet` compares the reconstructed set with
 its source, normalizing only the order of top-level Node records that partitioning
@@ -232,8 +262,30 @@ the same model. Shared model ownership joins their activation closure; unrelated
 readable documents do not become one atomic closure merely because their NodeIds
 use the same namespace.
 
-Generated Double constants, ranges, and sampling intervals use the shortest
+Generated Double defaults, ranges, and sampling intervals use the shortest
 round-trip spelling. Received numeric literals retain their validation rules.
+
+An initial NodeSet Variable value becomes `default`, not `const`: an initial
+value does not make the Variable immutable. Authored `const` constraints remain
+preserved when converting a WoT document through a NodeSet.
+
+Readable schemas include standard scalar subtypes such as QualifiedName,
+LocalizedText and UtcTime. DateTime and UtcTime use `format: "date-time"`,
+including method arguments and array elements. Unknown element types omit an
+empty `items` schema; `uav:mapToType` and `uav:valueRank` retain the native type
+and rank independently.
+
+Locally declared DataTypes follow their unambiguous `HasSubtype` chain to a
+known value shape, including inside arrays, matrices, method arguments and
+event fields. Structures and unions use `type: "object"`; enumerations and
+integer-backed OptionSets use `type: "integer"`. The abstract Number, Integer
+and UInteger types retain their numeric shapes without selecting a concrete
+width. The definitive `uav:mapToType` remains the declared DataType; its
+definition supplies the structure fields or enumeration values.
+
+Scalar-or-array ranks use `oneOf`, not a top-level scalar type. Missing,
+cyclic, conflicting or contradictory datatype ancestry does not receive a
+guessed type. External model dependencies are not fetched implicitly.
 
 ```csharp
 WotConversionResult<WotDocumentSet> exported =
@@ -668,12 +720,90 @@ metadata. Generated documents emit neither member, nothing is synthesized from
 either, and permissive conversion preserves either unknown member as ordinary
 residue. Strict authoring reports either as an unknown term.
 
+For asynchronous document-set export, supply the locally available dependency
+models through `nodeResolver`. `WotDocumentNodeResolver.FromNodeSets` builds this
+context directly from source NodeSets, preserving each model's namespace table.
+The exporter follows the bounded supertype chain through that context to
+recognize EventTypes whose ancestors are defined in another model. Dependency
+nodes are used for resolution, not added to the exported source partitions.
+Missing or cyclic ancestry is not inferred from a type's name.
+
 ## Engineering units, ranges and scaling (Sections 6.4 and 6.4.1)
+
+The default `WotQudtUnitMappingProvider` maps an explicit allowlist of UN/CEFACT
+Recommendation 20 codes to `qudt:hasUnit` IRIs and conventional
+`qudt:hasQuantityKind` IRIs. The unit identities follow published QUDT
+UN/CEFACT common-code annotations. Quantity kinds are explicitly selected defaults, not deductions
+from display text; percent has no default quantity kind. Unknown codes and
+other unit authorities receive neither annotation. Existing authored quantity
+kinds remain authoritative and survive round trips.
+
+Both generated QUDT annotations use an `{"@id": "<IRI>"}` object so they
+remain JSON-LD links, including in documents with a default `@language`.
+
+Set `WotNodeSetConverterOptions.UnitMappingProvider` to an
+`IWotUnitMappingProvider` for process-specific semantics or additional unit
+authorities. Registry hosting and the export command register the default
+provider in DI; direct converter calls use the same default without a container.
+
+When the unit provider supplies no quantity kind, the injectable
+`IWotQuantityKindMappingProvider` can resolve one from a declaration's portable
+NodeId and its engineering-unit authority and identifier. The default
+`WotCompanionQuantityKindMappingProvider` contains a bounded allowlist of verified
+Pumps, Machinery/Energy, PNEM, ECM and PlasticsRubber/TCD declarations. Namespace
+indexes and display text never select a mapping. An inherited declaration with
+the same identity uses the same mapping; a different declaration or instance
+does not acquire it merely by sharing a BrowseName or VariableType.
+
+The additional unit mappings are:
+
+| UN/CEFACT code | QUDT unit local name |
+|---|---|
+| `2N` | `DeciB` |
+| `C16` | `MilliM-PER-SEC` |
+| `C65` | `PA-SEC` |
+| `C94` | `PER-MIN` |
+| `C97` | `PER-SEC` |
+| `D44` | `V-A_Reactive` |
+| `F27` | `GM-PER-HR` |
+| `G01` | `PA-M3-PER-SEC` |
+| `KGS` | `KiloGM-PER-SEC` |
+| `S4` | `M2-PER-SEC` |
+
+These units have no global default quantity kind. Verified declarations can
+receive linear velocity, frequency, dynamic or kinematic viscosity, sound power
+or pressure level, mass flow rate, or reactive power annotations. Sound energy
+level, pump specific speed and vacuum throughput remain unit-only rather than
+receiving a kind from their dimensions. Reciprocal-time units are not rewritten
+as revolutions or radians per time.
+
+Each contextual mapping cites its evidence in the `QuantityKindEnriched`
+informational diagnostic. The allowlist is grounded in
+[official NodeSets at revision `928a9f4`](https://github.com/OPCFoundation/UA-Nodeset/tree/928a9f4b7378dd2f6cd1a3c88690d5c03857a7b4)
+and the unit identities in [QUDT](https://qudt.org/vocab/unit/).
+The Pumps declarations `i=12649` and `i=12663` have inconsistent viscosity
+metadata. They retain their source units, receive no inferred quantity kind,
+and report `EngineeringUnitSemanticConflict` warnings with source provenance.
+No new JSON-LD terms are introduced for these diagnostics.
+
+Set `WotNodeSetConverterOptions.QuantityKindMappingProvider` to replace the
+companion allowlist. Registry hosting and the exporter register the default
+provider in DI; direct converter calls have the same fallback. A quantity kind
+returned by `UnitMappingProvider` takes precedence over contextual enrichment;
+an authored QUDT annotation takes precedence over either provider.
 
 `unit`, `uav:unitProperty`, `uav:engineeringUnits`, `minimum`/`maximum` and
 `uav:instrumentRange` are **mapped**, not carried: each names a Property Node
 of an `AnalogUnitType` or `AnalogItemType` Variable, and both directions
 materialize it.
+
+The [export tool](WotExportTool.md#payload-schemas-and-engineering-metadata)
+uses named value schemas with separate `uav:euRange` engineering metadata and
+ordinary integer storage bounds. The converter keeps those payload bounds
+separate from native engineering limits during import and residue restoration.
+It checks supplied engineering endpoints against the preserved native range.
+The exporter also writes `uav:withUnit` and code-vocabulary annotations.
+These publisher annotations survive round trips as residue.
 
 Five of the `uav:` terms — `uav:engineeringUnits`, `uav:unitProperty`,
 `uav:instrumentRange`, `uav:scaleFactor` and `uav:decimalPlaces` — describe the
@@ -740,20 +870,23 @@ entry, so the two never disagree. Where it has **no** such entry — a Node
 authored in the plant's language and read against another default locale — the
 plural member is still written in full and the singular member carries the entry
 whose BCP 47 tag is first in ascending Unicode code-point order (Annex G.3), as
-a display fallback that asserts no locale. The document does not claim that text
+a display fallback that retains its source locale. The document does not claim that text
 is written in the default locale, and nothing is pushed into the exceptional
 `uav:nodes` projection to say something the plural member already says.
 
-Asserting no locale is a claim a JSON-LD reader has to be told about. `title` and
-`description` are terms of the W3C Thing Description context, and a `@context`
-that declares `@language` tags every unqualified value with it - so a German
-singular member would expand as English text. Where any projected text states no
-entry for the document's default locale, the generated `@context` therefore
-carries **one** further entry re-declaring the two terms with `"@language": null`.
-It is written only where the document needs it: adding it unconditionally would
-strip the language tag from every document this library writes. Being derived
-from the projected Nodes it is re-derivable and is not also captured as residue;
-an author's own override of the same terms says something different and is kept.
+The W3C Thing Description context explicitly gives `title` and `description`
+the language `en`. A document-level `@language` does not replace these term
+definitions. The converter overrides each term when needed to preserve its
+selected language. Untagged source text uses `"@language": null`. A tagged
+fallback uses a node-local override for its selected source locale.
+Each override retains the term's IRI.
+
+Actions and events inherit the root's term definitions. The converter omits
+their local overrides when the inherited language is already correct, except
+where the binding requires a local fallback override. Properties and nested
+input/output schemas still need overrides after W3C scoped contexts reset the
+term definitions. Generated overrides are derived from the source texts and
+are not also stored as residue. Authored context extensions remain preserved.
 
 The same problem has a different answer inside `uav:engineeringUnits`. Section
 6.4.1 mints `displayName` and `description` there as **short members under a
@@ -761,7 +894,8 @@ type-scoped context**, so a root-level override cannot reach them: the scoped
 context is entered on that object and nowhere else. Where the EUInformation's
 text is not in the document's default locale, the object therefore carries its
 own node-local `@context` re-declaring `displayName` as `uav:unitDisplayName`
-and `description` as `uav:unitDescription`, each with `"@language": null`.
+and `description` as `uav:unitDescription`, each with its selected source locale.
+Only untagged source text uses `"@language": null`.
 `namespaceUri` and `unitId` are short members of that same scoped context, which
 is why the generated document names the Binding context itself
 (`http://opcfoundation.org/UA/WoT-Binding/v1.1/opc-ua-wot-binding.context.jsonld`)
@@ -775,9 +909,10 @@ document is a document whose meaning changed without it being edited.
 entry written first — the one the Node's own attribute carries — is the
 default-locale entry where the map has one and the code-point-first entry
 otherwise, which is the same entry the singular member carries, so the round
-trip is stable. A singular member alone becomes one `LocalizedText` tagged with
-the document's declared `@language`, or untagged where the context declares none
-— the form a UANodeSet writes when it names one language without saying which.
+trip is stable. A singular member alone becomes one `LocalizedText` with its
+effective term language. The W3C definitions supply `en` unless an override
+changes the term language. An effective `"@language": null` term override
+preserves untagged source text.
 
 The same selection is used wherever a term reduces a `LocalizedText` to one
 string: a ReferenceType's `uav:inverseName`, and the `displayName` and
@@ -823,6 +958,16 @@ decoded remains a sibling so no Node is lost. The readable schemas state what
 the arguments are and not which Nodes hold them, so the exact NodeId and
 attributes of the argument Properties travel in the `uav:nodes` preservation
 projection.
+
+For argument properties in another NodeSet, use `FromNodeSetDocumentsAsync`
+with a `WotDocumentNodeResolver.FromNodeSets` context that contains the required
+models. The converter follows forward `HasProperty` references by namespace URI.
+It preserves argument order and resolves each argument's datatype in the
+namespace table of the NodeSet that holds the property. Dependency nodes stay
+in their own source partitions. An unresolved external method property or an
+undecodable external argument value produces `MethodArgumentSchemaInvalid`;
+it does not imply a zero-argument method. The same context is required to
+validate these readable signatures when restoring preserved native partitions.
 
 **WoT to NodeSet.** Each supplied schema creates an `InputArguments` or
 `OutputArguments` Property (`Argument[]`, DataType `i=296`, ValueRank `1`)

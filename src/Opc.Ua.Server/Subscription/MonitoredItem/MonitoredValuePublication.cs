@@ -1,33 +1,8 @@
-/* ========================================================================
- * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
+using System.Collections.Generic;
 using System.Threading.Tasks;
 
 namespace Opc.Ua.Server
@@ -51,9 +26,19 @@ namespace Opc.Ua.Server
         internal Task<bool> Completion => m_completion.Task;
 
         /// <summary>
-        /// Gets the exact notification instance retained by the subscription.
+        /// The position of the notification in the subscription's publish queue
+        /// (see <see cref="Subscription.TrackValuePublication"/>), or -1 if not yet tracked.
         /// </summary>
-        internal MonitoredItemNotification? Notification { get; private set; }
+        internal long NotificationOrdinal { get; set; } = -1;
+
+        /// <summary>
+        /// The message that holds the notification, once the subscription built it.
+        /// </summary>
+        internal NotificationMessage? Message
+        {
+            get => m_message;
+            set => m_message = value;
+        }
 
         /// <summary>
         /// Releases the subscription's references on every exit from the bounded wait.
@@ -78,12 +63,11 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Associates the exact notification without treating item dequeue as publication.
         /// </summary>
-        internal void TrackNotification(MonitoredItemNotification notification)
+        internal void TrackNotification(Queue<MonitoredItemNotification> notifications)
         {
-            if (Notification == null && !m_completion.Task.IsCompleted)
+            if (NotificationOrdinal < 0 && !m_completion.Task.IsCompleted)
             {
-                Notification = notification;
-                m_subscription.TrackValuePublication(this);
+                m_subscription.TrackValuePublication(this, notifications);
             }
         }
 
@@ -110,5 +94,8 @@ namespace Opc.Ua.Server
         /// <summary>The asynchronous signal for the observation.</summary>
         private readonly TaskCompletionSource<bool> m_completion =
             new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        /// <summary>Set under the subscription lock, read by the Publish response path.</summary>
+        private volatile NotificationMessage? m_message;
     }
 }

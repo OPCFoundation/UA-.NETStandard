@@ -1,32 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using System.Collections.Generic;
@@ -63,7 +36,6 @@ namespace Opc.Ua.WotCon.Tests
     [TestFixture]
     [Category("WotCon")]
     [Category("Integration")]
-    [NonParallelizable]
     public sealed class WotBindingDescriptorTests
     {
         /// <summary>
@@ -525,38 +497,6 @@ namespace Opc.Ua.WotCon.Tests
         }
 
         /// <summary>
-        /// Verifies that selected snapshot checks cancellation before reading.
-        /// </summary>
-        [Test]
-        public async Task SelectedSnapshotChecksCancellationBeforeReading()
-        {
-            using var registry = new WotRegistryService();
-            using var coordinator = new WotMaterializationCoordinator(registry,
-                new FakeWotProjectionHost(), documentConverter: new FakeWotDocumentConverter());
-            using var cancellation = new CancellationTokenSource();
-            cancellation.Cancel();
-            await Assert.ThatAsync(() => coordinator.GetSelectedBindingCapabilitiesAsync(cancellation.Token).AsTask(),
-                Throws.InstanceOf<OperationCanceledException>()).ConfigureAwait(false);
-            ArrayOf<WoTBindingCapabilityDataType> selected = await coordinator.GetSelectedBindingCapabilitiesAsync()
-                .ConfigureAwait(false);
-            Assert.That(selected.Count, Is.Zero);
-        }
-
-        /// <summary>
-        /// Verifies that selected snapshot rejects reads after disposal.
-        /// </summary>
-        [Test]
-        public async Task SelectedSnapshotRejectsReadsAfterDisposal()
-        {
-            using var registry = new WotRegistryService();
-            using var coordinator = new WotMaterializationCoordinator(registry,
-                new FakeWotProjectionHost(), documentConverter: new FakeWotDocumentConverter());
-            coordinator.Dispose();
-            await Assert.ThatAsync(() => coordinator.GetSelectedBindingCapabilitiesAsync().AsTask(),
-                Throws.TypeOf<ObjectDisposedException>()).ConfigureAwait(false);
-        }
-
-        /// <summary>
         /// Verifies that binding identity and unused selection are readable over encrypted transport.
         /// </summary>
         [Test]
@@ -566,6 +506,7 @@ namespace Opc.Ua.WotCon.Tests
             {
                 ITelemetryContext telemetry = NUnitTelemetryContext.Create();
                 await using var fixture = new ClientFixture(false, false, telemetry);
+                await WotTestPki.SeedAsync(directory).ConfigureAwait(false);
                 await fixture.LoadClientConfigurationAsync(directory).ConfigureAwait(false);
                 using ClientSession session = await fixture.ConnectAsync(endpoint, SecurityPolicies.Basic256Sha256)
                     .ConfigureAwait(false);
@@ -647,6 +588,7 @@ namespace Opc.Ua.WotCon.Tests
             {
                 ITelemetryContext telemetry = NUnitTelemetryContext.Create();
                 await using var fixture = new ClientFixture(false, false, telemetry);
+                await WotTestPki.SeedAsync(directory).ConfigureAwait(false);
                 await fixture.LoadClientConfigurationAsync(directory).ConfigureAwait(false);
                 using ClientSession session = await fixture.ConnectAsync(endpoint, SecurityPolicies.Basic256Sha256)
                     .ConfigureAwait(false);
@@ -878,6 +820,7 @@ namespace Opc.Ua.WotCon.Tests
             WotMaterializationCoordinator? coordinator = null;
             try
             {
+                await WotTestPki.SeedAsync(directory).ConfigureAwait(false);
                 server = await fixture.StartAsync(directory).ConfigureAwait(false);
                 preparedStorage = new PreparedWotTestStorage(Path.Combine(directory, "registry"));
                 store = preparedStorage.OpenStore();
@@ -886,11 +829,14 @@ namespace Opc.Ua.WotCon.Tests
                     executable ? [new MemoryWotBindingExecutor(new MemoryWotStore())] : null);
                 coordinator = new WotMaterializationCoordinator(
                     registry, new LifecycleWotProjectionHost(server.NodeManagerLifecycle), binders);
-                NodeManagerRegistration registration = await server.NodeManagerLifecycle.AddAsync(
-                    new WotRegistryNodeManagerFactory(
-                        new WotRegistryServerOptions { AutoRefresh = false }, registry, coordinator),
-                    callerContext: null).ConfigureAwait(false);
-                var manager = (WotRegistryNodeManager)registration.NodeManager;
+                LifecycleResult publication = await server.NodeManagerLifecycle.ApplyAsync(
+                    [LifecycleChange.Add(new WotRegistryNodeManagerFactory(
+                        new WotRegistryServerOptions { AutoRefresh = false }, registry, coordinator))])
+                    .ConfigureAwait(false);
+                Assert.That(publication.CleanupFailure, Is.Null);
+                Assert.That(publication.Registrations[0].TryGetRegistration(out NodeManagerRegistration? registration),
+                    Is.True);
+                var manager = (WotRegistryNodeManager)registration!.NodeManager;
                 ushort ns = (ushort)manager.Server.NamespaceUris.GetIndex(Namespaces.WotCon);
                 NodeState? root = manager.Find(new NodeId(64100u, ns));
                 Assert.That(root, Is.Not.Null);
@@ -943,5 +889,46 @@ namespace Opc.Ua.WotCon.Tests
         }
 
         private static readonly string[] s_memoryContentTypes = ["application/json", "text/plain"];
+    }
+
+    /// <summary>
+    /// The <see cref="WotBindingDescriptorTests"/> tests that start no server, kept out of
+    /// that fixture's Integration category.
+    /// </summary>
+    [TestFixture]
+    [Category("WotCon")]
+    public sealed class WotBindingDescriptorServerFreeTests
+    {
+        /// <summary>
+        /// Verifies that selected snapshot checks cancellation before reading.
+        /// </summary>
+        [Test]
+        public async Task SelectedSnapshotChecksCancellationBeforeReading()
+        {
+            using var registry = new WotRegistryService();
+            using var coordinator = new WotMaterializationCoordinator(registry,
+                new FakeWotProjectionHost(), documentConverter: new FakeWotDocumentConverter());
+            using var cancellation = new CancellationTokenSource();
+            cancellation.Cancel();
+            await Assert.ThatAsync(() => coordinator.GetSelectedBindingCapabilitiesAsync(cancellation.Token).AsTask(),
+                Throws.InstanceOf<OperationCanceledException>()).ConfigureAwait(false);
+            ArrayOf<WoTBindingCapabilityDataType> selected = await coordinator.GetSelectedBindingCapabilitiesAsync()
+                .ConfigureAwait(false);
+            Assert.That(selected.Count, Is.Zero);
+        }
+
+        /// <summary>
+        /// Verifies that selected snapshot rejects reads after disposal.
+        /// </summary>
+        [Test]
+        public async Task SelectedSnapshotRejectsReadsAfterDisposal()
+        {
+            using var registry = new WotRegistryService();
+            using var coordinator = new WotMaterializationCoordinator(registry,
+                new FakeWotProjectionHost(), documentConverter: new FakeWotDocumentConverter());
+            coordinator.Dispose();
+            await Assert.ThatAsync(() => coordinator.GetSelectedBindingCapabilitiesAsync().AsTask(),
+                Throws.TypeOf<ObjectDisposedException>()).ConfigureAwait(false);
+        }
     }
 }

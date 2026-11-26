@@ -1,0 +1,586 @@
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
+
+#pragma warning disable CS0618, UA0031 // Test doubles implement or inspect the legacy IAsyncNodeManager.SyncNodeManager view.
+
+using System.Collections.Generic;
+using System.Threading;
+using System.Threading.Tasks;
+using Moq;
+using NUnit.Framework;
+using Opc.Ua.Tests;
+
+namespace Opc.Ua.Server.Tests
+{
+    /// <summary>
+    /// Verifies the response byte budget of the Call and Browse services: results are
+    /// charged against the message size limit while they are built. The services start
+    /// the budget with the message size limit of the server.
+    /// </summary>
+    public partial class AsyncCustomNodeManagerTests
+    {
+        /// <summary>
+        /// A Call whose outputs exceed the message size limit fails with
+        /// BadResponseTooLarge once the limit is passed, without running the
+        /// remaining operations or keeping their outputs.
+        /// </summary>
+        [Test]
+        public async Task CallStopsOnceTheOutputsExceedTheResponseSizeLimitAsync()
+        {
+            const int maxMessageSize = 16 * 1024;
+            (MasterNodeManager dispatcher, BaseObjectState owner, MethodState method, Counter calls) =
+                await CreateCallDispatcherAsync().ConfigureAwait(false);
+            await using (dispatcher.ConfigureAwait(false))
+            {
+                var requests = new CallMethodRequest[64];
+                for (int ii = 0; ii < requests.Length; ii++)
+                {
+                    requests[ii] = new CallMethodRequest { ObjectId = owner.NodeId, MethodId = method.NodeId };
+                }
+                using var context = new OperationContext(m_mockSession.Object, DiagnosticsMasks.None);
+                context.StartResponseBudget(maxMessageSize);
+
+                ServiceResultException error = await Assert.ThrowsAsync<ServiceResultException>(
+                    async () => await dispatcher.CallAsync(context, requests).ConfigureAwait(false));
+
+                Assert.That(error.StatusCode, Is.EqualTo(StatusCodes.BadResponseTooLarge));
+                // each output is 4 KiB: the fourth passes the 16 KiB limit.
+                Assert.That(calls.Value, Is.EqualTo(4));
+            }
+        }
+
+        /// <summary>
+        /// A Call whose outputs fit the message size limit returns all of them.
+        /// </summary>
+        [Test]
+        public async Task CallWithinTheResponseSizeLimitReturnsAllOutputsAsync()
+        {
+            const int maxMessageSize = 16 * 1024;
+            (MasterNodeManager dispatcher, BaseObjectState owner, MethodState method, Counter calls) =
+                await CreateCallDispatcherAsync().ConfigureAwait(false);
+            await using (dispatcher.ConfigureAwait(false))
+            {
+                using var context = new OperationContext(m_mockSession.Object, DiagnosticsMasks.None);
+                context.StartResponseBudget(maxMessageSize);
+
+                (ArrayOf<CallMethodResult> results, _) = await dispatcher.CallAsync(
+                    context,
+                    [
+                        new CallMethodRequest { ObjectId = owner.NodeId, MethodId = method.NodeId },
+                        new CallMethodRequest { ObjectId = owner.NodeId, MethodId = method.NodeId },
+                        new CallMethodRequest { ObjectId = owner.NodeId, MethodId = method.NodeId }
+                    ]).ConfigureAwait(false);
+
+                Assert.That(calls.Value, Is.EqualTo(3));
+                Assert.That(results.Count, Is.EqualTo(3));
+                for (int ii = 0; ii < results.Count; ii++)
+                {
+                    Assert.That(results[ii].StatusCode, Is.EqualTo(StatusCodes.Good));
+                    Assert.That(results[ii].OutputArguments.Count, Is.EqualTo(1));
+                }
+            }
+        }
+
+        /// <summary>
+        /// A Browse that asks for every reference of a node fails with
+        /// BadResponseTooLarge when the references exceed the message size limit.
+        /// </summary>
+        [Test]
+        public async Task BrowseOfMoreReferencesThanTheResponseSizeLimitHoldsFailsAsync()
+        {
+            const int maxMessageSize = 2048;
+            (MasterNodeManager dispatcher, BaseObjectState parent) =
+                await CreateBrowseDispatcherAsync(childCount: 300).ConfigureAwait(false);
+            await using (dispatcher.ConfigureAwait(false))
+            {
+                using var context = new OperationContext(m_mockSession.Object, DiagnosticsMasks.None);
+                context.StartResponseBudget(maxMessageSize);
+
+                ServiceResultException error = await Assert.ThrowsAsync<ServiceResultException>(
+                    async () => await dispatcher.BrowseAsync(
+                        context, new ViewDescription(), 0, [CreateBrowseDescription(parent.NodeId)]).ConfigureAwait(false));
+
+                Assert.That(error.StatusCode, Is.EqualTo(StatusCodes.BadResponseTooLarge));
+            }
+        }
+
+        /// <summary>
+        /// A Browse whose references fit the message size limit returns them all,
+        /// without a continuation point.
+        /// </summary>
+        [Test]
+        public async Task BrowseWithinTheResponseSizeLimitReturnsAllReferencesAsync()
+        {
+            const int maxMessageSize = 1024 * 1024;
+            (MasterNodeManager dispatcher, BaseObjectState parent) =
+                await CreateBrowseDispatcherAsync(childCount: 300).ConfigureAwait(false);
+            await using (dispatcher.ConfigureAwait(false))
+            {
+                using var context = new OperationContext(m_mockSession.Object, DiagnosticsMasks.None);
+                context.StartResponseBudget(maxMessageSize);
+
+                (ArrayOf<BrowseResult> results, _) = await dispatcher.BrowseAsync(
+                    context, new ViewDescription(), 0, [CreateBrowseDescription(parent.NodeId)]).ConfigureAwait(false);
+
+                Assert.That(results.Count, Is.EqualTo(1));
+                Assert.That(results[0].StatusCode, Is.EqualTo(StatusCodes.Good));
+                Assert.That(results[0].References.Count, Is.GreaterThanOrEqualTo(300));
+                Assert.That(results[0].ContinuationPoint.IsEmpty, Is.True);
+            }
+        }
+
+        /// <summary>
+        /// A BrowseNext whose later page passes the message size limit fails with
+        /// BadResponseTooLarge and releases both the continuation points it restored and
+        /// the ones it saved for the pages it had already built, so their session slots
+        /// can be used again.
+        /// </summary>
+        [Test]
+        public async Task BrowseNextOfALaterPagePastTheResponseSizeLimitFailsAndReleasesItsPointsAsync()
+        {
+            (MasterNodeManager dispatcher, BaseObjectState parent) =
+                await CreateBrowseDispatcherAsync(childCount: 300, maxBrowseContinuationPoints: 3).ConfigureAwait(false);
+            await using (dispatcher.ConfigureAwait(false))
+            {
+                (ArrayOf<ByteString> points, long pageSize) =
+                    await BrowseFirstPagesAsync(dispatcher, parent).ConfigureAwait(false);
+                using var context = new OperationContext(m_mockSession.Object, DiagnosticsMasks.None);
+                // the first two pages fit, the third does not.
+                context.StartResponseBudget((int)((2 * pageSize) + (pageSize / 2)));
+
+                ServiceResultException error = await Assert.ThrowsAsync<ServiceResultException>(
+                    async () => await dispatcher.BrowseNextAsync(context, false, points).ConfigureAwait(false));
+
+                Assert.That(error.StatusCode, Is.EqualTo(StatusCodes.BadResponseTooLarge));
+                // every slot is free again: a new Browse gets all three points.
+                (ArrayOf<ByteString> again, _) = await BrowseFirstPagesAsync(dispatcher, parent).ConfigureAwait(false);
+                Assert.That(again.Count, Is.EqualTo(3));
+            }
+        }
+
+        /// <summary>
+        /// A BrowseNext whose pages fit the message size limit returns each of them with
+        /// a continuation point for the rest of the references.
+        /// </summary>
+        [Test]
+        public async Task BrowseNextWithinTheResponseSizeLimitReturnsEveryPageAsync()
+        {
+            (MasterNodeManager dispatcher, BaseObjectState parent) =
+                await CreateBrowseDispatcherAsync(childCount: 300, maxBrowseContinuationPoints: 3).ConfigureAwait(false);
+            await using (dispatcher.ConfigureAwait(false))
+            {
+                (ArrayOf<ByteString> points, long pageSize) =
+                    await BrowseFirstPagesAsync(dispatcher, parent).ConfigureAwait(false);
+                using var context = new OperationContext(m_mockSession.Object, DiagnosticsMasks.None);
+                context.StartResponseBudget((int)((3 * pageSize) + (pageSize / 2)));
+
+                (ArrayOf<BrowseResult> results, _) =
+                    await dispatcher.BrowseNextAsync(context, false, points).ConfigureAwait(false);
+
+                Assert.That(results.Count, Is.EqualTo(3));
+                for (int ii = 0; ii < results.Count; ii++)
+                {
+                    Assert.That(results[ii].StatusCode, Is.EqualTo(StatusCodes.Good));
+                    Assert.That(results[ii].References.Count, Is.EqualTo(10));
+                    Assert.That(results[ii].ContinuationPoint.IsEmpty, Is.False);
+                }
+            }
+        }
+
+        /// <summary>
+        /// The references fetched for one node are limited to one more than the rest
+        /// of the response byte budget can hold at the smallest reference size.
+        /// </summary>
+        [TestCase(0u, -1L, 0u)]
+        [TestCase(10u, -1L, 10u)]
+        [TestCase(0u, 1800L, 101u)]
+        [TestCase(50u, 1800L, 50u)]
+        [TestCase(500u, 1800L, 101u)]
+        [TestCase(0u, 0L, 1u)]
+        public void ReferencesPerNodeAreLimitedByTheRestOfTheResponseBudget(
+            uint requested, long remaining, uint expected)
+        {
+            Assert.That(
+                NodeManagerServiceDispatcher.LimitReferencesPerNode(requested, remaining),
+                Is.EqualTo(expected));
+        }
+
+        /// <summary>
+        /// The response byte budget refuses the charge that passes the limit and every
+        /// charge after it; a context without a budget accepts every charge.
+        /// </summary>
+        [Test]
+        public void ResponseBudgetRefusesChargesPastTheLimit()
+        {
+            using var context = new OperationContext(m_mockSession.Object, DiagnosticsMasks.None);
+            Assert.That(context.TryChargeResponse(long.MaxValue), Is.True);
+            Assert.That(context.ResponseBytesRemaining, Is.EqualTo(-1));
+
+            context.StartResponseBudget(100);
+            Assert.That(context.TryChargeResponse(60), Is.True);
+            Assert.That(context.TryChargeResponse(40), Is.True);
+            Assert.That(context.ResponseBytesRemaining, Is.Zero);
+            Assert.That(context.ResponseBudgetExceeded, Is.False);
+            Assert.That(context.TryChargeResponse(1), Is.False);
+            Assert.That(context.ResponseBudgetExceeded, Is.True);
+            Assert.That(context.TryChargeResponse(0), Is.False);
+            Assert.That(context.ResponseBytesRemaining, Is.Zero);
+        }
+
+        /// <summary>
+        /// A Read of 2500 nodes that each hold a large array fails with
+        /// BadResponseTooLarge once the values pass the message size limit. A node
+        /// manager that charges its values itself stops reading at that point.
+        /// </summary>
+        [Test]
+        public async Task ReadOfMoreValuesThanTheResponseSizeLimitHoldsFailsAsync()
+        {
+            const int maxMessageSize = 1024 * 1024;
+            const int nodeCount = 2500;
+            (MasterNodeManager dispatcher, ArrayOf<ReadValueId> nodesToRead, Counter reads) =
+                await CreateReadDispatcherAsync(nodeCount, arrayLength: 1024).ConfigureAwait(false);
+            await using (dispatcher.ConfigureAwait(false))
+            {
+                using var context = new OperationContext(m_mockSession.Object, DiagnosticsMasks.None);
+                context.StartResponseBudget(maxMessageSize);
+
+                ServiceResultException error = await Assert.ThrowsAsync<ServiceResultException>(
+                    async () => await dispatcher.ReadAsync(
+                        context, 0, TimestampsToReturn.Both, nodesToRead).ConfigureAwait(false));
+
+                Assert.That(error.StatusCode, Is.EqualTo(StatusCodes.BadResponseTooLarge));
+                // each value is 1 + (1 + 4 + 8192) bytes: the 128th passes 1 MiB.
+                if (m_managerType != AsyncCustomNodeManagerType.CustomNodeManager2ViaAdapter)
+                {
+                    Assert.That(reads.Value, Is.EqualTo(128));
+                }
+            }
+        }
+
+        /// <summary>
+        /// A Read whose values fit the message size limit returns all of them, and the
+        /// same Read without a response budget (an in-process caller) is not limited.
+        /// </summary>
+        [Test]
+        public async Task ReadWithinTheResponseSizeLimitReturnsAllValuesAsync()
+        {
+            const int maxMessageSize = 1024 * 1024;
+            (MasterNodeManager dispatcher, ArrayOf<ReadValueId> nodesToRead, _) =
+                await CreateReadDispatcherAsync(nodeCount: 127, arrayLength: 1024).ConfigureAwait(false);
+            await using (dispatcher.ConfigureAwait(false))
+            {
+                using var context = new OperationContext(m_mockSession.Object, DiagnosticsMasks.None);
+                context.StartResponseBudget(maxMessageSize);
+
+                (ArrayOf<DataValue> values, _) = await dispatcher.ReadAsync(
+                    context, 0, TimestampsToReturn.Both, nodesToRead).ConfigureAwait(false);
+
+                Assert.That(values.Count, Is.EqualTo(127));
+                for (int ii = 0; ii < values.Count; ii++)
+                {
+                    Assert.That(values[ii].StatusCode, Is.EqualTo(StatusCodes.Good));
+                    Assert.That(values[ii].WrappedValue.TryGetValue(out ArrayOf<double> array), Is.True);
+                    Assert.That(array.Count, Is.EqualTo(1024));
+                }
+                Assert.That(context.ResponseBudgetExceeded, Is.False);
+
+                using var unlimited = new OperationContext(m_mockSession.Object, DiagnosticsMasks.None);
+                var twice = new ReadValueId[2 * nodesToRead.Count];
+                for (int ii = 0; ii < twice.Length; ii++)
+                {
+                    twice[ii] = new ReadValueId
+                    {
+                        NodeId = nodesToRead[ii % nodesToRead.Count].NodeId,
+                        AttributeId = Attributes.Value
+                    };
+                }
+                (ArrayOf<DataValue> all, _) = await dispatcher.ReadAsync(
+                    unlimited, 0, TimestampsToReturn.Both, twice).ConfigureAwait(false);
+                Assert.That(all.Count, Is.EqualTo(254));
+                for (int ii = 0; ii < all.Count; ii++)
+                {
+                    Assert.That(all[ii].WrappedValue.TryGetValue(out ArrayOf<double> array), Is.True);
+                    Assert.That(array.Count, Is.EqualTo(1024));
+                }
+                Assert.That(unlimited.ResponseBytesRemaining, Is.EqualTo(-1));
+            }
+        }
+
+        /// <summary>
+        /// A Read of nodes that are not in memory, which the node manager validates and
+        /// reads in a separate pass, stops at the value that passes the message size limit
+        /// instead of reading every value first.
+        /// </summary>
+        [Test]
+        public async Task ReadOfValidatedNodesStopsOnceTheValuesExceedTheResponseSizeLimitAsync()
+        {
+            const int maxMessageSize = 1024 * 1024;
+            const int nodeCount = 2500;
+            m_mockSession.Setup(s => s.PreferredLocales).Returns([]);
+            using var manager = new ValidatedReadNodeManager(
+                m_mockServer.Object, m_configuration, m_mockLogger.Object, m_testNamespaceUri);
+            ushort ns = manager.NamespaceIndexes[0];
+            var nodesToRead = new ReadValueId[nodeCount];
+            for (int ii = 0; ii < nodeCount; ii++)
+            {
+                nodesToRead[ii] = new ReadValueId { NodeId = new NodeId((uint)(ii + 1), ns), AttributeId = Attributes.Value };
+            }
+            var values = new DataValue[nodeCount];
+            var errors = new ServiceResult[nodeCount];
+            using var context = new OperationContext(m_mockSession.Object, DiagnosticsMasks.None);
+            context.StartResponseBudget(maxMessageSize);
+
+            await manager.ReadAsync(context, 0, nodesToRead, values, errors).ConfigureAwait(false);
+
+            Assert.That(context.ResponseBudgetExceeded, Is.True);
+            // each value is 1 + (1 + 4 + 8192) bytes: the 128th passes 1 MiB.
+            Assert.That(manager.Validations, Is.EqualTo(128));
+        }
+
+        /// <summary>
+        /// A started budget is unused until the first charge of a result; an empty charge
+        /// does not use it, and a context without a budget is never unused.
+        /// </summary>
+        [Test]
+        public void ResponseBudgetIsUnusedUntilTheFirstCharge()
+        {
+            using var context = new OperationContext(m_mockSession.Object, DiagnosticsMasks.None);
+            Assert.That(context.ResponseBudgetUnused, Is.False);
+
+            context.StartResponseBudget(100);
+            Assert.That(context.ResponseBudgetUnused, Is.True);
+            Assert.That(context.ResponseBytesRemaining, Is.EqualTo(100));
+            Assert.That(context.TryChargeResponse(0), Is.True);
+            Assert.That(context.ResponseBudgetUnused, Is.True);
+            Assert.That(context.TryChargeResponse(10), Is.True);
+            Assert.That(context.ResponseBudgetUnused, Is.False);
+            Assert.That(context.ResponseBytesRemaining, Is.EqualTo(90));
+
+            context.StartResponseBudget(int.MaxValue);
+            Assert.That(context.ResponseBudgetUnused, Is.True);
+            Assert.That(context.ResponseBytesRemaining, Is.EqualTo(int.MaxValue - 1L));
+            Assert.That(context.TryChargeResponse(long.MaxValue), Is.False);
+            Assert.That(context.ResponseBudgetUnused, Is.False);
+            Assert.That(context.ResponseBudgetExceeded, Is.True);
+        }
+
+        /// <summary>
+        /// Browses the parent three times with ten references per node, without a response
+        /// budget, and returns the three continuation points and the largest page estimate.
+        /// </summary>
+        private async Task<(ArrayOf<ByteString>, long)> BrowseFirstPagesAsync(
+            MasterNodeManager dispatcher, BaseObjectState parent)
+        {
+            using var context = new OperationContext(m_mockSession.Object, DiagnosticsMasks.None);
+            BrowseDescription node = CreateBrowseDescription(parent.NodeId);
+            (ArrayOf<BrowseResult> results, _) = await dispatcher.BrowseAsync(
+                context, new ViewDescription(), 10, [node, node, node]).ConfigureAwait(false);
+            var points = new ByteString[results.Count];
+            long pageSize = 0;
+            for (int ii = 0; ii < results.Count; ii++)
+            {
+                Assert.That(results[ii].StatusCode, Is.EqualTo(StatusCodes.Good));
+                Assert.That(results[ii].ContinuationPoint.IsEmpty, Is.False);
+                points[ii] = results[ii].ContinuationPoint;
+                pageSize = System.Math.Max(pageSize, ResponseSizeEstimator.Estimate(results[ii].References));
+            }
+            return (points, pageSize);
+        }
+
+        private static BrowseDescription CreateBrowseDescription(NodeId nodeId)
+        {
+            return new BrowseDescription
+            {
+                NodeId = nodeId,
+                BrowseDirection = BrowseDirection.Forward,
+                ReferenceTypeId = NodeId.Null,
+                IncludeSubtypes = true,
+                NodeClassMask = 0,
+                ResultMask = (uint)BrowseResultMask.All
+            };
+        }
+
+
+        private MasterNodeManager CreateDispatcher(ITestNodeManager manager)
+        {
+            m_mockServer.Setup(server => server.Telemetry).Returns(NUnitTelemetryContext.Create());
+            var core = new Mock<ICoreNodeManager>();
+            core.Setup(value => value.SyncNodeManager).Returns(Mock.Of<INodeManager>());
+            var factory = new Mock<IMainNodeManagerFactory>();
+            factory.Setup(value => value.CreateConfigurationNodeManager())
+                .Returns(CreateUnrestrictedConfigurationNodeManager().Object);
+            factory.Setup(value => value.CreateCoreNodeManager(It.IsAny<ushort>()))
+                .Returns(core.Object);
+            m_mockServer.Setup(server => server.MainNodeManagerFactory).Returns(factory.Object);
+            var dispatcher = new MasterNodeManager(m_mockServer.Object, m_configuration, null, manager);
+            m_mockServer.Setup(server => server.NodeManager).Returns(dispatcher);
+            return dispatcher;
+        }
+
+        private async Task<(MasterNodeManager, BaseObjectState, MethodState, Counter)> CreateCallDispatcherAsync()
+        {
+            ITestNodeManager manager = CreateManager(asynchronousLegacyCall: true);
+            MasterNodeManager dispatcher = CreateDispatcher(manager);
+            ushort ns = manager.NamespaceIndexes[0];
+            var owner = new BaseObjectState(null)
+            {
+                NodeId = new NodeId("BudgetOwner", ns),
+                BrowseName = new QualifiedName("BudgetOwner", ns)
+            };
+            var method = new MethodState(owner)
+            {
+                NodeId = new NodeId("BudgetCall", ns),
+                BrowseName = new QualifiedName("BudgetCall", ns)
+            };
+            method.OutputArguments =
+                new PropertyState<ArrayOf<Argument>>.Implementation<StructureBuilder<Argument>>(method)
+                {
+                    Value =
+                    [
+                        new Argument
+                        {
+                            Name = "Values",
+                            DataType = DataTypeIds.UInt32,
+                            ValueRank = ValueRanks.OneDimension
+                        }
+                    ]
+                };
+            var calls = new Counter();
+            method.OnCallMethodWithResultAsync = (_, _, _, _, _) =>
+            {
+                calls.Value++;
+                ArrayOf<uint> output = new uint[1024];
+                return new ValueTask<MethodInvocationResult>(
+                    new MethodInvocationResult(ServiceResult.Good, [new Variant(output)]));
+            };
+            owner.AddChild(method);
+            await manager.AddNodeAsync(manager.SystemContext, NodeId.Null, owner).ConfigureAwait(false);
+            return (dispatcher, owner, method, calls);
+        }
+
+        private async Task<(MasterNodeManager, BaseObjectState)> CreateBrowseDispatcherAsync(
+            int childCount, int maxBrowseContinuationPoints = 10)
+        {
+            // the system contexts share the type table of the server.
+            TypeTable typeTree = m_mockServer.Object.TypeTree;
+            typeTree.AddSubtype(ReferenceTypeIds.References, NodeId.Null);
+            typeTree.AddSubtype(ReferenceTypeIds.HierarchicalReferences, ReferenceTypeIds.References);
+            typeTree.AddSubtype(ReferenceTypeIds.NonHierarchicalReferences, ReferenceTypeIds.References);
+            typeTree.AddSubtype(ReferenceTypeIds.HasTypeDefinition, ReferenceTypeIds.NonHierarchicalReferences);
+            typeTree.AddSubtype(ReferenceTypeIds.HasChild, ReferenceTypeIds.HierarchicalReferences);
+            typeTree.AddSubtype(ReferenceTypeIds.Aggregates, ReferenceTypeIds.HasChild);
+            typeTree.AddSubtype(ReferenceTypeIds.HasComponent, ReferenceTypeIds.Aggregates);
+            var points = new SessionContinuationPoints(() => new NodeId(99, 1), maxBrowseContinuationPoints, 10, null);
+            m_mockSession.SetupGet(s => s.ContinuationPoints).Returns(points);
+            ITestNodeManager manager = CreateManager();
+            MasterNodeManager dispatcher = CreateDispatcher(manager);
+            ushort ns = manager.NamespaceIndexes[0];
+            var parent = new BaseObjectState(null)
+            {
+                NodeId = new NodeId("BudgetParent", ns),
+                BrowseName = new QualifiedName("BudgetParent", ns),
+                DisplayName = new LocalizedText("BudgetParent")
+            };
+            for (int ii = 0; ii < childCount; ii++)
+            {
+                string name = "Child" + ii.ToString("D3", System.Globalization.CultureInfo.InvariantCulture);
+                parent.AddChild(new BaseObjectState(parent)
+                {
+                    NodeId = new NodeId(name, ns),
+                    BrowseName = new QualifiedName(name, ns),
+                    DisplayName = new LocalizedText(name),
+                    ReferenceTypeId = ReferenceTypeIds.HasComponent
+                });
+            }
+            await manager.AddNodeAsync(manager.SystemContext, NodeId.Null, parent).ConfigureAwait(false);
+            return (dispatcher, parent);
+        }
+
+        private async Task<(MasterNodeManager, ArrayOf<ReadValueId>, Counter)> CreateReadDispatcherAsync(
+            int nodeCount, int arrayLength)
+        {
+            m_mockSession.Setup(s => s.PreferredLocales).Returns([]);
+            ITestNodeManager manager = CreateManager();
+            MasterNodeManager dispatcher = CreateDispatcher(manager);
+            ushort ns = manager.NamespaceIndexes[0];
+            var reads = new Counter();
+            ArrayOf<double> array = new double[arrayLength];
+            var nodesToRead = new ReadValueId[nodeCount];
+            for (int ii = 0; ii < nodeCount; ii++)
+            {
+                string name = "BudgetArray" + ii.ToString("D4", System.Globalization.CultureInfo.InvariantCulture);
+                var variable = new BaseDataVariableState(null);
+                variable.CreateAsPredefinedNode(manager.SystemContext);
+                variable.NodeId = new NodeId(name, ns);
+                variable.BrowseName = new QualifiedName(name, ns);
+                variable.DataType = DataTypeIds.Double;
+                variable.ValueRank = ValueRanks.OneDimension;
+                variable.AccessLevel = AccessLevels.CurrentRead;
+                variable.UserAccessLevel = AccessLevels.CurrentRead;
+                variable.Value = array;
+                variable.OnSimpleReadValue = (ISystemContext _, NodeState _, ref Variant _) =>
+                {
+                    reads.Value++;
+                    return ServiceResult.Good;
+                };
+                await manager.AddNodeAsync(manager.SystemContext, NodeId.Null, variable).ConfigureAwait(false);
+                nodesToRead[ii] = new ReadValueId { NodeId = variable.NodeId, AttributeId = Attributes.Value };
+            }
+            return (dispatcher, nodesToRead, reads);
+        }
+
+        private sealed class Counter
+        {
+            public int Value { get; set; }
+        }
+
+        /// <summary>
+        /// A node manager whose nodes are not in memory: every node is validated, and its
+        /// value (a 1024 element Double array) created, when it is read.
+        /// </summary>
+        private sealed class ValidatedReadNodeManager : AsyncCustomNodeManager
+        {
+            public ValidatedReadNodeManager(
+                IServerInternal server,
+                ApplicationConfiguration configuration,
+                Microsoft.Extensions.Logging.ILogger logger,
+                string namespaceUri)
+                : base(server, configuration, logger, namespaceUri)
+            {
+            }
+
+            public int Validations { get; private set; }
+
+            protected override ValueTask<NodeHandle> GetManagerHandleAsync(
+                ServerSystemContext context,
+                NodeId nodeId,
+                IDictionary<NodeId, NodeState> cache,
+                CancellationToken cancellationToken = default)
+            {
+                return new ValueTask<NodeHandle>(IsNodeIdInNamespace(nodeId)
+                    ? new NodeHandle { NodeId = nodeId, Validated = false }
+                    : null!);
+            }
+
+            protected override ValueTask<NodeState> ValidateNodeAsync(
+                ServerSystemContext context,
+                NodeHandle handle,
+                IDictionary<NodeId, NodeState> cache,
+                CancellationToken cancellationToken = default)
+            {
+                Validations++;
+                var variable = new BaseDataVariableState(null)
+                {
+                    NodeId = handle.NodeId,
+                    BrowseName = new QualifiedName("Validated", handle.NodeId.NamespaceIndex),
+                    DataType = DataTypeIds.Double,
+                    ValueRank = ValueRanks.OneDimension,
+                    AccessLevel = AccessLevels.CurrentRead,
+                    UserAccessLevel = AccessLevels.CurrentRead,
+                    Value = (ArrayOf<double>)new double[1024]
+                };
+                return new ValueTask<NodeState>(ValidationComplete(context, handle, variable, cache));
+            }
+        }
+    }
+}

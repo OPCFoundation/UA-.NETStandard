@@ -1,31 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using System.Diagnostics;
@@ -405,7 +379,30 @@ namespace Opc.Ua.SourceGeneration
         {
             Debug.Assert(m_context.Options.UseUtf8StringLiterals);
 
-            context.Out.Write("\"\"\"");
+            // The text comes from the model (schema documentation, default
+            // values) and a raw string literal has no escapes, so it must not
+            // be able to end the literal: the delimiter is made longer than any
+            // run of quotes in the text, and text with a line terminator that
+            // ReadLine does not split on (NEL, LINE SEPARATOR, PARAGRAPH
+            // SEPARATOR, all of which end a line in C#) is embedded as bytes.
+            string text = reader.ReadToEnd();
+            int longestQuoteRun = 0;
+            int quoteRun = 0;
+            for (int ii = 0; ii < text.Length; ii++)
+            {
+                char c = text[ii];
+                if (c is '\u0085' or '\u2028' or '\u2029')
+                {
+                    WriteAsByteArray(context, new MemoryStream(Encoding.UTF8.GetBytes(text)));
+                    return;
+                }
+                quoteRun = c == '"' ? quoteRun + 1 : 0;
+                longestQuoteRun = Math.Max(longestQuoteRun, quoteRun);
+            }
+            string delimiter = new('"', Math.Max(3, longestQuoteRun + 1));
+            reader = new StringReader(text);
+
+            context.Out.Write(delimiter);
             bool firstLine = true;
             for (string? line = reader.ReadLine();
                 line != null;
@@ -427,7 +424,8 @@ namespace Opc.Ua.SourceGeneration
                 }
                 context.Out.WriteLine(line);
             }
-            context.Out.Write("\"\"\"u8");
+            context.Out.Write(delimiter);
+            context.Out.Write("u8");
         }
 
         private static void WriteAsBase64StringLiteral(ILoadContext context, string base64)

@@ -1,31 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System.IO;
 using System.Text;
@@ -146,6 +120,77 @@ namespace Opc.Ua.Schema.Tests
 
             Assert.Throws<System.Xml.Schema.XmlSchemaException>(
                 () => validator.Validate(stream, NullLogger.Instance));
+        }
+
+        /// <summary>
+        /// A schema whose types extend each other in one long chain. Compiling it
+        /// recurses once per type and overflows the stack, which ends the process.
+        /// </summary>
+        internal static string CreateBaseTypeChainSchema(int count)
+        {
+            var builder = new StringBuilder();
+            builder.Append("<xs:schema xmlns:xs=\"http://www.w3.org/2001/XMLSchema\" xmlns:tns=\"")
+                .Append(CoverageNamespace)
+                .Append("\" targetNamespace=\"")
+                .Append(CoverageNamespace)
+                .Append("\">");
+            // the most derived type comes first, so the first type compiled walks the whole chain.
+            for (int index = count; index > 1; index--)
+            {
+                builder.Append("<xs:complexType name=\"c").Append(index)
+                    .Append("\"><xs:complexContent><xs:extension base=\"tns:c").Append(index - 1)
+                    .Append("\"/></xs:complexContent></xs:complexType>");
+            }
+            builder.Append("<xs:complexType name=\"c1\"><xs:sequence/></xs:complexType></xs:schema>");
+            return builder.ToString();
+        }
+
+        [Test]
+        public void XmlSchemaValidatorReadDoesNotCompileBaseTypeChain()
+        {
+            var validator = new XmlSchemaValidator();
+            using var stream = new MemoryStream(Encoding.UTF8.GetBytes(CreateBaseTypeChainSchema(20000)));
+
+            validator.Read(stream, NullLogger.Instance);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(validator.SchemaSet, Is.Null);
+                Assert.That(validator.TargetSchema, Is.Not.Null);
+                Assert.That(validator.GetSchema(null), Does.Contain("c20000"));
+            });
+        }
+
+        [Test]
+        public void XmlSchemaValidatorReadReturnsWholeSchemaOrSingleElement()
+        {
+            var validator = new XmlSchemaValidator();
+            using var stream = new MemoryStream(Encoding.UTF8.GetBytes(ValidSchema));
+            validator.Read(stream, NullLogger.Instance);
+
+            string whole = validator.GetSchema(null);
+            string element = validator.GetSchema("SampleElement");
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(whole, Does.Contain("SampleComplexType"));
+                Assert.That(whole, Does.Contain("SampleElement"));
+                Assert.That(element, Does.Contain("SampleElement"));
+                Assert.That(element, Does.Contain("SampleComplexType"));
+                // as for a compiled schema, an unknown name yields no declarations.
+                Assert.That(validator.GetSchema("Missing"), Does.Not.Contain("Sample"));
+            });
+        }
+
+        [Test]
+        public void XmlSchemaValidatorReadDoesNotResolveReferences()
+        {
+            var validator = new XmlSchemaValidator();
+            using var stream = new MemoryStream(Encoding.UTF8.GetBytes(UndefinedTypeSchema));
+
+            validator.Read(stream, NullLogger.Instance);
+
+            Assert.That(validator.GetSchema("Broken"), Does.Contain("MissingType"));
         }
 
         [Test]

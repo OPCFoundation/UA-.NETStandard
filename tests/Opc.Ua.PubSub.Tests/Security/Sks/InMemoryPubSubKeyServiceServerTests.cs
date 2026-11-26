@@ -1,31 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using System.Threading.Tasks;
@@ -399,6 +373,49 @@ namespace Opc.Ua.PubSub.Tests.Security.Sks
             Assert.That(
                 async () => await server.GetSecurityGroupAsync(string.Empty).ConfigureAwait(false),
                 Throws.TypeOf<ArgumentException>());
+        }
+
+        [Test]
+        [Category("SecurityRegression")]
+        public async Task GetSecurityKeysIssuesAFreshCurrentKeyAfterEveryKeyExpired()
+        {
+            // An idle SKS whose whole schedule expired used to keep handing
+            // out its last, expired key to single-key requests.
+            var clock = new FakeTimeProvider(new DateTimeOffset(2026, 1, 1, 0, 0, 0, TimeSpan.Zero));
+            var server = new InMemoryPubSubKeyServiceServer(clock);
+            await server.AddSecurityGroupAsync(BuildGroup()).ConfigureAwait(false);
+
+            uint previous = 0;
+            for (int round = 1; round <= 3; round++)
+            {
+                clock.Advance(TimeSpan.FromMinutes(30));
+                SksKeyResponse response = await server.GetSecurityKeysAsync(
+                    CallerId,
+                    new SksKeyRequest("group-1", 0, 1)).ConfigureAwait(false);
+
+                Assert.That(response.FirstTokenId, Is.GreaterThan(previous), $"token in round {round}");
+                Assert.That(response.TimeToNextKey, Is.EqualTo(TimeSpan.FromMinutes(5)), $"round {round}");
+                previous = response.FirstTokenId;
+            }
+        }
+
+        [Test]
+        [Category("SecurityRegression")]
+        public async Task ForceKeyRotationAfterIdleDoesNotReviveAnExpiredKey()
+        {
+            var clock = new FakeTimeProvider(new DateTimeOffset(2026, 1, 1, 0, 0, 0, TimeSpan.Zero));
+            var server = new InMemoryPubSubKeyServiceServer(clock);
+            await server.AddSecurityGroupAsync(BuildGroup()).ConfigureAwait(false);
+
+            // Tokens 1-5 cover 25 minutes; all of them have expired.
+            clock.Advance(TimeSpan.FromMinutes(30));
+            await server.ForceKeyRotationAsync("group-1").ConfigureAwait(false);
+
+            SksKeyResponse response = await server.GetSecurityKeysAsync(
+                CallerId,
+                new SksKeyRequest("group-1", 0, 1)).ConfigureAwait(false);
+            Assert.That(response.FirstTokenId, Is.GreaterThan(5u));
+            Assert.That(response.TimeToNextKey, Is.EqualTo(TimeSpan.FromMinutes(5)));
         }
 
         [Test]

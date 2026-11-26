@@ -1,29 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person obtaining a
- * copy of this software and associated documentation files (the "Software"),
- * to deal in the Software without restriction, including without limitation
- * the rights to use, copy, modify, merge, publish, distribute, sublicense,
- * and/or sell copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following conditions:
- *
- * The above copyright notice and this permission notice shall be included
- * in all copies or substantial portions of the Software.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
- * OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
- * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
- * IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 #if NET10_0_OR_GREATER
 using System;
@@ -340,6 +316,20 @@ namespace Opc.Ua.Gds.Tests.Onboarding
                 await OpenRegistrarStateAsync().ConfigureAwait(false);
                 Certificate ca = Signer.Authority!.Certificates[Ua.ObjectTypeIds.RsaSha256ApplicationCertificateType]!;
                 await TrustAsync(ca.RawData.ToByteString()).ConfigureAwait(false);
+                using (ICertificateStore authority =
+                    new CertificateStoreIdentifier(Path.Combine(m_root, "authorities")).OpenStore(m_telemetry))
+                {
+                    X509CRLCollection crls = await authority.EnumerateCRLsAsync(ca, true).ConfigureAwait(false);
+                    Assert.That(crls, Is.Not.Empty);
+                    using ICertificateStore trusted = m_client.Config.CertificateManager
+                        .OpenTrustedStore(TrustListIdentifier.Peers);
+                    foreach (X509CRL crl in crls)
+                    {
+                        await trusted.AddCRLAsync(crl).ConfigureAwait(false);
+                    }
+                    m_client.Config.CertificateManager.NotifyTrustListChanged(
+                        TrustListIdentifier.Peers, trustChanged: false, crlChanged: true);
+                }
                 using CertificateEntry registrar = m_client.Config.CertificateManager!
                     .AcquireApplicationCertificateBySecurityPolicy(SecurityPolicies.Basic256Sha256)!;
                 using Certificate publicRegistrar = Certificate.FromRawData(registrar.Certificate.RawData);

@@ -1,31 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using System.Collections.Generic;
@@ -213,6 +187,56 @@ namespace Opc.Ua.PubSub.Security
             }
             RaiseRotated(newTokenId, previousTokenId);
             return true;
+        }
+
+        /// <summary>
+        /// Replaces the <see cref="PubSubSecurityKey.IssuedAt"/> of the
+        /// current or a future key with the one derived from the newest SKS
+        /// response. That time is measured from when the request was sent,
+        /// so it is never later than the real issuance time under the SKS's
+        /// current schedule: a delayed response can only retire a key early
+        /// (by at most its round trip), never extend it, and a forced
+        /// rotation is always followed. The next timely response restores
+        /// an estimate a delayed one shortened. Past keys are left alone.
+        /// </summary>
+        /// <param name="tokenId">Token id of the key to re-time.</param>
+        /// <param name="issuedAt">Issuance time measured from the request.</param>
+        /// <returns>
+        /// <see langword="true"/> when a current or future key with
+        /// <paramref name="tokenId"/> was found.
+        /// </returns>
+        internal bool Reschedule(uint tokenId, DateTimeUtc issuedAt)
+        {
+            lock (m_lock)
+            {
+                ThrowIfDisposed();
+                if (m_current?.TokenId == tokenId)
+                {
+                    if (m_current.IssuedAt != issuedAt)
+                    {
+                        m_current = m_current.WithIssuedAt(issuedAt);
+                        m_byToken[tokenId] = m_current;
+                    }
+                    return true;
+                }
+                bool found = false;
+                int count = m_future.Count;
+                for (int i = 0; i < count; i++)
+                {
+                    PubSubSecurityKey key = m_future.Dequeue();
+                    if (key.TokenId == tokenId)
+                    {
+                        found = true;
+                        if (key.IssuedAt != issuedAt)
+                        {
+                            key = key.WithIssuedAt(issuedAt);
+                            m_byToken[tokenId] = key;
+                        }
+                    }
+                    m_future.Enqueue(key);
+                }
+                return found;
+            }
         }
 
         /// <summary>

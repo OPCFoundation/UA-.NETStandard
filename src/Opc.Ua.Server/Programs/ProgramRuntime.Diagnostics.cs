@@ -1,31 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using System.Collections.Generic;
@@ -167,8 +141,9 @@ namespace Opc.Ua.Server.Programs
         }
 
         /// <summary>
-        /// Part 10 ProgramDiagnostic2Type: diagnostics are readable by the creating session or a SecurityAdmin, over a
-        /// confidential channel. Only an in-process read without a request (no operation context) is
+        /// Part 10 ProgramDiagnostic2Type: diagnostics are readable by the creating session over a
+        /// confidential channel, or by a caller the server authorization policy grants
+        /// <see cref="ServerAuthorizationDecision.DiagnosticsRead"/>. Only an in-process read without a request (no operation context) is
         /// trusted; a remote sessionless request carries an operation context and is authorized like
         /// any other caller, so it needs the SecurityAdmin role.
         /// </summary>
@@ -204,8 +179,10 @@ namespace Opc.Ua.Server.Programs
             }
             bool creator = !sessionId.IsNull && !m_diagnostics.CreateSessionId.IsNull &&
                 sessionId == m_diagnostics.CreateSessionId;
-            bool securityAdmin =
-                identity?.GrantedRoleIds.Contains(ObjectIds.WellKnownRole_SecurityAdmin) == true;
+            // The administrator path is the server's DiagnosticsRead decision; a context
+            // without an operation context never reaches here as a remote caller.
+            bool securityAdmin = identity != null && ServiceResult.IsGood(
+                RoleAuthorizationGate.Check(context, ServerAuthorizationDecision.DiagnosticsRead));
             return confidential && (creator || securityAdmin)
                 ? ServiceResult.Good
                 : new ServiceResult(StatusCodes.BadUserAccessDenied);

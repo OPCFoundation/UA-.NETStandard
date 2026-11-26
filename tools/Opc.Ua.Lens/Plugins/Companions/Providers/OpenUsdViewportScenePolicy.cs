@@ -1,31 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using System.Buffers.Binary;
@@ -107,6 +81,19 @@ namespace UaLens.Plugins.Companions.Providers
                 text.Contains('\0', StringComparison.Ordinal))
             {
                 throw new NotSupportedException("A preview layer must use the USDA 1.0 text format.");
+            }
+            // The lexer below must see exactly the tokens native Sdf sees. Native also
+            // ends a comment at a bare CR, so refuse any CR that does not start CRLF,
+            // and every other control character, rather than model those cases.
+            for (int index = 0; index < text.Length; index++)
+            {
+                char character = text[index];
+                if ((character == '\r' && (index + 1 >= text.Length || text[index + 1] != '\n')) ||
+                    (char.IsControl(character) && character is not ('\r' or '\n' or '\t')))
+                {
+                    throw new NotSupportedException(
+                        "A preview layer cannot contain bare carriage returns or control characters.");
+                }
             }
             var lexer = new Lexer(text);
             var references = new List<string>();
@@ -260,23 +247,13 @@ namespace UaLens.Plugins.Companions.Providers
                 {
                     throw new NotSupportedException("A preview composition arc must target a captured USDA layer.");
                 }
-                if (lexer.Peek().Value == "<")
+                if (lexer.Peek().Kind == TokenKind.Path)
                 {
                     if (sublayers)
                     {
                         throw new InvalidDataException("A sublayer cannot target a prim.");
                     }
-                    _ = lexer.Read();
-                    var path = new StringBuilder();
-                    while (lexer.Read() is { Value: not ">" } part)
-                    {
-                        if (part.Kind == TokenKind.End || path.Length + part.Value.Length > 512)
-                        {
-                            throw new InvalidDataException("An asset prim path is unbounded or incomplete.");
-                        }
-                        path.Append(part.Value);
-                    }
-                    OpenUsdCompanionExporter.ValidatePrimPath(path.ToString());
+                    OpenUsdCompanionExporter.ValidatePrimPath(lexer.Read().Value);
                 }
                 if (lexer.Peek().Value == "(")
                 {
@@ -420,6 +397,7 @@ namespace UaLens.Plugins.Companions.Providers
             Number,
             String,
             Asset,
+            Path,
             Punctuation
         }
 
@@ -455,12 +433,25 @@ namespace UaLens.Plugins.Companions.Providers
                     {
                         m_position++;
                     }
-                    else if (text[m_position] == '#')
+                    else if (text[m_position] == '#' ||
+                        (text[m_position] == '/' && m_position + 1 < text.Length && text[m_position + 1] == '/'))
                     {
+                        // Line comment. Bare CRs were refused up front, so a line ends
+                        // at LF for both this lexer and native Sdf.
                         while (m_position < text.Length && text[m_position] != '\n')
                         {
                             m_position++;
                         }
+                    }
+                    else if (text[m_position] == '/' && m_position + 1 < text.Length && text[m_position + 1] == '*')
+                    {
+                        // Block comment; Sdf block comments do not nest.
+                        int end = text.IndexOf("*/", m_position + 2, StringComparison.Ordinal);
+                        if (end < 0)
+                        {
+                            throw new NotSupportedException("A preview block comment is not terminated.");
+                        }
+                        m_position = end + 2;
                     }
                     else
                     {
@@ -476,10 +467,38 @@ namespace UaLens.Plugins.Companions.Providers
                     throw new InvalidDataException("The preview layer token budget was exceeded.");
                 }
                 char first = text[m_position++];
+                if (first == '/')
+                {
+                    // Comments were consumed above; any other '/' outside strings, asset
+                    // paths and <paths> is not USDA.
+                    throw new NotSupportedException("A preview layer contains a stray '/'.");
+                }
+                if (first == '<')
+                {
+                    int pathStart = m_position;
+                    while (m_position < text.Length && text[m_position] != '>')
+                    {
+                        if (m_position - pathStart >= 512 ||
+                            text[m_position] is '\n' or '\r' or '"' or '\'' or '@' or '#' or '<')
+                        {
+                            throw new NotSupportedException("A preview path is unbounded or contains a delimiter.");
+                        }
+                        m_position++;
+                    }
+                    if (m_position == text.Length)
+                    {
+                        throw new InvalidDataException("A preview path is not terminated.");
+                    }
+                    return new Token(TokenKind.Path, text[pathStart..m_position++]);
+                }
                 if (first is '"' or '\'' or '@')
                 {
-                    bool triple = first != '@' && m_position + 1 < text.Length &&
+                    bool triple = m_position + 1 < text.Length &&
                         text[m_position] == first && text[m_position + 1] == first;
+                    if (triple && first == '@')
+                    {
+                        throw new NotSupportedException("Triple-delimited asset paths are not admitted in previews.");
+                    }
                     if (triple)
                     {
                         m_position += 2;
@@ -491,7 +510,14 @@ namespace UaLens.Plugins.Companions.Providers
                         {
                             throw new InvalidDataException("A preview string exceeds its length limit.");
                         }
-                        if (text[m_position] == '\\')
+                        if (!triple && text[m_position] is '\n' or '\r')
+                        {
+                            throw new NotSupportedException("Single-quoted preview strings cannot span lines.");
+                        }
+                        // Sdf strings honour backslash escapes; single-delimited asset
+                        // paths do not, so a backslash there stays part of the path (and
+                        // the identifier check refuses it).
+                        if (text[m_position] == '\\' && first != '@')
                         {
                             m_position += 2;
                             continue;

@@ -1,31 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using System.CommandLine;
@@ -81,7 +55,7 @@ rootCommand.SetAction(async (parseResult, ct) =>
     if (!string.IsNullOrWhiteSpace(toolProfile) &&
         !McpToolProfileSet.TryParse(toolProfile, out _, out string? profileError))
     {
-        await Console.Error.WriteLineAsync(profileError).ConfigureAwait(false);
+        await Console.Error.WriteLineAsync(profileError.AsMemory(), ct).ConfigureAwait(false);
         return 2;
     }
 
@@ -99,7 +73,7 @@ rootCommand.SetAction(async (parseResult, ct) =>
     }
 
     await Console.Error.WriteLineAsync(
-        $"Unknown transport '{transport}'. Valid transports: stdio, http, sse.").ConfigureAwait(false);
+        $"Unknown transport '{transport}'. Valid transports: stdio, http, sse.".AsMemory(), ct).ConfigureAwait(false);
     return 2;
 });
 
@@ -108,7 +82,7 @@ return await rootCommand.Parse(args).InvokeAsync().ConfigureAwait(false);
 static async Task RunStdioServerAsync(string? toolProfileOverride, CancellationToken ct)
 {
     await Console.Error.WriteLineAsync(
-        "Starting MCP server with stdio transport...").ConfigureAwait(false);
+        "Starting MCP server with stdio transport...".AsMemory(), ct).ConfigureAwait(false);
 
     HostApplicationBuilder builder = Host.CreateApplicationBuilder();
     McpHostBuilder.ConfigureLogging(builder.Logging, useStdioTransport: true);
@@ -141,7 +115,7 @@ static async Task RunHttpServerAsync(
     CancellationToken ct)
 {
     await Console.Error.WriteLineAsync(
-        $"Starting MCP server with Streamable HTTP transport on port {port} at /mcp...").ConfigureAwait(false);
+        $"Starting MCP server with Streamable HTTP transport on port {port} at /mcp...".AsMemory(), ct).ConfigureAwait(false);
 
     WebApplicationBuilder builder = WebApplication.CreateBuilder();
     McpHostBuilder.ConfigureLogging(builder.Logging, useStdioTransport: false);
@@ -159,6 +133,11 @@ static async Task RunHttpServerAsync(
     McpHostBuilder.ConfigureServices(builder.Services, pcapOptions, OpcUaMcpOptions,
         builder.Configuration.CreateWotMcpOptions());
 
+    // Every HTTP request must carry the host's bearer token; the token maps to a stable
+    // caller identity so session tools work and caller grants can name HTTP clients.
+    McpHttpSecurityOptions httpSecurity = McpHttpSecurityOptions.Read(builder.Configuration);
+    builder.Services.AddMcpHttpSecurity(httpSecurity);
+
     IMcpServerBuilder mcpServerBuilder = builder.Services
         .AddMcpServer()
         .WithHttpTransport();
@@ -169,8 +148,11 @@ static async Task RunHttpServerAsync(
 
     WebApplication app = builder.Build();
     McpHostBuilder.LogDiagnosticsToolsWarning(app.Services, diagnosticsToolsEnabled);
-    app.MapMcp("/mcp");
+    app.UseMcpHttpSecurity(httpSecurity);
+    app.MapMcp("/mcp").RequireAuthorization();
     app.Urls.Add($"http://localhost:{port}");
+    await Console.Error.WriteLineAsync(
+        McpHttpSecurity.StartupNotice(httpSecurity, port).AsMemory(), ct).ConfigureAwait(false);
 
     await app.RunAsync(ct).ConfigureAwait(false);
 }

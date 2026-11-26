@@ -1,31 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using System.Collections.Generic;
@@ -33,6 +7,7 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
+using Opc.Ua.Client;
 using Opc.Ua.Client.TestFramework;
 
 namespace Opc.Ua.Subscriptions.Tests
@@ -120,9 +95,21 @@ namespace Opc.Ua.Subscriptions.Tests
                 await DrainPublishAsync().ConfigureAwait(false);
 
                 Variant testValue = GetTestValueForIndex(index);
+                if (index == 0)
+                {
+                    DataValue current = await Session.ReadValueAsync(nodeId).ConfigureAwait(false);
+                    Assert.That(StatusCode.IsGood(current.StatusCode), Is.True);
+                    Assert.That(current.WrappedValue.TryGetValue(out bool currentValue), Is.True);
+                    testValue = new Variant(!currentValue);
+                }
+
                 bool writeOk =
                     await TryWriteVariantAsync(nodeId, testValue)
                         .ConfigureAwait(false);
+                if (index == 0)
+                {
+                    Assert.That(writeOk, Is.True, "The Boolean value must be writable.");
+                }
 
                 if (!writeOk)
                 {
@@ -139,16 +126,23 @@ namespace Opc.Ua.Subscriptions.Tests
                         500 + (attempt * 300)).ConfigureAwait(false);
                 }
 
-                if (dcn == null)
+                if (dcn == null && index != 0)
                 {
-                    Assert.Ignore(
-                        $"No DCN received for index {index} after retries.");
+                    Assert.Ignore($"No DCN received for index {index} after retries.");
                 }
 
-                Assert.That(dcn.MonitoredItems.Count, Is.GreaterThan(0),
+                Assert.That(dcn, Is.Not.Null, $"No DCN received for index {index} after retries.");
+                DataChangeNotification notification = dcn!;
+                Assert.That(notification.MonitoredItems.Count, Is.GreaterThan(0),
                     $"DCN has no items for index {index}");
+                if (index == 0)
+                {
+                    Assert.That(notification.MonitoredItems.Count, Is.EqualTo(1));
+                    Assert.That(notification.MonitoredItems[0].ClientHandle, Is.EqualTo(1u));
+                    Assert.That(notification.MonitoredItems[0].Value.WrappedValue, Is.EqualTo(testValue));
+                }
             }
-            catch (ServiceResultException sre) when (IsTransientCiTimeoutStatus(sre.StatusCode))
+            catch (ServiceResultException sre) when (index != 0 && IsTransientCiTimeoutStatus(sre.StatusCode))
             {
                 Assert.Ignore(
                     $"Timing-sensitive: scalar data-change roundtrip interrupted by CI runner load ({sre.StatusCode}).");

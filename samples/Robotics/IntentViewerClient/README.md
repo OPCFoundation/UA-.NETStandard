@@ -1,10 +1,6 @@
 <!--
-Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
-
-OPC Foundation MIT License 1.00
-
-The complete license agreement can be found here:
-http://opcfoundation.org/License/MIT/1.00/
+SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+SPDX-License-Identifier: MIT
 -->
 
 # Robot Intent Viewer Client
@@ -32,7 +28,7 @@ An asset digest establishes integrity, not trust in that content's dependencies.
 
 With `--mcp`, the viewer client exposes the Robotics MCP profile so an LLM agent can discover controllers, read state, request authority, submit intents and missions, pause/resume/cancel/retry operations, and wait for operation completion while a human watches the same robot in the OpenUSD viewport. The MCP tools use the one `SampleSession` opened by the sample; the viewer, OpenUSD live bindings, and MCP tools therefore observe and command the same connected controller.
 
-MCP hosting is compiled for `net8.0`, `net9.0`, and `net10.0`. It is unavailable on `net48`; running that leg with `--mcp` reports the limitation on stderr. Without `--mcp`, the sample continues to run on every target framework it builds for.
+MCP hosting is compiled for `net10.0` and `net11.0`. It is unavailable on `net48`; running that leg with `--mcp` reports the limitation on stderr. Without `--mcp`, the sample continues to run on every target framework it builds for.
 
 HTTP hosting binds to loopback and accepts only `localhost`, `127.0.0.1`, or
 `[::1]` authorities on the selected port. A present `Origin` must also identify

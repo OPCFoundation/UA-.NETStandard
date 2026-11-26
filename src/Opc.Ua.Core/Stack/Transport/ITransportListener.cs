@@ -1,31 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using System.Threading;
@@ -58,6 +32,11 @@ namespace Opc.Ua
         /// <summary>
         /// Opens the listener and starts accepting connection.
         /// </summary>
+        /// <remarks>
+        /// A listener that implements <see cref="ITransportListenerAcceptControl"/>
+        /// only binds its address when
+        /// <see cref="TransportListenerSettings.DeferAccept"/> is set.
+        /// </remarks>
         /// <param name="baseAddress">The base address.</param>
         /// <param name="settings">The settings to use when creating the listener.</param>
         /// <param name="callback">The callback to use when requests arrive via the channel.</param>
@@ -113,6 +92,37 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="globalChannelId">The global channel id</param>
         void UpdateChannelLastActiveTime(string globalChannelId);
+    }
+
+    /// <summary>
+    /// A transport listener that can be opened (bound to its address) without
+    /// taking connections yet.
+    /// </summary>
+    /// <remarks>
+    /// When <see cref="TransportListenerSettings.DeferAccept"/> is set, the
+    /// listener reserves its address in
+    /// <see cref="ITransportListener.OpenAsync"/>, so a taken port still fails
+    /// the server start, but serves no client until
+    /// <see cref="StartAcceptingAsync"/> is called. A server uses this to keep
+    /// clients out until it is fully started. Connections that arrive before
+    /// wait (for example in the socket backlog) and are served afterwards.
+    /// A listener that does not implement this interface accepts connections
+    /// as soon as it is opened.
+    /// </remarks>
+    public interface ITransportListenerAcceptControl
+    {
+        /// <summary>
+        /// Whether the listener serves connections.
+        /// </summary>
+        bool IsAccepting { get; }
+
+        /// <summary>
+        /// Starts serving connections on a listener opened with
+        /// <see cref="TransportListenerSettings.DeferAccept"/>. Does nothing
+        /// when the listener already serves connections.
+        /// </summary>
+        /// <param name="ct">Cancellation token.</param>
+        ValueTask StartAcceptingAsync(CancellationToken ct = default);
     }
 
     /// <summary>

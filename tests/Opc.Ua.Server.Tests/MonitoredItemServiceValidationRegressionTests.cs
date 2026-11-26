@@ -1,31 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using System.Collections.Generic;
@@ -354,8 +328,9 @@ namespace Opc.Ua.Server.Tests
                 // the event is delivered with a null third field.
                 const string message = "Partially valid select clause";
                 ReportServerEvent(message);
-                EventFieldList fields = await PublishEventAsync(message).ConfigureAwait(false);
-                Assert.That(fields, Is.Not.Null, "Did not receive the event.");
+                EventFieldList? received = await PublishEventAsync(message).ConfigureAwait(false);
+                Assert.That(received, Is.Not.Null, "Did not receive the event.");
+                EventFieldList fields = received!.Value;
                 Assert.That(fields.EventFields.Count, Is.EqualTo(3));
                 Assert.That(fields.EventFields[0].IsNull, Is.False);
                 Assert.That(fields.EventFields[2].IsNull, Is.True);
@@ -403,6 +378,103 @@ namespace Opc.Ua.Server.Tests
             finally
             {
                 await DeleteSubscriptionAsync(subscriptionId).ConfigureAwait(false);
+            }
+        }
+
+        /// <summary>
+        /// An event filter may hold at most MaxSelectClauseParameters select clauses:
+        /// CreateMonitoredItems and ModifyMonitoredItems return Bad_EventFilterInvalid for
+        /// one with more, a modification beyond the limit keeps the previous filter, and the
+        /// limit is published in the ServerCapabilities.
+        /// </summary>
+        [Test]
+        public async Task EventFilterSelectClausesAreLimitedAsync()
+        {
+            int limit = m_fixture.Config.ServerConfiguration!.MaxSelectClauseParameters;
+            Assert.That(limit, Is.EqualTo(ServerConfiguration.DefaultMaxSelectClauseParameters));
+
+            uint subscriptionId = await CreateSubscriptionAsync().ConfigureAwait(false);
+            try
+            {
+                CreateMonitoredItemsResponse tooMany = await CreateEventItemAsync(
+                    subscriptionId, ObjectIds.Server, CreateFilterWithSelectClauses(limit + 1))
+                    .ConfigureAwait(false);
+                Assert.That(tooMany.Results[0].StatusCode, Is.EqualTo(StatusCodes.BadEventFilterInvalid));
+
+                CreateMonitoredItemsResponse atLimit = await CreateEventItemAsync(
+                    subscriptionId, ObjectIds.Server, CreateFilterWithSelectClauses(limit))
+                    .ConfigureAwait(false);
+                Assert.That(atLimit.Results[0].StatusCode, Is.EqualTo(StatusCodes.Good));
+
+                m_requestHeader.Timestamp = DateTimeUtc.Now;
+                ModifyMonitoredItemsResponse modified = await m_services.ModifyMonitoredItemsAsync(
+                    m_requestHeader,
+                    subscriptionId,
+                    TimestampsToReturn.Both,
+                    [
+                        new MonitoredItemModifyRequest
+                        {
+                            MonitoredItemId = atLimit.Results[0].MonitoredItemId,
+                            RequestedParameters = new MonitoringParameters
+                            {
+                                ClientHandle = 1,
+                                SamplingInterval = 0,
+                                QueueSize = 100,
+                                DiscardOldest = true,
+                                Filter = new ExtensionObject(CreateFilterWithSelectClauses(limit + 1))
+                            }
+                        }
+                    ]).ConfigureAwait(false);
+                Assert.That(modified.Results[0].StatusCode, Is.EqualTo(StatusCodes.BadEventFilterInvalid));
+
+                // the item still reports events with the fields of its previous filter.
+                const string message = "Select clause limit";
+                ReportServerEvent(message);
+                EventFieldList? received = await PublishEventAsync(message).ConfigureAwait(false);
+                Assert.That(received, Is.Not.Null, "Did not receive the event.");
+                EventFieldList fields = received!.Value;
+                Assert.That(fields.EventFields.Count, Is.EqualTo(limit));
+
+                m_requestHeader.Timestamp = DateTimeUtc.Now;
+                ReadResponse capabilities = await m_server.ReadAsync(
+                    m_secureChannelContext,
+                    m_requestHeader,
+                    0,
+                    TimestampsToReturn.Neither,
+                    [
+                        new ReadValueId
+                        {
+                            NodeId = VariableIds.Server_ServerCapabilities_MaxSelectClauseParameters,
+                            AttributeId = Attributes.Value
+                        },
+                        new ReadValueId
+                        {
+                            NodeId = VariableIds.Server_ServerCapabilities_MaxWhereClauseParameters,
+                            AttributeId = Attributes.Value
+                        }
+                    ],
+                    RequestLifetime.None).ConfigureAwait(false);
+                Assert.That(capabilities.Results[0].WrappedValue.TryGetValue(out uint maxSelect), Is.True);
+                Assert.That(maxSelect, Is.EqualTo((uint)limit));
+                Assert.That(capabilities.Results[1].WrappedValue.TryGetValue(out uint maxWhere), Is.True);
+                Assert.That(maxWhere, Is.EqualTo((uint)ContentFilter.MaxElementCount));
+            }
+            finally
+            {
+                await DeleteSubscriptionAsync(subscriptionId).ConfigureAwait(false);
+            }
+
+            // the first two clauses select EventId and Message, the rest repeat Severity.
+            static EventFilter CreateFilterWithSelectClauses(int count)
+            {
+                var filter = new EventFilter();
+                filter.AddSelectClause(ObjectTypeIds.BaseEventType, QualifiedName.From(BrowseNames.EventId));
+                filter.AddSelectClause(ObjectTypeIds.BaseEventType, QualifiedName.From(BrowseNames.Message));
+                for (int ii = 2; ii < count; ii++)
+                {
+                    filter.AddSelectClause(ObjectTypeIds.BaseEventType, QualifiedName.From(BrowseNames.Severity));
+                }
+                return filter;
             }
         }
 
@@ -474,8 +546,9 @@ namespace Opc.Ua.Server.Tests
                 e.Initialize(context, notifier, EventSeverity.Medium, new LocalizedText(message));
                 notifier.ReportEvent(context, e);
 
-                EventFieldList fields = await PublishEventAsync(message).ConfigureAwait(false);
-                Assert.That(fields, Is.Not.Null, "Did not receive the event.");
+                EventFieldList? received = await PublishEventAsync(message).ConfigureAwait(false);
+                Assert.That(received, Is.Not.Null, "Did not receive the event.");
+                EventFieldList fields = received!.Value;
                 Assert.That(fields.EventFields.Count, Is.EqualTo(2));
             }
             finally
@@ -622,7 +695,7 @@ namespace Opc.Ua.Server.Tests
         /// Publishes until an event with the given message arrives (the message is matched
         /// against the second event field) or the attempts are exhausted.
         /// </summary>
-        private async Task<EventFieldList> PublishEventAsync(string message)
+        private async Task<EventFieldList?> PublishEventAsync(string message)
         {
             var acknowledgements = new List<SubscriptionAcknowledgement>();
             for (int attempt = 0; attempt < 20; attempt++)
@@ -664,7 +737,7 @@ namespace Opc.Ua.Server.Tests
                 await Task.Delay(100).ConfigureAwait(false);
             }
 
-            return null!;
+            return null;
         }
     }
 }

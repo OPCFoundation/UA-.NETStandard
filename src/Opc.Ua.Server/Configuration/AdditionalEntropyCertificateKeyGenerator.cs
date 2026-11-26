@@ -1,31 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using System.Numerics;
@@ -366,13 +340,14 @@ namespace Opc.Ua.Server
         {
             var e = new BigInteger(65537);
             int halfBits = keySizeInBits / 2;
+            int rounds = GetMillerRabinRounds(keySizeInBits);
 
-            BigInteger p = GeneratePrime(halfBits, e, drbg, cancellationToken);
+            BigInteger p = GeneratePrime(halfBits, e, rounds, drbg, cancellationToken);
             BigInteger q;
             BigInteger minDistance = BigInteger.One << (halfBits - 100);
             do
             {
-                q = GeneratePrime(halfBits, e, drbg, cancellationToken);
+                q = GeneratePrime(halfBits, e, rounds, drbg, cancellationToken);
             }
             while (BigInteger.Abs(p - q) < minDistance);
 
@@ -404,9 +379,47 @@ namespace Opc.Ua.Server
             };
         }
 
+        /// <summary>
+        /// Returns the Miller-Rabin round count for the primes of an RSA modulus of the given size.
+        /// </summary>
+        /// <remarks>
+        /// FIPS 186-5 Appendix B.3 (Table B.1) requires 5 rounds with random bases for the primes of
+        /// a 2048-bit modulus and 4 rounds from 3072 bits upward, which keeps the probability of
+        /// accepting a composite below the modulus's security strength. Each round of a prime that
+        /// is accepted costs a full-size modular exponentiation, which is slow with the managed
+        /// <see cref="BigInteger"/> of .NET Framework, so the count is not raised beyond the standard.
+        /// The table's error bounds (Damgård–Landrock–Pomerance) assume what
+        /// <see cref="GeneratePrime"/> does: every candidate is a fresh, uniformly random odd number
+        /// of the prime's size (no incremental search from one start value), and every round
+        /// draws its own random base. Fixing the top two bits draws from half of the odd
+        /// numbers of that size, about the share FIPS 186-5 itself uses (from √2·2^(b-1) up),
+        /// so the error grows at most twofold, far inside the margin of the table. Trial
+        /// division by small primes only rejects composites before Miller-Rabin runs. A modulus
+        /// between table rows uses the row below it, which is conservative because the error
+        /// bound falls as the prime grows.
+        /// Moduli below 2048 bits have no FIPS 186-5 entry and keep a conservative fixed count.
+        /// </remarks>
+        /// <param name="modulusBits">The size of the RSA modulus in bits.</param>
+        /// <returns>The number of Miller-Rabin rounds for each prime.</returns>
+        internal static int GetMillerRabinRounds(int modulusBits)
+        {
+            if (modulusBits >= 3072)
+            {
+                return 4;
+            }
+
+            if (modulusBits >= 2048)
+            {
+                return 5;
+            }
+
+            return kSmallModulusMillerRabinRounds;
+        }
+
         private static BigInteger GeneratePrime(
             int bits,
             BigInteger e,
+            int rounds,
             HmacDrbg drbg,
             CancellationToken cancellationToken)
         {
@@ -423,7 +436,7 @@ namespace Opc.Ua.Server
                     continue;
                 }
 
-                if (IsProbablePrime(candidate, drbg, cancellationToken))
+                if (IsProbablePrime(candidate, rounds, drbg, cancellationToken))
                 {
                     return candidate;
                 }
@@ -432,6 +445,7 @@ namespace Opc.Ua.Server
 
         private static bool IsProbablePrime(
             BigInteger n,
+            int rounds,
             HmacDrbg drbg,
             CancellationToken cancellationToken)
         {
@@ -457,7 +471,7 @@ namespace Opc.Ua.Server
             }
 
             BigInteger nMinus1 = n - BigInteger.One;
-            for (int round = 0; round < kMillerRabinRounds; round++)
+            for (int round = 0; round < rounds; round++)
             {
                 cancellationToken.ThrowIfCancellationRequested();
 
@@ -537,17 +551,26 @@ namespace Opc.Ua.Server
 
         private static BigInteger ExtendedGcd(BigInteger a, BigInteger b, out BigInteger x, out BigInteger y)
         {
-            if (b == BigInteger.Zero)
+            // Iterative: the recursive form needs one frame per Euclid step,
+            // which for RSA-sized operands overflowed the test host stack.
+            BigInteger oldR = a;
+            BigInteger r = b;
+            BigInteger oldS = BigInteger.One;
+            BigInteger s = BigInteger.Zero;
+            BigInteger oldT = BigInteger.Zero;
+            BigInteger t = BigInteger.One;
+            while (r != BigInteger.Zero)
             {
-                x = BigInteger.One;
-                y = BigInteger.Zero;
-                return a;
+                BigInteger quotient = BigInteger.DivRem(oldR, r, out BigInteger remainder);
+                oldR = r;
+                r = remainder;
+                (oldS, s) = (s, oldS - (quotient * s));
+                (oldT, t) = (t, oldT - (quotient * t));
             }
 
-            BigInteger gcd = ExtendedGcd(b, a % b, out BigInteger x1, out BigInteger y1);
-            x = y1;
-            y = x1 - (a / b) * y1;
-            return gcd;
+            x = oldS;
+            y = oldT;
+            return oldR;
         }
 
         private static int BitLength(BigInteger value)
@@ -634,7 +657,7 @@ namespace Opc.Ua.Server
         }
 
         private const int kServerSeedBytes = 48;
-        private const int kMillerRabinRounds = 64;
+        private const int kSmallModulusMillerRabinRounds = 64;
 
         private static readonly byte[] s_personalization =
             System.Text.Encoding.ASCII.GetBytes("OPC UA PushManagement CreateSigningRequest key");

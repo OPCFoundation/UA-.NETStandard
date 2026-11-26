@@ -1,31 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using System.Collections.Generic;
@@ -68,7 +42,9 @@ namespace Opc.Ua.AMB.Client
                     ],
                     cancellationToken).ConfigureAwait(false);
                 unreconciled = response.Results;
-                ValidateResponse(response.ResponseHeader, response.Results.Count, 1, response.DiagnosticInfos.Count);
+                ValidateResponse(
+                    response.ResponseHeader, response.Results.Count, 1, response.DiagnosticInfos.Count,
+                    requireValid: true);
                 BrowseResult result = RequireBrowseResult(response.Results[0]);
                 owned = result.ContinuationPoint;
                 unreconciled = [];
@@ -89,14 +65,16 @@ namespace Opc.Ua.AMB.Client
                     {
                         break;
                     }
-                    if (page >= m_options!.MaximumBrowsePages)
+                    if (page >= (m_options?.MaximumBrowsePages ?? int.MaxValue))
                     {
                         throw LimitExceeded("The AMB browse page limit was exceeded.");
                     }
                     BrowseNextResponse next = await Session.BrowseNextAsync(
                         null, false, [owned], cancellationToken).ConfigureAwait(false);
                     unreconciled = next.Results;
-                    ValidateResponse(next.ResponseHeader, next.Results.Count, 1, next.DiagnosticInfos.Count);
+                    ValidateResponse(
+                        next.ResponseHeader, next.Results.Count, 1, next.DiagnosticInfos.Count,
+                        requireValid: true);
                     result = RequireBrowseResult(next.Results[0]);
                     // A successful next page consumes the old token, even when
                     // the server reuses its bytes for the new continuation.
@@ -158,7 +136,8 @@ namespace Opc.Ua.AMB.Client
                         response.ResponseHeader,
                         response.Results.Count,
                         response.Results.Count == 0 ? 0 : 1,
-                        response.DiagnosticInfos.Count);
+                        response.DiagnosticInfos.Count,
+                        requireValid: true);
                     if (response.Results.Count == 0)
                     {
                         continue;
@@ -216,9 +195,14 @@ namespace Opc.Ua.AMB.Client
             return false;
         }
 
-        private void ValidateResponse(ResponseHeader? header, int actual, int expected, int diagnostics = 0)
+        private void ValidateResponse(
+            ResponseHeader? header,
+            int actual,
+            int expected,
+            int diagnostics = 0,
+            bool requireValid = false)
         {
-            if (m_options is null)
+            if (m_options is null && !requireValid)
             {
                 return;
             }

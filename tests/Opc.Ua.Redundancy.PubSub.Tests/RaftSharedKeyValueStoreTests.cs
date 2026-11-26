@@ -1,33 +1,8 @@
-/* ========================================================================
- * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
+using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Channels;
 using System.Threading.Tasks;
@@ -45,24 +20,29 @@ namespace Opc.Ua.PubSub.Redundancy.Tests
     public sealed class RaftSharedKeyValueStoreTests
     {
         [Test]
-        public async Task PoisonCommittedCommandDoesNotStopLaterAppliesAsync()
+        public async Task UnsupportedCommittedCommandFencesTheStoreAsync()
         {
             await using var consensus = new LoopbackConsensus();
-            await using var store = new RaftSharedKeyValueStore(
-                consensus,
-                ownsConsensus: false,
-                commitTimeout: TimeSpan.FromSeconds(2));
+            await using var store = new RaftSharedKeyValueStore(consensus);
 
-            await store.SetAsync("before", ByteString.From(new byte[] { 1 })).ConfigureAwait(false);
-            byte[] poison = consensus.CloneLastCommittedCommand();
-            poison[0] = byte.MaxValue;
-            await consensus.InjectCommittedAsync(poison).ConfigureAwait(false);
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+            const string key = "before";
+            var before = ByteString.From(1);
+            await store.SetAsync(key, before, timeout.Token).ConfigureAwait(false);
+            Assert.That(store.IsLinearizable(key), Is.True);
 
-            await store.SetAsync("after", ByteString.From(new byte[] { 2 })).ConfigureAwait(false);
-            (bool found, ByteString value) = await store.TryGetAsync("after").ConfigureAwait(false);
+            await using IAsyncEnumerator<KeyValueChange> watch = store.WatchAsync(string.Empty, timeout.Token)
+                .GetAsyncEnumerator();
+            Task<bool> next = watch.MoveNextAsync().AsTask();
+            await consensus.ReplayUnsupportedVersionAsync(timeout.Token).ConfigureAwait(false);
 
-            Assert.That(found, Is.True);
-            Assert.That(value.ToArray(), Is.EqualTo(new byte[] { 2 }));
+            Assert.That(() => next, Throws.TypeOf<FormatException>());
+            Assert.That(store.IsLinearizable(key), Is.False);
+            Assert.That(async () => await store.CompareAndSwapAsync(key, before, ByteString.From(2), timeout.Token)
+                .ConfigureAwait(false), Throws.InvalidOperationException.With.InnerException.TypeOf<FormatException>());
+            Assert.That(async () => await store.TryGetAsync(key, timeout.Token).ConfigureAwait(false),
+                Throws.InvalidOperationException.With.InnerException.TypeOf<FormatException>());
+            Assert.That(consensus.Proposals, Is.EqualTo(1), "the fenced store does not submit more commands");
         }
 
         private sealed class LoopbackConsensus : IRaftConsensus
@@ -77,6 +57,8 @@ namespace Opc.Ua.PubSub.Redundancy.Tests
 
             public ChannelReader<ReadOnlyMemory<byte>> Committed => m_committed.Reader;
 
+            public int Proposals { get; private set; }
+
             public ValueTask StartAsync(CancellationToken ct = default)
             {
                 return default;
@@ -84,7 +66,8 @@ namespace Opc.Ua.PubSub.Redundancy.Tests
 
             public async ValueTask ProposeAsync(ReadOnlyMemory<byte> command, CancellationToken ct = default)
             {
-                m_lastCommittedCommand = command.ToArray();
+                Proposals++;
+                m_lastCommittedCommand = command;
                 await m_committed.Writer.WriteAsync(command, ct).ConfigureAwait(false);
             }
 
@@ -99,21 +82,17 @@ namespace Opc.Ua.PubSub.Redundancy.Tests
                 return default;
             }
 
-            public byte[] CloneLastCommittedCommand()
+            public ValueTask ReplayUnsupportedVersionAsync(CancellationToken ct)
             {
-                Assert.That(m_lastCommittedCommand, Is.Not.Null);
-                return (byte[])m_lastCommittedCommand.Clone();
-            }
-
-            public ValueTask InjectCommittedAsync(byte[] command)
-            {
-                return new ValueTask(m_committed.Writer.WriteAsync(command).AsTask());
+                byte[] entry = m_lastCommittedCommand.ToArray();
+                entry[0] = 0;
+                return m_committed.Writer.WriteAsync(entry, ct);
             }
 
             private readonly Channel<ReadOnlyMemory<byte>> m_committed =
                 Channel.CreateUnbounded<ReadOnlyMemory<byte>>();
 
-            private byte[] m_lastCommittedCommand = [];
+            private ReadOnlyMemory<byte> m_lastCommittedCommand;
         }
     }
 }

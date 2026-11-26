@@ -1,31 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using System.Collections.Generic;
@@ -86,6 +60,38 @@ namespace Opc.Ua.Server
             ServiceResultException serviceResultException,
             ILogger logger)
         {
+            ReportServiceFaultAuditEvent(
+                server, operationContext, $"Attribute/{methodName}", methodName, serviceResultException, logger);
+        }
+
+        /// <summary>
+        /// Reports the audit event of a Method service set request (Call) that failed
+        /// with a service fault. The SourceName is <c>Method/{methodName}</c>.
+        /// </summary>
+        /// <param name="server">The server which reports audit events.</param>
+        /// <param name="operationContext">Client operation info</param>
+        /// <param name="methodName">The name of the service</param>
+        /// <param name="serviceResultException">The service fault</param>
+        /// <param name="logger">A contextual logger to log to</param>
+        internal static void ReportMethodServiceAuditEvent(
+            this IAuditEventServer? server,
+            OperationContext operationContext,
+            string methodName,
+            ServiceResultException serviceResultException,
+            ILogger logger)
+        {
+            ReportServiceFaultAuditEvent(
+                server, operationContext, $"Method/{methodName}", methodName, serviceResultException, logger);
+        }
+
+        private static void ReportServiceFaultAuditEvent(
+            IAuditEventServer? server,
+            OperationContext operationContext,
+            string sourceName,
+            string methodName,
+            ServiceResultException serviceResultException,
+            ILogger logger)
+        {
             if (server?.Auditing != true)
             {
                 // current server does not support auditing
@@ -116,7 +122,7 @@ namespace Opc.Ua.Server
                 e.SetChildValue(
                     systemContext,
                     BrowseNames.SourceName,
-                    $"Attribute/{methodName}",
+                    sourceName,
                     false);
                 e.SetChildValue(
                     systemContext,
@@ -127,7 +133,7 @@ namespace Opc.Ua.Server
                 e.SetChildValue(
                     systemContext,
                     BrowseNames.ClientUserId,
-                    operationContext?.UserIdentity?.DisplayName!,
+                    operationContext?.ClientUserId!,
                     false);
                 e.SetChildValue(
                     systemContext,
@@ -160,6 +166,34 @@ namespace Opc.Ua.Server
             StatusCode statusCode,
             ILogger logger)
         {
+            server.ReportAuditWriteUpdateEvent(
+                systemContext,
+                writeValue,
+                oldValue,
+                statusCode,
+                DateTime.UtcNow,
+                logger);
+        }
+
+        /// <summary>
+        /// Reports an AuditWriteUpdate event with the time at which the write was performed.
+        /// </summary>
+        /// <param name="server">The server which reports audit events.</param>
+        /// <param name="systemContext">The current system context.</param>
+        /// <param name="writeValue">The value to write.</param>
+        /// <param name="oldValue">The old value of the node.</param>
+        /// <param name="statusCode">The resulted status code.</param>
+        /// <param name="actionTimeStamp">The UTC time at which the write was performed.</param>
+        /// <param name="logger">A contextual logger to log to</param>
+        public static void ReportAuditWriteUpdateEvent(
+            this IAuditEventServer? server,
+            ISystemContext systemContext,
+            WriteValue writeValue,
+            Variant oldValue,
+            StatusCode statusCode,
+            DateTime actionTimeStamp,
+            ILogger logger)
+        {
             if (server?.Auditing != true)
             {
                 // current server does not support auditing
@@ -187,7 +221,7 @@ namespace Opc.Ua.Server
                     EventSeverity.Min,
                     new LocalizedText(message),
                     StatusCode.IsGood(statusCode),
-                    DateTime.UtcNow
+                    actionTimeStamp
                 ); // initializes Status, ActionTimeStamp, ServerId, ClientAuditEntryId, ClientUserId
 
                 e.SetChildValue(systemContext, BrowseNames.SourceNode, writeValue.NodeId, false);
@@ -201,7 +235,7 @@ namespace Opc.Ua.Server
                 e.SetChildValue(
                     systemContext,
                     BrowseNames.ClientUserId,
-                    session.UserIdentity.DisplayName,
+                    session.UserId!,
                     false);
                 e.SetChildValue(
                     systemContext,
@@ -756,6 +790,67 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
+        /// Reports the AuditHistoryUpdate event matching <paramref name="details"/> for a
+        /// HistoryUpdate operation the server rejected before it reached a node manager
+        /// (for example Bad_UserAccessDenied). Part 4 §6.5.8 requires failed invocations
+        /// to be audited too; no values were changed, so the old values are empty.
+        /// </summary>
+        /// <param name="server">The server which reports audit events.</param>
+        /// <param name="systemContext">The context of the rejected request.</param>
+        /// <param name="details">The update details of the rejected operation.</param>
+        /// <param name="statusCode">The status the operation was rejected with.</param>
+        /// <param name="logger">A contextual logger to log to</param>
+        /// <param name="isAnnotationUpdate">
+        /// <c>true</c> when an <see cref="UpdateStructureDataDetails"/> targets the Annotations
+        /// property (Part 11 §5.2.7), which is audited as an annotation update.
+        /// </param>
+        public static void ReportAuditHistoryUpdateRejectedEvent(
+            this IAuditEventServer? server,
+            ISystemContext systemContext,
+            HistoryUpdateDetails details,
+            StatusCode statusCode,
+            ILogger logger,
+            bool isAnnotationUpdate = false)
+        {
+            if (server?.Auditing != true)
+            {
+                return;
+            }
+
+            switch (details)
+            {
+                case UpdateDataDetails updateData:
+                    server.ReportAuditHistoryValueUpdateEvent(
+                        systemContext, updateData, [], statusCode, logger);
+                    break;
+                case UpdateStructureDataDetails updateAnnotation when isAnnotationUpdate:
+                    server.ReportAuditHistoryAnnotationUpdateEvent(
+                        systemContext, updateAnnotation, default(ArrayOf<Annotation>), statusCode, logger);
+                    break;
+                case UpdateStructureDataDetails updateStructure:
+                    server.ReportAuditHistoryValueUpdateEvent(
+                        systemContext, updateStructure, default(ArrayOf<DataValue>), statusCode, logger);
+                    break;
+                case UpdateEventDetails updateEvent:
+                    server.ReportAuditHistoryEventUpdateEvent(
+                        systemContext, updateEvent, default, statusCode, logger);
+                    break;
+                case DeleteRawModifiedDetails deleteRaw:
+                    server.ReportAuditHistoryRawModifyDeleteEvent(
+                        systemContext, deleteRaw, default, statusCode, logger);
+                    break;
+                case DeleteAtTimeDetails deleteAtTime:
+                    server.ReportAuditHistoryAtTimeDeleteEvent(
+                        systemContext, deleteAtTime, [], statusCode, logger);
+                    break;
+                case DeleteEventDetails deleteEvent:
+                    server.ReportAuditHistoryEventDeleteEvent(
+                        systemContext, deleteEvent, oldValue: null, statusCode, logger);
+                    break;
+            }
+        }
+
+        /// <summary>
         /// Reports all audit events for client certificate ServiceResultException.
         /// It goes recursively for all service results stored in the exception
         /// </summary>
@@ -1015,7 +1110,7 @@ namespace Opc.Ua.Server
                 server,
                 context.SessionId,
                 context.AuditEntryId,
-                context.Session?.Identity?.DisplayName ?? context.UserIdentity?.DisplayName,
+                context.ClientUserId,
                 requestHandle,
                 statusCode,
                 logger);
@@ -1386,6 +1481,16 @@ namespace Opc.Ua.Server
                     session!,
                     auditEntryId);
 
+                // a failed activation names the user of the rejected token, not the
+                // user that activated the Session before (OPC 10000-5 6.4.3).
+                if (exception != null)
+                {
+                    e.SetChildValue(
+                        systemContext,
+                        BrowseNames.ClientUserId,
+                        ClientUserIdResolver.ResolveRequested(userIdentityToken)!,
+                        false);
+                }
                 e.SetChildValue(
                     systemContext,
                     BrowseNames.SourceName,
@@ -2374,7 +2479,7 @@ namespace Opc.Ua.Server
                 e.SetChildValue(
                     systemContext,
                     BrowseNames.ClientUserId,
-                    (systemContext as ISessionSystemContext)?.UserIdentity?.DisplayName!,
+                    systemContext.UserId!,
                     false);
                 e.SetChildValue(
                     systemContext,
@@ -2628,7 +2733,7 @@ namespace Opc.Ua.Server
             e.SetChildValue(
                 systemContext,
                 BrowseNames.ClientUserId,
-                (systemContext as ISessionSystemContext)?.UserIdentity?.DisplayName!,
+                systemContext.UserId!,
                 false);
             e.SetChildValue(
                 systemContext,
@@ -2671,7 +2776,7 @@ namespace Opc.Ua.Server
                 e.SetChildValue(
                     systemContext,
                     BrowseNames.ClientUserId,
-                    session.Identity?.DisplayName!,
+                    ClientUserIdResolver.ResolveSession(session)!,
                     false);
                 // set AuditCreateSessionEventType & AuditActivateSessionsEventType properties
                 e.SetChildValue(

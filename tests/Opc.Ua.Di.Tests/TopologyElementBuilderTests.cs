@@ -1,31 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System.Collections.Generic;
 using System.Threading.Tasks;
@@ -64,6 +38,7 @@ namespace Opc.Ua.Di.Tests
             m_manager = new PumpNodeManager(m_server.CurrentInstance, m_fixture.Config);
             var externalReferences = new Dictionary<NodeId, IList<IReference>>();
             await m_manager.CreateAddressSpaceAsync(externalReferences).ConfigureAwait(false);
+            await m_manager.OnServerReadyAsync().ConfigureAwait(false);
         }
 
         [OneTimeTearDown]
@@ -148,13 +123,13 @@ namespace Opc.Ua.Di.Tests
                 measurement,
                 Opc.Ua.BrowseNames.EURange).NodeId;
 
-            object handle = await m_manager.GetManagerHandleAsync(measurementId)
+            object? handle = await m_manager.GetManagerHandleAsync(measurementId)
                 .ConfigureAwait(false);
             Assert.That(handle, Is.Not.Null);
 
             using var continuationPoint = new ContinuationPoint
             {
-                NodeToBrowse = handle,
+                NodeToBrowse = handle!,
                 Manager = m_manager,
                 View = new ViewDescription(),
                 BrowseDirection = BrowseDirection.Forward,
@@ -163,13 +138,14 @@ namespace Opc.Ua.Di.Tests
                 ResultMask = BrowseResultMask.All
             };
             var references = new List<ReferenceDescription>();
+            using var context = new OperationContext(
+                new RequestHeader(),
+                null,
+                RequestType.Browse,
+                RequestLifetime.None);
 
             ContinuationPoint? result = await m_manager.BrowseAsync(
-                new OperationContext(
-                    new RequestHeader(),
-                    null,
-                    RequestType.Browse,
-                    RequestLifetime.None),
+                context,
                 continuationPoint,
                 references).ConfigureAwait(false);
 
@@ -322,13 +298,14 @@ namespace Opc.Ua.Di.Tests
             ];
             var values = new List<DataValue> { default, default, default, default };
             var errors = new List<ServiceResult> { null!, null!, null!, null! };
+            using var context = new OperationContext(
+                new RequestHeader(),
+                null,
+                RequestType.Read,
+                RequestLifetime.None);
 
             await m_manager.ReadAsync(
-                new OperationContext(
-                    new RequestHeader(),
-                    null,
-                    RequestType.Read,
-                    RequestLifetime.None),
+                context,
                 0,
                 nodesToRead,
                 values,

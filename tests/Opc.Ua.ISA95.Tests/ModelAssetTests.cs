@@ -1,31 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using System.Collections.Generic;
@@ -35,6 +9,7 @@ using System.Linq;
 using System.Reflection;
 using System.Xml.Linq;
 using NUnit.Framework;
+using Opc.Ua.ISA95.JobControl;
 
 namespace Opc.Ua.ISA95.Tests
 {
@@ -190,6 +165,68 @@ namespace Opc.Ua.ISA95.Tests
                     HasReference(transition, "HasCause", $"ns=1;i={methodId}"),
                     Is.True,
                     $"Transition i={transitionId} must have cause i={methodId}.");
+            }
+
+        }
+
+        [Test]
+        public void GeneratedV2TransitionTableMatchesTheScopedNodeSet()
+        {
+            XDocument document = LoadXml("Opc.Ua.ISA95.JobControl.V2.NodeSet2.xml");
+            XElement root = document.Root!;
+            XNamespace ns = root.Name.Namespace;
+            Dictionary<string, XElement> nodes = root.Elements()
+                .Where(e => e.Attribute("NodeId") != null)
+                .ToDictionary(e => e.Attribute("NodeId")!.Value, StringComparer.Ordinal);
+            (Isa95V2Machine Machine, string Name)[] machines =
+            [
+                (Isa95V2Machine.Receiver, "ISA95JobOrderReceiverSubStatesType"),
+                (Isa95V2Machine.Prepare, "ISA95PrepareStateMachineType"),
+                (Isa95V2Machine.Interrupted, "ISA95InterruptedStateMachineType"),
+                (Isa95V2Machine.Ended, "ISA95EndedStateMachineType")
+            ];
+            var expected = new List<Isa95V2Transition>();
+            var propertiesByParent = nodes.Values.Where(e => e.Name == ns + "UAVariable")
+                .ToLookup(e => (string?)e.Attribute("ParentNodeId"), StringComparer.Ordinal);
+            foreach ((Isa95V2Machine machine, string name) in machines)
+            {
+                string owner = nodes.Single(p => (string?)p.Value.Attribute("BrowseName") == $"1:{name}").Key;
+                foreach (XElement candidate in nodes.Values.Where(e =>
+                    (string?)e.Attribute("ParentNodeId") == owner && e.Name == ns + "UAObject"))
+                {
+                    string? from = FindForward(candidate, "FromState");
+                    if (from == null)
+                    {
+                        continue;
+                    }
+                    string to = FindForward(candidate, "ToState")!;
+                    string? cause = FindForward(candidate, "HasCause");
+                    string? method = cause == null ? null : nodes[cause].Attribute("BrowseName")!.Value.Split(':')[^1];
+                    expected.Add(new Isa95V2Transition(
+                        machine,
+                        ReadNumber(from, "StateNumber"),
+                        ReadNumber(to, "StateNumber"),
+                        ReadNumber(candidate.Attribute("NodeId")!.Value, "TransitionNumber"),
+                        method,
+                        FindForward(candidate, "HasEffect") == "ns=1;i=1006"));
+                }
+            }
+            Assert.That(Isa95V2TransitionTable.Entries.ToArray(), Is.EqualTo(
+                expected.OrderBy(e => e.Machine).ThenBy(e => e.From).ThenBy(e => e.To).ToArray()));
+
+            uint ReadNumber(string parent, string property)
+            {
+                return uint.Parse(propertiesByParent[parent]
+                    .Single(e => (string?)e.Attribute("BrowseName") == property)
+                    .Element(ns + "Value")!.Value, CultureInfo.InvariantCulture);
+            }
+
+            string? FindForward(XElement node, string type)
+            {
+                return node.Element(ns + "References")!
+                    .Elements(ns + "Reference")
+                    .SingleOrDefault(e => (string?)e.Attribute("ReferenceType") == type &&
+                        (string?)e.Attribute("IsForward") != "false")?.Value;
             }
         }
 

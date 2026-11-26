@@ -1,35 +1,10 @@
-/* ========================================================================
- * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using System.Collections.Generic;
 using System.Security.Cryptography;
+using System.Threading;
 using Net.Pkcs11Interop.Common;
 using Net.Pkcs11Interop.HighLevelAPI;
 using Net.Pkcs11Interop.HighLevelAPI.MechanismParams;
@@ -111,26 +86,17 @@ namespace Opc.Ua.Security.Pkcs11
 
             m_factories = new Pkcs11InteropFactories();
 
-            m_library = loader.Load(m_factories, options.ModulePath!);
+            m_module = Pkcs11Module.Acquire(loader, m_factories, options.ModulePath!);
 
             try
             {
                 ISlot slot = FindSlot(options);
-
-                m_session = slot.OpenSession(SessionType.ReadWrite);
-
-                string? pin = options.GetPin();
-
-                if (!string.IsNullOrEmpty(pin))
-                {
-                    m_session.Login(CKU.CKU_USER, pin);
-                    m_loggedIn = true;
-                }
+                m_slotId = slot.SlotId;
+                m_session = m_module.OpenSession(slot, m_slotId, options.GetPin());
             }
             catch
             {
-                m_session?.Dispose();
-                m_library.Dispose();
+                m_module.Release();
                 throw;
             }
         }
@@ -562,7 +528,7 @@ namespace Opc.Ua.Security.Pkcs11
         /// Takes an additional reference so a key handed out by this token
         /// outlives the store that opened it.
         /// </summary>
-        /// <returns>This token.</returns>
+        /// <returns>An independently disposable reference.</returns>
         /// <remarks>
         /// A caller may dispose the store as soon as it has the certificate -
         /// <c>CertificateIdentifierResolver</c> does exactly that - while the
@@ -570,43 +536,43 @@ namespace Opc.Ua.Security.Pkcs11
         /// certificate still has to sign with it. The session therefore closes
         /// when the last of them is released, not when the first holder lets go.
         /// </remarks>
-        public Pkcs11Token AddRef()
+        public IDisposable AddRef()
         {
             lock (m_lock)
             {
                 ThrowIfDisposed();
+                var reference = new SessionReference(ReleaseReference);
                 m_references++;
-                return this;
+                return reference;
             }
         }
 
         /// <inheritdoc/>
         public void Dispose()
         {
+            if (Interlocked.Exchange(ref m_ownerReleased, 1) == 0)
+            {
+                ReleaseReference();
+            }
+        }
+
+        private void ReleaseReference()
+        {
             lock (m_lock)
             {
-                if (m_disposed || --m_references > 0)
+                if (--m_references > 0)
                 {
                     return;
                 }
 
-                m_disposed = true;
-
                 try
                 {
-                    if (m_loggedIn)
-                    {
-                        m_session.Logout();
-                    }
+                    m_module.ReleaseSession(m_slotId, m_session);
                 }
-                catch (Pkcs11Exception)
+                finally
                 {
-                    // The session may already be gone, for example because the
-                    // token was removed. Nothing useful can be done about it.
+                    m_module.Release();
                 }
-
-                m_session.Dispose();
-                m_library.Dispose();
             }
         }
 
@@ -629,7 +595,7 @@ namespace Opc.Ua.Security.Pkcs11
 
         private ISlot FindSlot(Pkcs11TokenOptions options)
         {
-            List<ISlot> slots = m_library.GetSlotList(SlotsType.WithTokenPresent);
+            List<ISlot> slots = m_module.Library.GetSlotList(SlotsType.WithTokenPresent);
 
             foreach (ISlot slot in slots)
             {
@@ -669,7 +635,7 @@ namespace Opc.Ua.Security.Pkcs11
 
         private void ThrowIfDisposed()
         {
-            if (m_disposed)
+            if (m_references == 0)
             {
                 throw new ObjectDisposedException(nameof(Pkcs11Token));
             }
@@ -734,12 +700,22 @@ namespace Opc.Ua.Security.Pkcs11
             return value.AsSpan(start);
         }
 
-        private readonly System.Threading.Lock m_lock = new();
+        private readonly Lock m_lock = new();
         private readonly Pkcs11InteropFactories m_factories;
-        private readonly IPkcs11Library m_library;
-        private readonly ISession m_session = null!;
-        private readonly bool m_loggedIn;
+        private readonly Pkcs11Module m_module;
+        private readonly ISession m_session;
+        private readonly ulong m_slotId;
         private int m_references = 1;
-        private bool m_disposed;
+        private int m_ownerReleased;
+
+        private sealed class SessionReference(Action release) : IDisposable
+        {
+            public void Dispose()
+            {
+                Interlocked.Exchange(ref m_release, null)?.Invoke();
+            }
+
+            private Action? m_release = release;
+        }
     }
 }

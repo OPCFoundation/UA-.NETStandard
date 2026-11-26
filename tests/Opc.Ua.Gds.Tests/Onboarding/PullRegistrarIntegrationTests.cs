@@ -1,43 +1,26 @@
-/* ========================================================================
- * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person obtaining a
- * copy of this software and associated documentation files (the "Software"),
- * to deal in the Software without restriction, including without limitation
- * the rights to use, copy, modify, merge, publish, distribute, sublicense,
- * and/or sell copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following conditions:
- *
- * The above copyright notice and this permission notice shall be included
- * in all copies or substantial portions of the Software.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
- * OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL
- * THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR
- * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
- * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Runtime.ExceptionServices;
+using System.Runtime.InteropServices;
 using System.Text;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Moq;
 using NUnit.Framework;
 using OnboardingClientSample;
 using OnboardingRegistrar;
+using Opc.Ua.Bindings;
 using Opc.Ua.Client;
 using Opc.Ua.Client.TestFramework;
 using Opc.Ua.Gds.Client;
@@ -69,7 +52,7 @@ namespace Opc.Ua.Gds.Tests.Onboarding
     [Category("GdsHosting")]
     [FixtureLifeCycle(LifeCycle.InstancePerTestCase)]
     [NonParallelizable]
-    public sealed class PullRegistrarIntegrationTests : IAsyncDisposable
+    public sealed partial class PullRegistrarIntegrationTests : IAsyncDisposable
     {
         /// <summary>
         /// Starts the existing GDS host and client fixtures on an allocated port with isolated directory stores.
@@ -119,6 +102,8 @@ namespace Opc.Ua.Gds.Tests.Onboarding
             var services = new ServiceCollection();
             services.AddLogging();
             services.AddSingleton(m_telemetry);
+            services.AddSingleton<ICertificateManager>(provider =>
+                new CertificateManager(provider.GetRequiredService<ITelemetryContext>()));
             services.AddSingleton<IDeviceRegistrarLifecycle>(m_lifecycle);
             services.AddSingleton<IDeviceRegistrarIdentityLifecycle>(m_lifecycle);
             services.AddSingleton<IDeviceRegistrarCertificateLifecycle>(m_lifecycle);
@@ -152,6 +137,7 @@ namespace Opc.Ua.Gds.Tests.Onboarding
                     options.IncludeSignAndEncryptPolicies = true;
                     options.IncludeUnsecurePolicyNone = false;
                     options.AutoApprove = true;
+                    options.ConfigureBuilder = server => server.SetAuditingEnabled(true);
                     options.EndpointUrls.Add(m_endpoint.AbsoluteUri);
                 })
                 .AddStartupTask((_, _, cancellationToken) =>
@@ -169,6 +155,14 @@ namespace Opc.Ua.Gds.Tests.Onboarding
                     options.EnableJwt = false;
                     options.EnableGdsApplicationSelfAdminProvider = false;
                 })
+                .ConfigureRoles(new ConfigurationBuilder().AddInMemoryCollection(
+                    new Dictionary<string, string?>
+                    {
+                        ["OpcUa:Roles:Roles:0:Name"] = "SecurityAdmin",
+                        ["OpcUa:Roles:Roles:0:Identities:0:CriteriaType"] = "UserName",
+                        ["OpcUa:Roles:Roles:0:Identities:0:Criteria"] = "software-admin"
+                    }).Build())
+                .AddIdentityAugmenter(_ => new OnboardingRegistrarAdminAugmenter("ticket-admin"))
                 .AddOnboardingTickets(trustedTickets, Path.Combine(m_root, "ticket-issuers"))
                 .AddOnboardingIdentities(
                     Path.Combine(m_root, "identity-trusted"), Path.Combine(m_root, "identity-issuers"))
@@ -569,6 +563,323 @@ namespace Opc.Ua.Gds.Tests.Onboarding
                 await DirectoryClient(m_session).StartSigningRequestAsync(
                     applicationId, profile.CertificateGroupId, profile.CertificateTypeId, csr)
                     .ConfigureAwait(false)).ConfigureAwait(false);
+        }
+
+        [TestCase(false)]
+        [TestCase(true)]
+        [CancelAfter(120_000)]
+        public async Task KeyPairFinishRequiresOriginalClientCertificateAcrossReauthentication(
+            bool rotate,
+            CancellationToken ct)
+        {
+            await using var channelManager = new ClientChannelManager(m_device.Config, m_telemetry);
+            await using ManagedSession session = await new ManagedSessionBuilder(m_device.Config, m_telemetry)
+                .UseEndpoint(m_endpoint.AbsoluteUri)
+                .WithChannelManager(channelManager)
+                .ConnectAsync(ct).ConfigureAwait(false);
+            session.Factory.Builder.AddOpcUaGds().AddOpcUaOnboarding().Commit();
+            session.MessageContext.Factory.Builder.AddOpcUaGds().AddOpcUaOnboarding().Commit();
+            Assert.That(session.TransportChannel.ClientChannelCertificate, Is.EqualTo(m_identity.ToArray()));
+
+            string ticket = await WriteTicketAsync(m_signer, m_product, m_identity).ConfigureAwait(false);
+            var (_, _, applicationId, _) = await Registrar(session).ProvideIdentitiesAsync(
+                [m_identity], [], [ticket], ct).ConfigureAwait(false);
+            await m_otherSession.CloseAsync(ct).ConfigureAwait(false);
+            m_otherSession.Dispose();
+            m_otherSession = await ConnectAsync(
+                m_other, new UserIdentity("software-admin", Encoding.UTF8.GetBytes(m_password)))
+                .ConfigureAwait(false);
+            await Registrar(m_otherSession).UpdateSoftwareStatusAsync(m_product, true, "approved-keypair", ct)
+                .ConfigureAwait(false);
+
+            var profile = new PullDcaCertificateProfile(
+                ExpandedNodeId.ToNodeId(ObjectIds.Directory_CertificateGroups_DefaultApplicationGroup,
+                    session.NamespaceUris),
+                CoreObjectTypeIds.RsaSha256ApplicationCertificateType);
+            var registrar = new PullDcaRegistrar(
+                m_endpoint,
+                ExpandedNodeId.ToNodeId(OnboardingObjectIds.DeviceRegistrar, session.NamespaceUris),
+                ExpandedNodeId.ToNodeId(ObjectIds.Directory, session.NamespaceUris));
+            var adapter = new PullDcaConnection(session, registrar, m_telemetry, 1024 * 1024);
+            NodeId requestId = await adapter.StartNewKeyPairAsync(applicationId, profile, ct).ConfigureAwait(false);
+            Assert.That(requestId.IsNull, Is.False);
+
+            if (rotate)
+            {
+                NodeId previousSession = session.SessionId;
+                using CertificateEntry replacement = m_other.Config.CertificateManager!
+                    .AcquireApplicationCertificateByType(CoreObjectTypeIds.RsaSha256ApplicationCertificateType)!;
+                await m_device.Config.CertificateManager!.UpdateApplicationCertificateAsync(
+                    CoreObjectTypeIds.RsaSha256ApplicationCertificateType, replacement.Certificate, ct: ct)
+                    .ConfigureAwait(false);
+                while (session.SessionId == previousSession ||
+                    !session.TransportChannel.ClientChannelCertificate.AsSpan().SequenceEqual(m_otherIdentity.Span))
+                {
+                    await Task.Delay(TimeSpan.FromMilliseconds(100), ct).ConfigureAwait(false);
+                }
+                Assert.That(session.TransportChannel.ClientChannelCertificate, Is.EqualTo(m_otherIdentity.ToArray()));
+                Assert.That(m_otherIdentity, Is.Not.EqualTo(m_identity));
+            }
+            else
+            {
+                await session.ReconnectAsync(null, null, ct).ConfigureAwait(false);
+                Assert.Multiple(() =>
+                {
+                    Assert.That(session.TransportChannel.ClientChannelCertificate, Is.EqualTo(m_identity.ToArray()));
+                });
+            }
+
+            string sourceName = m_telemetry.GetActivitySource(typeof(UaSCUaBinaryClientChannel).Assembly).Name;
+            ActivityTraceId traceId = ActivityTraceId.CreateRandom();
+            int sendEntries = 0;
+            using var listener = new ActivityListener
+            {
+                ShouldListenTo = source => source.Name == sourceName,
+                Sample = (ref ActivityCreationOptions<ActivityContext> _) => ActivitySamplingResult.AllDataAndRecorded,
+                ActivityStarted = activity =>
+                {
+                    if (activity.TraceId == traceId && activity.OperationName == "SendRequestAsync")
+                    {
+                        Interlocked.Increment(ref sendEntries);
+                    }
+                }
+            };
+            ActivitySource.AddActivityListener(listener);
+            using var parent = new Activity("keypair-finish");
+            parent.SetParentId(traceId, ActivitySpanId.CreateRandom(), ActivityTraceFlags.Recorded);
+            parent.Start();
+            if (rotate)
+            {
+                ByteString unexpectedKey = default;
+                try
+                {
+                    ServiceResultException? error = await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                    {
+                        (_, unexpectedKey, _) = await adapter.FinishNewKeyPairAsync(applicationId, requestId, ct)
+                            .ConfigureAwait(false);
+                    });
+                    Assert.Multiple(() =>
+                    {
+                        Assert.That(error!.StatusCode, Is.EqualTo(StatusCodes.BadSecurityChecksFailed));
+                        Assert.That(Volatile.Read(ref sendEntries), Is.Zero);
+                    });
+                }
+                finally
+                {
+                    ClearReturnedPrivateKey(unexpectedKey);
+                    TestContext.Out.WriteLine(
+                        $"Rotation plus recreation Finish native send entries: {Volatile.Read(ref sendEntries)}");
+                }
+            }
+            else
+            {
+                var (certificate, privateKey, _) = await adapter.FinishNewKeyPairAsync(
+                    applicationId, requestId, ct).ConfigureAwait(false);
+                try
+                {
+                    Assert.That(certificate.IsEmpty, Is.False);
+                    Assert.That(privateKey.IsEmpty, Is.False);
+                    Assert.That(Volatile.Read(ref sendEntries), Is.GreaterThan(0));
+                }
+                finally
+                {
+                    ClearReturnedPrivateKey(privateKey);
+                }
+            }
+        }
+
+        [Test]
+        [CancelAfter(120_000)]
+        public async Task KeyPairRecoveryInstallsRetainedCredentialsOnARecreatedSession(CancellationToken ct)
+        {
+            string ticket = await WriteTicketAsync(m_signer, m_product, m_identity).ConfigureAwait(false);
+            await m_otherSession.CloseAsync(ct).ConfigureAwait(false);
+            m_otherSession.Dispose();
+            m_otherSession = await ConnectAsync(
+                m_other, new UserIdentity("software-admin", Encoding.UTF8.GetBytes(m_password)))
+                .ConfigureAwait(false);
+            var software = new Mock<IPullDcaSoftwareUpdateProvider>(MockBehavior.Strict);
+            software.Setup(provider => provider.CompleteAsync(
+                    It.IsAny<PullDcaRegistrar>(), It.IsAny<PullDcaIdentitySelection>(),
+                    It.IsAny<ManagerDescription>(), It.IsAny<CancellationToken>()))
+                .Returns((
+                    PullDcaRegistrar _, PullDcaIdentitySelection _, ManagerDescription _, CancellationToken token) =>
+                    Registrar(m_otherSession).UpdateSoftwareStatusAsync(
+                        m_product, true, "approved-keypair-recovery", token));
+
+            var registrar = new PullDcaRegistrar(
+                m_endpoint,
+                ExpandedNodeId.ToNodeId(OnboardingObjectIds.DeviceRegistrar, m_session.NamespaceUris),
+                ExpandedNodeId.ToNodeId(ObjectIds.Directory, m_session.NamespaceUris));
+            var profile = new PullDcaCertificateProfile(
+                ExpandedNodeId.ToNodeId(ObjectIds.Directory_CertificateGroups_DefaultApplicationGroup,
+                    m_session.NamespaceUris),
+                CoreObjectTypeIds.RsaSha256ApplicationCertificateType);
+            var request = new PullDcaRequest(new PullDcaIdentityOffer([m_identity], [], [ticket]), profile, [])
+            {
+                DcaCertificateRequestMode = PullDcaCertificateRequestMode.NewKeyPairRequest
+            };
+            const string slot = "connected-keypair-recovery";
+            using var store = new TestRecoverySecret();
+            var backend = new Mock<IProtectedPullDcaRecoveryStore>(MockBehavior.Strict);
+            backend.SetupGet(value => value.StoreType).Returns("Test");
+            backend.Setup(value => value.GetAsync(It.IsAny<SecretIdentifier>(), It.IsAny<CancellationToken>()))
+                .Returns(() => new ValueTask<ISecret?>(store.IsEmpty ? null : new TestRecoverySecret(store.Bytes)));
+            backend.Setup(value => value.SetAsync(
+                    It.IsAny<SecretIdentifier>(), It.IsAny<ReadOnlyMemory<byte>>(), It.IsAny<CancellationToken>()))
+                .Callback((SecretIdentifier _, ReadOnlyMemory<byte> data, CancellationToken _) =>
+                    store.Replace(data.Span))
+                .Returns(default(ValueTask));
+            backend.Setup(value => value.RemoveAsync(It.IsAny<SecretIdentifier>(), It.IsAny<CancellationToken>()))
+                .Returns(() =>
+                {
+                    bool found = !store.IsEmpty;
+                    store.Dispose();
+                    return new ValueTask<bool>(found);
+                });
+
+            var interrupted = new Mock<IPullDcaNewKeyPairCredentialProvider>(MockBehavior.Strict);
+            var interruption = new InvalidOperationException("Installation interrupted before storing credentials.");
+            interrupted.Setup(provider => provider.InstallNewKeyPairAsync(
+                    It.IsAny<NodeId>(), It.IsAny<PullDcaCertificateProfile>(), It.IsAny<PullDcaCredentials>(),
+                    It.IsAny<ByteString>(), It.IsAny<CancellationToken>()))
+                .Throws(interruption);
+            var progress = new Mock<IProgress<PullDcaProgress>>();
+            var stages = new List<PullDcaStage>();
+            NodeId applicationId = NodeId.Null;
+            NodeId requestId = NodeId.Null;
+            progress.Setup(value => value.Report(It.IsAny<PullDcaProgress>()))
+                .Callback((PullDcaProgress report) =>
+                {
+                    stages.Add(report.Stage);
+                    if (report.Stage == PullDcaStage.FinishingCertificate)
+                    {
+                        applicationId = report.ApplicationId;
+                        requestId = report.RequestId;
+                    }
+                });
+
+            PullDcaNewKeyPairRecoveryScope scope;
+            ByteString retainedCertificate;
+            NodeId priorSessionId;
+            await using (var channels = new ClientChannelManager(m_device.Config, m_telemetry))
+            await using (ManagedSession first = await ConnectRecoverySessionAsync(channels).ConfigureAwait(false))
+            using (var recovery = new SecretStorePullDcaNewKeyPairRecoveryProvider(
+                backend.Object, slot, m_telemetry))
+            {
+                PullDcaWorkflow workflow = CreateWorkflow(first, interrupted.Object, recovery);
+                Assert.That(await Assert.ThrowsAsync<InvalidOperationException>(async () =>
+                    await workflow.RunAsync(registrar, request, progress.Object, ct).ConfigureAwait(false)),
+                    Is.SameAs(interruption));
+                Assert.That(applicationId.IsNull, Is.False);
+                Assert.That(requestId.IsNull, Is.False);
+                Assert.That(stages.Count(stage => stage == PullDcaStage.RequestingCertificate), Is.EqualTo(1));
+                Assert.That(stages[^1], Is.EqualTo(PullDcaStage.InstallingCredentials));
+
+                var connection = new PullDcaConnection(first, registrar, m_telemetry, 1024 * 1024);
+                scope = await connection.CaptureNewKeyPairRecoveryScopeAsync(applicationId, profile, ct)
+                    .ConfigureAwait(false);
+                PullDcaNewKeyPairRecoveryAttempt pending = await recovery.GetPendingAsync(scope, ct)
+                    .ConfigureAwait(false) ?? throw new AssertionException("The received checkpoint was not saved.");
+                try
+                {
+                    Assert.That(pending.Binding.RequestId, Is.EqualTo(requestId));
+                    Assert.That(pending.State, Is.EqualTo(PullDcaNewKeyPairRecoveryState.Received));
+                    Assert.That(pending.PrivateKeyPfx.IsEmpty, Is.False);
+                    retainedCertificate = pending.Certificate;
+                    Assert.That(retainedCertificate.IsEmpty, Is.False);
+                    Assert.That(GetIdentity(m_device), Is.EqualTo(m_identity));
+                }
+                finally
+                {
+                    ClearReturnedPrivateKey(pending.PrivateKeyPfx);
+                }
+                priorSessionId = first.SessionId;
+            }
+
+            stages.Clear();
+            await using var resumedChannels = new ClientChannelManager(m_device.Config, m_telemetry);
+            await using ManagedSession resumed = await ConnectRecoverySessionAsync(resumedChannels)
+                .ConfigureAwait(false);
+            Assert.That(resumed.SessionId, Is.Not.EqualTo(priorSessionId));
+            Assert.That(resumed.TransportChannel.ClientChannelCertificate.AsSpan().SequenceEqual(m_identity.Span),
+                Is.True);
+            using var resumedRecovery = new SecretStorePullDcaNewKeyPairRecoveryProvider(
+                backend.Object, slot, m_telemetry);
+            var installer = new OnboardingDeviceCredentials(m_device.Config, m_telemetry);
+            PullDcaResult result = await CreateWorkflow(resumed, installer, resumedRecovery)
+                .RunAsync(registrar, request, progress.Object, ct).ConfigureAwait(false);
+            Assert.That(stages, Does.Not.Contain(PullDcaStage.RequestingCertificate));
+            Assert.That(stages, Does.Not.Contain(PullDcaStage.FinishingCertificate));
+            Assert.That(stages[^1], Is.EqualTo(PullDcaStage.Completed));
+            Assert.That(result.DcaCredentials.Certificate, Is.EqualTo(retainedCertificate));
+            Assert.That(result.DcaCredentials.TrustList.SpecifiedLists, Is.EqualTo((uint)TrustListMasks.All));
+            Assert.That(resumed.TransportChannel.ClientChannelCertificate.AsSpan()
+                .SequenceEqual(retainedCertificate.Span), Is.True);
+            DeviceRegistrarDevice? installed = await m_lifecycle.FindDeviceAsync(m_product, ct).ConfigureAwait(false);
+            Assert.That(installed?.DcaCertificate, Is.EqualTo(retainedCertificate));
+            Assert.That(await resumedRecovery.GetPendingAsync(scope, ct).ConfigureAwait(false), Is.Null);
+            backend.Verify(value => value.RemoveAsync(It.IsAny<SecretIdentifier>(), It.IsAny<CancellationToken>()),
+                Times.Once);
+
+            async Task<ManagedSession> ConnectRecoverySessionAsync(ClientChannelManager channels)
+            {
+                ManagedSession session = await new ManagedSessionBuilder(m_device.Config, m_telemetry)
+                    .UseEndpoint(m_endpoint.AbsoluteUri)
+                    .WithChannelManager(channels)
+                    .ConnectAsync(ct).ConfigureAwait(false);
+                session.Factory.Builder.AddOpcUaGds().AddOpcUaOnboarding().Commit();
+                session.MessageContext.Factory.Builder.AddOpcUaGds().AddOpcUaOnboarding().Commit();
+                return session;
+            }
+
+            PullDcaWorkflow CreateWorkflow(
+                ManagedSession session,
+                IPullDcaNewKeyPairCredentialProvider keyPairInstaller,
+                IPullDcaNewKeyPairRecoveryProvider recovery)
+            {
+                var credentials = new OnboardingDeviceCredentials(m_device.Config, m_telemetry);
+                return new PullDcaWorkflow(
+                    new PullDcaOptions(), (_, _) => new ValueTask<ManagedSession>(session), credentials, credentials,
+                    m_telemetry, software.Object, discovery: null,
+                    receipts: Mock.Of<IPullDcaCertificateReceiptStore>(MockBehavior.Strict),
+                    signingRecovery: null, signingJournal: null, newKeyPairCredentialProvider: keyPairInstaller,
+                    newKeyPairRecoveryProvider: recovery);
+            }
+        }
+
+        private sealed class TestRecoverySecret : ISecret
+        {
+            public TestRecoverySecret(ReadOnlySpan<byte> bytes = default)
+            {
+                m_bytes = bytes.ToArray();
+            }
+
+            public bool IsEmpty => m_bytes.Length == 0;
+
+            public ReadOnlySpan<byte> Bytes => m_bytes;
+
+            public void Replace(ReadOnlySpan<byte> bytes)
+            {
+                Dispose();
+                m_bytes = bytes.ToArray();
+            }
+
+            public void Dispose()
+            {
+                Array.Clear(m_bytes, 0, m_bytes.Length);
+                m_bytes = [];
+            }
+
+            private byte[] m_bytes;
+        }
+
+        private static void ClearReturnedPrivateKey(ByteString privateKey)
+        {
+            if (MemoryMarshal.TryGetArray(privateKey.Memory, out ArraySegment<byte> bytes) && bytes.Array != null)
+            {
+                Array.Clear(bytes.Array, bytes.Offset, bytes.Count);
+            }
         }
 
         /// <summary>

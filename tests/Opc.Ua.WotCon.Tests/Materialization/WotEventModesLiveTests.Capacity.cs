@@ -1,31 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 #if NET8_0_OR_GREATER
 using System;
@@ -182,6 +156,11 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 type, EventForm(source.EndpointUrl), EventDeclaration(mode, type));
             WotProjectionHandle active = await host.AddAsync(document, ct).ConfigureAwait(false);
             NativeEvents? retained = null;
+            var readEntered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var releaseRead = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            Task<DataValue>? drainingRead = null;
+            BaseVariableState? drainingVariable = null;
+            NodeValueEventHandlerAsync? previousRead = null;
             try
             {
                 uint producingGeneration = checked((uint)active.Generation);
@@ -206,8 +185,30 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 Assert.That(await ReadCapacityAvailabilityAsync(destination, descriptor, ct).ConfigureAwait(false),
                     Is.EqualTo(StatusCodes.BadTooManyOperations));
 
+                ushort metadata = checked((ushort)destination.Session.NamespaceUris.GetIndex(Namespaces.WotCon));
+                NodeId availabilityId = await FindNativeChildAsync(destination.Session, descriptor,
+                    new QualifiedName("Availability", metadata), ct).ConfigureAwait(false);
+                (object? rawHandle, _) = await destination.Server.CurrentInstance.NodeManager
+                    .GetManagerHandleAsync(availabilityId, ct).ConfigureAwait(false);
+                Assert.That(rawHandle, Is.TypeOf<Opc.Ua.Server.NodeHandle>());
+                drainingVariable = (BaseVariableState)((Opc.Ua.Server.NodeHandle)rawHandle!).Node;
+                previousRead = drainingVariable.OnReadValueAsync;
+                BaseVariableState capturedVariable = drainingVariable;
+                drainingVariable.OnReadValueAsync = async (context, node, range, encoding, token) =>
+                {
+                    readEntered.TrySetResult(true);
+                    await releaseRead.Task.WaitAsync(token).ConfigureAwait(false);
+                    return previousRead is not null
+                        ? await previousRead(context, node, range, encoding, token).ConfigureAwait(false)
+                        : new AttributeReadResult(
+                            ServiceResult.Good, capturedVariable.WrappedValue,
+                            capturedVariable.StatusCode, capturedVariable.Timestamp);
+                };
+                drainingRead = destination.Session.ReadValueAsync(availabilityId, ct);
+                await readEntered.Task.WaitAsync(ct).ConfigureAwait(false);
                 active = await host.ShadowReloadAsync(active, document, ct).ConfigureAwait(false);
                 Assert.That(active.Generation, Is.GreaterThan(producingGeneration));
+                Assert.That(drainingRead.IsCompleted, Is.False);
                 await using NativeEvents replacement = await NativeEvents.OpenAsync(destination.Session, ct, owner)
                     .ConfigureAwait(false);
                 ByteString nextSourceId = ByteString.From(new byte[] { 0xD3, 0xC2, 0x20, 0x03 });
@@ -237,11 +238,33 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             }
             finally
             {
-                if (retained is not null)
+                if (drainingVariable is not null)
                 {
-                    await retained.DisposeAsync().ConfigureAwait(false);
+                    drainingVariable.OnReadValueAsync = previousRead;
                 }
-                await host.RemoveAsync(active, CancellationToken.None).ConfigureAwait(false);
+                releaseRead.TrySetResult(true);
+                try
+                {
+                    if (drainingRead is not null)
+                    {
+                        await drainingRead.ConfigureAwait(false);
+                    }
+                }
+                finally
+                {
+                    try
+                    {
+                        if (retained is not null)
+                        {
+                            await retained.DisposeAsync().ConfigureAwait(false);
+                        }
+                    }
+                    finally
+                    {
+                        using var cleanup = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+                        await host.RemoveAsync(active, cleanup.Token).ConfigureAwait(false);
+                    }
+                }
             }
         }
 

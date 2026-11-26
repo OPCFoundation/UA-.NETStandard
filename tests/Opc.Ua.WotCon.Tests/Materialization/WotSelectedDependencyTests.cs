@@ -1,31 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using System.Collections.Generic;
@@ -48,8 +22,8 @@ namespace Opc.Ua.WotCon.Tests.Materialization
     /// Contains tests for WoT selected dependency.
     /// </summary>
     [TestFixture]
-    [NonParallelizable]
     [Platform("Win")]
+    [Category("Integration")]
     public sealed class WotSelectedDependencyTests
     {
         /// <summary>
@@ -516,22 +490,6 @@ namespace Opc.Ua.WotCon.Tests.Materialization
         }
 
         /// <summary>
-        /// Verifies that namespace registration without installed types is unavailable.
-        /// </summary>
-        [Test]
-        public async Task NamespaceRegistrationWithoutInstalledTypesIsUnavailable()
-        {
-            var namespaces = new NamespaceTable();
-            namespaces.Append("urn:table-only");
-            var server = new Mock<IServerInternal>();
-            server.SetupGet(instance => instance.NamespaceUris).Returns(namespaces);
-            server.SetupGet(instance => instance.TypeTree).Returns(new TypeTable(namespaces));
-            var resolver = new AddressSpaceWotNodeResolver(server.Object);
-
-            Assert.That(await resolver.HoldsNamespaceAsync("urn:table-only"), Is.False);
-        }
-
-        /// <summary>
         /// Verifies that namespace table does not satisfy required model.
         /// </summary>
         [Test]
@@ -790,5 +748,30 @@ namespace Opc.Ua.WotCon.Tests.Materialization
         private static readonly string[] s_aDocument = ["urn:a"];
         private static readonly string[] s_aResource = ["a"];
         private static readonly string[] s_shadow = ["shadow"];
+    }
+
+    /// <summary>
+    /// The <see cref="WotSelectedDependencyTests"/> tests that start no server, kept out of
+    /// that fixture's Integration category.
+    /// </summary>
+    [TestFixture]
+    [Platform("Win")]
+    public sealed class WotSelectedDependencyServerFreeTests
+    {
+        /// <summary>
+        /// Verifies that namespace registration without installed types is unavailable.
+        /// </summary>
+        [Test]
+        public async Task NamespaceRegistrationWithoutInstalledTypesIsUnavailable()
+        {
+            var namespaces = new NamespaceTable();
+            namespaces.Append("urn:table-only");
+            var server = new Mock<IServerInternal>();
+            server.SetupGet(instance => instance.NamespaceUris).Returns(namespaces);
+            server.SetupGet(instance => instance.TypeTree).Returns(new TypeTable(namespaces));
+            var resolver = new AddressSpaceWotNodeResolver(server.Object);
+
+            Assert.That(await resolver.HoldsNamespaceAsync("urn:table-only"), Is.False);
+        }
     }
 }

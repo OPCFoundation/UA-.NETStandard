@@ -1,31 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using System.Collections.Generic;
@@ -76,6 +50,7 @@ namespace Opc.Ua
                     throw new ServiceResultException(StatusCodes.BadContentFilterInvalid);
                 }
 
+                m_likeSteps = ContentFilter.MaxLikeMatchSteps;
                 m_results = new Variant[m_filter.Elements.Count];
                 m_evaluated = new bool[m_filter.Elements.Count];
                 m_leftValues = new Variant[m_filter.Elements.Count];
@@ -882,7 +857,33 @@ namespace Opc.Ua
                 return false;
             }
 
-            return LikePattern.IsMatch(lhs, rhs);
+            // a literal pattern is parsed once and kept with its operand; any other pattern
+            // is parsed for this evaluation, which costs one step per pattern character.
+            var literal = operands[1] as LiteralOperand;
+            LikePattern? likePattern = literal?.GetCachedLikePattern(rhs);
+            if (likePattern == null)
+            {
+                if (rhs.Length > m_likeSteps)
+                {
+                    m_likeSteps = 0;
+                    return default;
+                }
+                m_likeSteps -= rhs.Length;
+                if (literal != null
+                    ? !literal.TryGetLikePattern(rhs, out likePattern)
+                    : !LikePattern.TryParse(rhs, out likePattern))
+                {
+                    return false;
+                }
+            }
+
+            // the Like elements of one evaluation share a budget of matching steps; an
+            // element that runs out of it is NULL, like an element that cannot be evaluated.
+            if (!likePattern.TryMatch(lhs, ref m_likeSteps, out bool isMatch))
+            {
+                return default;
+            }
+            return isMatch;
         }
 
         /// <summary>
@@ -1154,6 +1155,7 @@ namespace Opc.Ua
         private Variant[]? m_leftValues;
         private bool[]? m_leftEvaluated;
         private int m_currentIndex;
+        private int m_likeSteps;
     }
 
     /// <summary>

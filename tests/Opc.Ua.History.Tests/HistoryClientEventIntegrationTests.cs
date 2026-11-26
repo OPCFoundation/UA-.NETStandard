@@ -1,31 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using System.Collections.Generic;
@@ -63,9 +37,8 @@ namespace Opc.Ua.History.Tests
         {
             m_telemetry = NUnitTelemetryContext.Create();
             m_pkiRoot = Path.Combine(
-                TestContext.CurrentContext.WorkDirectory,
-                nameof(HistoryClientEventIntegrationTests),
-                Guid.NewGuid().ToString("N"));
+                Path.GetTempPath(),
+                "ua-history-events-" + Guid.NewGuid().ToString("N"));
             m_serverFixture = new ServerFixture<ReferenceServer>(
                 telemetry => new ReferenceServer(telemetry))
             {
@@ -77,9 +50,11 @@ namespace Opc.Ua.History.Tests
             };
 
             m_server = await m_serverFixture.StartAsync(m_pkiRoot).ConfigureAwait(false);
-            await m_server.NodeManagerLifecycle.AddAsync(
-                new EventHistoryNodeManagerFactory(),
-                callerContext: null).ConfigureAwait(false);
+            await using IPreparedChanges prepared = await m_server.NodeManagerLifecycle
+                .PrepareAsync([LifecycleChange.Add(new EventHistoryNodeManagerFactory())])
+                .ConfigureAwait(false);
+            LifecycleResult result = await prepared.CommitAsync(static _ => default).ConfigureAwait(false);
+            Assert.That(result.CleanupFailure, Is.Null);
 
             m_clientFixture = new ClientFixture(telemetry: m_telemetry);
             await m_clientFixture.LoadClientConfigurationAsync(m_pkiRoot).ConfigureAwait(false);
@@ -546,7 +521,7 @@ namespace Opc.Ua.History.Tests
             }
         }
 
-        private sealed class EventHistoryNodeManager : AsyncCustomNodeManager
+        private sealed class EventHistoryNodeManager : AsyncCustomNodeManager, INodeManagerReadinessNotification
         {
             public EventHistoryNodeManager(
                 IServerInternal server,
@@ -600,24 +575,31 @@ namespace Opc.Ua.History.Tests
                 variable.DataType = DataTypeIds.Double;
                 variable.ValueRank = ValueRanks.Scalar;
                 variable.Value = new Variant(0.0);
-                variable.AccessLevel = AccessLevels.CurrentRead;
-                variable.UserAccessLevel = AccessLevels.CurrentRead;
-
-                await using (var builder = new HistorianBuilder(Server))
-                {
-                    builder
-                        .UseProvider(m_provider)
-                        .Historize(
-                            variable,
-                            historyAccessLevel: AccessLevels.HistoryRead | AccessLevels.HistoryWrite,
-                            systemContext: SystemContext,
-                            capabilities: HistorianNodeCapabilities.ReadWrite,
-                            autoCapture: false);
-                }
+                variable.Historizing = true;
+                variable.AccessLevel = AccessLevels.CurrentRead | AccessLevels.HistoryRead | AccessLevels.HistoryWrite;
+                variable.UserAccessLevel = variable.AccessLevel;
+                m_provider.Register(variable.NodeId, HistorianNodeCapabilities.ReadWrite);
                 await AddPredefinedNodeAsync(
                     SystemContext,
                     variable,
                     cancellationToken).ConfigureAwait(false);
+            }
+
+            /// <inheritdoc/>
+            public async ValueTask OnServerReadyAsync(CancellationToken cancellationToken = default)
+            {
+                BaseDataVariableState variable = FindPredefinedNode<BaseDataVariableState>(
+                    new NodeId(AnnotationVariableIdentifier, NamespaceIndex));
+                await using var builder = new HistorianBuilder(Server);
+                builder
+                    .UseProvider(m_provider)
+                    .Historize(
+                        variable,
+                        historyAccessLevel: AccessLevels.HistoryRead | AccessLevels.HistoryWrite,
+                        systemContext: SystemContext,
+                        capabilities: HistorianNodeCapabilities.ReadWrite,
+                        autoCapture: false);
+                await AddPredefinedNodeAsync(SystemContext, variable, cancellationToken).ConfigureAwait(false);
             }
 
             protected override IHistorianProvider? GetHistorianProvider(NodeState node)

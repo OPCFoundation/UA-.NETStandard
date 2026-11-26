@@ -5,6 +5,7 @@
       "ns1": "http://opcfoundation.org/UA/Pumps/",
       "ns2": "http://opcfoundation.org/UA/Machinery/",
       "ns3": "http://opcfoundation.org/UA/DI/",
+      "qudt": "http://qudt.org/schema/qudt/",
       "ua": "http://opcfoundation.org/UA/",
       "uav": "http://opcfoundation.org/UA/WoT-Binding/"
     },
@@ -48,6 +49,12 @@
         }
       ],
       "observable": true,
+      "qudt:hasQuantityKind": {
+        "@id": "http://qudt.org/vocab/quantitykind/PlaneAngle"
+      },
+      "qudt:hasUnit": {
+        "@id": "http://qudt.org/vocab/unit/DEG"
+      },
       "readOnly": true,
       "title": "1XPhase",
       "type": "number",
@@ -78,6 +85,12 @@
         }
       ],
       "observable": true,
+      "qudt:hasQuantityKind": {
+        "@id": "http://qudt.org/vocab/quantitykind/Length"
+      },
+      "qudt:hasUnit": {
+        "@id": "http://qudt.org/vocab/unit/MicroM"
+      },
       "readOnly": true,
       "title": "1XRelativeShaftVibrationP_P",
       "type": "number",
@@ -108,6 +121,12 @@
         }
       ],
       "observable": true,
+      "qudt:hasQuantityKind": {
+        "@id": "http://qudt.org/vocab/quantitykind/PlaneAngle"
+      },
+      "qudt:hasUnit": {
+        "@id": "http://qudt.org/vocab/unit/DEG"
+      },
       "readOnly": true,
       "title": "2XPhase",
       "type": "number",
@@ -138,6 +157,12 @@
         }
       ],
       "observable": true,
+      "qudt:hasQuantityKind": {
+        "@id": "http://qudt.org/vocab/quantitykind/Length"
+      },
+      "qudt:hasUnit": {
+        "@id": "http://qudt.org/vocab/unit/MicroM"
+      },
       "readOnly": true,
       "title": "2XRelativeShaftVibrationP_P",
       "type": "number",
@@ -168,6 +193,12 @@
         }
       ],
       "observable": true,
+      "qudt:hasQuantityKind": {
+        "@id": "http://qudt.org/vocab/quantitykind/Acceleration"
+      },
+      "qudt:hasUnit": {
+        "@id": "http://qudt.org/vocab/unit/M-PER-SEC2"
+      },
       "readOnly": true,
       "title": "BearingIndex",
       "type": "number",
@@ -254,6 +285,12 @@
         }
       ],
       "observable": true,
+      "qudt:hasQuantityKind": {
+        "@id": "http://qudt.org/vocab/quantitykind/Acceleration"
+      },
+      "qudt:hasUnit": {
+        "@id": "http://qudt.org/vocab/unit/M-PER-SEC2"
+      },
       "readOnly": true,
       "title": "BroadbandCavitationAccelerationRMS",
       "type": "number",
@@ -288,9 +325,6 @@
       "title": "Definition",
       "type": "string",
       "uav:browseName": "Definition",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=11275"
-      ],
       "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=13081",
       "uav:mapToType": "i=12",
       "uav:modellingRule": "Optional"
@@ -319,9 +353,6 @@
       "title": "Definition",
       "type": "string",
       "uav:browseName": "Definition",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=13115"
-      ],
       "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=13181",
       "uav:mapToType": "i=12",
       "uav:modellingRule": "Optional"
@@ -350,9 +381,6 @@
       "title": "Definition",
       "type": "string",
       "uav:browseName": "Definition",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=13117"
-      ],
       "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=13184",
       "uav:mapToType": "i=12",
       "uav:modellingRule": "Optional"
@@ -381,9 +409,6 @@
       "title": "Definition",
       "type": "string",
       "uav:browseName": "Definition",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=13119"
-      ],
       "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=13187",
       "uav:mapToType": "i=12",
       "uav:modellingRule": "Optional"
@@ -412,9 +437,6 @@
       "title": "Definition",
       "type": "string",
       "uav:browseName": "Definition",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=13123"
-      ],
       "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=13193",
       "uav:mapToType": "i=12",
       "uav:modellingRule": "Optional"
@@ -443,9 +465,6 @@
       "title": "Definition",
       "type": "string",
       "uav:browseName": "Definition",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=13121"
-      ],
       "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=13196",
       "uav:mapToType": "i=12",
       "uav:modellingRule": "Optional"
@@ -474,9 +493,6 @@
       "title": "Definition",
       "type": "string",
       "uav:browseName": "Definition",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=13125"
-      ],
       "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=13199",
       "uav:mapToType": "i=12",
       "uav:modellingRule": "Optional"
@@ -505,9 +521,6 @@
       "title": "Definition",
       "type": "string",
       "uav:browseName": "Definition",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=13127"
-      ],
       "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=13202",
       "uav:mapToType": "i=12",
       "uav:modellingRule": "Optional"
@@ -536,9 +549,6 @@
       "title": "Definition",
       "type": "string",
       "uav:browseName": "Definition",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=13129"
-      ],
       "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=13205",
       "uav:mapToType": "i=12",
       "uav:modellingRule": "Optional"
@@ -567,9 +577,6 @@
       "title": "Definition",
       "type": "string",
       "uav:browseName": "Definition",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=13131"
-      ],
       "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=13208",
       "uav:mapToType": "i=12",
       "uav:modellingRule": "Optional"
@@ -598,9 +605,6 @@
       "title": "Definition",
       "type": "string",
       "uav:browseName": "Definition",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=13133"
-      ],
       "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=13211",
       "uav:mapToType": "i=12",
       "uav:modellingRule": "Optional"
@@ -629,9 +633,6 @@
       "title": "Definition",
       "type": "string",
       "uav:browseName": "Definition",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=11277"
-      ],
       "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=13093",
       "uav:mapToType": "i=12",
       "uav:modellingRule": "Optional"
@@ -660,9 +661,6 @@
       "title": "Definition",
       "type": "string",
       "uav:browseName": "Definition",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=13135"
-      ],
       "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=13214",
       "uav:mapToType": "i=12",
       "uav:modellingRule": "Optional"
@@ -691,9 +689,6 @@
       "title": "Definition",
       "type": "string",
       "uav:browseName": "Definition",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=13137"
-      ],
       "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=13217",
       "uav:mapToType": "i=12",
       "uav:modellingRule": "Optional"
@@ -722,9 +717,6 @@
       "title": "Definition",
       "type": "string",
       "uav:browseName": "Definition",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=13139"
-      ],
       "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=13140",
       "uav:mapToType": "i=12",
       "uav:modellingRule": "Optional"
@@ -753,9 +745,6 @@
       "title": "Definition",
       "type": "string",
       "uav:browseName": "Definition",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=13141"
-      ],
       "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=13223",
       "uav:mapToType": "i=12",
       "uav:modellingRule": "Optional"
@@ -784,9 +773,6 @@
       "title": "Definition",
       "type": "string",
       "uav:browseName": "Definition",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=13143"
-      ],
       "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=13226",
       "uav:mapToType": "i=12",
       "uav:modellingRule": "Optional"
@@ -815,9 +801,6 @@
       "title": "Definition",
       "type": "string",
       "uav:browseName": "Definition",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=13145"
-      ],
       "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=13229",
       "uav:mapToType": "i=12",
       "uav:modellingRule": "Optional"
@@ -846,9 +829,6 @@
       "title": "Definition",
       "type": "string",
       "uav:browseName": "Definition",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=13147"
-      ],
       "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=13232",
       "uav:mapToType": "i=12",
       "uav:modellingRule": "Optional"
@@ -877,9 +857,6 @@
       "title": "Definition",
       "type": "string",
       "uav:browseName": "Definition",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=13149"
-      ],
       "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=13262",
       "uav:mapToType": "i=12",
       "uav:modellingRule": "Optional"
@@ -908,9 +885,6 @@
       "title": "Definition",
       "type": "string",
       "uav:browseName": "Definition",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=13151"
-      ],
       "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=13259",
       "uav:mapToType": "i=12",
       "uav:modellingRule": "Optional"
@@ -939,9 +913,6 @@
       "title": "Definition",
       "type": "string",
       "uav:browseName": "Definition",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=13153"
-      ],
       "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=13256",
       "uav:mapToType": "i=12",
       "uav:modellingRule": "Optional"
@@ -970,9 +941,6 @@
       "title": "Definition",
       "type": "string",
       "uav:browseName": "Definition",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=11279"
-      ],
       "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=13087",
       "uav:mapToType": "i=12",
       "uav:modellingRule": "Optional"
@@ -1001,9 +969,6 @@
       "title": "Definition",
       "type": "string",
       "uav:browseName": "Definition",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=13155"
-      ],
       "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=13253",
       "uav:mapToType": "i=12",
       "uav:modellingRule": "Optional"
@@ -1032,9 +997,6 @@
       "title": "Definition",
       "type": "string",
       "uav:browseName": "Definition",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=13157"
-      ],
       "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=13250",
       "uav:mapToType": "i=12",
       "uav:modellingRule": "Optional"
@@ -1063,9 +1025,6 @@
       "title": "Definition",
       "type": "string",
       "uav:browseName": "Definition",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=13159"
-      ],
       "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=13247",
       "uav:mapToType": "i=12",
       "uav:modellingRule": "Optional"
@@ -1094,9 +1053,6 @@
       "title": "Definition",
       "type": "string",
       "uav:browseName": "Definition",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=13161"
-      ],
       "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=13244",
       "uav:mapToType": "i=12",
       "uav:modellingRule": "Optional"
@@ -1125,9 +1081,6 @@
       "title": "Definition",
       "type": "string",
       "uav:browseName": "Definition",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=13163"
-      ],
       "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=13241",
       "uav:mapToType": "i=12",
       "uav:modellingRule": "Optional"
@@ -1156,9 +1109,6 @@
       "title": "Definition",
       "type": "string",
       "uav:browseName": "Definition",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=13165"
-      ],
       "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=13235",
       "uav:mapToType": "i=12",
       "uav:modellingRule": "Optional"
@@ -1187,9 +1137,6 @@
       "title": "Definition",
       "type": "string",
       "uav:browseName": "Definition",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=13167"
-      ],
       "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=13238",
       "uav:mapToType": "i=12",
       "uav:modellingRule": "Optional"
@@ -1218,9 +1165,6 @@
       "title": "Definition",
       "type": "string",
       "uav:browseName": "Definition",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=11281"
-      ],
       "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=13099",
       "uav:mapToType": "i=12",
       "uav:modellingRule": "Optional"
@@ -1249,9 +1193,6 @@
       "title": "Definition",
       "type": "string",
       "uav:browseName": "Definition",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=13105"
-      ],
       "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=13169",
       "uav:mapToType": "i=12",
       "uav:modellingRule": "Optional"
@@ -1280,9 +1221,6 @@
       "title": "Definition",
       "type": "string",
       "uav:browseName": "Definition",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=13107"
-      ],
       "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=13172",
       "uav:mapToType": "i=12",
       "uav:modellingRule": "Optional"
@@ -1311,9 +1249,6 @@
       "title": "Definition",
       "type": "string",
       "uav:browseName": "Definition",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=13109"
-      ],
       "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=13175",
       "uav:mapToType": "i=12",
       "uav:modellingRule": "Optional"
@@ -1342,9 +1277,6 @@
       "title": "Definition",
       "type": "string",
       "uav:browseName": "Definition",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=13111"
-      ],
       "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=13190",
       "uav:mapToType": "i=12",
       "uav:modellingRule": "Optional"
@@ -1373,9 +1305,6 @@
       "title": "Definition",
       "type": "string",
       "uav:browseName": "Definition",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=13113"
-      ],
       "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=13178",
       "uav:mapToType": "i=12",
       "uav:modellingRule": "Optional"
@@ -1403,9 +1332,6 @@
       "readOnly": true,
       "title": "EURange",
       "uav:browseName": "EURange",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=11275"
-      ],
       "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=13082",
       "uav:mapToType": "i=884",
       "uav:modellingRule": "Optional"
@@ -1433,9 +1359,6 @@
       "readOnly": true,
       "title": "EURange",
       "uav:browseName": "EURange",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=13115"
-      ],
       "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=13182",
       "uav:mapToType": "i=884",
       "uav:modellingRule": "Optional"
@@ -1463,9 +1386,6 @@
       "readOnly": true,
       "title": "EURange",
       "uav:browseName": "EURange",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=13117"
-      ],
       "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=13185",
       "uav:mapToType": "i=884",
       "uav:modellingRule": "Optional"
@@ -1493,9 +1413,6 @@
       "readOnly": true,
       "title": "EURange",
       "uav:browseName": "EURange",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=13119"
-      ],
       "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=13188",
       "uav:mapToType": "i=884",
       "uav:modellingRule": "Optional"
@@ -1523,9 +1440,6 @@
       "readOnly": true,
       "title": "EURange",
       "uav:browseName": "EURange",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=13123"
-      ],
       "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=13194",
       "uav:mapToType": "i=884",
       "uav:modellingRule": "Optional"
@@ -1553,9 +1467,6 @@
       "readOnly": true,
       "title": "EURange",
       "uav:browseName": "EURange",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=13121"
-      ],
       "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=13197",
       "uav:mapToType": "i=884",
       "uav:modellingRule": "Optional"
@@ -1583,9 +1494,6 @@
       "readOnly": true,
       "title": "EURange",
       "uav:browseName": "EURange",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=13125"
-      ],
       "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=13200",
       "uav:mapToType": "i=884",
       "uav:modellingRule": "Optional"
@@ -1613,9 +1521,6 @@
       "readOnly": true,
       "title": "EURange",
       "uav:browseName": "EURange",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=13127"
-      ],
       "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=13203",
       "uav:mapToType": "i=884",
       "uav:modellingRule": "Optional"
@@ -1643,9 +1548,6 @@
       "readOnly": true,
       "title": "EURange",
       "uav:browseName": "EURange",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=13129"
-      ],
       "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=13206",
       "uav:mapToType": "i=884",
       "uav:modellingRule": "Optional"
@@ -1673,9 +1575,6 @@
       "readOnly": true,
       "title": "EURange",
       "uav:browseName": "EURange",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=13131"
-      ],
       "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=13209",
       "uav:mapToType": "i=884",
       "uav:modellingRule": "Optional"
@@ -1703,9 +1602,6 @@
       "readOnly": true,
       "title": "EURange",
       "uav:browseName": "EURange",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=13133"
-      ],
       "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=13212",
       "uav:mapToType": "i=884",
       "uav:modellingRule": "Optional"
@@ -1733,9 +1629,6 @@
       "readOnly": true,
       "title": "EURange",
       "uav:browseName": "EURange",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=11277"
-      ],
       "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=13094",
       "uav:mapToType": "i=884",
       "uav:modellingRule": "Optional"
@@ -1763,9 +1656,6 @@
       "readOnly": true,
       "title": "EURange",
       "uav:browseName": "EURange",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=13135"
-      ],
       "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=13215",
       "uav:mapToType": "i=884",
       "uav:modellingRule": "Optional"
@@ -1793,9 +1683,6 @@
       "readOnly": true,
       "title": "EURange",
       "uav:browseName": "EURange",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=13137"
-      ],
       "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=13218",
       "uav:mapToType": "i=884",
       "uav:modellingRule": "Optional"
@@ -1823,9 +1710,6 @@
       "readOnly": true,
       "title": "EURange",
       "uav:browseName": "EURange",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=13141"
-      ],
       "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=13224",
       "uav:mapToType": "i=884",
       "uav:modellingRule": "Optional"
@@ -1853,9 +1737,6 @@
       "readOnly": true,
       "title": "EURange",
       "uav:browseName": "EURange",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=13143"
-      ],
       "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=13227",
       "uav:mapToType": "i=884",
       "uav:modellingRule": "Optional"
@@ -1883,9 +1764,6 @@
       "readOnly": true,
       "title": "EURange",
       "uav:browseName": "EURange",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=13145"
-      ],
       "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=13230",
       "uav:mapToType": "i=884",
       "uav:modellingRule": "Optional"
@@ -1913,9 +1791,6 @@
       "readOnly": true,
       "title": "EURange",
       "uav:browseName": "EURange",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=13147"
-      ],
       "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=13233",
       "uav:mapToType": "i=884",
       "uav:modellingRule": "Optional"
@@ -1943,9 +1818,6 @@
       "readOnly": true,
       "title": "EURange",
       "uav:browseName": "EURange",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=13149"
-      ],
       "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=13263",
       "uav:mapToType": "i=884",
       "uav:modellingRule": "Optional"
@@ -1973,9 +1845,6 @@
       "readOnly": true,
       "title": "EURange",
       "uav:browseName": "EURange",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=13151"
-      ],
       "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=13260",
       "uav:mapToType": "i=884",
       "uav:modellingRule": "Optional"
@@ -2003,9 +1872,6 @@
       "readOnly": true,
       "title": "EURange",
       "uav:browseName": "EURange",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=13153"
-      ],
       "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=13257",
       "uav:mapToType": "i=884",
       "uav:modellingRule": "Optional"
@@ -2033,9 +1899,6 @@
       "readOnly": true,
       "title": "EURange",
       "uav:browseName": "EURange",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=13155"
-      ],
       "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=13254",
       "uav:mapToType": "i=884",
       "uav:modellingRule": "Optional"
@@ -2063,9 +1926,6 @@
       "readOnly": true,
       "title": "EURange",
       "uav:browseName": "EURange",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=11279"
-      ],
       "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=13088",
       "uav:mapToType": "i=884",
       "uav:modellingRule": "Optional"
@@ -2093,9 +1953,6 @@
       "readOnly": true,
       "title": "EURange",
       "uav:browseName": "EURange",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=13157"
-      ],
       "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=13251",
       "uav:mapToType": "i=884",
       "uav:modellingRule": "Optional"
@@ -2123,9 +1980,6 @@
       "readOnly": true,
       "title": "EURange",
       "uav:browseName": "EURange",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=13159"
-      ],
       "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=13248",
       "uav:mapToType": "i=884",
       "uav:modellingRule": "Optional"
@@ -2153,9 +2007,6 @@
       "readOnly": true,
       "title": "EURange",
       "uav:browseName": "EURange",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=13161"
-      ],
       "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=13245",
       "uav:mapToType": "i=884",
       "uav:modellingRule": "Optional"
@@ -2183,9 +2034,6 @@
       "readOnly": true,
       "title": "EURange",
       "uav:browseName": "EURange",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=13163"
-      ],
       "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=13242",
       "uav:mapToType": "i=884",
       "uav:modellingRule": "Optional"
@@ -2213,9 +2061,6 @@
       "readOnly": true,
       "title": "EURange",
       "uav:browseName": "EURange",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=13165"
-      ],
       "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=13236",
       "uav:mapToType": "i=884",
       "uav:modellingRule": "Optional"
@@ -2243,9 +2088,6 @@
       "readOnly": true,
       "title": "EURange",
       "uav:browseName": "EURange",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=13167"
-      ],
       "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=13239",
       "uav:mapToType": "i=884",
       "uav:modellingRule": "Optional"
@@ -2273,9 +2115,6 @@
       "readOnly": true,
       "title": "EURange",
       "uav:browseName": "EURange",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=11281"
-      ],
       "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=13100",
       "uav:mapToType": "i=884",
       "uav:modellingRule": "Optional"
@@ -2303,9 +2142,6 @@
       "readOnly": true,
       "title": "EURange",
       "uav:browseName": "EURange",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=13105"
-      ],
       "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=13170",
       "uav:mapToType": "i=884",
       "uav:modellingRule": "Optional"
@@ -2333,9 +2169,6 @@
       "readOnly": true,
       "title": "EURange",
       "uav:browseName": "EURange",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=13107"
-      ],
       "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=13173",
       "uav:mapToType": "i=884",
       "uav:modellingRule": "Optional"
@@ -2363,9 +2196,6 @@
       "readOnly": true,
       "title": "EURange",
       "uav:browseName": "EURange",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=13109"
-      ],
       "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=13176",
       "uav:mapToType": "i=884",
       "uav:modellingRule": "Optional"
@@ -2393,9 +2223,6 @@
       "readOnly": true,
       "title": "EURange",
       "uav:browseName": "EURange",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=13111"
-      ],
       "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=13191",
       "uav:mapToType": "i=884",
       "uav:modellingRule": "Optional"
@@ -2423,9 +2250,6 @@
       "readOnly": true,
       "title": "EURange",
       "uav:browseName": "EURange",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=13113"
-      ],
       "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=13179",
       "uav:mapToType": "i=884",
       "uav:modellingRule": "Optional"
@@ -2454,9 +2278,6 @@
       "title": "EngineeringUnits",
       "type": "string",
       "uav:browseName": "EngineeringUnits",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=11275"
-      ],
       "uav:engineeringUnits": {
         "description": "degree [unit of angle]",
         "displayName": "°",
@@ -2491,9 +2312,6 @@
       "title": "EngineeringUnits",
       "type": "string",
       "uav:browseName": "EngineeringUnits",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=13115"
-      ],
       "uav:engineeringUnits": {
         "description": "micrometre (micron)",
         "displayName": "µm",
@@ -2528,9 +2346,6 @@
       "title": "EngineeringUnits",
       "type": "string",
       "uav:browseName": "EngineeringUnits",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=13117"
-      ],
       "uav:engineeringUnits": {
         "description": "metre per second squared",
         "displayName": "m/s²",
@@ -2565,9 +2380,6 @@
       "title": "EngineeringUnits",
       "type": "string",
       "uav:browseName": "EngineeringUnits",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=13119"
-      ],
       "uav:engineeringUnits": {
         "description": "metre per second squared",
         "displayName": "m/s²",
@@ -2601,9 +2413,6 @@
       "readOnly": true,
       "title": "EngineeringUnits",
       "uav:browseName": "EngineeringUnits",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=13123"
-      ],
       "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=13195",
       "uav:mapToType": "i=887",
       "uav:modellingRule": "Optional"
@@ -2631,9 +2440,6 @@
       "readOnly": true,
       "title": "EngineeringUnits",
       "uav:browseName": "EngineeringUnits",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=13121"
-      ],
       "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=13198",
       "uav:mapToType": "i=887",
       "uav:modellingRule": "Optional"
@@ -2661,9 +2467,6 @@
       "readOnly": true,
       "title": "EngineeringUnits",
       "uav:browseName": "EngineeringUnits",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=13125"
-      ],
       "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=13201",
       "uav:mapToType": "i=887",
       "uav:modellingRule": "Optional"
@@ -2692,9 +2495,6 @@
       "title": "EngineeringUnits",
       "type": "string",
       "uav:browseName": "EngineeringUnits",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=13127"
-      ],
       "uav:engineeringUnits": {
         "description": "metre per second squared",
         "displayName": "m/s²",
@@ -2729,9 +2529,6 @@
       "title": "EngineeringUnits",
       "type": "string",
       "uav:browseName": "EngineeringUnits",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=13129"
-      ],
       "uav:engineeringUnits": {
         "description": "micrometre (micron)",
         "displayName": "µm",
@@ -2766,9 +2563,6 @@
       "title": "EngineeringUnits",
       "type": "string",
       "uav:browseName": "EngineeringUnits",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=13131"
-      ],
       "uav:engineeringUnits": {
         "description": "micrometre (micron)",
         "displayName": "µm",
@@ -2803,9 +2597,6 @@
       "title": "EngineeringUnits",
       "type": "string",
       "uav:browseName": "EngineeringUnits",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=13133"
-      ],
       "uav:engineeringUnits": {
         "description": "millimetre per second",
         "displayName": "mm/s",
@@ -2840,9 +2631,6 @@
       "title": "EngineeringUnits",
       "type": "string",
       "uav:browseName": "EngineeringUnits",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=11277"
-      ],
       "uav:engineeringUnits": {
         "description": "micrometre (micron)",
         "displayName": "µm",
@@ -2877,9 +2665,6 @@
       "title": "EngineeringUnits",
       "type": "string",
       "uav:browseName": "EngineeringUnits",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=13135"
-      ],
       "uav:engineeringUnits": {
         "description": "millimetre per second",
         "displayName": "mm/s",
@@ -2914,9 +2699,6 @@
       "title": "EngineeringUnits",
       "type": "string",
       "uav:browseName": "EngineeringUnits",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=13137"
-      ],
       "uav:engineeringUnits": {
         "description": "millimetre per second",
         "displayName": "mm/s",
@@ -2951,9 +2733,6 @@
       "title": "EngineeringUnits",
       "type": "string",
       "uav:browseName": "EngineeringUnits",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=13141"
-      ],
       "uav:engineeringUnits": {
         "description": "degree [unit of angle]",
         "displayName": "°",
@@ -2988,9 +2767,6 @@
       "title": "EngineeringUnits",
       "type": "string",
       "uav:browseName": "EngineeringUnits",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=13143"
-      ],
       "uav:engineeringUnits": {
         "description": "degree [unit of angle]",
         "displayName": "°",
@@ -3025,9 +2801,6 @@
       "title": "EngineeringUnits",
       "type": "string",
       "uav:browseName": "EngineeringUnits",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=13145"
-      ],
       "uav:engineeringUnits": {
         "description": "reciprocal second",
         "displayName": "s⁻¹",
@@ -3062,9 +2835,6 @@
       "title": "EngineeringUnits",
       "type": "string",
       "uav:browseName": "EngineeringUnits",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=13147"
-      ],
       "uav:engineeringUnits": {
         "description": "millimetre",
         "displayName": "mm",
@@ -3099,9 +2869,6 @@
       "title": "EngineeringUnits",
       "type": "string",
       "uav:browseName": "EngineeringUnits",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=13149"
-      ],
       "uav:engineeringUnits": {
         "description": "metre per second squared",
         "displayName": "m/s²",
@@ -3135,9 +2902,6 @@
       "readOnly": true,
       "title": "EngineeringUnits",
       "uav:browseName": "EngineeringUnits",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=13151"
-      ],
       "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=13261",
       "uav:mapToType": "i=887",
       "uav:modellingRule": "Optional"
@@ -3166,9 +2930,6 @@
       "title": "EngineeringUnits",
       "type": "string",
       "uav:browseName": "EngineeringUnits",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=13153"
-      ],
       "uav:engineeringUnits": {
         "description": "millimetre per second",
         "displayName": "mm/s",
@@ -3203,9 +2964,6 @@
       "title": "EngineeringUnits",
       "type": "string",
       "uav:browseName": "EngineeringUnits",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=13155"
-      ],
       "uav:engineeringUnits": {
         "description": "millimetre per second",
         "displayName": "mm/s",
@@ -3240,9 +2998,6 @@
       "title": "EngineeringUnits",
       "type": "string",
       "uav:browseName": "EngineeringUnits",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=11279"
-      ],
       "uav:engineeringUnits": {
         "description": "degree [unit of angle]",
         "displayName": "°",
@@ -3277,9 +3032,6 @@
       "title": "EngineeringUnits",
       "type": "string",
       "uav:browseName": "EngineeringUnits",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=13157"
-      ],
       "uav:engineeringUnits": {
         "description": "metre per second squared",
         "displayName": "m/s²",
@@ -3313,9 +3065,6 @@
       "readOnly": true,
       "title": "EngineeringUnits",
       "uav:browseName": "EngineeringUnits",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=13159"
-      ],
       "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=13249",
       "uav:mapToType": "i=887",
       "uav:modellingRule": "Optional"
@@ -3344,9 +3093,6 @@
       "title": "EngineeringUnits",
       "type": "string",
       "uav:browseName": "EngineeringUnits",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=13161"
-      ],
       "uav:engineeringUnits": {
         "description": "millimetre per second",
         "displayName": "mm/s",
@@ -3381,9 +3127,6 @@
       "title": "EngineeringUnits",
       "type": "string",
       "uav:browseName": "EngineeringUnits",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=13163"
-      ],
       "uav:engineeringUnits": {
         "description": "millimetre per second",
         "displayName": "mm/s",
@@ -3418,9 +3161,6 @@
       "title": "EngineeringUnits",
       "type": "string",
       "uav:browseName": "EngineeringUnits",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=13165"
-      ],
       "uav:engineeringUnits": {
         "description": "metre per second squared",
         "displayName": "m/s²",
@@ -3454,9 +3194,6 @@
       "readOnly": true,
       "title": "EngineeringUnits",
       "uav:browseName": "EngineeringUnits",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=13167"
-      ],
       "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=13240",
       "uav:mapToType": "i=887",
       "uav:modellingRule": "Optional"
@@ -3485,9 +3222,6 @@
       "title": "EngineeringUnits",
       "type": "string",
       "uav:browseName": "EngineeringUnits",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=11281"
-      ],
       "uav:engineeringUnits": {
         "description": "micrometre (micron)",
         "displayName": "µm",
@@ -3522,9 +3256,6 @@
       "title": "EngineeringUnits",
       "type": "string",
       "uav:browseName": "EngineeringUnits",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=13105"
-      ],
       "uav:engineeringUnits": {
         "description": "metre per second squared",
         "displayName": "m/s²",
@@ -3558,9 +3289,6 @@
       "readOnly": true,
       "title": "EngineeringUnits",
       "uav:browseName": "EngineeringUnits",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=13107"
-      ],
       "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=13174",
       "uav:mapToType": "i=887",
       "uav:modellingRule": "Optional"
@@ -3588,9 +3316,6 @@
       "readOnly": true,
       "title": "EngineeringUnits",
       "uav:browseName": "EngineeringUnits",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=13109"
-      ],
       "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=13177",
       "uav:mapToType": "i=887",
       "uav:modellingRule": "Optional"
@@ -3619,9 +3344,6 @@
       "title": "EngineeringUnits",
       "type": "string",
       "uav:browseName": "EngineeringUnits",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=13111"
-      ],
       "uav:engineeringUnits": {
         "description": "metre per second squared",
         "displayName": "m/s²",
@@ -3656,9 +3378,6 @@
       "title": "EngineeringUnits",
       "type": "string",
       "uav:browseName": "EngineeringUnits",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=13113"
-      ],
       "uav:engineeringUnits": {
         "description": "volt",
         "displayName": "V",
@@ -3689,6 +3408,12 @@
         }
       ],
       "observable": true,
+      "qudt:hasQuantityKind": {
+        "@id": "http://qudt.org/vocab/quantitykind/ElectricPotential"
+      },
+      "qudt:hasUnit": {
+        "@id": "http://qudt.org/vocab/unit/V"
+      },
       "readOnly": true,
       "title": "GapVoltage",
       "type": "number",
@@ -3719,6 +3444,12 @@
         }
       ],
       "observable": true,
+      "qudt:hasQuantityKind": {
+        "@id": "http://qudt.org/vocab/quantitykind/Length"
+      },
+      "qudt:hasUnit": {
+        "@id": "http://qudt.org/vocab/unit/MicroM"
+      },
       "readOnly": true,
       "title": "Not1XRelativeShaftVibrationP_P",
       "type": "number",
@@ -3749,6 +3480,12 @@
         }
       ],
       "observable": true,
+      "qudt:hasQuantityKind": {
+        "@id": "http://qudt.org/vocab/quantitykind/Acceleration"
+      },
+      "qudt:hasUnit": {
+        "@id": "http://qudt.org/vocab/unit/M-PER-SEC2"
+      },
       "readOnly": true,
       "title": "OverallVibrationAcceleration0_P",
       "type": "number",
@@ -3779,6 +3516,12 @@
         }
       ],
       "observable": true,
+      "qudt:hasQuantityKind": {
+        "@id": "http://qudt.org/vocab/quantitykind/Acceleration"
+      },
+      "qudt:hasUnit": {
+        "@id": "http://qudt.org/vocab/unit/M-PER-SEC2"
+      },
       "readOnly": true,
       "title": "OverallVibrationAccelerationP_P",
       "type": "number",
@@ -3893,6 +3636,12 @@
         }
       ],
       "observable": true,
+      "qudt:hasQuantityKind": {
+        "@id": "http://qudt.org/vocab/quantitykind/Acceleration"
+      },
+      "qudt:hasUnit": {
+        "@id": "http://qudt.org/vocab/unit/M-PER-SEC2"
+      },
       "readOnly": true,
       "title": "OverallVibrationAccelerationRMS",
       "type": "number",
@@ -3923,6 +3672,12 @@
         }
       ],
       "observable": true,
+      "qudt:hasQuantityKind": {
+        "@id": "http://qudt.org/vocab/quantitykind/Length"
+      },
+      "qudt:hasUnit": {
+        "@id": "http://qudt.org/vocab/unit/MicroM"
+      },
       "readOnly": true,
       "title": "OverallVibrationDisplacementP_P",
       "type": "number",
@@ -3953,6 +3708,12 @@
         }
       ],
       "observable": true,
+      "qudt:hasQuantityKind": {
+        "@id": "http://qudt.org/vocab/quantitykind/Length"
+      },
+      "qudt:hasUnit": {
+        "@id": "http://qudt.org/vocab/unit/MicroM"
+      },
       "readOnly": true,
       "title": "OverallVibrationDisplacementRMS",
       "type": "number",
@@ -3983,6 +3744,12 @@
         }
       ],
       "observable": true,
+      "qudt:hasQuantityKind": {
+        "@id": "http://qudt.org/vocab/quantitykind/LinearVelocity"
+      },
+      "qudt:hasUnit": {
+        "@id": "http://qudt.org/vocab/unit/MilliM-PER-SEC"
+      },
       "readOnly": true,
       "title": "OverallVibrationVelocity0_P",
       "type": "number",
@@ -4013,6 +3780,12 @@
         }
       ],
       "observable": true,
+      "qudt:hasQuantityKind": {
+        "@id": "http://qudt.org/vocab/quantitykind/LinearVelocity"
+      },
+      "qudt:hasUnit": {
+        "@id": "http://qudt.org/vocab/unit/MilliM-PER-SEC"
+      },
       "readOnly": true,
       "title": "OverallVibrationVelocityP_P",
       "type": "number",
@@ -4043,6 +3816,12 @@
         }
       ],
       "observable": true,
+      "qudt:hasQuantityKind": {
+        "@id": "http://qudt.org/vocab/quantitykind/LinearVelocity"
+      },
+      "qudt:hasUnit": {
+        "@id": "http://qudt.org/vocab/unit/MilliM-PER-SEC"
+      },
       "readOnly": true,
       "title": "OverallVibrationVelocityRMS",
       "type": "number",
@@ -4101,6 +3880,12 @@
         }
       ],
       "observable": true,
+      "qudt:hasQuantityKind": {
+        "@id": "http://qudt.org/vocab/quantitykind/PlaneAngle"
+      },
+      "qudt:hasUnit": {
+        "@id": "http://qudt.org/vocab/unit/DEG"
+      },
       "readOnly": true,
       "title": "RotationalPhase1X",
       "type": "number",
@@ -4131,6 +3916,12 @@
         }
       ],
       "observable": true,
+      "qudt:hasQuantityKind": {
+        "@id": "http://qudt.org/vocab/quantitykind/PlaneAngle"
+      },
+      "qudt:hasUnit": {
+        "@id": "http://qudt.org/vocab/unit/DEG"
+      },
       "readOnly": true,
       "title": "RotationalPhase2X",
       "type": "number",
@@ -4161,6 +3952,12 @@
         }
       ],
       "observable": true,
+      "qudt:hasQuantityKind": {
+        "@id": "http://qudt.org/vocab/quantitykind/Frequency"
+      },
+      "qudt:hasUnit": {
+        "@id": "http://qudt.org/vocab/unit/PER-SEC"
+      },
       "readOnly": true,
       "title": "SpeedOfRotation",
       "type": "number",
@@ -4191,6 +3988,12 @@
         }
       ],
       "observable": true,
+      "qudt:hasQuantityKind": {
+        "@id": "http://qudt.org/vocab/quantitykind/Length"
+      },
+      "qudt:hasUnit": {
+        "@id": "http://qudt.org/vocab/unit/MilliM"
+      },
       "readOnly": true,
       "title": "ThrustPosition",
       "type": "number",
@@ -4221,6 +4024,12 @@
         }
       ],
       "observable": true,
+      "qudt:hasQuantityKind": {
+        "@id": "http://qudt.org/vocab/quantitykind/Acceleration"
+      },
+      "qudt:hasUnit": {
+        "@id": "http://qudt.org/vocab/unit/M-PER-SEC2"
+      },
       "readOnly": true,
       "title": "VibrationAmplitudeAtTheBearingDefectFrequencies",
       "type": "number",
@@ -4279,6 +4088,12 @@
         }
       ],
       "observable": true,
+      "qudt:hasQuantityKind": {
+        "@id": "http://qudt.org/vocab/quantitykind/LinearVelocity"
+      },
+      "qudt:hasUnit": {
+        "@id": "http://qudt.org/vocab/unit/MilliM-PER-SEC"
+      },
       "readOnly": true,
       "title": "VibrationAmplitudeAtTheBladePassFrequency",
       "type": "number",
@@ -4309,6 +4124,12 @@
         }
       ],
       "observable": true,
+      "qudt:hasQuantityKind": {
+        "@id": "http://qudt.org/vocab/quantitykind/LinearVelocity"
+      },
+      "qudt:hasUnit": {
+        "@id": "http://qudt.org/vocab/unit/MilliM-PER-SEC"
+      },
       "readOnly": true,
       "title": "VibrationAmplitudeAtTheFirstHarmonicOfTheRotationFrequency2X",
       "type": "number",
@@ -4339,6 +4160,12 @@
         }
       ],
       "observable": true,
+      "qudt:hasQuantityKind": {
+        "@id": "http://qudt.org/vocab/quantitykind/Acceleration"
+      },
+      "qudt:hasUnit": {
+        "@id": "http://qudt.org/vocab/unit/M-PER-SEC2"
+      },
       "readOnly": true,
       "title": "VibrationAmplitudeAtTheGearMeshingFrequency",
       "type": "number",
@@ -4397,6 +4224,12 @@
         }
       ],
       "observable": true,
+      "qudt:hasQuantityKind": {
+        "@id": "http://qudt.org/vocab/quantitykind/LinearVelocity"
+      },
+      "qudt:hasUnit": {
+        "@id": "http://qudt.org/vocab/unit/MilliM-PER-SEC"
+      },
       "readOnly": true,
       "title": "VibrationAmplitudeAtTheHarmonicsOfTheRotationFrequencyNx",
       "type": "number",
@@ -4427,6 +4260,12 @@
         }
       ],
       "observable": true,
+      "qudt:hasQuantityKind": {
+        "@id": "http://qudt.org/vocab/quantitykind/LinearVelocity"
+      },
+      "qudt:hasUnit": {
+        "@id": "http://qudt.org/vocab/unit/MilliM-PER-SEC"
+      },
       "readOnly": true,
       "title": "VibrationAmplitudeAtTheRotationFrequency1X",
       "type": "number",
@@ -4457,6 +4296,12 @@
         }
       ],
       "observable": true,
+      "qudt:hasQuantityKind": {
+        "@id": "http://qudt.org/vocab/quantitykind/Acceleration"
+      },
+      "qudt:hasUnit": {
+        "@id": "http://qudt.org/vocab/unit/M-PER-SEC2"
+      },
       "readOnly": true,
       "title": "VibrationAmplitudeAtTheSidebandsOfTheGearMeshingFrequency",
       "type": "number",
@@ -4497,6 +4342,150 @@
     }
   },
   "title": "VibrationMeasurementType",
+  "tm:optional": [
+    "/properties/1XPhase",
+    "/properties/1XRelativeShaftVibrationP_P",
+    "/properties/2XPhase",
+    "/properties/2XRelativeShaftVibrationP_P",
+    "/properties/BearingIndex",
+    "/properties/BearingIndexPerG",
+    "/properties/BroadbandCavitationAccelerationPerG_RMS",
+    "/properties/BroadbandCavitationAccelerationRMS",
+    "/properties/GapVoltage",
+    "/properties/Not1XRelativeShaftVibrationP_P",
+    "/properties/OverallVibrationAcceleration0_P",
+    "/properties/OverallVibrationAccelerationP_P",
+    "/properties/OverallVibrationAccelerationPerG0_P",
+    "/properties/OverallVibrationAccelerationPerG_RMS",
+    "/properties/OverallVibrationAccelerationPerGP_P",
+    "/properties/OverallVibrationAccelerationRMS",
+    "/properties/OverallVibrationDisplacementP_P",
+    "/properties/OverallVibrationDisplacementRMS",
+    "/properties/OverallVibrationVelocity0_P",
+    "/properties/OverallVibrationVelocityP_P",
+    "/properties/OverallVibrationVelocityRMS",
+    "/properties/ReferenceStandardForVibrationMeasurement",
+    "/properties/RotationalPhase1X",
+    "/properties/RotationalPhase2X",
+    "/properties/SpeedOfRotation",
+    "/properties/ThrustPosition",
+    "/properties/VibrationAmplitudeAtTheBearingDefectFrequencies",
+    "/properties/VibrationAmplitudeAtTheBearingDefectFrequenciesPerG",
+    "/properties/VibrationAmplitudeAtTheBladePassFrequency",
+    "/properties/VibrationAmplitudeAtTheFirstHarmonicOfTheRotationFrequency2X",
+    "/properties/VibrationAmplitudeAtTheGearMeshingFrequency",
+    "/properties/VibrationAmplitudeAtTheGearMeshingFrequencyPerG",
+    "/properties/VibrationAmplitudeAtTheHarmonicsOfTheRotationFrequencyNx",
+    "/properties/VibrationAmplitudeAtTheRotationFrequency1X",
+    "/properties/VibrationAmplitudeAtTheSidebandsOfTheGearMeshingFrequency",
+    "/properties/VibrationAmplitudeAtTheSidebandsOfTheGearMeshingFrequencyPerG",
+    "/properties/Definition",
+    "/properties/EngineeringUnits",
+    "/properties/EURange",
+    "/properties/Definition_2",
+    "/properties/EngineeringUnits_2",
+    "/properties/EURange_2",
+    "/properties/Definition_3",
+    "/properties/EngineeringUnits_3",
+    "/properties/EURange_3",
+    "/properties/Definition_4",
+    "/properties/EngineeringUnits_4",
+    "/properties/EURange_4",
+    "/properties/Definition_5",
+    "/properties/EngineeringUnits_5",
+    "/properties/EURange_5",
+    "/properties/Definition_6",
+    "/properties/EngineeringUnits_6",
+    "/properties/EURange_6",
+    "/properties/Definition_7",
+    "/properties/EngineeringUnits_7",
+    "/properties/EURange_7",
+    "/properties/Definition_8",
+    "/properties/EngineeringUnits_8",
+    "/properties/EURange_8",
+    "/properties/Definition_9",
+    "/properties/EngineeringUnits_9",
+    "/properties/EURange_9",
+    "/properties/Definition_10",
+    "/properties/EngineeringUnits_10",
+    "/properties/EURange_10",
+    "/properties/Definition_11",
+    "/properties/EngineeringUnits_11",
+    "/properties/EURange_11",
+    "/properties/Definition_12",
+    "/properties/EngineeringUnits_12",
+    "/properties/EURange_12",
+    "/properties/Definition_13",
+    "/properties/EngineeringUnits_13",
+    "/properties/EURange_13",
+    "/properties/Definition_14",
+    "/properties/EngineeringUnits_14",
+    "/properties/EURange_14",
+    "/properties/Definition_15",
+    "/properties/EngineeringUnits_15",
+    "/properties/EURange_15",
+    "/properties/Definition_16",
+    "/properties/EngineeringUnits_16",
+    "/properties/EURange_16",
+    "/properties/Definition_17",
+    "/properties/EngineeringUnits_17",
+    "/properties/EURange_17",
+    "/properties/Definition_18",
+    "/properties/EngineeringUnits_18",
+    "/properties/EURange_18",
+    "/properties/Definition_19",
+    "/properties/EngineeringUnits_19",
+    "/properties/EURange_19",
+    "/properties/Definition_20",
+    "/properties/EngineeringUnits_20",
+    "/properties/EURange_20",
+    "/properties/Definition_21",
+    "/properties/EngineeringUnits_21",
+    "/properties/EURange_21",
+    "/properties/Definition_22",
+    "/properties/Definition_23",
+    "/properties/EngineeringUnits_22",
+    "/properties/EURange_22",
+    "/properties/Definition_24",
+    "/properties/EngineeringUnits_23",
+    "/properties/EURange_23",
+    "/properties/Definition_25",
+    "/properties/EngineeringUnits_24",
+    "/properties/EURange_24",
+    "/properties/Definition_26",
+    "/properties/EngineeringUnits_25",
+    "/properties/EURange_25",
+    "/properties/Definition_27",
+    "/properties/EngineeringUnits_26",
+    "/properties/EURange_26",
+    "/properties/Definition_28",
+    "/properties/EngineeringUnits_27",
+    "/properties/EURange_27",
+    "/properties/Definition_29",
+    "/properties/EngineeringUnits_28",
+    "/properties/EURange_28",
+    "/properties/Definition_30",
+    "/properties/EngineeringUnits_29",
+    "/properties/EURange_29",
+    "/properties/Definition_31",
+    "/properties/EngineeringUnits_30",
+    "/properties/EURange_30",
+    "/properties/Definition_32",
+    "/properties/EngineeringUnits_31",
+    "/properties/EURange_31",
+    "/properties/Definition_33",
+    "/properties/EngineeringUnits_32",
+    "/properties/EURange_32",
+    "/properties/Definition_34",
+    "/properties/EngineeringUnits_33",
+    "/properties/EURange_33",
+    "/properties/Definition_35",
+    "/properties/EngineeringUnits_34",
+    "/properties/EURange_34",
+    "/properties/Definition_36",
+    "/properties/EngineeringUnits_35",
+    "/properties/EURange_35"
+  ],
   "uav:bindingVersion": "1.1",
   "uav:browseName": "ns1:VibrationMeasurementType",
   "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=1055",
@@ -4718,6 +4707,7 @@
         "browseName": "1:VibrationMeasurementType",
         "displayName": [
           {
+            "locale": "",
             "value": "VibrationMeasurementType"
           }
         ],
@@ -4879,15 +4869,18 @@
       },
       {
         "accessLevel": 5,
+        "arrayDimensions": "",
         "browseName": "1:1XPhase",
         "dataType": "Double",
         "description": [
           {
+            "locale": "",
             "value": "Phase of the 1X relative shaft vibration related to a reference point of time. The reference point of time for the phase is defined by a so called phase reference sensor."
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "1XPhase"
           }
         ],
@@ -4931,10 +4924,12 @@
         "typeDefinition": "i=15318"
       },
       {
+        "arrayDimensions": "",
         "browseName": "Definition",
         "dataType": "String",
         "displayName": [
           {
+            "locale": "",
             "value": "Definition"
           }
         ],
@@ -4960,10 +4955,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "EngineeringUnits",
         "dataType": "EUInformation",
         "displayName": [
           {
+            "locale": "",
             "value": "EngineeringUnits"
           }
         ],
@@ -4990,10 +4987,12 @@
         "valueXml": "<uax:ExtensionObject xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">\n        <uax:TypeId>\n          <uax:Identifier>i=888</uax:Identifier>\n        </uax:TypeId>\n        <uax:Body>\n          <uax:EUInformation>\n            <uax:NamespaceUri>http://www.opcfoundation.org/UA/units/un/cefact</uax:NamespaceUri>\n            <uax:UnitId>17476</uax:UnitId>\n            <uax:DisplayName>\n              <uax:Text>°</uax:Text>\n            </uax:DisplayName>\n            <uax:Description>\n              <uax:Text>degree [unit of angle]</uax:Text>\n            </uax:Description>\n          </uax:EUInformation>\n        </uax:Body>\n      </uax:ExtensionObject>"
       },
       {
+        "arrayDimensions": "",
         "browseName": "EURange",
         "dataType": "Range",
         "displayName": [
           {
+            "locale": "",
             "value": "EURange"
           }
         ],
@@ -5020,15 +5019,18 @@
       },
       {
         "accessLevel": 5,
+        "arrayDimensions": "",
         "browseName": "1:1XRelativeShaftVibrationP_P",
         "dataType": "Double",
         "description": [
           {
+            "locale": "",
             "value": "Oscillation range at the rotation frequency of the shaft under consideration, expressed as displacement."
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "1XRelativeShaftVibrationP_P"
           }
         ],
@@ -5072,10 +5074,12 @@
         "typeDefinition": "i=15318"
       },
       {
+        "arrayDimensions": "",
         "browseName": "Definition",
         "dataType": "String",
         "displayName": [
           {
+            "locale": "",
             "value": "Definition"
           }
         ],
@@ -5101,10 +5105,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "EngineeringUnits",
         "dataType": "EUInformation",
         "displayName": [
           {
+            "locale": "",
             "value": "EngineeringUnits"
           }
         ],
@@ -5131,10 +5137,12 @@
         "valueXml": "<uax:ExtensionObject xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">\n        <uax:TypeId>\n          <uax:Identifier>i=888</uax:Identifier>\n        </uax:TypeId>\n        <uax:Body>\n          <uax:EUInformation>\n            <uax:NamespaceUri>http://www.opcfoundation.org/UA/units/un/cefact</uax:NamespaceUri>\n            <uax:UnitId>13384</uax:UnitId>\n            <uax:DisplayName>\n              <uax:Text>µm</uax:Text>\n            </uax:DisplayName>\n            <uax:Description>\n              <uax:Text>micrometre (micron)</uax:Text>\n            </uax:Description>\n          </uax:EUInformation>\n        </uax:Body>\n      </uax:ExtensionObject>"
       },
       {
+        "arrayDimensions": "",
         "browseName": "EURange",
         "dataType": "Range",
         "displayName": [
           {
+            "locale": "",
             "value": "EURange"
           }
         ],
@@ -5161,15 +5169,18 @@
       },
       {
         "accessLevel": 5,
+        "arrayDimensions": "",
         "browseName": "1:2XPhase",
         "dataType": "Double",
         "description": [
           {
+            "locale": "",
             "value": "Phase of the 2X relative shaft vibration related to a reference point of time. The reference point of time for the phase is defined by a so called phase reference sensor."
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "2XPhase"
           }
         ],
@@ -5213,10 +5224,12 @@
         "typeDefinition": "i=15318"
       },
       {
+        "arrayDimensions": "",
         "browseName": "Definition",
         "dataType": "String",
         "displayName": [
           {
+            "locale": "",
             "value": "Definition"
           }
         ],
@@ -5242,10 +5255,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "EngineeringUnits",
         "dataType": "EUInformation",
         "displayName": [
           {
+            "locale": "",
             "value": "EngineeringUnits"
           }
         ],
@@ -5272,10 +5287,12 @@
         "valueXml": "<uax:ExtensionObject xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">\n        <uax:TypeId>\n          <uax:Identifier>i=888</uax:Identifier>\n        </uax:TypeId>\n        <uax:Body>\n          <uax:EUInformation>\n            <uax:NamespaceUri>http://www.opcfoundation.org/UA/units/un/cefact</uax:NamespaceUri>\n            <uax:UnitId>17476</uax:UnitId>\n            <uax:DisplayName>\n              <uax:Text>°</uax:Text>\n            </uax:DisplayName>\n            <uax:Description>\n              <uax:Text>degree [unit of angle]</uax:Text>\n            </uax:Description>\n          </uax:EUInformation>\n        </uax:Body>\n      </uax:ExtensionObject>"
       },
       {
+        "arrayDimensions": "",
         "browseName": "EURange",
         "dataType": "Range",
         "displayName": [
           {
+            "locale": "",
             "value": "EURange"
           }
         ],
@@ -5302,15 +5319,18 @@
       },
       {
         "accessLevel": 5,
+        "arrayDimensions": "",
         "browseName": "1:2XRelativeShaftVibrationP_P",
         "dataType": "Double",
         "description": [
           {
+            "locale": "",
             "value": "Oscillation range at the double rotation frequency of the shaft under consideration, expressed as displacement."
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "2XRelativeShaftVibrationP_P"
           }
         ],
@@ -5354,10 +5374,12 @@
         "typeDefinition": "i=15318"
       },
       {
+        "arrayDimensions": "",
         "browseName": "Definition",
         "dataType": "String",
         "displayName": [
           {
+            "locale": "",
             "value": "Definition"
           }
         ],
@@ -5383,10 +5405,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "EngineeringUnits",
         "dataType": "EUInformation",
         "displayName": [
           {
+            "locale": "",
             "value": "EngineeringUnits"
           }
         ],
@@ -5413,10 +5437,12 @@
         "valueXml": "<uax:ExtensionObject xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">\n        <uax:TypeId>\n          <uax:Identifier>i=888</uax:Identifier>\n        </uax:TypeId>\n        <uax:Body>\n          <uax:EUInformation>\n            <uax:NamespaceUri>http://www.opcfoundation.org/UA/units/un/cefact</uax:NamespaceUri>\n            <uax:UnitId>13384</uax:UnitId>\n            <uax:DisplayName>\n              <uax:Text>µm</uax:Text>\n            </uax:DisplayName>\n            <uax:Description>\n              <uax:Text>micrometre (micron)</uax:Text>\n            </uax:Description>\n          </uax:EUInformation>\n        </uax:Body>\n      </uax:ExtensionObject>"
       },
       {
+        "arrayDimensions": "",
         "browseName": "EURange",
         "dataType": "Range",
         "displayName": [
           {
+            "locale": "",
             "value": "EURange"
           }
         ],
@@ -5443,15 +5469,18 @@
       },
       {
         "accessLevel": 5,
+        "arrayDimensions": "",
         "browseName": "1:BearingIndex",
         "dataType": "Double",
         "description": [
           {
+            "locale": "",
             "value": "Amplitude of the oscillation envelope after high pass filtering, expressed as acceleration. The parameter for the high pass filtering and oscillation envelope are regularly defined by the user."
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "BearingIndex"
           }
         ],
@@ -5494,10 +5523,12 @@
         "typeDefinition": "i=15318"
       },
       {
+        "arrayDimensions": "",
         "browseName": "Definition",
         "dataType": "String",
         "displayName": [
           {
+            "locale": "",
             "value": "Definition"
           }
         ],
@@ -5523,10 +5554,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "EngineeringUnits",
         "dataType": "EUInformation",
         "displayName": [
           {
+            "locale": "",
             "value": "EngineeringUnits"
           }
         ],
@@ -5553,10 +5586,12 @@
         "valueXml": "<uax:ExtensionObject xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">\n        <uax:TypeId>\n          <uax:Identifier>i=888</uax:Identifier>\n        </uax:TypeId>\n        <uax:Body>\n          <uax:EUInformation>\n            <uax:NamespaceUri>http://www.opcfoundation.org/UA/units/un/cefact</uax:NamespaceUri>\n            <uax:UnitId>5067595</uax:UnitId>\n            <uax:DisplayName>\n              <uax:Text>m/s²</uax:Text>\n            </uax:DisplayName>\n            <uax:Description>\n              <uax:Text>metre per second squared</uax:Text>\n            </uax:Description>\n          </uax:EUInformation>\n        </uax:Body>\n      </uax:ExtensionObject>"
       },
       {
+        "arrayDimensions": "",
         "browseName": "EURange",
         "dataType": "Range",
         "displayName": [
           {
+            "locale": "",
             "value": "EURange"
           }
         ],
@@ -5583,15 +5618,18 @@
       },
       {
         "accessLevel": 5,
+        "arrayDimensions": "",
         "browseName": "1:BearingIndexPerG",
         "dataType": "Double",
         "description": [
           {
+            "locale": "",
             "value": "Amplitude of the oscillation envelope after high pass filtering, expressed as acceleration in units of the acceleration of gravity g. The parameter for the high pass filtering and oscillation envelope are regularly defined by the user."
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "BearingIndexPerG"
           }
         ],
@@ -5634,10 +5672,12 @@
         "typeDefinition": "i=15318"
       },
       {
+        "arrayDimensions": "",
         "browseName": "Definition",
         "dataType": "String",
         "displayName": [
           {
+            "locale": "",
             "value": "Definition"
           }
         ],
@@ -5663,10 +5703,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "EngineeringUnits",
         "dataType": "EUInformation",
         "displayName": [
           {
+            "locale": "",
             "value": "EngineeringUnits"
           }
         ],
@@ -5692,10 +5734,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "EURange",
         "dataType": "Range",
         "displayName": [
           {
+            "locale": "",
             "value": "EURange"
           }
         ],
@@ -5722,15 +5766,18 @@
       },
       {
         "accessLevel": 5,
+        "arrayDimensions": "",
         "browseName": "1:BroadbandCavitationAccelerationPerG_RMS",
         "dataType": "Double",
         "description": [
           {
+            "locale": "",
             "value": "Root mean square of the oscillation signal due to cavitation within a defined frequency range, expressed as acceleration in units of the acceleration of gravity g. The frequency range is regularly defined by the user."
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "BroadbandCavitationAccelerationPerG_RMS"
           }
         ],
@@ -5773,10 +5820,12 @@
         "typeDefinition": "i=15318"
       },
       {
+        "arrayDimensions": "",
         "browseName": "Definition",
         "dataType": "String",
         "displayName": [
           {
+            "locale": "",
             "value": "Definition"
           }
         ],
@@ -5802,10 +5851,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "EngineeringUnits",
         "dataType": "EUInformation",
         "displayName": [
           {
+            "locale": "",
             "value": "EngineeringUnits"
           }
         ],
@@ -5831,10 +5882,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "EURange",
         "dataType": "Range",
         "displayName": [
           {
+            "locale": "",
             "value": "EURange"
           }
         ],
@@ -5861,15 +5914,18 @@
       },
       {
         "accessLevel": 5,
+        "arrayDimensions": "",
         "browseName": "1:BroadbandCavitationAccelerationRMS",
         "dataType": "Double",
         "description": [
           {
+            "locale": "",
             "value": "Root mean square of the oscillation signal due to cavitation within a defined frequency range, expressed as acceleration. The frequency range is regularly defined by the user."
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "BroadbandCavitationAccelerationRMS"
           }
         ],
@@ -5912,10 +5968,12 @@
         "typeDefinition": "i=15318"
       },
       {
+        "arrayDimensions": "",
         "browseName": "Definition",
         "dataType": "String",
         "displayName": [
           {
+            "locale": "",
             "value": "Definition"
           }
         ],
@@ -5941,10 +5999,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "EngineeringUnits",
         "dataType": "EUInformation",
         "displayName": [
           {
+            "locale": "",
             "value": "EngineeringUnits"
           }
         ],
@@ -5971,10 +6031,12 @@
         "valueXml": "<uax:ExtensionObject xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">\n        <uax:TypeId>\n          <uax:Identifier>i=888</uax:Identifier>\n        </uax:TypeId>\n        <uax:Body>\n          <uax:EUInformation>\n            <uax:NamespaceUri>http://www.opcfoundation.org/UA/units/un/cefact</uax:NamespaceUri>\n            <uax:UnitId>5067595</uax:UnitId>\n            <uax:DisplayName>\n              <uax:Text>m/s²</uax:Text>\n            </uax:DisplayName>\n            <uax:Description>\n              <uax:Text>metre per second squared</uax:Text>\n            </uax:Description>\n          </uax:EUInformation>\n        </uax:Body>\n      </uax:ExtensionObject>"
       },
       {
+        "arrayDimensions": "",
         "browseName": "EURange",
         "dataType": "Range",
         "displayName": [
           {
+            "locale": "",
             "value": "EURange"
           }
         ],
@@ -6001,15 +6063,18 @@
       },
       {
         "accessLevel": 5,
+        "arrayDimensions": "",
         "browseName": "1:GapVoltage",
         "dataType": "Double",
         "description": [
           {
+            "locale": "",
             "value": "Sum value of the oscillation ranges of the vibration at all frequencies except the rotation frequency of the shaft under consideration, expressed as displacement. Regularly, only the frequency range below the rotational frequency is considered."
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "GapVoltage"
           }
         ],
@@ -6052,10 +6117,12 @@
         "typeDefinition": "i=15318"
       },
       {
+        "arrayDimensions": "",
         "browseName": "Definition",
         "dataType": "String",
         "displayName": [
           {
+            "locale": "",
             "value": "Definition"
           }
         ],
@@ -6081,10 +6148,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "EngineeringUnits",
         "dataType": "EUInformation",
         "displayName": [
           {
+            "locale": "",
             "value": "EngineeringUnits"
           }
         ],
@@ -6111,10 +6180,12 @@
         "valueXml": "<uax:ExtensionObject xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">\n        <uax:TypeId>\n          <uax:Identifier>i=888</uax:Identifier>\n        </uax:TypeId>\n        <uax:Body>\n          <uax:EUInformation>\n            <uax:NamespaceUri>http://www.opcfoundation.org/UA/units/un/cefact</uax:NamespaceUri>\n            <uax:UnitId>5655636</uax:UnitId>\n            <uax:DisplayName>\n              <uax:Text>V</uax:Text>\n            </uax:DisplayName>\n            <uax:Description>\n              <uax:Text>volt</uax:Text>\n            </uax:Description>\n          </uax:EUInformation>\n        </uax:Body>\n      </uax:ExtensionObject>"
       },
       {
+        "arrayDimensions": "",
         "browseName": "EURange",
         "dataType": "Range",
         "displayName": [
           {
+            "locale": "",
             "value": "EURange"
           }
         ],
@@ -6141,15 +6212,18 @@
       },
       {
         "accessLevel": 5,
+        "arrayDimensions": "",
         "browseName": "1:Not1XRelativeShaftVibrationP_P",
         "dataType": "Double",
         "description": [
           {
+            "locale": "",
             "value": "Phase of the 2X relative shaft vibration related to a reference point of time. The reference point of time for the phase is defined by a so called phase reference sensor."
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "Not1XRelativeShaftVibrationP_P"
           }
         ],
@@ -6192,10 +6266,12 @@
         "typeDefinition": "i=15318"
       },
       {
+        "arrayDimensions": "",
         "browseName": "Definition",
         "dataType": "String",
         "displayName": [
           {
+            "locale": "",
             "value": "Definition"
           }
         ],
@@ -6221,10 +6297,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "EngineeringUnits",
         "dataType": "EUInformation",
         "displayName": [
           {
+            "locale": "",
             "value": "EngineeringUnits"
           }
         ],
@@ -6251,10 +6329,12 @@
         "valueXml": "<uax:ExtensionObject xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">\n        <uax:TypeId>\n          <uax:Identifier>i=888</uax:Identifier>\n        </uax:TypeId>\n        <uax:Body>\n          <uax:EUInformation>\n            <uax:NamespaceUri>http://www.opcfoundation.org/UA/units/un/cefact</uax:NamespaceUri>\n            <uax:UnitId>13384</uax:UnitId>\n            <uax:DisplayName>\n              <uax:Text>µm</uax:Text>\n            </uax:DisplayName>\n            <uax:Description>\n              <uax:Text>micrometre (micron)</uax:Text>\n            </uax:Description>\n          </uax:EUInformation>\n        </uax:Body>\n      </uax:ExtensionObject>"
       },
       {
+        "arrayDimensions": "",
         "browseName": "EURange",
         "dataType": "Range",
         "displayName": [
           {
+            "locale": "",
             "value": "EURange"
           }
         ],
@@ -6281,15 +6361,18 @@
       },
       {
         "accessLevel": 5,
+        "arrayDimensions": "",
         "browseName": "1:OverallVibrationAcceleration0_P",
         "dataType": "Double",
         "description": [
           {
+            "locale": "",
             "value": "Maximum oscillation amplitude, expressed as acceleration. The oscillation range is the difference between the minimum and maximum value within the time range under consideration."
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "OverallVibrationAcceleration0_P"
           }
         ],
@@ -6332,10 +6415,12 @@
         "typeDefinition": "i=15318"
       },
       {
+        "arrayDimensions": "",
         "browseName": "Definition",
         "dataType": "String",
         "displayName": [
           {
+            "locale": "",
             "value": "Definition"
           }
         ],
@@ -6361,10 +6446,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "EngineeringUnits",
         "dataType": "EUInformation",
         "displayName": [
           {
+            "locale": "",
             "value": "EngineeringUnits"
           }
         ],
@@ -6391,10 +6478,12 @@
         "valueXml": "<uax:ExtensionObject xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">\n        <uax:TypeId>\n          <uax:Identifier>i=888</uax:Identifier>\n        </uax:TypeId>\n        <uax:Body>\n          <uax:EUInformation>\n            <uax:NamespaceUri>http://www.opcfoundation.org/UA/units/un/cefact</uax:NamespaceUri>\n            <uax:UnitId>5067595</uax:UnitId>\n            <uax:DisplayName>\n              <uax:Text>m/s²</uax:Text>\n            </uax:DisplayName>\n            <uax:Description>\n              <uax:Text>metre per second squared</uax:Text>\n            </uax:Description>\n          </uax:EUInformation>\n        </uax:Body>\n      </uax:ExtensionObject>"
       },
       {
+        "arrayDimensions": "",
         "browseName": "EURange",
         "dataType": "Range",
         "displayName": [
           {
+            "locale": "",
             "value": "EURange"
           }
         ],
@@ -6421,15 +6510,18 @@
       },
       {
         "accessLevel": 5,
+        "arrayDimensions": "",
         "browseName": "1:OverallVibrationAccelerationP_P",
         "dataType": "Double",
         "description": [
           {
+            "locale": "",
             "value": "Oscillation range, expressed as acceleration. The oscillation range is the difference between the minimum and maximum value within the time range under consideration."
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "OverallVibrationAccelerationP_P"
           }
         ],
@@ -6472,10 +6564,12 @@
         "typeDefinition": "i=15318"
       },
       {
+        "arrayDimensions": "",
         "browseName": "Definition",
         "dataType": "String",
         "displayName": [
           {
+            "locale": "",
             "value": "Definition"
           }
         ],
@@ -6501,10 +6595,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "EngineeringUnits",
         "dataType": "EUInformation",
         "displayName": [
           {
+            "locale": "",
             "value": "EngineeringUnits"
           }
         ],
@@ -6531,10 +6627,12 @@
         "valueXml": "<uax:ExtensionObject xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">\n        <uax:TypeId>\n          <uax:Identifier>i=888</uax:Identifier>\n        </uax:TypeId>\n        <uax:Body>\n          <uax:EUInformation>\n            <uax:NamespaceUri>http://www.opcfoundation.org/UA/units/un/cefact</uax:NamespaceUri>\n            <uax:UnitId>5067595</uax:UnitId>\n            <uax:DisplayName>\n              <uax:Text>m/s²</uax:Text>\n            </uax:DisplayName>\n            <uax:Description>\n              <uax:Text>metre per second squared</uax:Text>\n            </uax:Description>\n          </uax:EUInformation>\n        </uax:Body>\n      </uax:ExtensionObject>"
       },
       {
+        "arrayDimensions": "",
         "browseName": "EURange",
         "dataType": "Range",
         "displayName": [
           {
+            "locale": "",
             "value": "EURange"
           }
         ],
@@ -6561,15 +6659,18 @@
       },
       {
         "accessLevel": 5,
+        "arrayDimensions": "",
         "browseName": "1:OverallVibrationAccelerationPerG0_P",
         "dataType": "Double",
         "description": [
           {
+            "locale": "",
             "value": "Maximum oscillation amplitude, expressed as acceleration in units of the acceleration of gravity g. The oscillation range is the difference between the minimum and maximum value within the time range under consideration."
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "OverallVibrationAccelerationPerG0_P"
           }
         ],
@@ -6612,10 +6713,12 @@
         "typeDefinition": "i=15318"
       },
       {
+        "arrayDimensions": "",
         "browseName": "Definition",
         "dataType": "String",
         "displayName": [
           {
+            "locale": "",
             "value": "Definition"
           }
         ],
@@ -6641,10 +6744,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "EngineeringUnits",
         "dataType": "EUInformation",
         "displayName": [
           {
+            "locale": "",
             "value": "EngineeringUnits"
           }
         ],
@@ -6670,10 +6775,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "EURange",
         "dataType": "Range",
         "displayName": [
           {
+            "locale": "",
             "value": "EURange"
           }
         ],
@@ -6700,15 +6807,18 @@
       },
       {
         "accessLevel": 5,
+        "arrayDimensions": "",
         "browseName": "1:OverallVibrationAccelerationPerG_RMS",
         "dataType": "Double",
         "description": [
           {
+            "locale": "",
             "value": "Root mean square of the oscillation displacement, expressed as acceleration in units of the acceleration of gravity g"
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "OverallVibrationAccelerationPerG_RMS"
           }
         ],
@@ -6751,10 +6861,12 @@
         "typeDefinition": "i=15318"
       },
       {
+        "arrayDimensions": "",
         "browseName": "Definition",
         "dataType": "String",
         "displayName": [
           {
+            "locale": "",
             "value": "Definition"
           }
         ],
@@ -6780,10 +6892,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "EngineeringUnits",
         "dataType": "EUInformation",
         "displayName": [
           {
+            "locale": "",
             "value": "EngineeringUnits"
           }
         ],
@@ -6809,10 +6923,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "EURange",
         "dataType": "Range",
         "displayName": [
           {
+            "locale": "",
             "value": "EURange"
           }
         ],
@@ -6839,15 +6955,18 @@
       },
       {
         "accessLevel": 5,
+        "arrayDimensions": "",
         "browseName": "1:OverallVibrationAccelerationPerGP_P",
         "dataType": "Double",
         "description": [
           {
+            "locale": "",
             "value": "Oscillation range, expressed as acceleration in units of the acceleration of gravity g. The oscillation range is the difference between the minimum and maximum value within the time range under consideration."
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "OverallVibrationAccelerationPerGP_P"
           }
         ],
@@ -6890,10 +7009,12 @@
         "typeDefinition": "i=15318"
       },
       {
+        "arrayDimensions": "",
         "browseName": "Definition",
         "dataType": "String",
         "displayName": [
           {
+            "locale": "",
             "value": "Definition"
           }
         ],
@@ -6919,10 +7040,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "EngineeringUnits",
         "dataType": "EUInformation",
         "displayName": [
           {
+            "locale": "",
             "value": "EngineeringUnits"
           }
         ],
@@ -6948,10 +7071,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "EURange",
         "dataType": "Range",
         "displayName": [
           {
+            "locale": "",
             "value": "EURange"
           }
         ],
@@ -6978,15 +7103,18 @@
       },
       {
         "accessLevel": 5,
+        "arrayDimensions": "",
         "browseName": "1:OverallVibrationAccelerationRMS",
         "dataType": "Double",
         "description": [
           {
+            "locale": "",
             "value": "Root mean square of the oscillation displacement, expressed as acceleration"
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "OverallVibrationAccelerationRMS"
           }
         ],
@@ -7029,10 +7157,12 @@
         "typeDefinition": "i=15318"
       },
       {
+        "arrayDimensions": "",
         "browseName": "Definition",
         "dataType": "String",
         "displayName": [
           {
+            "locale": "",
             "value": "Definition"
           }
         ],
@@ -7058,10 +7188,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "EngineeringUnits",
         "dataType": "EUInformation",
         "displayName": [
           {
+            "locale": "",
             "value": "EngineeringUnits"
           }
         ],
@@ -7088,10 +7220,12 @@
         "valueXml": "<uax:ExtensionObject xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">\n        <uax:TypeId>\n          <uax:Identifier>i=888</uax:Identifier>\n        </uax:TypeId>\n        <uax:Body>\n          <uax:EUInformation>\n            <uax:NamespaceUri>http://www.opcfoundation.org/UA/units/un/cefact</uax:NamespaceUri>\n            <uax:UnitId>5067595</uax:UnitId>\n            <uax:DisplayName>\n              <uax:Text>m/s²</uax:Text>\n            </uax:DisplayName>\n            <uax:Description>\n              <uax:Text>metre per second squared</uax:Text>\n            </uax:Description>\n          </uax:EUInformation>\n        </uax:Body>\n      </uax:ExtensionObject>"
       },
       {
+        "arrayDimensions": "",
         "browseName": "EURange",
         "dataType": "Range",
         "displayName": [
           {
+            "locale": "",
             "value": "EURange"
           }
         ],
@@ -7118,15 +7252,18 @@
       },
       {
         "accessLevel": 5,
+        "arrayDimensions": "",
         "browseName": "1:OverallVibrationDisplacementP_P",
         "dataType": "Double",
         "description": [
           {
+            "locale": "",
             "value": "Oscillation range, expressed as local displacement. The oscillation range is the difference between the minimum and maximum value within the time range under consideration."
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "OverallVibrationDisplacementP_P"
           }
         ],
@@ -7169,10 +7306,12 @@
         "typeDefinition": "i=15318"
       },
       {
+        "arrayDimensions": "",
         "browseName": "Definition",
         "dataType": "String",
         "displayName": [
           {
+            "locale": "",
             "value": "Definition"
           }
         ],
@@ -7198,10 +7337,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "EngineeringUnits",
         "dataType": "EUInformation",
         "displayName": [
           {
+            "locale": "",
             "value": "EngineeringUnits"
           }
         ],
@@ -7228,10 +7369,12 @@
         "valueXml": "<uax:ExtensionObject xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">\n        <uax:TypeId>\n          <uax:Identifier>i=888</uax:Identifier>\n        </uax:TypeId>\n        <uax:Body>\n          <uax:EUInformation>\n            <uax:NamespaceUri>http://www.opcfoundation.org/UA/units/un/cefact</uax:NamespaceUri>\n            <uax:UnitId>13384</uax:UnitId>\n            <uax:DisplayName>\n              <uax:Text>µm</uax:Text>\n            </uax:DisplayName>\n            <uax:Description>\n              <uax:Text>micrometre (micron)</uax:Text>\n            </uax:Description>\n          </uax:EUInformation>\n        </uax:Body>\n      </uax:ExtensionObject>"
       },
       {
+        "arrayDimensions": "",
         "browseName": "EURange",
         "dataType": "Range",
         "displayName": [
           {
+            "locale": "",
             "value": "EURange"
           }
         ],
@@ -7258,15 +7401,18 @@
       },
       {
         "accessLevel": 5,
+        "arrayDimensions": "",
         "browseName": "1:OverallVibrationDisplacementRMS",
         "dataType": "Double",
         "description": [
           {
+            "locale": "",
             "value": "Root mean square of oscillation range, expressed as local displacement. The oscillation range is the difference between the minimum and maximum value within the time range under consideration."
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "OverallVibrationDisplacementRMS"
           }
         ],
@@ -7309,10 +7455,12 @@
         "typeDefinition": "i=15318"
       },
       {
+        "arrayDimensions": "",
         "browseName": "Definition",
         "dataType": "String",
         "displayName": [
           {
+            "locale": "",
             "value": "Definition"
           }
         ],
@@ -7338,10 +7486,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "EngineeringUnits",
         "dataType": "EUInformation",
         "displayName": [
           {
+            "locale": "",
             "value": "EngineeringUnits"
           }
         ],
@@ -7368,10 +7518,12 @@
         "valueXml": "<uax:ExtensionObject xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">\n        <uax:TypeId>\n          <uax:Identifier>i=888</uax:Identifier>\n        </uax:TypeId>\n        <uax:Body>\n          <uax:EUInformation>\n            <uax:NamespaceUri>http://www.opcfoundation.org/UA/units/un/cefact</uax:NamespaceUri>\n            <uax:UnitId>13384</uax:UnitId>\n            <uax:DisplayName>\n              <uax:Text>µm</uax:Text>\n            </uax:DisplayName>\n            <uax:Description>\n              <uax:Text>micrometre (micron)</uax:Text>\n            </uax:Description>\n          </uax:EUInformation>\n        </uax:Body>\n      </uax:ExtensionObject>"
       },
       {
+        "arrayDimensions": "",
         "browseName": "EURange",
         "dataType": "Range",
         "displayName": [
           {
+            "locale": "",
             "value": "EURange"
           }
         ],
@@ -7398,15 +7550,18 @@
       },
       {
         "accessLevel": 5,
+        "arrayDimensions": "",
         "browseName": "1:OverallVibrationVelocity0_P",
         "dataType": "Double",
         "description": [
           {
+            "locale": "",
             "value": "Maximum oscillation amplitude, expressed as velocity. The oscillation range is the difference between the minimum and maximum value within the time range under consideration."
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "OverallVibrationVelocity0_P"
           }
         ],
@@ -7449,10 +7604,12 @@
         "typeDefinition": "i=15318"
       },
       {
+        "arrayDimensions": "",
         "browseName": "Definition",
         "dataType": "String",
         "displayName": [
           {
+            "locale": "",
             "value": "Definition"
           }
         ],
@@ -7478,10 +7635,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "EngineeringUnits",
         "dataType": "EUInformation",
         "displayName": [
           {
+            "locale": "",
             "value": "EngineeringUnits"
           }
         ],
@@ -7508,10 +7667,12 @@
         "valueXml": "<uax:ExtensionObject xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">\n        <uax:TypeId>\n          <uax:Identifier>i=888</uax:Identifier>\n        </uax:TypeId>\n        <uax:Body>\n          <uax:EUInformation>\n            <uax:NamespaceUri>http://www.opcfoundation.org/UA/units/un/cefact</uax:NamespaceUri>\n            <uax:UnitId>4403510</uax:UnitId>\n            <uax:DisplayName>\n              <uax:Text>mm/s</uax:Text>\n            </uax:DisplayName>\n            <uax:Description>\n              <uax:Text>millimetre per second</uax:Text>\n            </uax:Description>\n          </uax:EUInformation>\n        </uax:Body>\n      </uax:ExtensionObject>"
       },
       {
+        "arrayDimensions": "",
         "browseName": "EURange",
         "dataType": "Range",
         "displayName": [
           {
+            "locale": "",
             "value": "EURange"
           }
         ],
@@ -7538,15 +7699,18 @@
       },
       {
         "accessLevel": 5,
+        "arrayDimensions": "",
         "browseName": "1:OverallVibrationVelocityP_P",
         "dataType": "Double",
         "description": [
           {
+            "locale": "",
             "value": "Oscillation range, expressed as velocity. The oscillation range is the difference between the minimum and maximum value within the time range under consideration."
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "OverallVibrationVelocityP_P"
           }
         ],
@@ -7589,10 +7753,12 @@
         "typeDefinition": "i=15318"
       },
       {
+        "arrayDimensions": "",
         "browseName": "Definition",
         "dataType": "String",
         "displayName": [
           {
+            "locale": "",
             "value": "Definition"
           }
         ],
@@ -7618,10 +7784,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "EngineeringUnits",
         "dataType": "EUInformation",
         "displayName": [
           {
+            "locale": "",
             "value": "EngineeringUnits"
           }
         ],
@@ -7648,10 +7816,12 @@
         "valueXml": "<uax:ExtensionObject xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">\n        <uax:TypeId>\n          <uax:Identifier>i=888</uax:Identifier>\n        </uax:TypeId>\n        <uax:Body>\n          <uax:EUInformation>\n            <uax:NamespaceUri>http://www.opcfoundation.org/UA/units/un/cefact</uax:NamespaceUri>\n            <uax:UnitId>4403510</uax:UnitId>\n            <uax:DisplayName>\n              <uax:Text>mm/s</uax:Text>\n            </uax:DisplayName>\n            <uax:Description>\n              <uax:Text>millimetre per second</uax:Text>\n            </uax:Description>\n          </uax:EUInformation>\n        </uax:Body>\n      </uax:ExtensionObject>"
       },
       {
+        "arrayDimensions": "",
         "browseName": "EURange",
         "dataType": "Range",
         "displayName": [
           {
+            "locale": "",
             "value": "EURange"
           }
         ],
@@ -7678,15 +7848,18 @@
       },
       {
         "accessLevel": 5,
+        "arrayDimensions": "",
         "browseName": "1:OverallVibrationVelocityRMS",
         "dataType": "Double",
         "description": [
           {
+            "locale": "",
             "value": "Root mean square of the oscillation displacement expressed as velocity"
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "OverallVibrationVelocityRMS"
           }
         ],
@@ -7729,10 +7902,12 @@
         "typeDefinition": "i=15318"
       },
       {
+        "arrayDimensions": "",
         "browseName": "Definition",
         "dataType": "String",
         "displayName": [
           {
+            "locale": "",
             "value": "Definition"
           }
         ],
@@ -7758,10 +7933,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "EngineeringUnits",
         "dataType": "EUInformation",
         "displayName": [
           {
+            "locale": "",
             "value": "EngineeringUnits"
           }
         ],
@@ -7788,10 +7965,12 @@
         "valueXml": "<uax:ExtensionObject xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">\n        <uax:TypeId>\n          <uax:Identifier>i=888</uax:Identifier>\n        </uax:TypeId>\n        <uax:Body>\n          <uax:EUInformation>\n            <uax:NamespaceUri>http://www.opcfoundation.org/UA/units/un/cefact</uax:NamespaceUri>\n            <uax:UnitId>4403510</uax:UnitId>\n            <uax:DisplayName>\n              <uax:Text>mm/s</uax:Text>\n            </uax:DisplayName>\n            <uax:Description>\n              <uax:Text>millimetre per second</uax:Text>\n            </uax:Description>\n          </uax:EUInformation>\n        </uax:Body>\n      </uax:ExtensionObject>"
       },
       {
+        "arrayDimensions": "",
         "browseName": "EURange",
         "dataType": "Range",
         "displayName": [
           {
+            "locale": "",
             "value": "EURange"
           }
         ],
@@ -7818,15 +7997,18 @@
       },
       {
         "accessLevel": 5,
+        "arrayDimensions": "",
         "browseName": "1:ReferenceStandardForVibrationMeasurement",
         "dataType": "String",
         "description": [
           {
+            "locale": "",
             "value": "Standard to which statements on vibration measurement refer."
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "ReferenceStandardForVibrationMeasurement"
           }
         ],
@@ -7857,10 +8039,12 @@
         "typeDefinition": "i=2365"
       },
       {
+        "arrayDimensions": "",
         "browseName": "Definition",
         "dataType": "String",
         "displayName": [
           {
+            "locale": "",
             "value": "Definition"
           }
         ],
@@ -7887,15 +8071,18 @@
       },
       {
         "accessLevel": 5,
+        "arrayDimensions": "",
         "browseName": "1:RotationalPhase1X",
         "dataType": "Double",
         "description": [
           {
+            "locale": "",
             "value": "Phase of the vibration amplitude at the rotation frequency (1X) of the object under consideration related to a reference point of time. The reference point of time for the phase is defined by a so called phase reference sensor."
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "RotationalPhase1X"
           }
         ],
@@ -7938,10 +8125,12 @@
         "typeDefinition": "i=15318"
       },
       {
+        "arrayDimensions": "",
         "browseName": "Definition",
         "dataType": "String",
         "displayName": [
           {
+            "locale": "",
             "value": "Definition"
           }
         ],
@@ -7967,10 +8156,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "EngineeringUnits",
         "dataType": "EUInformation",
         "displayName": [
           {
+            "locale": "",
             "value": "EngineeringUnits"
           }
         ],
@@ -7997,10 +8188,12 @@
         "valueXml": "<uax:ExtensionObject xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">\n        <uax:TypeId>\n          <uax:Identifier>i=888</uax:Identifier>\n        </uax:TypeId>\n        <uax:Body>\n          <uax:EUInformation>\n            <uax:NamespaceUri>http://www.opcfoundation.org/UA/units/un/cefact</uax:NamespaceUri>\n            <uax:UnitId>17476</uax:UnitId>\n            <uax:DisplayName>\n              <uax:Text>°</uax:Text>\n            </uax:DisplayName>\n            <uax:Description>\n              <uax:Text>degree [unit of angle]</uax:Text>\n            </uax:Description>\n          </uax:EUInformation>\n        </uax:Body>\n      </uax:ExtensionObject>"
       },
       {
+        "arrayDimensions": "",
         "browseName": "EURange",
         "dataType": "Range",
         "displayName": [
           {
+            "locale": "",
             "value": "EURange"
           }
         ],
@@ -8027,15 +8220,18 @@
       },
       {
         "accessLevel": 5,
+        "arrayDimensions": "",
         "browseName": "1:RotationalPhase2X",
         "dataType": "Double",
         "description": [
           {
+            "locale": "",
             "value": "Phase of the vibration amplitude at the first harmonic of the rotation frequency (2X) of the object under consideration related to a reference point of time. The reference point of time for the phase is defined by a so called phase reference sensor."
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "RotationalPhase2X"
           }
         ],
@@ -8078,10 +8274,12 @@
         "typeDefinition": "i=15318"
       },
       {
+        "arrayDimensions": "",
         "browseName": "Definition",
         "dataType": "String",
         "displayName": [
           {
+            "locale": "",
             "value": "Definition"
           }
         ],
@@ -8107,10 +8305,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "EngineeringUnits",
         "dataType": "EUInformation",
         "displayName": [
           {
+            "locale": "",
             "value": "EngineeringUnits"
           }
         ],
@@ -8137,10 +8337,12 @@
         "valueXml": "<uax:ExtensionObject xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">\n        <uax:TypeId>\n          <uax:Identifier>i=888</uax:Identifier>\n        </uax:TypeId>\n        <uax:Body>\n          <uax:EUInformation>\n            <uax:NamespaceUri>http://www.opcfoundation.org/UA/units/un/cefact</uax:NamespaceUri>\n            <uax:UnitId>17476</uax:UnitId>\n            <uax:DisplayName>\n              <uax:Text>°</uax:Text>\n            </uax:DisplayName>\n            <uax:Description>\n              <uax:Text>degree [unit of angle]</uax:Text>\n            </uax:Description>\n          </uax:EUInformation>\n        </uax:Body>\n      </uax:ExtensionObject>"
       },
       {
+        "arrayDimensions": "",
         "browseName": "EURange",
         "dataType": "Range",
         "displayName": [
           {
+            "locale": "",
             "value": "EURange"
           }
         ],
@@ -8167,15 +8369,18 @@
       },
       {
         "accessLevel": 5,
+        "arrayDimensions": "",
         "browseName": "1:SpeedOfRotation",
         "dataType": "Double",
         "description": [
           {
+            "locale": "",
             "value": "Number of revolutions per time."
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "SpeedOfRotation"
           }
         ],
@@ -8218,10 +8423,12 @@
         "typeDefinition": "i=15318"
       },
       {
+        "arrayDimensions": "",
         "browseName": "Definition",
         "dataType": "String",
         "displayName": [
           {
+            "locale": "",
             "value": "Definition"
           }
         ],
@@ -8247,10 +8454,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "EngineeringUnits",
         "dataType": "EUInformation",
         "displayName": [
           {
+            "locale": "",
             "value": "EngineeringUnits"
           }
         ],
@@ -8277,10 +8486,12 @@
         "valueXml": "<uax:ExtensionObject xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">\n        <uax:TypeId>\n          <uax:Identifier>i=888</uax:Identifier>\n        </uax:TypeId>\n        <uax:Body>\n          <uax:EUInformation>\n            <uax:NamespaceUri>http://www.opcfoundation.org/UA/units/un/cefact</uax:NamespaceUri>\n            <uax:UnitId>4405559</uax:UnitId>\n            <uax:DisplayName>\n              <uax:Text>s⁻¹</uax:Text>\n            </uax:DisplayName>\n            <uax:Description>\n              <uax:Text>reciprocal second</uax:Text>\n            </uax:Description>\n          </uax:EUInformation>\n        </uax:Body>\n      </uax:ExtensionObject>"
       },
       {
+        "arrayDimensions": "",
         "browseName": "EURange",
         "dataType": "Range",
         "displayName": [
           {
+            "locale": "",
             "value": "EURange"
           }
         ],
@@ -8307,15 +8518,18 @@
       },
       {
         "accessLevel": 5,
+        "arrayDimensions": "",
         "browseName": "1:ThrustPosition",
         "dataType": "Double",
         "description": [
           {
+            "locale": "",
             "value": "Measure for the distance between the sensor and the shaft, expressed as device output voltage"
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "ThrustPosition"
           }
         ],
@@ -8358,10 +8572,12 @@
         "typeDefinition": "i=15318"
       },
       {
+        "arrayDimensions": "",
         "browseName": "Definition",
         "dataType": "String",
         "displayName": [
           {
+            "locale": "",
             "value": "Definition"
           }
         ],
@@ -8387,10 +8603,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "EngineeringUnits",
         "dataType": "EUInformation",
         "displayName": [
           {
+            "locale": "",
             "value": "EngineeringUnits"
           }
         ],
@@ -8417,10 +8635,12 @@
         "valueXml": "<uax:ExtensionObject xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">\n        <uax:TypeId>\n          <uax:Identifier>i=888</uax:Identifier>\n        </uax:TypeId>\n        <uax:Body>\n          <uax:EUInformation>\n            <uax:NamespaceUri>http://www.opcfoundation.org/UA/units/un/cefact</uax:NamespaceUri>\n            <uax:UnitId>5066068</uax:UnitId>\n            <uax:DisplayName>\n              <uax:Text>mm</uax:Text>\n            </uax:DisplayName>\n            <uax:Description>\n              <uax:Text>millimetre</uax:Text>\n            </uax:Description>\n          </uax:EUInformation>\n        </uax:Body>\n      </uax:ExtensionObject>"
       },
       {
+        "arrayDimensions": "",
         "browseName": "EURange",
         "dataType": "Range",
         "displayName": [
           {
+            "locale": "",
             "value": "EURange"
           }
         ],
@@ -8447,15 +8667,18 @@
       },
       {
         "accessLevel": 5,
+        "arrayDimensions": "",
         "browseName": "1:VibrationAmplitudeAtTheBearingDefectFrequencies",
         "dataType": "Double",
         "description": [
           {
+            "locale": "",
             "value": "Amplitude of the oscillation envelope at the roller bearing defect frequencies after high pass filtering, expressed as acceleration. The parameter for the high pass filtering and oscillation envelope are regularly defined by the user."
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "VibrationAmplitudeAtTheBearingDefectFrequencies"
           }
         ],
@@ -8498,10 +8721,12 @@
         "typeDefinition": "i=15318"
       },
       {
+        "arrayDimensions": "",
         "browseName": "Definition",
         "dataType": "String",
         "displayName": [
           {
+            "locale": "",
             "value": "Definition"
           }
         ],
@@ -8527,10 +8752,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "EngineeringUnits",
         "dataType": "EUInformation",
         "displayName": [
           {
+            "locale": "",
             "value": "EngineeringUnits"
           }
         ],
@@ -8557,10 +8784,12 @@
         "valueXml": "<uax:ExtensionObject xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">\n        <uax:TypeId>\n          <uax:Identifier>i=888</uax:Identifier>\n        </uax:TypeId>\n        <uax:Body>\n          <uax:EUInformation>\n            <uax:NamespaceUri>http://www.opcfoundation.org/UA/units/un/cefact</uax:NamespaceUri>\n            <uax:UnitId>5067595</uax:UnitId>\n            <uax:DisplayName>\n              <uax:Text>m/s²</uax:Text>\n            </uax:DisplayName>\n            <uax:Description>\n              <uax:Text>metre per second squared</uax:Text>\n            </uax:Description>\n          </uax:EUInformation>\n        </uax:Body>\n      </uax:ExtensionObject>"
       },
       {
+        "arrayDimensions": "",
         "browseName": "EURange",
         "dataType": "Range",
         "displayName": [
           {
+            "locale": "",
             "value": "EURange"
           }
         ],
@@ -8587,15 +8816,18 @@
       },
       {
         "accessLevel": 5,
+        "arrayDimensions": "",
         "browseName": "1:VibrationAmplitudeAtTheBearingDefectFrequenciesPerG",
         "dataType": "Double",
         "description": [
           {
+            "locale": "",
             "value": "Amplitude of the oscillation envelope at the roller bearing defect frequencies after high pass filtering, expressed as acceleration in units of the acceleration of gravity g. The parameter for the high pass filtering and oscillation envelope are regularly defined by the user."
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "VibrationAmplitudeAtTheBearingDefectFrequenciesPerG"
           }
         ],
@@ -8638,10 +8870,12 @@
         "typeDefinition": "i=15318"
       },
       {
+        "arrayDimensions": "",
         "browseName": "Definition",
         "dataType": "String",
         "displayName": [
           {
+            "locale": "",
             "value": "Definition"
           }
         ],
@@ -8667,10 +8901,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "EngineeringUnits",
         "dataType": "EUInformation",
         "displayName": [
           {
+            "locale": "",
             "value": "EngineeringUnits"
           }
         ],
@@ -8696,10 +8932,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "EURange",
         "dataType": "Range",
         "displayName": [
           {
+            "locale": "",
             "value": "EURange"
           }
         ],
@@ -8726,15 +8964,18 @@
       },
       {
         "accessLevel": 5,
+        "arrayDimensions": "",
         "browseName": "1:VibrationAmplitudeAtTheBladePassFrequency",
         "dataType": "Double",
         "description": [
           {
+            "locale": "",
             "value": "Performance indicator of vibration calculated from the oscillation amplitude at the rotation frequency of the shaft multiplied with the number of blades mounted at the shaft, expressed as velocity."
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "VibrationAmplitudeAtTheBladePassFrequency"
           }
         ],
@@ -8777,10 +9018,12 @@
         "typeDefinition": "i=15318"
       },
       {
+        "arrayDimensions": "",
         "browseName": "Definition",
         "dataType": "String",
         "displayName": [
           {
+            "locale": "",
             "value": "Definition"
           }
         ],
@@ -8806,10 +9049,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "EngineeringUnits",
         "dataType": "EUInformation",
         "displayName": [
           {
+            "locale": "",
             "value": "EngineeringUnits"
           }
         ],
@@ -8836,10 +9081,12 @@
         "valueXml": "<uax:ExtensionObject xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">\n        <uax:TypeId>\n          <uax:Identifier>i=888</uax:Identifier>\n        </uax:TypeId>\n        <uax:Body>\n          <uax:EUInformation>\n            <uax:NamespaceUri>http://www.opcfoundation.org/UA/units/un/cefact</uax:NamespaceUri>\n            <uax:UnitId>4403510</uax:UnitId>\n            <uax:DisplayName>\n              <uax:Text>mm/s</uax:Text>\n            </uax:DisplayName>\n            <uax:Description>\n              <uax:Text>millimetre per second</uax:Text>\n            </uax:Description>\n          </uax:EUInformation>\n        </uax:Body>\n      </uax:ExtensionObject>"
       },
       {
+        "arrayDimensions": "",
         "browseName": "EURange",
         "dataType": "Range",
         "displayName": [
           {
+            "locale": "",
             "value": "EURange"
           }
         ],
@@ -8866,15 +9113,18 @@
       },
       {
         "accessLevel": 5,
+        "arrayDimensions": "",
         "browseName": "1:VibrationAmplitudeAtTheFirstHarmonicOfTheRotationFrequency2X",
         "dataType": "Double",
         "description": [
           {
+            "locale": "",
             "value": "Oscillation amplitude at the double rotation frequency of the object under consideration, expressed as velocity."
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "VibrationAmplitudeAtTheFirstHarmonicOfTheRotationFrequency2X"
           }
         ],
@@ -8917,10 +9167,12 @@
         "typeDefinition": "i=15318"
       },
       {
+        "arrayDimensions": "",
         "browseName": "Definition",
         "dataType": "String",
         "displayName": [
           {
+            "locale": "",
             "value": "Definition"
           }
         ],
@@ -8946,10 +9198,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "EngineeringUnits",
         "dataType": "EUInformation",
         "displayName": [
           {
+            "locale": "",
             "value": "EngineeringUnits"
           }
         ],
@@ -8976,10 +9230,12 @@
         "valueXml": "<uax:ExtensionObject xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">\n        <uax:TypeId>\n          <uax:Identifier>i=888</uax:Identifier>\n        </uax:TypeId>\n        <uax:Body>\n          <uax:EUInformation>\n            <uax:NamespaceUri>http://www.opcfoundation.org/UA/units/un/cefact</uax:NamespaceUri>\n            <uax:UnitId>4403510</uax:UnitId>\n            <uax:DisplayName>\n              <uax:Text>mm/s</uax:Text>\n            </uax:DisplayName>\n            <uax:Description>\n              <uax:Text>millimetre per second</uax:Text>\n            </uax:Description>\n          </uax:EUInformation>\n        </uax:Body>\n      </uax:ExtensionObject>"
       },
       {
+        "arrayDimensions": "",
         "browseName": "EURange",
         "dataType": "Range",
         "displayName": [
           {
+            "locale": "",
             "value": "EURange"
           }
         ],
@@ -9006,15 +9262,18 @@
       },
       {
         "accessLevel": 5,
+        "arrayDimensions": "",
         "browseName": "1:VibrationAmplitudeAtTheGearMeshingFrequency",
         "dataType": "Double",
         "description": [
           {
+            "locale": "",
             "value": "Performance indicator of vibration calculated from the oscillation amplitude at the rotation frequency of the shaft, multiplied with the number of teeth of the gear mounted at the shaft, expressed as acceleration."
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "VibrationAmplitudeAtTheGearMeshingFrequency"
           }
         ],
@@ -9057,10 +9316,12 @@
         "typeDefinition": "i=15318"
       },
       {
+        "arrayDimensions": "",
         "browseName": "Definition",
         "dataType": "String",
         "displayName": [
           {
+            "locale": "",
             "value": "Definition"
           }
         ],
@@ -9086,10 +9347,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "EngineeringUnits",
         "dataType": "EUInformation",
         "displayName": [
           {
+            "locale": "",
             "value": "EngineeringUnits"
           }
         ],
@@ -9116,10 +9379,12 @@
         "valueXml": "<uax:ExtensionObject xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">\n        <uax:TypeId>\n          <uax:Identifier>i=888</uax:Identifier>\n        </uax:TypeId>\n        <uax:Body>\n          <uax:EUInformation>\n            <uax:NamespaceUri>http://www.opcfoundation.org/UA/units/un/cefact</uax:NamespaceUri>\n            <uax:UnitId>5067595</uax:UnitId>\n            <uax:DisplayName>\n              <uax:Text>m/s²</uax:Text>\n            </uax:DisplayName>\n            <uax:Description>\n              <uax:Text>metre per second squared</uax:Text>\n            </uax:Description>\n          </uax:EUInformation>\n        </uax:Body>\n      </uax:ExtensionObject>"
       },
       {
+        "arrayDimensions": "",
         "browseName": "EURange",
         "dataType": "Range",
         "displayName": [
           {
+            "locale": "",
             "value": "EURange"
           }
         ],
@@ -9146,15 +9411,18 @@
       },
       {
         "accessLevel": 5,
+        "arrayDimensions": "",
         "browseName": "1:VibrationAmplitudeAtTheGearMeshingFrequencyPerG",
         "dataType": "Double",
         "description": [
           {
+            "locale": "",
             "value": "Performance indicator of vibration calculated from the oscillation amplitude at the rotation frequency of the shaft, multiplied with the number of teeth of the gear mounted at the shaft, expressed as acceleration in units of the acceleration of gravity g."
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "VibrationAmplitudeAtTheGearMeshingFrequencyPerG"
           }
         ],
@@ -9197,10 +9465,12 @@
         "typeDefinition": "i=15318"
       },
       {
+        "arrayDimensions": "",
         "browseName": "Definition",
         "dataType": "String",
         "displayName": [
           {
+            "locale": "",
             "value": "Definition"
           }
         ],
@@ -9226,10 +9496,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "EngineeringUnits",
         "dataType": "EUInformation",
         "displayName": [
           {
+            "locale": "",
             "value": "EngineeringUnits"
           }
         ],
@@ -9255,10 +9527,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "EURange",
         "dataType": "Range",
         "displayName": [
           {
+            "locale": "",
             "value": "EURange"
           }
         ],
@@ -9285,15 +9559,18 @@
       },
       {
         "accessLevel": 5,
+        "arrayDimensions": "",
         "browseName": "1:VibrationAmplitudeAtTheHarmonicsOfTheRotationFrequencyNx",
         "dataType": "Double",
         "description": [
           {
+            "locale": "",
             "value": "Performance indicator of vibration calculated from the oscillation amplitude at the harmonics of the rotation frequency of the object under consideration, expressed as velocity."
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "VibrationAmplitudeAtTheHarmonicsOfTheRotationFrequencyNx"
           }
         ],
@@ -9336,10 +9613,12 @@
         "typeDefinition": "i=15318"
       },
       {
+        "arrayDimensions": "",
         "browseName": "Definition",
         "dataType": "String",
         "displayName": [
           {
+            "locale": "",
             "value": "Definition"
           }
         ],
@@ -9365,10 +9644,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "EngineeringUnits",
         "dataType": "EUInformation",
         "displayName": [
           {
+            "locale": "",
             "value": "EngineeringUnits"
           }
         ],
@@ -9395,10 +9676,12 @@
         "valueXml": "<uax:ExtensionObject xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">\n        <uax:TypeId>\n          <uax:Identifier>i=888</uax:Identifier>\n        </uax:TypeId>\n        <uax:Body>\n          <uax:EUInformation>\n            <uax:NamespaceUri>http://www.opcfoundation.org/UA/units/un/cefact</uax:NamespaceUri>\n            <uax:UnitId>4403510</uax:UnitId>\n            <uax:DisplayName>\n              <uax:Text>mm/s</uax:Text>\n            </uax:DisplayName>\n            <uax:Description>\n              <uax:Text>millimetre per second</uax:Text>\n            </uax:Description>\n          </uax:EUInformation>\n        </uax:Body>\n      </uax:ExtensionObject>"
       },
       {
+        "arrayDimensions": "",
         "browseName": "EURange",
         "dataType": "Range",
         "displayName": [
           {
+            "locale": "",
             "value": "EURange"
           }
         ],
@@ -9425,15 +9708,18 @@
       },
       {
         "accessLevel": 5,
+        "arrayDimensions": "",
         "browseName": "1:VibrationAmplitudeAtTheRotationFrequency1X",
         "dataType": "Double",
         "description": [
           {
+            "locale": "",
             "value": "Oscillation amplitude at the rotation frequency of the object under consideration, expressed as velocity."
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "VibrationAmplitudeAtTheRotationFrequency1X"
           }
         ],
@@ -9476,10 +9762,12 @@
         "typeDefinition": "i=15318"
       },
       {
+        "arrayDimensions": "",
         "browseName": "Definition",
         "dataType": "String",
         "displayName": [
           {
+            "locale": "",
             "value": "Definition"
           }
         ],
@@ -9505,10 +9793,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "EngineeringUnits",
         "dataType": "EUInformation",
         "displayName": [
           {
+            "locale": "",
             "value": "EngineeringUnits"
           }
         ],
@@ -9535,10 +9825,12 @@
         "valueXml": "<uax:ExtensionObject xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">\n        <uax:TypeId>\n          <uax:Identifier>i=888</uax:Identifier>\n        </uax:TypeId>\n        <uax:Body>\n          <uax:EUInformation>\n            <uax:NamespaceUri>http://www.opcfoundation.org/UA/units/un/cefact</uax:NamespaceUri>\n            <uax:UnitId>4403510</uax:UnitId>\n            <uax:DisplayName>\n              <uax:Text>mm/s</uax:Text>\n            </uax:DisplayName>\n            <uax:Description>\n              <uax:Text>millimetre per second</uax:Text>\n            </uax:Description>\n          </uax:EUInformation>\n        </uax:Body>\n      </uax:ExtensionObject>"
       },
       {
+        "arrayDimensions": "",
         "browseName": "EURange",
         "dataType": "Range",
         "displayName": [
           {
+            "locale": "",
             "value": "EURange"
           }
         ],
@@ -9565,15 +9857,18 @@
       },
       {
         "accessLevel": 5,
+        "arrayDimensions": "",
         "browseName": "1:VibrationAmplitudeAtTheSidebandsOfTheGearMeshingFrequency",
         "dataType": "Double",
         "description": [
           {
+            "locale": "",
             "value": "Root mean square of the oscillation signal within defined frequency ranges, which include the side bands of the mesh frequency above and below the mesh frequency, expressed as acceleration."
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "VibrationAmplitudeAtTheSidebandsOfTheGearMeshingFrequency"
           }
         ],
@@ -9616,10 +9911,12 @@
         "typeDefinition": "i=15318"
       },
       {
+        "arrayDimensions": "",
         "browseName": "Definition",
         "dataType": "String",
         "displayName": [
           {
+            "locale": "",
             "value": "Definition"
           }
         ],
@@ -9645,10 +9942,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "EngineeringUnits",
         "dataType": "EUInformation",
         "displayName": [
           {
+            "locale": "",
             "value": "EngineeringUnits"
           }
         ],
@@ -9675,10 +9974,12 @@
         "valueXml": "<uax:ExtensionObject xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">\n        <uax:TypeId>\n          <uax:Identifier>i=888</uax:Identifier>\n        </uax:TypeId>\n        <uax:Body>\n          <uax:EUInformation>\n            <uax:NamespaceUri>http://www.opcfoundation.org/UA/units/un/cefact</uax:NamespaceUri>\n            <uax:UnitId>5067595</uax:UnitId>\n            <uax:DisplayName>\n              <uax:Text>m/s²</uax:Text>\n            </uax:DisplayName>\n            <uax:Description>\n              <uax:Text>metre per second squared</uax:Text>\n            </uax:Description>\n          </uax:EUInformation>\n        </uax:Body>\n      </uax:ExtensionObject>"
       },
       {
+        "arrayDimensions": "",
         "browseName": "EURange",
         "dataType": "Range",
         "displayName": [
           {
+            "locale": "",
             "value": "EURange"
           }
         ],
@@ -9705,15 +10006,18 @@
       },
       {
         "accessLevel": 5,
+        "arrayDimensions": "",
         "browseName": "1:VibrationAmplitudeAtTheSidebandsOfTheGearMeshingFrequencyPerG",
         "dataType": "Double",
         "description": [
           {
+            "locale": "",
             "value": "Root mean square of the oscillation signal within defined frequency ranges, which include the side bands of the mesh frequency above and below the mesh frequency, expressed as acceleration in units of the acceleration of gravity g."
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "VibrationAmplitudeAtTheSidebandsOfTheGearMeshingFrequencyPerG"
           }
         ],
@@ -9756,10 +10060,12 @@
         "typeDefinition": "i=15318"
       },
       {
+        "arrayDimensions": "",
         "browseName": "Definition",
         "dataType": "String",
         "displayName": [
           {
+            "locale": "",
             "value": "Definition"
           }
         ],
@@ -9785,10 +10091,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "EngineeringUnits",
         "dataType": "EUInformation",
         "displayName": [
           {
+            "locale": "",
             "value": "EngineeringUnits"
           }
         ],
@@ -9814,10 +10122,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "EURange",
         "dataType": "Range",
         "displayName": [
           {
+            "locale": "",
             "value": "EURange"
           }
         ],

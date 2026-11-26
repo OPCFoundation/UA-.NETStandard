@@ -1,32 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using System.Collections.Generic;
@@ -265,7 +238,8 @@ namespace Opc.Ua.Wot
                 {
                     dataTypeSources = await PreresolveDataTypeDefinitionsAsync(
                         document, dataTypeOwners, nodeResolver, options ?? new WotNodeSetConverterOptions(),
-                        diagnostics, dataTypeSources, cancellationToken).ConfigureAwait(false);
+                        diagnostics, dataTypeSources, documentSet?.NativeDataTypeDocument, cancellationToken)
+                        .ConfigureAwait(false);
                     dataTypeNames = await PreresolveDataTypeNamesAsync(
                         document, dataTypeSources, dataTypeOwners, nodeResolver,
                         diagnostics, cancellationToken).ConfigureAwait(false);
@@ -387,6 +361,20 @@ namespace Opc.Ua.Wot
                     cancellationToken).ConfigureAwait(false);
             }
 
+            Dictionary<string, WotArgumentProperty>? resolvedArguments = null;
+            if (nodeResolver is not null && documentSet?.DeferPreservedFactValidation != true &&
+                TakesRestorePath(document) && HasMethodArgumentSchemas(document))
+            {
+                UANodeSet? native = GetProvidedArchiveContext(thingResolver, document) ??
+                    ReadAuthoritativeTypeContext(document).Value;
+                if (native is not null)
+                {
+                    resolvedArguments = await ResolveExportArgumentPropertiesAsync(
+                        native, nodeResolver, diagnostics, cancellationToken, requireComplete: false)
+                        .ConfigureAwait(false);
+                }
+            }
+
             UANodeSet? ToNodeSet(
                 IReadOnlyDictionary<string, string>? carrierEventIds,
                 List<string>? missingWitnesses)
@@ -412,7 +400,8 @@ namespace Opc.Ua.Wot
                     dataTypeNames,
                     documentSet,
                     carrierEventIds,
-                    missingWitnesses);
+                    missingWitnesses,
+                    resolvedArguments);
             }
 
             int firstPassStart = diagnostics.Count;
@@ -452,6 +441,7 @@ namespace Opc.Ua.Wot
             WotNodeSetConverterOptions options,
             List<WotDiagnostic> diagnostics,
             ArrayOf<WotDataTypeDefinitionSource> captured,
+            WotDocument? internalDefinitionOwner,
             CancellationToken cancellationToken)
         {
             options.Validate();
@@ -464,7 +454,10 @@ namespace Opc.Ua.Wot
             var localOwners = new List<WotDocument>(documents);
             foreach (WotDataTypeDefinitionSource source in captured)
             {
-                documents.Add(source.Document);
+                if (source.Document != internalDefinitionOwner)
+                {
+                    documents.Add(source.Document);
+                }
             }
             long capturedBytes = 0;
             foreach (WotDocument owner in documents)
@@ -477,9 +470,32 @@ namespace Opc.Ua.Wot
                 Report(document.Id ?? string.Empty, "The captured DataType definitions exceed the configured limits.");
                 return [];
             }
-            if (nodeResolver is not IWotDataTypeDefinitionResolver resolver)
+            var resolver = nodeResolver as IWotDataTypeDefinitionResolver;
+            var candidates = new Dictionary<string, List<WotDataTypeDefinitionSource>>(StringComparer.Ordinal);
+            var nativeIdentities = new Dictionary<string, HashSet<string>>(StringComparer.Ordinal);
+            foreach (WotDataTypeDefinitionSource source in captured)
             {
-                return captured.IsNull ? [] : captured;
+                if (source.ProjectedSeparately &&
+                    ReadDataTypeGraphId(source.Document, source.Definition) is { } graphId)
+                {
+                    if (!candidates.TryGetValue(graphId, out List<WotDataTypeDefinitionSource>? matches))
+                    {
+                        matches = [];
+                        candidates.Add(graphId, matches);
+                    }
+                    matches.Add(source);
+                    AddNativeIdentity("id:" + NormalizeExpandedNodeId(graphId), graphId);
+                    if (GetElementString(source.Definition, "uav:dataTypeId") is { } identity)
+                    {
+                        AddNativeIdentity("id:" + NormalizeExpandedNodeId(identity), graphId);
+                    }
+                    if (GetElementString(source.Definition, "uav:dataTypeName") is { } name &&
+                        TrySplitCompactName(source.Document, name, out string namespaceUri, out string local,
+                            source.Definition))
+                    {
+                        AddNativeIdentity("name:" + namespaceUri + "\0" + local, graphId);
+                    }
+                }
             }
             var known = new HashSet<string>(StringComparer.Ordinal);
             var pending = new Queue<(WotDocument Owner, JsonElement Root, int Depth)>();
@@ -498,9 +514,14 @@ namespace Opc.Ua.Wot
                 }
                 pending.Enqueue((owner, owner.RootElement, 0));
             }
-            var sources = captured.ToList();
+            var sources = new List<WotDataTypeDefinitionSource>();
             foreach (WotDataTypeDefinitionSource source in captured)
             {
+                if (source.ProjectedSeparately)
+                {
+                    continue;
+                }
+                sources.Add(source);
                 documents.Add(source.Document);
                 if (ReadDataTypeGraphId(source.Document, source.Definition) is { } graphId)
                 {
@@ -511,14 +532,20 @@ namespace Opc.Ua.Wot
             while (pending.Count != 0)
             {
                 (WotDocument owner, JsonElement root, int depth) = pending.Dequeue();
-                ArrayOf<JsonElement> references = ReadDataTypeDefinitionOccurrences(root);
-                for (int index = 0; index < references.Count; index++)
+                var references = new HashSet<string>(StringComparer.Ordinal);
+                foreach (JsonElement reference in ReadDataTypeDefinitionOccurrences(root))
                 {
-                    JsonElement reference = references[index];
+                    if (IsReferenceOnlyDefinition(reference) &&
+                        ReadDataTypeGraphId(owner, reference) is { } graphId)
+                    {
+                        references.Add(graphId);
+                    }
+                }
+                VisitNativeReferences(owner, root, references);
+                foreach (string graphId in references)
+                {
                     cancellationToken.ThrowIfCancellationRequested();
-                    if (!IsReferenceOnlyDefinition(reference) ||
-                        ReadDataTypeGraphId(owner, reference) is not { } graphId ||
-                        !known.Add(graphId))
+                    if (!known.Add(graphId))
                     {
                         continue;
                     }
@@ -527,8 +554,20 @@ namespace Opc.Ua.Wot
                         Report(graphId, "The DataType definition closure exceeds the configured limits.");
                         continue;
                     }
-                    ArrayOf<WotDataTypeDefinitionSource> matches = await resolver
-                        .ResolveDataTypeDefinitionsAsync(graphId, cancellationToken).ConfigureAwait(false);
+                    ArrayOf<WotDataTypeDefinitionSource> matches;
+                    if (candidates.TryGetValue(graphId, out List<WotDataTypeDefinitionSource>? native))
+                    {
+                        matches = native.ToArrayOf();
+                    }
+                    else if (resolver is not null)
+                    {
+                        matches = await resolver.ResolveDataTypeDefinitionsAsync(graphId, cancellationToken)
+                            .ConfigureAwait(false);
+                    }
+                    else
+                    {
+                        continue;
+                    }
                     if (matches.Count != 1)
                     {
                         Report(graphId, matches.Count == 0
@@ -543,7 +582,10 @@ namespace Opc.Ua.Wot
                         Report(graphId, "The provider did not return the requested complete DataType definition.");
                         continue;
                     }
-                    documents.Add(source.Document);
+                    if (source.Document != internalDefinitionOwner)
+                    {
+                        documents.Add(source.Document);
+                    }
                     if (documents.Count > options.MaxResolverDocuments)
                     {
                         Report(graphId, "The DataType definition closure exceeds the configured document limit.");
@@ -562,6 +604,64 @@ namespace Opc.Ua.Wot
                 }
             }
             return sources.ToArrayOf();
+
+            void AddNativeIdentity(string identity, string graphId)
+            {
+                if (!nativeIdentities.TryGetValue(identity, out HashSet<string>? owners))
+                {
+                    owners = new HashSet<string>(StringComparer.Ordinal);
+                    nativeIdentities.Add(identity, owners);
+                }
+                owners.Add(graphId);
+            }
+
+            void VisitNativeReferences(
+                WotDocument owner, JsonElement element, HashSet<string> references, bool indexMap = false)
+            {
+                if (nativeIdentities.Count == 0)
+                {
+                    return;
+                }
+                cancellationToken.ThrowIfCancellationRequested();
+                if (element.ValueKind == JsonValueKind.Object)
+                {
+                    foreach (JsonProperty member in element.EnumerateObject())
+                    {
+                        if (indexMap)
+                        {
+                            VisitNativeReferences(owner, member.Value, references);
+                            continue;
+                        }
+                        if (WotDocument.IsSemanticBoundary(member.Name) || IsLiteralSchemaMember(member.Name))
+                        {
+                            continue;
+                        }
+                        if (member.Value.ValueKind == JsonValueKind.String &&
+                            member.Name is "uav:dataTypeId" or "uav:fieldDataTypeId" or "uav:mapToType" or
+                                "uav:dataTypeName" or "uav:fieldDataTypeName" or "uav:dataTypeSubtypeOf")
+                        {
+                            string value = member.Value.GetString()!;
+                            string? key = IsNodeId(value)
+                                ? "id:" + NormalizeExpandedNodeId(value)
+                                : TrySplitCompactName(owner, value, out string namespaceUri, out string local, element)
+                                    ? "name:" + namespaceUri + "\0" + local
+                                    : null;
+                            if (key is not null && nativeIdentities.TryGetValue(key, out HashSet<string>? graphIds))
+                            {
+                                references.UnionWith(graphIds);
+                            }
+                        }
+                        VisitNativeReferences(owner, member.Value, references, IsSchemaDeclarationMap(member.Name));
+                    }
+                }
+                else if (element.ValueKind == JsonValueKind.Array)
+                {
+                    foreach (JsonElement item in element.EnumerateArray())
+                    {
+                        VisitNativeReferences(owner, item, references);
+                    }
+                }
+            }
 
             void Report(string graphId, string message)
             {
@@ -1175,7 +1275,8 @@ namespace Opc.Ua.Wot
             Dictionary<(string NamespaceUri, string Name), string?>? dataTypeNames = null,
             DocumentSetThingResolver? documentSet = null,
             IReadOnlyDictionary<string, string>? carrierEventIds = null,
-            List<string>? missingWitnesses = null)
+            List<string>? missingWitnesses = null,
+            IReadOnlyDictionary<string, WotArgumentProperty>? resolvedArgumentProperties = null)
         {
             options ??= new WotNodeSetConverterOptions();
             options.Validate();
@@ -1225,14 +1326,14 @@ namespace Opc.Ua.Wot
                 {
                     ValidatePreservedReadableFacts(
                         document, restored, options, diagnostics, archiveContext, carrierEventIds,
-                        missingWitnesses);
+                        missingWitnesses, resolvedArgumentProperties: resolvedArgumentProperties);
                 }
                 ApplyIdentifierLeniency(diagnostics, options);
                 if (HasErrors(diagnostics))
                 {
                     return NodeSetAliasCompleter.Complete(restored, WotNodeSetAliases.Instance);
                 }
-                WotJsonResidue.Replace(restored, document, options, diagnostics);
+                WotJsonResidue.Replace(restored, document, options, diagnostics, schemaContext: archiveContext);
                 return NodeSetAliasCompleter.Complete(restored, WotNodeSetAliases.Instance);
             }
 
@@ -1251,12 +1352,12 @@ namespace Opc.Ua.Wot
                             document, archiveContext ?? restored, diagnostics, carrierEventIds);
                         ValidatePreservedReadableFacts(
                             document, restored, options, diagnostics, archiveContext, carrierEventIds,
-                            missingWitnesses);
+                            missingWitnesses, resolvedArgumentProperties: resolvedArgumentProperties);
                     }
                     ApplyIdentifierLeniency(diagnostics, options);
                     if (!HasErrors(diagnostics))
                     {
-                        WotJsonResidue.Replace(restored, document, options, diagnostics);
+                        WotJsonResidue.Replace(restored, document, options, diagnostics, schemaContext: archiveContext);
                     }
                 }
                 return NodeSetAliasCompleter.Complete(restored, WotNodeSetAliases.Instance);
@@ -2070,7 +2171,8 @@ namespace Opc.Ua.Wot
             // the Thing. Without this a Variable's own Variables — EURange and
             // EngineeringUnits below an analog Variable — come back re-parented
             // onto the Thing, one level higher than the source put them.
-            string owner = ReadComponentOfParent(schema, nodeSet, diagnostics) ?? rootNodeId;
+            string owner = ReadAffordanceParent(document, schema, nodeSet, diagnostics, referenceTypeCatalog) ??
+                rootNodeId;
             string? typeDefinition = ApplyTypeBinding(
                 document, typeBinding, diagnostics, schema,
                 "/properties/" + EscapeJsonPointerToken(key), WotExpectedNodeClass.VariableType);
@@ -2091,7 +2193,8 @@ namespace Opc.Ua.Wot
                 referenceTypeCatalog);
             var references = new List<Reference>
             {
-                new() {
+                new Reference
+                {
                     ReferenceType = "HasTypeDefinition",
                     IsForward = true,
                     Value = typeDefinition ?? WotVocabulary.BaseDataVariableType
@@ -2159,24 +2262,47 @@ namespace Opc.Ua.Wot
         }
 
         /// <summary>
-        /// Reads the parent an affordance names, where that parent is another
-        /// affordance of the same Thing rather than the Thing itself.
+        /// Reads an affordance's parent from its component annotation or an
+        /// inverse ownership link.
         /// </summary>
-        private static string? ReadComponentOfParent(
+        private static string? ReadAffordanceParent(
+            WotDocument document,
             JsonElement schema,
             UANodeSet nodeSet,
-            List<WotDiagnostic> diagnostics)
+            List<WotDiagnostic> diagnostics,
+            WotReferenceTypeCatalog? referenceTypeCatalog = null)
         {
-            if (!schema.TryGetProperty("uav:componentOf", out JsonElement declared) ||
-                declared.ValueKind != JsonValueKind.Array)
+            if (schema.TryGetProperty("uav:componentOf", out JsonElement declared) &&
+                declared.ValueKind == JsonValueKind.Array)
             {
-                return null;
-            }
-            foreach (JsonElement entry in declared.EnumerateArray())
-            {
-                if (entry.ValueKind == JsonValueKind.String)
+                foreach (JsonElement entry in declared.EnumerateArray())
                 {
-                    return ToNodeSetNodeId(entry.GetString()!, nodeSet, diagnostics);
+                    if (entry.ValueKind == JsonValueKind.String)
+                    {
+                        return ToNodeSetNodeId(entry.GetString()!, nodeSet, diagnostics);
+                    }
+                }
+            }
+            foreach (JsonElement link in WotDocument.ReadArray(schema, "links"))
+            {
+                string? rel = GetElementString(link, "rel");
+                string? href = GetElementString(link, "href");
+                if (rel is null ||
+                    rel == TypeBindingRel ||
+                    href is null ||
+                    !LooksLikeNodeId(href) ||
+                    !TryResolveLinkReferenceType(
+                        document, link, rel, referenceTypeCatalog, diagnostics,
+                        out string referenceType, out bool isForward) ||
+                    isForward)
+                {
+                    continue;
+                }
+                referenceType = ToNodeSetReferenceType(referenceType, nodeSet, diagnostics);
+                if (IsComponentReference(referenceType) ||
+                    IsHasComponentReference(referenceType, nodeSet, referenceTypeCatalog))
+                {
+                    return ToNodeSetNodeId(href, nodeSet, diagnostics);
                 }
             }
             return null;
@@ -2431,7 +2557,7 @@ namespace Opc.Ua.Wot
             JsonElement schema, string? dataType)
         {
             if (schema.ValueKind != JsonValueKind.Object ||
-                ReadValueRank(schema) != ScalarValueRank ||
+                ReadValueRank(schema) is not (ScalarValueRank or ValueRanks.Any or ValueRanks.ScalarOrOneDimension) ||
                 (!schema.TryGetProperty("const", out JsonElement constant) &&
                     !schema.TryGetProperty("default", out constant)))
             {
@@ -2543,13 +2669,23 @@ namespace Opc.Ua.Wot
             List<WotDiagnostic> diagnostics)
         {
             string? local = VariableValueElementName(dataType);
-            if (local is null || ReadValueRank(schema) != ScalarValueRank)
+            int rank = ReadValueRank(schema);
+            bool flexible = rank is ValueRanks.Any or ValueRanks.ScalarOrOneDimension;
+            if (local is null || (rank != ScalarValueRank && !flexible))
+            {
+                return;
+            }
+            if (flexible &&
+                (schema.TryGetProperty("const", out JsonElement selected) ||
+                    schema.TryGetProperty("default", out selected)) &&
+                selected.ValueKind == JsonValueKind.Array)
             {
                 return;
             }
             foreach (string member in new[] { "const", "default" })
             {
                 if (schema.TryGetProperty(member, out JsonElement value) &&
+                    !(flexible && value.ValueKind == JsonValueKind.Array) &&
                     !TryReadVariableConstant(value, local, out _))
                 {
                     diagnostics.Add(new WotDiagnostic(
@@ -2578,7 +2714,7 @@ namespace Opc.Ua.Wot
         internal static bool MapsVariableValue(JsonElement schema)
         {
             if (schema.ValueKind != JsonValueKind.Object ||
-                ReadValueRank(schema) != ScalarValueRank ||
+                ReadValueRank(schema) is not (ScalarValueRank or ValueRanks.Any or ValueRanks.ScalarOrOneDimension) ||
                 (!schema.TryGetProperty("const", out JsonElement constant) &&
                     !schema.TryGetProperty("default", out constant)))
             {
@@ -2671,7 +2807,8 @@ namespace Opc.Ua.Wot
                 Description = ReadDescription(document, action)
             };
 
-            string owner = ReadComponentOfParent(action, nodeSet, diagnostics) ?? rootNodeId;
+            string owner = ReadAffordanceParent(document, action, nodeSet, diagnostics, referenceTypeCatalog) ??
+                rootNodeId;
             if (isConditionMethod &&
                 document.Events.TryGetValue(actsOn, out JsonElement target))
             {
@@ -2896,8 +3033,7 @@ namespace Opc.Ua.Wot
             carrier.DisplayName = MakeText(typeLocal);
             var references = new List<Reference>(undeclared.Count + 1)
             {
-                new Reference
-                {
+                new() {
                     ReferenceType = "HasSubtype",
                     IsForward = false,
                     Value = typeDefinition.Value
@@ -3237,7 +3373,7 @@ namespace Opc.Ua.Wot
         {
             if (nodeId.StartsWith("nsu=", StringComparison.Ordinal))
             {
-                int delimiter = nodeId.IndexOf(';', 4);
+                int delimiter = nodeId.IndexOf(';', 4, StringComparison.Ordinal);
                 if (delimiter > 4 && delimiter + 1 < nodeId.Length)
                 {
                     string namespaceUri = CoreUtils.UnescapeUri(nodeId.AsSpan(4, delimiter - 4));
@@ -4313,7 +4449,7 @@ namespace Opc.Ua.Wot
             }
             if (portableNodeId.StartsWith("nsu=", StringComparison.Ordinal))
             {
-                int delimiter = portableNodeId.IndexOf(';', 4);
+                int delimiter = portableNodeId.IndexOf(';', 4, StringComparison.Ordinal);
                 if (delimiter < 0 || delimiter + 1 >= portableNodeId.Length)
                 {
                     diagnostics.Add(new WotDiagnostic(
@@ -5408,7 +5544,7 @@ namespace Opc.Ua.Wot
                 const string marker = "nsu=";
                 if (uavId.StartsWith(marker, StringComparison.Ordinal))
                 {
-                    int semicolon = uavId.IndexOf(';', marker.Length);
+                    int semicolon = uavId.IndexOf(';', marker.Length, StringComparison.Ordinal);
                     // The nsu= form is percent escaped, like every other place
                     // the converter reads one.
                     string ns = semicolon < 0

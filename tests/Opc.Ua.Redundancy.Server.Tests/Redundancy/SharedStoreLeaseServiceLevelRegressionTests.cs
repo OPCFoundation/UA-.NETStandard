@@ -1,34 +1,9 @@
-/* ========================================================================
- * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using System.Collections.Concurrent;
+using System.Security.Cryptography;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Time.Testing;
@@ -36,6 +11,7 @@ using Moq;
 using NUnit.Framework;
 using Opc.Ua.Redundancy;
 using Opc.Ua.Redundancy.Server;
+using Opc.Ua.Tests;
 
 namespace Opc.Ua.Server.Tests.Redundancy
 {
@@ -57,24 +33,35 @@ namespace Opc.Ua.Server.Tests.Redundancy
             byte standbyLevel)
         {
             var time = new FakeTimeProvider();
-            using var backend = new InMemorySharedKeyValueStore();
+            using var payload = new InMemorySharedKeyValueStore();
+            using var backend = new SimulatedSharedKeyValueStore();
+            using var random = RandomNumberGenerator.Create();
+            var keyBytes = new byte[32];
+            random.GetBytes(keyBytes);
+            using var protector = new AesCbcHmacRecordProtector(keyBytes);
             var store = new Mock<ISharedKeyValueStore>(MockBehavior.Strict);
+            store.As<ISharedKeyValueStoreConsistency>()
+                .Setup(s => s.IsLinearizable(It.IsAny<string>())).Returns(true);
+            store.As<ISharedKeyValueStoreConsistency>()
+                .Setup(s => s.IsProcessLocal(It.IsAny<string>())).Returns(false);
             store
-                .Setup(s => s.TryGetAsync(kLeaseKey, It.IsAny<CancellationToken>()))
+                .Setup(s => s.TryGetAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
                 .Returns((string key, CancellationToken ct) => backend.TryGetAsync(key, ct));
             store
                 .Setup(s => s.CompareAndSwapAsync(
-                    kLeaseKey, It.IsAny<ByteString>(), It.IsAny<ByteString>(), It.IsAny<CancellationToken>()))
+                    It.IsAny<string>(), It.IsAny<ByteString>(), It.IsAny<ByteString>(), It.IsAny<CancellationToken>()))
                 .Returns((string key, ByteString expected, ByteString value, CancellationToken ct) =>
                     backend.CompareAndSwapAsync(key, expected, value, ct));
-            store
-                .Setup(s => s.DeleteAsync(kLeaseKey, It.IsAny<CancellationToken>()))
-                .Returns((string key, CancellationToken ct) => backend.DeleteAsync(key, ct));
+            Guid deployment = Guid.NewGuid();
+            Guid epoch = Guid.NewGuid();
+            var primaryStore = new FreshnessProtectedKeyValueStore(payload, store.Object, protector, deployment, epoch);
+            var standbyStore = new FreshnessProtectedKeyValueStore(payload, backend, protector, deployment, epoch);
+            await primaryStore.EnrollAsync().ConfigureAwait(false);
 
             await using var election = new SharedStoreLeaseElection(
-                store.Object, kLeaseKey, "A", s_leaseDuration, s_renewInterval, time);
+                primaryStore, kLeaseKey, "A", ["A", "B"], s_leaseDuration, s_renewInterval, time);
             await using var standby = new SharedStoreLeaseElection(
-                backend, kLeaseKey, "B", s_leaseDuration, s_renewInterval, time);
+                standbyStore, kLeaseKey, "B", ["A", "B"], s_leaseDuration, s_renewInterval, time);
             using var serviceLevel = new LeaderServiceLevelProvider(election, mode);
             using var standbyServiceLevel = new LeaderServiceLevelProvider(standby, mode);
             var changes = new ConcurrentQueue<byte>();
@@ -86,7 +73,8 @@ namespace Opc.Ua.Server.Tests.Redundancy
             var entered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
             var complete = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
             store
-                .Setup(s => s.TryGetAsync(kLeaseKey, It.IsAny<CancellationToken>()))
+                .Setup(s => s.TryGetAsync(It.Is<string>(key => key.EndsWith(kLeaseKey, StringComparison.Ordinal)),
+                    It.IsAny<CancellationToken>()))
                 .Returns(async (string key, CancellationToken ct) =>
                 {
                     (bool found, ByteString value) = await backend.TryGetAsync(key, ct).ConfigureAwait(false);
@@ -119,7 +107,7 @@ namespace Opc.Ua.Server.Tests.Redundancy
             finally
             {
                 store
-                    .Setup(s => s.TryGetAsync(kLeaseKey, It.IsAny<CancellationToken>()))
+                    .Setup(s => s.TryGetAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
                     .Returns((string key, CancellationToken ct) => backend.TryGetAsync(key, ct));
                 complete.TrySetResult(true);
             }

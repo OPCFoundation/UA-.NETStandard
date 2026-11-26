@@ -1,34 +1,13 @@
-/* ========================================================================
- * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
+using System;
+using System.IO;
+using System.Linq;
 using Opc.Ua.Gds;
 using Opc.Ua.Gds.Client;
+using Opc.Ua.Gds.Server;
+using Opc.Ua.Gds.Server.Database.Linq;
 
 namespace Opc.Ua.Aot.Tests
 {
@@ -236,6 +215,51 @@ namespace Opc.Ua.Aot.Tests
                 .ConfigureAwait(false);
 
             await Assert.That(results.Count).IsEqualTo(0);
+        }
+
+        [Test]
+        public async Task BoundCertificateRequestPersistsThroughJsonReloadAsync()
+        {
+            string fileName = Path.Combine(
+                Path.GetTempPath(),
+                $"{Guid.NewGuid():N}.json");
+            try
+            {
+                var database = JsonApplicationsDatabase.Load(fileName);
+                NodeId applicationId = database.RegisterApplication(CreateTestAppRecord(
+                    "urn:localhost:OPCFoundation:AotTest:BoundRequest"));
+                ByteString fingerprint = ByteString.From(Enumerable.Repeat((byte)7, 32).ToArray());
+                NodeId requestId = database.StartBoundSigningRequest(
+                    applicationId,
+                    "DefaultApplicationGroup",
+                    "RsaSha256ApplicationCertificateType",
+                    ByteString.From([1, 2, 3]),
+                    fingerprint,
+                    "aot-test");
+                database.ApproveRequest(requestId, false);
+
+                database = JsonApplicationsDatabase.Load(fileName);
+
+                ServiceResultException error = await Assert.That(
+                    () => database.FinishBoundRequest(
+                        applicationId,
+                        requestId,
+                        ByteString.From(Enumerable.Repeat((byte)8, 32).ToArray()),
+                        out _,
+                        out _,
+                        out _,
+                        out _)).Throws<ServiceResultException>() ??
+                    throw new InvalidOperationException("The exception assertion returned no exception.");
+                await Assert.That(error.StatusCode).IsEqualTo(StatusCodes.BadUserAccessDenied);
+                await Assert.That(
+                    database.FinishBoundRequest(
+                        applicationId, requestId, fingerprint, out _, out _, out _, out _))
+                    .IsEqualTo(CertificateRequestState.Approved);
+            }
+            finally
+            {
+                File.Delete(fileName);
+            }
         }
 
         private static ApplicationRecordDataType CreateTestAppRecord(

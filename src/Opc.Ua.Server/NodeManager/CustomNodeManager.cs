@@ -1,35 +1,10 @@
-/* ========================================================================
- * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Reflection;
 using System.Threading;
@@ -49,14 +24,28 @@ namespace Opc.Ua.Server
     /// is not part of the SDK because most real implementations of a INodeManager will need to
     /// modify the behavior of the base class.
     /// </remarks>
+#if NET5_0_OR_GREATER
+    [Obsolete(SyncNodeManagerDeprecation.CustomNodeManager2,
+        DiagnosticId = SyncNodeManagerDeprecation.DiagnosticId,
+        UrlFormat = SyncNodeManagerDeprecation.UrlFormat)]
+#else
+    [Obsolete(SyncNodeManagerDeprecation.CustomNodeManager2)]
+#endif
     public partial class CustomNodeManager2 :
         INodeManager3,
         INodeIdFactory,
         IDisposable,
         IAsyncDisposable,
         ILocalAddressSpaceSource,
-        INodeManagerMonitoredItemLifecycle
+        INodeManagerMonitoredItemSource,
+        INodeManagerOverrideBrowseCapability
     {
+        /// <inheritdoc/>
+        bool INodeManagerOverrideBrowseCapability.SupportsOverrideBrowse(ArrayOf<NodeId> targets)
+        {
+            return OverrideNodeBrowser.Supports(targets);
+        }
+
         /// <summary>
         /// Initializes the node manager.
         /// </summary>
@@ -245,20 +234,132 @@ namespace Opc.Ua.Server
             _ = DisposeOwnedResourcesAsync();
         }
 
-        private static bool HasHistoryWritePermission(
+        /// <summary>
+        /// Checks that the user may run a history operation on a variable: the effective
+        /// user access level of the variable must include the operation. An operation on
+        /// an Annotations property is routed to the annotations of the parent variable,
+        /// so the user access level, role permissions and access restrictions of that
+        /// variable apply in addition to those of the property.
+        /// </summary>
+        private ServiceResult ValidateHistoryVariableAccess(
             ServerSystemContext context,
-            BaseVariableState variable)
+            BaseVariableState variable,
+            byte requiredAccessLevel,
+            PermissionType requiredPermission)
         {
-            BaseVariableState accessNode = variable;
-
-            if (HistorianDispatcher.IsAnnotationsProperty(variable))
+            ServiceResult access = HistorianDispatcher.ValidateUserAccessLevel(
+                context, variable, requiredAccessLevel);
+            if (ServiceResult.IsBad(access))
             {
-                accessNode = HistorianDispatcher.GetAnnotationsParent(variable) ?? variable;
+                return access;
             }
 
-            byte userAccessLevel = accessNode.UserAccessLevel;
-            accessNode.OnReadUserAccessLevel?.Invoke(context, accessNode, ref userAccessLevel);
-            return (userAccessLevel & AccessLevels.HistoryWrite) != 0;
+            if (!HistorianDispatcher.IsAnnotationsProperty(variable) ||
+                HistorianDispatcher.GetAnnotationsParent(variable) is not { } parent)
+            {
+                return ServiceResult.Good;
+            }
+
+            access = HistorianDispatcher.ValidateUserAccessLevel(context, parent, requiredAccessLevel);
+            if (ServiceResult.IsBad(access))
+            {
+                return access;
+            }
+
+            if (context.OperationContext is not { } operationContext)
+            {
+                return ServiceResult.Good;
+            }
+
+            var metadata = new NodeMetadata(parent, parent.NodeId)
+            {
+                IsPartOfTypeHierarchy = parent.IsPartOfTypeHierarchy
+            };
+            SetAccessAndRolePermissions(ReadValidationAttributes(context, parent), metadata);
+            try
+            {
+                SetDefaultPermissions(context, parent, metadata);
+            }
+            catch (ServiceResultException error)
+            {
+                return error.Result;
+            }
+            ServiceResult result = MasterNodeManager.ValidateRolePermissions(
+                Server, operationContext, metadata, requiredPermission);
+            return ServiceResult.IsBad(result)
+                ? result
+                : MasterNodeManager.ValidateAccessRestrictions(operationContext, metadata, requiredPermission);
+        }
+
+        /// <summary>
+        /// Applies the access checks of an Annotations property to the handles whose
+        /// node was not known when the request was scanned. A handle that resolves to
+        /// an Annotations property the user may not access is removed from the nodes
+        /// to process, so that it never reaches a history hook or provider.
+        /// </summary>
+        /// <param name="context">The system context of the operation.</param>
+        /// <param name="deferred">The handles without a node; may be null.</param>
+        /// <param name="nodesToUpdate">The update details, or default for a history read.</param>
+        /// <param name="errors">The operation results.</param>
+        /// <param name="nodesToProcess">The handles passed on to the history hooks.</param>
+        /// <param name="cache">The node cache of the operation.</param>
+        private void ValidateDeferredAnnotationsAccess(
+            ServerSystemContext context,
+            List<NodeHandle>? deferred,
+            ArrayOf<HistoryUpdateDetails> nodesToUpdate,
+            IList<ServiceResult> errors,
+            List<NodeHandle> nodesToProcess,
+            IDictionary<NodeId, NodeState> cache)
+        {
+            if (deferred == null)
+            {
+                return;
+            }
+
+            bool isUpdate = !nodesToUpdate.IsNull;
+            foreach (NodeHandle handle in deferred)
+            {
+                NodeState? source;
+                try
+                {
+                    source = ValidateNode(context, handle, cache);
+                }
+                catch (ServiceResultException exception)
+                {
+                    // a handle that could not be resolved was not checked: it must
+                    // not reach a history hook that may resolve it on a second try.
+                    errors[handle.Index] = new ServiceResult(exception);
+                    nodesToProcess.Remove(handle);
+                    continue;
+                }
+
+                if (source == null)
+                {
+                    // same for a handle that resolves to no node: the error set
+                    // when the request was scanned (BadNodeIdUnknown) stands.
+                    nodesToProcess.Remove(handle);
+                    continue;
+                }
+
+                if (source is not BaseVariableState variable ||
+                    !HistorianDispatcher.IsAnnotationsProperty(variable))
+                {
+                    continue;
+                }
+
+                ServiceResult access = ValidateHistoryVariableAccess(
+                    context,
+                    variable,
+                    isUpdate ? AccessLevels.HistoryWrite : AccessLevels.HistoryRead,
+                    isUpdate
+                        ? MasterNodeManager.DetermineHistoryAccessPermission(nodesToUpdate[handle.Index])
+                        : PermissionType.ReadHistory);
+                if (ServiceResult.IsBad(access))
+                {
+                    errors[handle.Index] = access;
+                    nodesToProcess.Remove(handle);
+                }
+            }
         }
 
         /// <summary>
@@ -278,12 +379,64 @@ namespace Opc.Ua.Server
             return new PredefinedNodesAddressSpace(
                 SystemContext,
                 PredefinedNodes,
-                (node, cancellationToken) =>
-                {
-                    AddPredefinedNode(SystemContext, node);
-                    return default;
-                },
+                AddPredefinedNodeForLocalAddressSpaceAsync,
                 (nodeId, cancellationToken) => new ValueTask<bool>(DeleteNode(SystemContext, nodeId)));
+        }
+
+        /// <summary>
+        /// Completes runtime node registration before awaiting recovery in this manager's stable slot.
+        /// </summary>
+        /// <param name="node">The node and children to register.</param>
+        /// <param name="cancellationToken">Cancels registration or the recovery operation.</param>
+        private async ValueTask AddPredefinedNodeForLocalAddressSpaceAsync(
+            NodeState node,
+            CancellationToken cancellationToken)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            using NodeManagerOperation operation = BeginNodeManagerOperation();
+            AddPredefinedNode(SystemContext, node);
+            await RecoverRegisteredSubtreeAsync(SystemContext, node, cancellationToken).ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// Recovers only targets in the completed registration, including its active child nodes.
+        /// </summary>
+        /// <param name="context">The registration context used to enumerate children.</param>
+        /// <param name="node">The root of the completed registration.</param>
+        /// <param name="cancellationToken">Cancels the recovery operation.</param>
+        private async ValueTask RecoverRegisteredSubtreeAsync(
+            ISystemContext context,
+            NodeState node,
+            CancellationToken cancellationToken)
+        {
+            if (Server.NodeManager is IDynamicNodeManagerHost recovery)
+            {
+                var nodeIds = new HashSet<NodeId>(NodeIdComparer.Default);
+                var pending = new Stack<NodeState>();
+                pending.Push(node);
+                while (pending.Count > 0)
+                {
+                    cancellationToken.ThrowIfCancellationRequested();
+                    NodeState current = pending.Pop();
+                    if (!nodeIds.Add(current.NodeId))
+                    {
+                        continue;
+                    }
+                    if (!PredefinedNodes.TryGetValue(current.NodeId, out NodeState? active))
+                    {
+                        throw new InvalidOperationException(
+                            $"The registration did not index node '{current.NodeId}'.");
+                    }
+                    var children = new List<BaseInstanceState>();
+                    active.GetChildren(context, children);
+                    foreach (BaseInstanceState child in children)
+                    {
+                        pending.Push(child);
+                    }
+                }
+                await recovery.ResolveUnresolvedSourcesAsync(
+                    m_asyncNodeManager, nodeIds, cancellationToken).ConfigureAwait(false);
+            }
         }
 
         /// <summary>
@@ -344,7 +497,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// The predefined nodes managed by the node manager.
         /// </summary>
-        protected NodeIdDictionary<NodeState> PredefinedNodes { get; }
+        protected PredefinedNodeDictionary PredefinedNodes { get; }
 
         /// <summary>
         /// The root notifiers for the node manager.
@@ -364,37 +517,19 @@ namespace Opc.Ua.Server
             => m_monitoredItemManager.MonitoredItems;
 
         /// <inheritdoc/>
-        ValueTask<IReadOnlyList<IMonitoredItem>>
-            INodeManagerMonitoredItemLifecycle.GetMonitoredItemsSnapshotAsync(
-                IReadOnlyCollection<NodeId>? nodeIds,
-                CancellationToken cancellationToken)
+        Func<CancellationToken, ValueTask>? INodeManagerMonitoredItemSource.GetNotificationDrain(NodeId nodeId)
         {
-            cancellationToken.ThrowIfCancellationRequested();
-            IReadOnlyList<IMonitoredItem> snapshot;
             using (BeginNodeManagerOperation())
             {
                 lock (Lock)
                 {
-                    if (m_monitoredItemManager is not IMonitoredItemManagerLifecycle lifecycle)
-                    {
-                        if (!MonitoredItems.IsEmpty)
-                        {
-                            throw new NotSupportedException(
-                                "The configured monitored-item manager does not support lifecycle transitions.");
-                        }
-                        snapshot = [];
-                    }
-                    else
-                    {
-                        snapshot = lifecycle.GetMonitoredItemsSnapshot(nodeIds);
-                    }
+                    return m_monitoredItemManager.GetNotificationDrain(nodeId);
                 }
             }
-            return new ValueTask<IReadOnlyList<IMonitoredItem>>(snapshot);
         }
 
         /// <inheritdoc/>
-        ValueTask<ServiceResult> INodeManagerMonitoredItemLifecycle.CanAttachMonitoredItemAsync(
+        ValueTask<ServiceResult> INodeManagerMonitoredItemSource.ValidateSourceAsync(
             IMonitoredItem monitoredItem,
             CancellationToken cancellationToken)
         {
@@ -402,145 +537,196 @@ namespace Opc.Ua.Server
             ServiceResult result;
             using (BeginNodeManagerOperation())
             {
-                result = ValidateMonitoredItemForLifecycle(monitoredItem);
+                result = ValidateMonitoredItemSource(monitoredItem);
             }
             return new ValueTask<ServiceResult>(result);
         }
 
         /// <inheritdoc/>
-        ValueTask<ServiceResult> INodeManagerMonitoredItemLifecycle.DetachMonitoredItemAsync(
+        async ValueTask<ServiceResult> INodeManagerMonitoredItemSource.ReleaseSourceAsync(
             IMonitoredItem monitoredItem,
+            long sourceRevision,
             CancellationToken cancellationToken)
         {
             cancellationToken.ThrowIfCancellationRequested();
             ServiceResult result;
             using (BeginNodeManagerOperation())
             {
-                result = DetachMonitoredItemForLifecycle(monitoredItem);
+                NodeManagerGeneration generation = monitoredItem is IMonitoredItemGenerationBinding binding
+                    ? MasterNodeManager.GetItemSourceGeneration(Server, this.ToAsyncNodeManager(), binding)
+                    : MasterNodeManager.GetSourceGeneration(Server, this.ToAsyncNodeManager());
+                await generation
+                    .CompleteSourceReleasesAsync(monitoredItem, cancellationToken).ConfigureAwait(false);
+                result = ReleaseMonitoredItemSource(monitoredItem, sourceRevision);
             }
-            return new ValueTask<ServiceResult>(result);
+            return result;
         }
 
-        private ServiceResult DetachMonitoredItemForLifecycle(IMonitoredItem monitoredItem)
+        private ServiceResult ReleaseMonitoredItemSource(IMonitoredItem monitoredItem, long sourceRevision)
         {
             if (monitoredItem is not ISampledDataChangeMonitoredItem sampledMonitoredItem ||
-                m_monitoredItemManager is not IMonitoredItemManagerLifecycle lifecycle)
+                m_monitoredItemManager is not IMonitoredItemSourceManager lifecycle ||
+                monitoredItem is not IMonitoredItemGenerationBinding binding)
             {
                 return StatusCodes.BadNotSupported;
             }
 
             ServerSystemContext context = SystemContext.Copy(new OperationContext(monitoredItem));
+            NodeManagerGeneration generation =
+                MasterNodeManager.GetItemSourceGeneration(Server, this.ToAsyncNodeManager(), binding);
+            MonitoredItemSourceSnapshot source;
+            MonitoredNode2? monitoredNode;
+            NodeState? eventSource;
+            bool providerReleased;
+            ServiceResult result;
             lock (Lock)
             {
-                MonitoredNode2? monitoredNode = null;
-                NodeState? eventSource = null;
+                source = binding.CaptureSource();
+                if (source.Revision != sourceRevision ||
+                    source.Generation is not null && !source.Generation.Identifies(generation))
+                {
+                    return ServiceResult.Good;
+                }
                 bool isEvent =
                     (monitoredItem.MonitoredItemType & MonitoredItemTypeMask.Events) != 0;
-                if (isEvent &&
-                    monitoredItem.ManagerHandle is NodeHandle eventHandle)
-                {
-                    monitoredNode = eventHandle.MonitoredNode;
-                    eventSource = eventHandle.Node;
-                }
-
-                (ServiceResult result, bool changed) = lifecycle.DetachMonitoredItem(
+                monitoredNode = isEvent ? source.Handle?.MonitoredNode : null;
+                eventSource = isEvent ? source.Handle?.Node : null;
+                bool changed;
+                (result, changed) = lifecycle.ReleaseSource(
                     context,
                     sampledMonitoredItem,
+                    sourceRevision,
                     RemoveNodeFromComponentCache);
-                if (ServiceResult.IsGood(result) &&
-                    changed &&
-                    isEvent &&
-                    monitoredNode is not null &&
-                    eventSource is not null)
+                if (ServiceResult.IsBad(result) || !changed)
+                {
+                    return result;
+                }
+                providerReleased = monitoredNode is null || eventSource is null;
+                if (!providerReleased)
+                {
+                    eventSource!.SetAreEventsMonitored(context, false, true);
+                }
+            }
+
+            try
+            {
+                CompleteSourceRelease();
+            }
+            catch (Exception ex) when (ex is not OutOfMemoryException)
+            {
+                var compensationFailures = new List<Exception>();
+                MonitoredNode2? restoredNode = null;
+                bool restoredNative = false;
+                lock (Lock)
+                {
+                    MonitoredItemSourceSnapshot current = binding.CaptureSource();
+                    if (!providerReleased && source.Handle is not null &&
+                        current.Revision == source.Revision && current.Generation is null &&
+                        !binding.IsRemoved && !MonitoredItems.ContainsKey(monitoredItem.Id))
+                    {
+                        try
+                        {
+                            (ServiceResult restoreResult, bool restored) = lifecycle.AdoptSource(
+                                context,
+                                source.Handle,
+                                sampledMonitoredItem,
+                                AddNodeToComponentCache,
+                                RemoveNodeFromComponentCache,
+                                source.Revision);
+                            if (ServiceResult.IsBad(restoreResult))
+                            {
+                                compensationFailures.Add(new ServiceResultException(restoreResult));
+                            }
+                            else if (restored)
+                            {
+                                restoredNative = true;
+                                eventSource!.SetAreEventsMonitored(context, true, true);
+                                restoredNode = source.Handle.MonitoredNode;
+                            }
+                        }
+                        catch (Exception compensationException) when (
+                            compensationException is not OutOfMemoryException)
+                        {
+                            compensationFailures.Add(compensationException);
+                        }
+                    }
+                }
+                if (restoredNode is not null)
                 {
                     try
                     {
-                        eventSource.SetAreEventsMonitored(context, false, true);
-                        OnSubscribeToEvents(context, monitoredNode, true);
+                        OnSubscribeToEvents(context, restoredNode, false);
                     }
-                    catch (Exception ex) when (ex is not OutOfMemoryException)
+                    catch (Exception compensationException) when (
+                        compensationException is not OutOfMemoryException)
                     {
-                        var compensationFailures = new List<Exception>();
-                        var compensationHandle =
-                            (NodeHandle)monitoredItem.ManagerHandle;
-                        (ServiceResult restoreResult, bool restored) =
-                            lifecycle.AttachMonitoredItem(
-                                context,
-                                compensationHandle,
-                                sampledMonitoredItem,
-                                AddNodeToComponentCache,
-                                RemoveNodeFromComponentCache);
-                        if (ServiceResult.IsBad(restoreResult))
-                        {
-                            compensationFailures.Add(new ServiceResultException(restoreResult));
-                        }
-                        else if (restored && compensationHandle.MonitoredNode is not null)
-                        {
-                            try
-                            {
-                                eventSource.SetAreEventsMonitored(context, true, true);
-                                OnSubscribeToEvents(
-                                    context,
-                                    compensationHandle.MonitoredNode,
-                                    false);
-                            }
-                            catch (Exception compensationException) when (
-                                compensationException is not OutOfMemoryException)
-                            {
-                                compensationFailures.Add(compensationException);
-                            }
-                        }
-
-                        if (compensationFailures.Count > 0)
-                        {
-                            compensationFailures.Insert(0, ex);
-                            throw new AggregateException(
-                                "Event monitored-item detachment and compensation both failed.",
-                                compensationFailures);
-                        }
-                        throw;
+                        compensationFailures.Add(compensationException);
                     }
                 }
-                if (ServiceResult.IsGood(result) && changed)
+                if (!restoredNative)
                 {
-                    ((IDetachableMonitoredItem)monitoredItem).Detach(Server);
+                    generation.RetainSourceRelease(monitoredItem, source.Revision, _ =>
+                    {
+                        CompleteSourceRelease();
+                        return default;
+                    });
                 }
-                return result;
+                if (compensationFailures.Count > 0)
+                {
+                    compensationFailures.Insert(0, ex);
+                    throw new AggregateException(
+                        "Event monitored-item detachment and compensation both failed.",
+                        compensationFailures);
+                }
+                throw;
+            }
+            return result;
+
+            void CompleteSourceRelease()
+            {
+                lock (Lock)
+                {
+                    MonitoredItemSourceSnapshot current = binding.CaptureSource();
+                    if (current.Generation?.Identifies(generation) == true &&
+                        current.Revision != source.Revision &&
+                        MonitoredItems.TryGetValue(monitoredItem.Id, out IMonitoredItem? nativeItem) &&
+                        ReferenceEquals(nativeItem, monitoredItem))
+                    {
+                        return;
+                    }
+                }
+                if (!providerReleased)
+                {
+                    OnSubscribeToEvents(context, monitoredNode!, true);
+                    providerReleased = true;
+                }
             }
         }
 
         /// <inheritdoc/>
-        ValueTask<ServiceResult> INodeManagerMonitoredItemLifecycle.AttachMonitoredItemAsync(
+        async ValueTask<ServiceResult> INodeManagerMonitoredItemSource.AdoptSourceAsync(
             IMonitoredItem monitoredItem,
+            MonitoredItemAdoption adoption,
             CancellationToken cancellationToken)
         {
             cancellationToken.ThrowIfCancellationRequested();
             ServiceResult result;
             using (BeginNodeManagerOperation())
             {
-                result = AttachMonitoredItemForLifecycle(monitoredItem);
+                NodeManagerGeneration generation = monitoredItem is IMonitoredItemGenerationBinding binding
+                    ? MasterNodeManager.GetItemSourceGeneration(Server, this.ToAsyncNodeManager(), binding)
+                    : MasterNodeManager.GetSourceGeneration(Server, this.ToAsyncNodeManager());
+                await generation
+                    .CompleteSourceReleasesAsync(monitoredItem, cancellationToken).ConfigureAwait(false);
+                result = AdoptMonitoredItemSource(monitoredItem, adoption);
             }
-            return new ValueTask<ServiceResult>(result);
+            return result;
         }
 
-        /// <inheritdoc/>
-        ValueTask<ServiceResult> INodeManagerMonitoredItemLifecycle.RecoverMonitoredItemAsync(
-            IMonitoredItem monitoredItem,
-            CancellationToken cancellationToken)
-        {
-            cancellationToken.ThrowIfCancellationRequested();
-            ServiceResult result;
-            using (BeginNodeManagerOperation())
-            {
-                result = AttachMonitoredItemForLifecycle(monitoredItem);
-            }
-            return new ValueTask<ServiceResult>(result);
-        }
-
-        private ServiceResult ValidateMonitoredItemForLifecycle(IMonitoredItem monitoredItem)
+        private ServiceResult ValidateMonitoredItemSource(IMonitoredItem monitoredItem)
         {
             if (monitoredItem is not ISampledDataChangeMonitoredItem sampledMonitoredItem ||
-                m_monitoredItemManager is not IMonitoredItemManagerLifecycle)
+                m_monitoredItemManager is not IMonitoredItemSourceManager)
             {
                 return StatusCodes.BadNotSupported;
             }
@@ -597,15 +783,25 @@ namespace Opc.Ua.Server
             }
         }
 
-        private ServiceResult AttachMonitoredItemForLifecycle(IMonitoredItem monitoredItem)
+        private ServiceResult AdoptMonitoredItemSource(
+            IMonitoredItem monitoredItem,
+            MonitoredItemAdoption adoption)
         {
             if (monitoredItem is not ISampledDataChangeMonitoredItem sampledMonitoredItem ||
-                m_monitoredItemManager is not IMonitoredItemManagerLifecycle lifecycle)
+                m_monitoredItemManager is not IMonitoredItemSourceManager lifecycle ||
+                monitoredItem is not IMonitoredItemGenerationBinding binding)
             {
                 return StatusCodes.BadNotSupported;
             }
 
+            long sourceRevision = adoption.SourceRevision;
             ServerSystemContext context = SystemContext.Copy(new OperationContext(monitoredItem));
+            NodeState? eventSource = null;
+            NodeHandle? eventHandle = null;
+            MonitoredNode2? monitoredNode = null;
+            NodeManagerGeneration? boundGeneration = null;
+            long boundRevision = 0;
+            ServiceResult result;
             lock (Lock)
             {
                 NodeHandle? handle = GetManagerHandle(context, monitoredItem.NodeId, null!);
@@ -659,12 +855,17 @@ namespace Opc.Ua.Server
                     }
                 }
 
-                (ServiceResult result, bool changed) = lifecycle.AttachMonitoredItem(
+                bool changed;
+                (result, changed) = lifecycle.AdoptSource(
                     context,
                     handle,
                     sampledMonitoredItem,
                     AddNodeToComponentCache,
-                    RemoveNodeFromComponentCache);
+                    RemoveNodeFromComponentCache,
+                    sourceRevision,
+                    adoption);
+                boundGeneration = adoption.Generation;
+                adoption.Generation = null;
                 if (ServiceResult.IsGood(result) && changed && !isEvent)
                 {
                     if (sampledMonitoredItem is MonitoredItem concreteItem &&
@@ -682,58 +883,126 @@ namespace Opc.Ua.Server
                     changed &&
                     handle.MonitoredNode is not null)
                 {
-                    try
+                    boundRevision = adoption.SourceRevision;
+                    eventSource = source;
+                    eventHandle = handle;
+                    monitoredNode = handle.MonitoredNode;
+                }
+            }
+            if (monitoredNode == null || eventSource == null)
+            {
+                return result;
+            }
+
+            bool providerInvoked = false;
+            try
+            {
+                if (boundGeneration is null)
+                {
+                    throw new InvalidOperationException("The adopted source has no generation.");
+                }
+                lock (Lock)
+                {
+                    if (!OwnsNativeSource())
                     {
-                        source.SetAreEventsMonitored(context, true, true);
-                        OnSubscribeToEvents(context, handle.MonitoredNode, false);
+                        throw new ServiceResultException(StatusCodes.BadMonitoredItemIdInvalid);
                     }
-                    catch (Exception ex) when (ex is not OutOfMemoryException)
+                    eventSource.SetAreEventsMonitored(context, true, true);
+                }
+                providerInvoked = true;
+                OnSubscribeToEvents(context, monitoredNode, false);
+                lock (Lock)
+                {
+                    if (OwnsNativeSource())
                     {
-                        var compensationFailures = new List<Exception>();
+                        return result;
+                    }
+                    throw new ServiceResultException(StatusCodes.BadMonitoredItemIdInvalid);
+                }
+            }
+            catch (Exception ex) when (ex is not OutOfMemoryException)
+            {
+                var compensationFailures = new List<Exception>();
+                bool removed = false;
+                lock (Lock)
+                {
+                    if (OwnsNativeSource())
+                    {
                         try
                         {
-                            source.SetAreEventsMonitored(context, false, true);
-                            OnSubscribeToEvents(context, handle.MonitoredNode, true);
+                            (ServiceResult releaseResult, bool released) = lifecycle.ReleaseSource(
+                                context,
+                                sampledMonitoredItem,
+                                boundRevision,
+                                RemoveNodeFromComponentCache);
+                            if (ServiceResult.IsBad(releaseResult))
+                            {
+                                compensationFailures.Add(new ServiceResultException(releaseResult));
+                            }
+                            else if (released)
+                            {
+                                removed = true;
+                                eventSource.SetAreEventsMonitored(context, false, true);
+                            }
                         }
                         catch (Exception compensationException) when (
                             compensationException is not OutOfMemoryException)
                         {
                             compensationFailures.Add(compensationException);
                         }
-
-                        (ServiceResult detachResult, _) = lifecycle.DetachMonitoredItem(
-                            context,
-                            sampledMonitoredItem,
-                            RemoveNodeFromComponentCache);
-                        if (ServiceResult.IsBad(detachResult))
-                        {
-                            compensationFailures.Add(new ServiceResultException(detachResult));
-                        }
-                        else
-                        {
-                            try
-                            {
-                                ((IDetachableMonitoredItem)monitoredItem).Detach(Server);
-                            }
-                            catch (Exception compensationException) when (
-                                compensationException is not OutOfMemoryException)
-                            {
-                                compensationFailures.Add(compensationException);
-                            }
-                        }
-
-                        if (compensationFailures.Count > 0)
-                        {
-                            compensationFailures.Insert(0, ex);
-                            throw new AggregateException(
-                                "Event monitored-item attachment and compensation both failed.",
-                                compensationFailures);
-                        }
-                        throw;
+                    }
+                    else if (!MonitoredItems.TryGetValue(monitoredItem.Id, out IMonitoredItem? registered) ||
+                        !ReferenceEquals(registered, monitoredItem))
+                    {
+                        removed = true;
                     }
                 }
+                if (removed && providerInvoked)
+                {
+                    try
+                    {
+                        OnSubscribeToEvents(context, monitoredNode, true);
+                    }
+                    catch (Exception compensationException) when (
+                        compensationException is not OutOfMemoryException)
+                    {
+                        compensationFailures.Add(compensationException);
+                        NodeManagerGeneration generation = boundGeneration!;
+                        generation.RetainSourceRelease(monitoredItem, boundRevision, _ =>
+                        {
+                            lock (Lock)
+                            {
+                                MonitoredItemSourceSnapshot current = binding.CaptureSource();
+                                if (current.Generation?.Identifies(generation) == true &&
+                                    current.Revision != boundRevision &&
+                                    MonitoredItems.TryGetValue(monitoredItem.Id, out IMonitoredItem? nativeItem) &&
+                                    ReferenceEquals(nativeItem, monitoredItem))
+                                {
+                                    return default;
+                                }
+                            }
+                            OnSubscribeToEvents(context, monitoredNode, true);
+                            return default;
+                        });
+                    }
+                }
+                if (compensationFailures.Count > 0)
+                {
+                    compensationFailures.Insert(0, ex);
+                    throw new AggregateException(
+                        "Event monitored-item attachment and compensation both failed.",
+                        compensationFailures);
+                }
+                throw;
+            }
 
-                return result;
+            bool OwnsNativeSource()
+            {
+                return binding.CaptureSource().Revision == boundRevision &&
+                    ReferenceEquals(sampledMonitoredItem.ManagerHandle, eventHandle) &&
+                    ReferenceEquals(sampledMonitoredItem.NodeManager, this.ToAsyncNodeManager()) &&
+                    MonitoredItems.TryGetValue(monitoredItem.Id, out IMonitoredItem? current) &&
+                    ReferenceEquals(current, monitoredItem);
             }
         }
 
@@ -867,7 +1136,7 @@ namespace Opc.Ua.Server
         /// </remarks>
         /// <param name="managerHandle">The handle to check.</param>
         /// <returns>Non-null if the handle belongs to the node manager.</returns>
-        protected virtual NodeHandle? IsHandleInNamespace(object managerHandle)
+        protected virtual NodeHandle? IsHandleInNamespace(object? managerHandle)
         {
             if (managerHandle is not NodeHandle source)
             {
@@ -910,7 +1179,54 @@ namespace Opc.Ua.Server
         /// <param name="instance">The instance to create.</param>
         /// <returns>The new node id.</returns>
         /// <exception cref="ServiceResultException"></exception>
+        [Obsolete("Use CreateNodeAsync for runtime creation with awaited monitored-item recovery.")]
         public NodeId CreateNode(
+            ServerSystemContext context,
+            NodeId parentId,
+            NodeId referenceTypeId,
+            QualifiedName browseName,
+            BaseInstanceState instance)
+        {
+            return CreateNodeCore(context, parentId, referenceTypeId, browseName, instance);
+        }
+
+        /// <summary>
+        /// Creates an instance and its children, then awaits recovery of their unresolved monitored items.
+        /// </summary>
+        /// <param name="context">The operation context.</param>
+        /// <param name="parentId">An optional parent identifier.</param>
+        /// <param name="referenceTypeId">The reference type from the parent.</param>
+        /// <param name="browseName">The browse name.</param>
+        /// <param name="instance">The instance to create.</param>
+        /// <param name="cancellationToken">Cancels creation or monitored-item recovery.</param>
+        /// <returns>The created node id.</returns>
+        public async ValueTask<NodeId> CreateNodeAsync(
+            ServerSystemContext context,
+            NodeId parentId,
+            NodeId referenceTypeId,
+            QualifiedName browseName,
+            BaseInstanceState instance,
+            CancellationToken cancellationToken = default)
+        {
+            if (context is null)
+            {
+                throw new ArgumentNullException(nameof(context));
+            }
+            if (instance is null)
+            {
+                throw new ArgumentNullException(nameof(instance));
+            }
+            cancellationToken.ThrowIfCancellationRequested();
+            using NodeManagerOperation operation = BeginNodeManagerOperation();
+            NodeId result = CreateNodeCore(context, parentId, referenceTypeId, browseName, instance);
+            await RecoverRegisteredSubtreeAsync(context, instance, cancellationToken).ConfigureAwait(false);
+            return result;
+        }
+
+        /// <summary>
+        /// Indexes a created instance and emits its model change without running asynchronous recovery.
+        /// </summary>
+        private NodeId CreateNodeCore(
             ServerSystemContext context,
             NodeId parentId,
             NodeId referenceTypeId,
@@ -1005,18 +1321,20 @@ namespace Opc.Ua.Server
 
             IReadOnlyList<IMonitoredItem> monitoredItems =
                 GetMonitoredItemsForNodeSubtree(contextToUse, node);
-            var detachedItems = new List<IMonitoredItem>(monitoredItems.Count);
+            var detachedItems = new List<MonitoredItemSourceRelease>(monitoredItems.Count);
             try
             {
                 foreach (IMonitoredItem monitoredItem in monitoredItems)
                 {
-                    ServiceResult result = DetachMonitoredItemForLifecycle(monitoredItem);
+                    long sourceRevision = ((IMonitoredItemGenerationBinding)monitoredItem).SourceRevision;
+                    ServiceResult result = ReleaseMonitoredItemSource(
+                        monitoredItem, sourceRevision);
                     if (ServiceResult.IsBad(result))
                     {
-                        RestoreDetachedMonitoredItems(detachedItems);
+                        RestoreReleasedSources(detachedItems);
                         return false;
                     }
-                    detachedItems.Add(monitoredItem);
+                    detachedItems.Add(new MonitoredItemSourceRelease(monitoredItem, sourceRevision));
                 }
 
                 RemovePredefinedNode(contextToUse, node!, referencesToRemove);
@@ -1035,9 +1353,10 @@ namespace Opc.Ua.Server
                 throw;
             }
 
-            foreach (IMonitoredItem monitoredItem in detachedItems)
+            foreach (MonitoredItemSourceRelease source in detachedItems)
             {
-                ((IDetachableMonitoredItem)monitoredItem).MarkNodeDeleted();
+                ((IMonitoredItemGenerationBinding)source.Item)
+                    .TryInvalidateSource(source.Revision, terminal: false);
             }
 
             return true;
@@ -1047,7 +1366,7 @@ namespace Opc.Ua.Server
             ISystemContext context,
             NodeState node)
         {
-            if (m_monitoredItemManager is not IMonitoredItemManagerLifecycle lifecycle)
+            if (m_monitoredItemManager is not IMonitoredItemSourceManager)
             {
                 if (!MonitoredItems.IsEmpty)
                 {
@@ -1067,28 +1386,29 @@ namespace Opc.Ua.Server
                 current.GetChildren(context, children);
                 nodes.AddRange(children);
             }
-            return lifecycle.GetMonitoredItemsSnapshot(nodeIds);
+            return m_monitoredItemManager.CaptureMonitoredItems(nodeIds);
         }
 
         private void RestoreSurvivingMonitoredItems(
-            List<IMonitoredItem> monitoredItems,
+            List<MonitoredItemSourceRelease> monitoredItems,
             Exception deletionFailure)
         {
-            var survivingItems = new List<IMonitoredItem>(monitoredItems.Count);
-            foreach (IMonitoredItem monitoredItem in monitoredItems)
+            var survivingItems = new List<MonitoredItemSourceRelease>(monitoredItems.Count);
+            foreach (MonitoredItemSourceRelease source in monitoredItems)
             {
-                if (PredefinedNodes.ContainsKey(monitoredItem.NodeId))
+                if (PredefinedNodes.ContainsKey(source.Item.NodeId))
                 {
-                    survivingItems.Add(monitoredItem);
+                    survivingItems.Add(source);
                 }
                 else
                 {
-                    ((IDetachableMonitoredItem)monitoredItem).MarkNodeDeleted();
+                    ((IMonitoredItemGenerationBinding)source.Item)
+                        .TryInvalidateSource(source.Revision, terminal: false);
                 }
             }
             try
             {
-                RestoreDetachedMonitoredItems(survivingItems);
+                RestoreReleasedSources(survivingItems);
             }
             catch (Exception restorationFailure) when (restorationFailure is not OutOfMemoryException)
             {
@@ -1097,15 +1417,21 @@ namespace Opc.Ua.Server
             }
         }
 
-        private void RestoreDetachedMonitoredItems(
-            List<IMonitoredItem> monitoredItems)
+        private void RestoreReleasedSources(
+            List<MonitoredItemSourceRelease> monitoredItems)
         {
             List<Exception>? failures = null;
             for (int ii = monitoredItems.Count - 1; ii >= 0; ii--)
             {
                 try
                 {
-                    ServiceResult result = AttachMonitoredItemForLifecycle(monitoredItems[ii]);
+                    MonitoredItemSourceRelease source = monitoredItems[ii];
+                    if (((IMonitoredItemGenerationBinding)source.Item).SourceRevision != source.Revision)
+                    {
+                        continue;
+                    }
+                    ServiceResult result = AdoptMonitoredItemSource(
+                        source.Item, new MonitoredItemAdoption(source.Revision));
                     if (ServiceResult.IsBad(result))
                     {
                         throw new ServiceResultException(result);
@@ -1235,6 +1561,11 @@ namespace Opc.Ua.Server
         /// Completes the create lifecycle and recursively indexes the node and
         /// its children.
         /// </summary>
+        /// <remarks>
+        /// Runtime edits that must recover unresolved monitored items use
+        /// <see cref="ILocalAddressSpace.AddOrUpdateNodeAsync"/> on the local address-space adapter.
+        /// This synchronous indexing helper does not run asynchronous recovery.
+        /// </remarks>
         protected virtual void AddPredefinedNode(ISystemContext context, NodeState node)
         {
             using NodeManagerOperation operation = BeginNodeManagerOperation();
@@ -1255,7 +1586,14 @@ namespace Opc.Ua.Server
             {
                 NodeStateLifecycle.CompleteForRegistration(context, activeNode, m_logger);
             }
-            PredefinedNodes.AddOrUpdate(activeNode.NodeId, activeNode, (key, _) => activeNode);
+            if (Server.NodeManager is MasterNodeManager master)
+            {
+                master.IndexManagedNode(m_asyncNodeManager, SystemContext.NamespaceUris, PredefinedNodes, activeNode);
+            }
+            else
+            {
+                PredefinedNodes.AddOrUpdate(activeNode.NodeId, activeNode, (key, _) => activeNode);
+            }
 
             if (activeNode is BaseTypeState type)
             {
@@ -1308,13 +1646,6 @@ namespace Opc.Ua.Server
 
                 AddPredefinedNode(context, children[ii]);
             }
-
-            if (Server.NodeManager is ISyncNodeManagerMonitoredItemRecovery recovery)
-            {
-                recovery.RecoverDetachedMonitoredItems(
-                    m_asyncNodeManager,
-                    [activeNode.NodeId]);
-            }
         }
 
         /// <summary>
@@ -1325,7 +1656,13 @@ namespace Opc.Ua.Server
             NodeState node,
             List<LocalReference> referencesToRemove)
         {
-            if (!PredefinedNodes.TryRemove(node.NodeId, out _))
+            TypeTable typeTree = Server.TypeTree;
+            long registrationVersion = node is BaseTypeState ? typeTree.GetRegistrationVersion(node.NodeId) : 0;
+            ChangePreparer.StagingServer? stagingServer =
+                node is BaseTypeState ? ChangePreparer.GetServer(m_asyncNodeManager) : null;
+            bool wasServing = stagingServer is null ||
+                (!stagingServer.IsStaging && !stagingServer.IsDetached);
+            if (!PredefinedNodes.TryRemove(node.NodeId, node))
             {
                 return;
             }
@@ -1355,10 +1692,11 @@ namespace Opc.Ua.Server
 
             // remove from type table.
 
-            if (node is BaseTypeState type &&
+            if (node is BaseTypeState type && registrationVersion != 0 &&
                 !IsTypeOwnedByAnotherNodeManager(type.NodeId))
             {
-                Server.TypeTree.Remove(type.NodeId);
+                MasterNodeManager.RemoveTypeRegistration(
+                    Server, typeTree, type.NodeId, registrationVersion, stagingServer, wasServing);
             }
 
             // remove inverse references.
@@ -1567,39 +1905,6 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
-        /// Repopulates the server type tree with this manager's types and encoding relationships.
-        /// </summary>
-        internal void RebuildTypeTree()
-        {
-            foreach (NodeState node in PredefinedNodes.Values)
-            {
-                if (node is BaseTypeState type)
-                {
-                    AddTypesToTypeTree(type);
-                }
-            }
-
-            foreach (NodeState node in PredefinedNodes.Values)
-            {
-                var references = new List<IReference>();
-                node.GetReferences(SystemContext, references);
-                foreach (IReference reference in references)
-                {
-                    if (reference.IsInverse &&
-                        reference.ReferenceTypeId == ReferenceTypeIds.HasEncoding &&
-                        !reference.TargetId.IsAbsolute)
-                    {
-                        var dataTypeId = (NodeId)reference.TargetId;
-                        if (!Server.TypeTree.IsEncodingOf(node.NodeId, dataTypeId))
-                        {
-                            Server.TypeTree.AddEncoding(dataTypeId, node.NodeId);
-                        }
-                    }
-                }
-            }
-        }
-
-        /// <summary>
         /// Finds the specified and checks if it is of the expected type.
         /// </summary>
         /// <returns>Returns null if not found or not of the correct type.</returns>
@@ -1751,6 +2056,7 @@ namespace Opc.Ua.Server
         public virtual void DeleteAddressSpace()
         {
             using NodeManagerOperation operation = BeginNodeManagerOperation();
+            NodeState[] notifiers = RootNotifiers?.ToArray() ?? [];
             NodeState[] nodes = [.. PredefinedNodes.Values];
             ISystemContext context = SystemContext;
             List<LocalReference> referencesToRemove =
@@ -1771,17 +2077,23 @@ namespace Opc.Ua.Server
 
             foreach (NodeState node in nodes)
             {
-                if (!PredefinedNodes.ContainsKey(node.NodeId))
+                TypeTable typeTree = Server.TypeTree;
+                long registrationVersion = node is BaseTypeState ? typeTree.GetRegistrationVersion(node.NodeId) : 0;
+                ChangePreparer.StagingServer? stagingServer =
+                    node is BaseTypeState ? ChangePreparer.GetServer(m_asyncNodeManager) : null;
+                bool wasServing = stagingServer is null ||
+                    (!stagingServer.IsStaging && !stagingServer.IsDetached);
+                if (!PredefinedNodes.TryRemove(node.NodeId, node))
                 {
                     continue;
                 }
-                PredefinedNodes.Remove(node.NodeId);
 
                 OnNodeRemoved(node);
-                if (node is BaseTypeState type &&
+                if (node is BaseTypeState type && registrationVersion != 0 &&
                     !IsTypeOwnedByAnotherNodeManager(type.NodeId))
                 {
-                    Server.TypeTree.Remove(type.NodeId);
+                    MasterNodeManager.RemoveTypeRegistration(
+                        Server, typeTree, type.NodeId, registrationVersion, stagingServer, wasServing);
                 }
 
                 var references = new List<IReference>();
@@ -1799,12 +2111,9 @@ namespace Opc.Ua.Server
                 }
             }
 
-            if (RootNotifiers != null)
+            foreach (NodeState notifier in notifiers)
             {
-                foreach (NodeState notifier in RootNotifiers.ToArray())
-                {
-                    RemoveRootNotifier(notifier);
-                }
+                RemoveRootNotifier(notifier);
             }
         }
 
@@ -1970,9 +2279,16 @@ namespace Opc.Ua.Server
                     return null;
                 }
 
+                NamespaceDefaultPermissions? permissionDefaults =
+                    AsyncCustomNodeManager.RequiresDynamicPermissionReads(target)
+                        ? NamespaceDefaultPermissionReader.Read(Server, systemContext, target.NodeId.NamespaceIndex)
+                        : null;
+
                 // read the attributes.
-                ArrayOf<Variant> values = target.ReadAttributes(
+                ArrayOf<Variant> values = AsyncCustomNodeManager.ReadPermissionAwareAttributes(
+                    target,
                     systemContext,
+                    permissionDefaults,
                     Attributes.WriteMask,
                     Attributes.UserWriteMask,
                     Attributes.DataType,
@@ -2046,7 +2362,7 @@ namespace Opc.Ua.Server
                     metadata.UserRolePermissions = userRolePermissions;
                 }
 
-                SetDefaultPermissions(systemContext, target, metadata);
+                SetDefaultPermissions(systemContext, target, metadata, permissionDefaults);
 
                 // get instance references.
                 if (target is BaseInstanceState instance)
@@ -2090,15 +2406,24 @@ namespace Opc.Ua.Server
         /// <param name="systemContext">The context</param>
         /// <param name="target">The target for which the attributes are read and cached</param>
         /// <param name="key">The key representing the NodeId for which the cache is kept</param>
+        /// <param name="defaults">The namespace permissions captured for this operation.</param>
         /// <returns>The values of the attributes</returns>
         private static ArrayOf<Variant> ReadAndCacheValidationAttributes(
             Dictionary<NodeId, Variant[]> uniqueNodesServiceAttributes,
             ServerSystemContext systemContext,
             NodeState target,
-            NodeId key)
+            NodeId key,
+            NamespaceDefaultPermissions? defaults = null)
         {
-            ArrayOf<Variant> values = ReadValidationAttributes(systemContext, target);
-            uniqueNodesServiceAttributes[key] = values.ToArray()!;
+            ArrayOf<Variant> values = ReadValidationAttributes(systemContext, target, defaults);
+            if (AsyncCustomNodeManager.RequiresDynamicPermissionReads(target))
+            {
+                uniqueNodesServiceAttributes.Remove(key);
+            }
+            else
+            {
+                uniqueNodesServiceAttributes[key] = values.ToArray()!;
+            }
 
             return values;
         }
@@ -2108,16 +2433,20 @@ namespace Opc.Ua.Server
         /// </summary>
         /// <param name="systemContext">The context</param>
         /// <param name="target">The target for which the attributes are read and cached</param>
+        /// <param name="defaults">The namespace permissions captured for this operation.</param>
         /// <returns>The values of the attributes</returns>
         private static ArrayOf<Variant> ReadValidationAttributes(
             ServerSystemContext systemContext,
-            NodeState target)
+            NodeState target,
+            NamespaceDefaultPermissions? defaults = null)
         {
             // This is the list of attributes to be populated by GetNodeMetadata from CustomNodeManagers.
             // The are originating from services in the context of AccessRestrictions and RolePermission validation.
             // For such calls the other attributes are ignored since reading them might trigger unnecessary callbacks
-            return target.ReadAttributes(
+            return AsyncCustomNodeManager.ReadPermissionAwareAttributes(
+                target,
                 systemContext,
+                defaults,
                 Attributes.AccessRestrictions,
                 Attributes.RolePermissions,
                 Attributes.UserRolePermissions);
@@ -2172,6 +2501,11 @@ namespace Opc.Ua.Server
                     throw new ServiceResultException(StatusCodes.BadNodeNotInView);
                 }
 
+                if (context.RoutingSnapshot is { } referenceSnapshot)
+                {
+                    continuationPoint.ValidateOverrideReferences(referenceSnapshot, source, systemContext);
+                }
+
                 // check for previous continuation point.
                 browser = continuationPoint.Data as INodeBrowser;
 
@@ -2179,7 +2513,7 @@ namespace Opc.Ua.Server
                 if (browser == null)
                 {
                     // create a new browser.
-                    continuationPoint.Data = browser = source.CreateBrowser(
+                    continuationPoint.Data = browser = OverrideNodeBrowser.Wrap(source.CreateBrowser(
                         systemContext,
                         continuationPoint.View,
                         continuationPoint.ReferenceTypeId,
@@ -2187,7 +2521,7 @@ namespace Opc.Ua.Server
                         continuationPoint.BrowseDirection,
                         default,
                         null,
-                        false);
+                        false), context.RoutingSnapshot);
                 }
             }
             // A NodeBrowser is single-consumer, and this one is reachable from a continuation
@@ -2202,6 +2536,10 @@ namespace Opc.Ua.Server
                     reference != null;
                     reference = browser.Next())
                 {
+                    if (context.RoutingSnapshot is { } snapshot && continuationPoint.OverrideOwners is not null)
+                    {
+                        continuationPoint.ValidateOverrideTarget(snapshot, reference.TargetId);
+                    }
                     // validate Browse permission
                     ServiceResult serviceResult = ValidateRolePermissions(
                         context,
@@ -2256,10 +2594,11 @@ namespace Opc.Ua.Server
 
             ViewDescriptionValidator.ValidateParameters(view);
 
-            _ =
-                FindPredefinedNode<ViewState>(view.ViewId)
-                ?? throw new ServiceResultException(StatusCodes.BadViewIdUnknown);
-
+            // A View may organize nodes of other node managers. The service dispatcher
+            // has already checked that the View exists somewhere in the server, so a
+            // View this node manager does not own is not an error here (Part 4 §5.9.2).
+            // This node manager only returns current references, so a View version or
+            // timestamp is rejected whichever node manager owns the View.
             if (view.Timestamp != DateTime.MinValue)
             {
                 throw new ServiceResultException(StatusCodes.BadViewTimestampInvalid);
@@ -2295,9 +2634,10 @@ namespace Opc.Ua.Server
             NodeId viewId,
             NodeState node)
         {
-            ViewState? view = FindPredefinedNode<ViewState>(viewId);
-
-            return view != null;
+            // The base node manager does not filter by View membership; override to
+            // restrict a View. A View owned by another node manager (a View may organize
+            // nodes of several) must not fail here either.
+            return true;
         }
 
         /// <summary>
@@ -2344,6 +2684,13 @@ namespace Opc.Ua.Server
                     return null;
                 }
 
+                return description;
+            }
+
+            if (context.OperationContext?.RoutingSnapshot?.NodeOverrides
+                .ContainsKey((NodeId)reference.TargetId) == true)
+            {
+                description.Unfiltered = true;
                 return description;
             }
 
@@ -2446,15 +2793,15 @@ namespace Opc.Ua.Server
                 }
 
                 // get list of references that relative path.
-                INodeBrowser browser = source.CreateBrowser(
+                INodeBrowser browser = OverrideNodeBrowser.Wrap(source.CreateBrowser(
                     systemContext,
                     null,
                     relativePath.ReferenceTypeId,
                     relativePath.IncludeSubtypes,
                     relativePath.IsInverse ? BrowseDirection.Inverse : BrowseDirection.Forward,
-                    relativePath.TargetName,
+                    context.RoutingSnapshot?.NodeOverrides.Count > 0 ? default : relativePath.TargetName,
                     null,
-                    false);
+                    false), context.RoutingSnapshot);
 
                 // check the browse names.
                 try
@@ -2466,6 +2813,12 @@ namespace Opc.Ua.Server
                         // ignore unknown external references.
                         if (reference.TargetId.IsAbsolute)
                         {
+                            continue;
+                        }
+
+                        if (context.RoutingSnapshot?.NodeOverrides.ContainsKey((NodeId)reference.TargetId) == true)
+                        {
+                            unresolvedTargetIds.Add((NodeId)reference.TargetId);
                             continue;
                         }
 
@@ -2794,6 +3147,8 @@ namespace Opc.Ua.Server
             IDictionary<NodeId, NodeState> operationCache = new Dictionary<NodeId, NodeState>();
             var nodesToValidate = new List<NodeHandle>();
             var nodesToNotify = new List<NodeState>();
+            List<PendingWriteAudit>? auditsToReport = null;
+            List<PendingSemanticChange>? semanticChanges = null;
 
             lock (Lock)
             {
@@ -2931,13 +3286,16 @@ namespace Opc.Ua.Server
                         nodeToWrite.ParsedIndexRange,
                         valueToWrite);
 
-                    // report the write value audit event
-                    Server.ReportAuditWriteUpdateEvent(
-                        systemContext,
-                        nodeToWrite,
-                        oldValue.WrappedValue,
-                        errors[ii]?.StatusCode ?? StatusCodes.Good,
-                        m_logger);
+                    // the write value audit event is reported after the lock is released;
+                    // its action time is the time of the write, not of the report.
+                    if (Server?.Auditing == true)
+                    {
+                        (auditsToReport ??= []).Add(new PendingWriteAudit(
+                            nodeToWrite,
+                            oldValue.WrappedValue,
+                            errors[ii]?.StatusCode ?? StatusCodes.Good,
+                            DateTime.UtcNow));
+                    }
 
                     if (!ServiceResult.IsGood(errors[ii]))
                     {
@@ -2948,11 +3306,19 @@ namespace Opc.Ua.Server
                     {
                         // compare the stored value after the write: the written DataValue
                         // (possibly an IndexRange slice) is not comparable with the old value.
-                        CheckIfSemanticsHaveChanged(
+                        // The monitored items of the owner are marked under the lock, so no
+                        // later value of the owner is published without the SemanticsChanged
+                        // bit; only the SemanticChangeEvent is reported after the lock is released.
+                        NodeState? changedNode = MarkSemanticChange(
                             systemContext,
                             propertyState,
                             propertyState.Value,
-                            previousPropertyValue);
+                            previousPropertyValue,
+                            force: false);
+                        if (changedNode != null)
+                        {
+                            (semanticChanges ??= []).Add(new PendingSemanticChange(changedNode, propertyState));
+                        }
                     }
 
                     //not needed for sampling groups
@@ -2960,6 +3326,32 @@ namespace Opc.Ua.Server
                     {
                         nodesToNotify.Add(handle.Node);
                     }
+                }
+            }
+
+            // Events and notifications are reported after releasing the node-manager lock:
+            // the event consumers of a monitored node may need the lock (permission checks
+            // through GetNodeMetadata) while the reporting thread waits for room in their
+            // bounded channel, which would deadlock with the lock held.
+            if (auditsToReport != null)
+            {
+                foreach (PendingWriteAudit audit in auditsToReport)
+                {
+                    Server.ReportAuditWriteUpdateEvent(
+                        systemContext,
+                        audit.NodeToWrite,
+                        audit.OldValue,
+                        audit.StatusCode,
+                        audit.ActionTimeStamp,
+                        m_logger);
+                }
+            }
+
+            if (semanticChanges != null)
+            {
+                foreach (PendingSemanticChange change in semanticChanges)
+                {
+                    RaiseSemanticChangeEvent(systemContext, change.Node, change.Property);
                 }
             }
 
@@ -2977,6 +3369,41 @@ namespace Opc.Ua.Server
 
             // validates the nodes and writes the value to the underlying system.
             Write(systemContext, nodesToWrite, errors, nodesToValidate, operationCache);
+        }
+
+        /// <summary>
+        /// A write audit event that is reported once the node-manager lock is released.
+        /// </summary>
+        private readonly struct PendingWriteAudit
+        {
+            public PendingWriteAudit(WriteValue nodeToWrite, Variant oldValue, StatusCode statusCode, DateTime actionTimeStamp)
+            {
+                NodeToWrite = nodeToWrite;
+                OldValue = oldValue;
+                StatusCode = statusCode;
+                ActionTimeStamp = actionTimeStamp;
+            }
+
+            public WriteValue NodeToWrite { get; }
+            public Variant OldValue { get; }
+            public StatusCode StatusCode { get; }
+            public DateTime ActionTimeStamp { get; }
+        }
+
+        /// <summary>
+        /// A semantic change whose monitored items were marked under the node-manager lock
+        /// and whose SemanticChangeEvent is raised once the lock is released.
+        /// </summary>
+        private readonly struct PendingSemanticChange
+        {
+            public PendingSemanticChange(NodeState node, PropertyState property)
+            {
+                Node = node;
+                Property = property;
+            }
+
+            public NodeState Node { get; }
+            public PropertyState Property { get; }
         }
 
         /// <summary>
@@ -3056,6 +3483,34 @@ namespace Opc.Ua.Server
             Variant previousPropertyValue,
             bool force = false)
         {
+            NodeState? changedNode = MarkSemanticChange(
+                systemContext,
+                property,
+                newPropertyValue,
+                previousPropertyValue,
+                force);
+
+            if (changedNode != null)
+            {
+                RaiseSemanticChangeEvent(systemContext, changedNode, property);
+                return true;
+            }
+
+            return false;
+        }
+
+        /// <summary>
+        /// Queues the semantic resample (SemanticsChanged bit) on the monitored items of the
+        /// owner of a changed Property and returns the node to raise the SemanticChangeEvent
+        /// for, or <c>null</c> if the change has no semantic meaning.
+        /// </summary>
+        private NodeState? MarkSemanticChange(
+            ISystemContext systemContext,
+            PropertyState property,
+            Variant newPropertyValue,
+            Variant previousPropertyValue,
+            bool force)
+        {
             // check if the changed property is one that can trigger semantic changes
             string? propertyName = property.BrowseName.Name;
             bool hasSemanticChangeFlag = force || AsyncCustomNodeManager.HasSemanticChangeFlag(property);
@@ -3073,13 +3528,13 @@ namespace Opc.Ua.Server
                     and not BrowseNames.YAxisDefinition
                     and not BrowseNames.ZAxisDefinition)
             {
-                return false;
+                return null;
             }
 
             // ceck if property value changed
             if (!force && Utils.IsEqual(newPropertyValue, previousPropertyValue))
             {
-                return false;
+                return null;
             }
 
             // the SemanticChangeEvent is raised once per change, whether or not the
@@ -3089,7 +3544,7 @@ namespace Opc.Ua.Server
                 !hasSemanticChangeFlag &&
                 !AsyncCustomNodeManager.IsSemanticChangeProperty(changedNode, propertyName))
             {
-                return false;
+                return null;
             }
 
             foreach (KeyValuePair<uint, IMonitoredItem> kvp in MonitoredItems)
@@ -3121,13 +3576,7 @@ namespace Opc.Ua.Server
                 }
             }
 
-            if (changedNode != null)
-            {
-                RaiseSemanticChangeEvent(systemContext, changedNode, property);
-                return true;
-            }
-
-            return false;
+            return changedNode;
         }
 
         /// <summary>
@@ -3384,30 +3833,73 @@ namespace Opc.Ua.Server
             {
                 NodeHandle handle = nodesToValidate[ii];
                 NodeState? sourceToNotify = null;
+                PendingWriteAudit? audit = null;
 
                 lock (Lock)
                 {
                     // validate node.
                     NodeState? source = ValidateNode(context, handle, cache);
+                    WriteValue nodeToWrite = nodesToWrite[handle.Index];
 
                     if (source == null)
                     {
-                        continue;
+                        // Part 4 §6.5.8: the item is already marked processed with
+                        // BadNodeIdUnknown, so the dispatcher cannot audit it; do it here.
+                        if (Server?.Auditing == true)
+                        {
+                            audit = new PendingWriteAudit(
+                                nodeToWrite,
+                                Variant.Null,
+                                errors[handle.Index]?.StatusCode ?? StatusCodes.BadNodeIdUnknown,
+                                DateTime.UtcNow);
+                        }
                     }
+                    else
+                    {
+                        DataValue oldValue = default;
+                        if (Server?.Auditing == true)
+                        {
+                            // read the old value for the purpose of auditing
+                            source.ReadAttribute(
+                                context,
+                                nodeToWrite.AttributeId,
+                                nodeToWrite.ParsedIndexRange,
+                                default,
+                                ref oldValue);
+                        }
 
-                    WriteValue nodeToWrite = nodesToWrite[handle.Index];
+                        // write the attribute value.
+                        errors[handle.Index] = source.WriteAttribute(
+                            context,
+                            nodeToWrite.AttributeId,
+                            nodeToWrite.ParsedIndexRange,
+                            nodeToWrite.Value);
 
-                    // write the attribute value.
-                    errors[handle.Index] = source.WriteAttribute(
-                        context,
-                        nodeToWrite.AttributeId,
-                        nodeToWrite.ParsedIndexRange,
-                        nodeToWrite.Value);
+                        // Part 4 §6.5.8: writes through this path are audited like the others.
+                        if (Server?.Auditing == true)
+                        {
+                            audit = new PendingWriteAudit(
+                                nodeToWrite,
+                                oldValue.WrappedValue,
+                                errors[handle.Index]?.StatusCode ?? StatusCodes.Good,
+                                DateTime.UtcNow);
+                        }
 
-                    sourceToNotify = source;
+                        sourceToNotify = source;
+                    }
                 }
 
-                // Publish notifications after releasing the node-manager lock.
+                // Publish notifications and the audit event after releasing the node-manager lock.
+                if (audit is PendingWriteAudit pending)
+                {
+                    Server.ReportAuditWriteUpdateEvent(
+                        context,
+                        pending.NodeToWrite,
+                        pending.OldValue,
+                        pending.StatusCode,
+                        pending.ActionTimeStamp,
+                        m_logger);
+                }
                 sourceToNotify?.ClearChangeMasks(context, false);
             }
         }
@@ -3428,6 +3920,7 @@ namespace Opc.Ua.Server
             ServerSystemContext systemContext = SystemContext.Copy(context);
             IDictionary<NodeId, NodeState> operationCache = new Dictionary<NodeId, NodeState>();
             var nodesToProcess = new List<NodeHandle>();
+            List<NodeHandle>? deferred = null;
 
             lock (Lock)
             {
@@ -3470,6 +3963,7 @@ namespace Opc.Ua.Server
                         // must validate node in a separate operation
                         handle.Index = ii;
                         nodesToProcess.Add(handle);
+                        (deferred ??= []).Add(handle);
 
                         continue;
                     }
@@ -3484,12 +3978,14 @@ namespace Opc.Ua.Server
                         // enforce the effective user access level for the current
                         // session: a node may advertise HistoryRead in AccessLevel
                         // but deny it to the current user via UserAccessLevel.
-                        byte userAccessLevel = variable.UserAccessLevel;
-                        variable.OnReadUserAccessLevel?.Invoke(systemContext, variable, ref userAccessLevel);
-
-                        if ((userAccessLevel & AccessLevels.HistoryRead) == 0)
+                        ServiceResult access = ValidateHistoryVariableAccess(
+                            systemContext,
+                            variable,
+                            AccessLevels.HistoryRead,
+                            PermissionType.ReadHistory);
+                        if (ServiceResult.IsBad(access))
                         {
-                            errors[ii] = StatusCodes.BadUserAccessDenied;
+                            errors[ii] = access;
                             continue;
                         }
 
@@ -3513,6 +4009,20 @@ namespace Opc.Ua.Server
                 {
                     return;
                 }
+            }
+
+            // the access checks above need the node: apply them to the handles
+            // that are resolved only now.
+            ValidateDeferredAnnotationsAccess(
+                systemContext,
+                deferred,
+                default,
+                errors,
+                nodesToProcess,
+                operationCache);
+            if (nodesToProcess.Count == 0)
+            {
+                return;
             }
 
             // validates the nodes (reads values from the underlying data source if required).
@@ -3541,6 +4051,17 @@ namespace Opc.Ua.Server
         private IHistorianProvider? ResolveHistorianProvider(NodeState node)
         {
             return HistorianDispatcher.ResolveProvider(Server, node, GetHistorianProvider(node));
+        }
+
+        /// <summary>
+        /// Resolves a data historian only for a variable node.
+        /// </summary>
+        private bool TryResolveDataHistorianProvider(
+            NodeState node,
+            [NotNullWhen(true)] out IHistorianProvider? provider)
+        {
+            provider = node is BaseVariableState ? ResolveHistorianProvider(node) : null;
+            return provider != null;
         }
 
         /// <summary>
@@ -3612,14 +4133,7 @@ namespace Opc.Ua.Server
                     continue;
                 }
 
-                if (source is not BaseVariableState)
-                {
-                    errors[handle.Index] = StatusCodes.BadHistoryOperationUnsupported;
-                    continue;
-                }
-
-                IHistorianProvider? provider = ResolveHistorianProvider(source);
-                if (provider == null)
+                if (!TryResolveDataHistorianProvider(source, out IHistorianProvider? provider))
                 {
                     errors[handle.Index] = StatusCodes.BadHistoryOperationUnsupported;
                     continue;
@@ -3655,14 +4169,7 @@ namespace Opc.Ua.Server
                     continue;
                 }
 
-                if (source is not BaseVariableState)
-                {
-                    errors[handle.Index] = StatusCodes.BadHistoryOperationUnsupported;
-                    continue;
-                }
-
-                IHistorianProvider? provider = ResolveHistorianProvider(source);
-                if (provider == null)
+                if (!TryResolveDataHistorianProvider(source, out IHistorianProvider? provider))
                 {
                     errors[handle.Index] = StatusCodes.BadHistoryOperationUnsupported;
                     continue;
@@ -3704,14 +4211,7 @@ namespace Opc.Ua.Server
                     continue;
                 }
 
-                if (source is not BaseVariableState)
-                {
-                    errors[handle.Index] = StatusCodes.BadHistoryOperationUnsupported;
-                    continue;
-                }
-
-                IHistorianProvider? provider = ResolveHistorianProvider(source);
-                if (provider == null)
+                if (!TryResolveDataHistorianProvider(source, out IHistorianProvider? provider))
                 {
                     errors[handle.Index] = StatusCodes.BadHistoryOperationUnsupported;
                     continue;
@@ -3947,6 +4447,7 @@ namespace Opc.Ua.Server
             ServerSystemContext systemContext = SystemContext.Copy(context);
             IDictionary<NodeId, NodeState> operationCache = new Dictionary<NodeId, NodeState>();
             var nodesToProcess = new List<NodeHandle>();
+            List<NodeHandle>? deferred = null;
 
             lock (Lock)
             {
@@ -3990,6 +4491,7 @@ namespace Opc.Ua.Server
                         // must validate node in a separate operation
                         handle.Index = ii;
                         nodesToProcess.Add(handle);
+                        (deferred ??= []).Add(handle);
                         continue;
                     }
 
@@ -4000,9 +4502,14 @@ namespace Opc.Ua.Server
                     if (handle.Node is BaseVariableState variable &&
                         (variable.AccessLevel & AccessLevels.HistoryWrite) != 0)
                     {
-                        if (!HasHistoryWritePermission(systemContext, variable))
+                        ServiceResult access = ValidateHistoryVariableAccess(
+                            systemContext,
+                            variable,
+                            AccessLevels.HistoryWrite,
+                            MasterNodeManager.DetermineHistoryAccessPermission(nodeToUpdate));
+                        if (ServiceResult.IsBad(access))
                         {
-                            errors[ii] = StatusCodes.BadUserAccessDenied;
+                            errors[ii] = access;
                             continue;
                         }
 
@@ -4026,6 +4533,20 @@ namespace Opc.Ua.Server
                 {
                     return;
                 }
+            }
+
+            // the access checks above need the node: apply them to the handles
+            // that are resolved only now.
+            ValidateDeferredAnnotationsAccess(
+                systemContext,
+                deferred,
+                nodesToUpdate,
+                errors,
+                nodesToProcess,
+                operationCache);
+            if (nodesToProcess.Count == 0)
+            {
+                return;
             }
 
             // validates the nodes and updates.
@@ -4175,14 +4696,7 @@ namespace Opc.Ua.Server
                     continue;
                 }
 
-                if (source is not BaseVariableState)
-                {
-                    errors[handle.Index] = StatusCodes.BadHistoryOperationUnsupported;
-                    continue;
-                }
-
-                IHistorianProvider? provider = ResolveHistorianProvider(source);
-                if (provider == null)
+                if (!TryResolveDataHistorianProvider(source, out IHistorianProvider? provider))
                 {
                     errors[handle.Index] = StatusCodes.BadHistoryOperationUnsupported;
                     continue;
@@ -4247,15 +4761,7 @@ namespace Opc.Ua.Server
                 }
                 else
                 {
-                    if (source is not BaseVariableState)
-                    {
-                        errors[handle.Index] =
-                            StatusCodes.BadHistoryOperationUnsupported;
-                        continue;
-                    }
-                    IHistorianProvider? provider =
-                        ResolveHistorianProvider(source);
-                    if (provider == null)
+                    if (!TryResolveDataHistorianProvider(source, out IHistorianProvider? provider))
                     {
                         errors[handle.Index] =
                             StatusCodes.BadHistoryOperationUnsupported;
@@ -4332,14 +4838,7 @@ namespace Opc.Ua.Server
                     continue;
                 }
 
-                if (source is not BaseVariableState)
-                {
-                    errors[handle.Index] = StatusCodes.BadHistoryOperationUnsupported;
-                    continue;
-                }
-
-                IHistorianProvider? provider = ResolveHistorianProvider(source);
-                if (provider == null)
+                if (!TryResolveDataHistorianProvider(source, out IHistorianProvider? provider))
                 {
                     errors[handle.Index] = StatusCodes.BadHistoryOperationUnsupported;
                     continue;
@@ -4373,14 +4872,7 @@ namespace Opc.Ua.Server
                     continue;
                 }
 
-                if (source is not BaseVariableState)
-                {
-                    errors[handle.Index] = StatusCodes.BadHistoryOperationUnsupported;
-                    continue;
-                }
-
-                IHistorianProvider? provider = ResolveHistorianProvider(source);
-                if (provider == null)
+                if (!TryResolveDataHistorianProvider(source, out IHistorianProvider? provider))
                 {
                     errors[handle.Index] = StatusCodes.BadHistoryOperationUnsupported;
                     continue;
@@ -4759,7 +5251,7 @@ namespace Opc.Ua.Server
                             if (m_monitoredItemManager.MonitoredNodes.TryGetValue(
                                 notifier.NodeId, out MonitoredNode2? monitored))
                             {
-                                foreach (IEventMonitoredItem item in monitored.EventMonitoredItems.Values.ToArray())
+                                foreach (IEventMonitoredItem item in monitored.GetEventItems())
                                 {
                                     if (!item.MonitoringAllEvents)
                                     {
@@ -4834,7 +5326,7 @@ namespace Opc.Ua.Server
             bool wasSubscribed = m_monitoredItemManager.MonitoredNodes.TryGetValue(
                 source.NodeId,
                 out MonitoredNode2? existingMonitoredNode) &&
-                existingMonitoredNode.EventMonitoredItems.ContainsKey(
+                existingMonitoredNode.ContainsEventItem(
                     monitoredItem.Id);
             (MonitoredNode2? monitoredNode, ServiceResult serviceResult) = m_monitoredItemManager!
                 .SubscribeToEvents(
@@ -4865,6 +5357,11 @@ namespace Opc.Ua.Server
         /// <param name="context">The context.</param>
         /// <param name="monitoredNode">The monitored node.</param>
         /// <param name="unsubscribe">if set to <c>true</c> unsubscribing.</param>
+        /// <remarks>
+        /// Reconcile provider state with the monitored node's current membership and make unsubscribe idempotent.
+        /// A release can race a pending subscribe callback; cleanup can unsubscribe again after
+        /// that callback completes.
+        /// </remarks>
         protected virtual void OnSubscribeToEvents(
             ServerSystemContext context,
             MonitoredNode2 monitoredNode,
@@ -4919,7 +5416,10 @@ namespace Opc.Ua.Server
                         }
 
                         // get the refresh events.
-                        nodesToRefresh.Add(((NodeHandle)monitoredItem.ManagerHandle).Node);
+                        if (monitoredItem.ManagerHandle is NodeHandle handle)
+                        {
+                            nodesToRefresh.Add(handle.Node);
+                        }
                     }
                 }
 
@@ -5484,6 +5984,7 @@ namespace Opc.Ua.Server
                 BrowseResultMask.All);
 
             return MasterNodeManager.ValidateRolePermissions(
+                Server,
                 operationContext,
                 nodeMetadata!,
                 requestedPermission);
@@ -5502,10 +6003,13 @@ namespace Opc.Ua.Server
             {
                 IsPartOfTypeHierarchy = source.IsPartOfTypeHierarchy
             };
-            SetAccessAndRolePermissions(ReadValidationAttributes(context, source), metadata);
             try
             {
-                SetDefaultPermissions(context, source, metadata);
+                NamespaceDefaultPermissions? defaults = AsyncCustomNodeManager.RequiresDynamicPermissionReads(source)
+                    ? NamespaceDefaultPermissionReader.Read(Server, context, source.NodeId.NamespaceIndex)
+                    : null;
+                SetAccessAndRolePermissions(ReadValidationAttributes(context, source, defaults), metadata);
+                SetDefaultPermissions(context, source, metadata, defaults);
             }
             catch (ServiceResultException error)
             {
@@ -5513,7 +6017,7 @@ namespace Opc.Ua.Server
             }
             PermissionType permission = MonitoredReadAuthorization.PermissionFor(attributeId);
             ServiceResult result = MasterNodeManager.ValidateRolePermissions(
-                context.OperationContext!, metadata, permission);
+                Server, context.OperationContext!, metadata, permission);
             return ServiceResult.IsBad(result)
                 ? result
                 : MasterNodeManager.ValidateAccessRestrictions(context.OperationContext!, metadata, permission);
@@ -6378,6 +6882,11 @@ namespace Opc.Ua.Server
 
                 ArrayOf<Variant> values = default;
 
+                NamespaceDefaultPermissions? permissionDefaults =
+                    AsyncCustomNodeManager.RequiresDynamicPermissionReads(target)
+                        ? NamespaceDefaultPermissionReader.Read(Server, systemContext, target.NodeId.NamespaceIndex)
+                        : null;
+
                 // construct the meta-data object.
                 var metadata = new NodeMetadata(target, target.NodeId)
                 {
@@ -6388,7 +6897,8 @@ namespace Opc.Ua.Server
                 if (uniqueNodesServiceAttributesCache != null)
                 {
                     NodeId key = handle.NodeId;
-                    if (uniqueNodesServiceAttributesCache.ContainsKey(key))
+                    if (uniqueNodesServiceAttributesCache.ContainsKey(key) &&
+                        !AsyncCustomNodeManager.RequiresDynamicPermissionReads(target))
                     {
                         if (uniqueNodesServiceAttributesCache[key].Length == 0)
                         {
@@ -6396,7 +6906,8 @@ namespace Opc.Ua.Server
                                 uniqueNodesServiceAttributesCache,
                                 systemContext,
                                 target,
-                                key);
+                                key,
+                                permissionDefaults);
                         }
                         else
                         {
@@ -6410,18 +6921,19 @@ namespace Opc.Ua.Server
                             uniqueNodesServiceAttributesCache,
                             systemContext,
                             target,
-                            key);
+                            key,
+                            permissionDefaults);
                     }
 
                     SetAccessAndRolePermissions(values, metadata);
                 } // All other calls that do not use the cache
-                else if (permissionsOnly)
+                else if (permissionsOnly || AsyncCustomNodeManager.RequiresDynamicPermissionReads(target))
                 {
-                    values = ReadValidationAttributes(systemContext, target);
+                    values = ReadValidationAttributes(systemContext, target, permissionDefaults);
                     SetAccessAndRolePermissions(values, metadata);
                 }
 
-                SetDefaultPermissions(systemContext, target, metadata);
+                SetDefaultPermissions(systemContext, target, metadata, permissionDefaults);
 
                 return metadata;
             }
@@ -6433,9 +6945,10 @@ namespace Opc.Ua.Server
         private void SetDefaultPermissions(
             ServerSystemContext systemContext,
             NodeState target,
-            NodeMetadata metadata)
+            NodeMetadata metadata,
+            NamespaceDefaultPermissions? permissionDefaults = null)
         {
-            NamespaceDefaultPermissions defaults = NamespaceDefaultPermissionReader.Read(
+            NamespaceDefaultPermissions defaults = permissionDefaults ?? NamespaceDefaultPermissionReader.Read(
                 Server, systemContext, target.NodeId.NamespaceIndex);
             if (!StatusCode.IsGood(defaults.Status))
             {

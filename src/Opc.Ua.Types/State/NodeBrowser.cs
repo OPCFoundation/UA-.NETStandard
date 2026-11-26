@@ -1,31 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using System.Collections.Generic;
@@ -73,24 +47,6 @@ namespace Opc.Ua
     }
 
     /// <summary>
-    /// Optional contract for the complete dependencies of a resumable Browse operation.
-    /// </summary>
-    /// <remarks>
-    /// Implementations report every local target whose owner can be needed by any remaining page,
-    /// including targets used for metadata, permissions, or filtering. The issuing owner is retained
-    /// separately. An empty successful result promises that no other owner is needed. A lazy browser
-    /// must not report only the targets it has discovered so far. The query must not advance the browser.
-    /// </remarks>
-    public interface IBrowseContinuationDependencies
-    {
-        /// <summary>
-        /// Returns the complete remaining dependency set, or false when it cannot be determined.
-        /// </summary>
-        /// <param name="targetIds">The target IDs.</param>
-        bool TryGetContinuationDependencies(out ArrayOf<ExpandedNodeId> targetIds);
-    }
-
-    /// <summary>
     /// An object which browses the references for a node.
     /// </summary>
     /// <remarks>
@@ -121,7 +77,7 @@ namespace Opc.Ua
     /// <see cref="Next"/> only ever sees the in-memory references.
     /// </para>
     /// </remarks>
-    public class NodeBrowser : INodeBrowser, IBrowseContinuationDependencies
+    public class NodeBrowser : INodeBrowser
     {
         /// <summary>
         /// Creates a new browser object with a set of filters.
@@ -227,27 +183,6 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Returns the complete remaining dependency set, or false when it cannot be determined.
-        /// </summary>
-        /// <inheritdoc/>
-        /// <remarks>
-        /// Only the standard browser is known to be bounded by its stored references. Derived browsers
-        /// must override this method to promise a complete set, including their own lazy dependencies.
-        /// </remarks>
-        /// <param name="targetIds">The target IDs.</param>
-        public virtual bool TryGetContinuationDependencies(out ArrayOf<ExpandedNodeId> targetIds)
-        {
-            if (GetType() != typeof(NodeBrowser))
-            {
-                targetIds = default;
-                return false;
-            }
-
-            targetIds = GetRemainingReferenceTargets();
-            return true;
-        }
-
-        /// <summary>
         /// Returns true if the target node is required (used to apply view filters);
         /// </summary>
         public virtual bool IsRequired(NodeState target)
@@ -311,6 +246,12 @@ namespace Opc.Ua
         /// </remarks>
         public virtual void Add(NodeId referenceTypeId, bool isInverse, NodeState target)
         {
+            if (SystemContext is INodeStateReferenceView view && view.IsOverridden(target.NodeId))
+            {
+                AddReference(new NodeStateReference(referenceTypeId, isInverse, target.NodeId));
+                return;
+            }
+
             // do not return add target unless the browse name matches.
             if (!BrowseName.IsNull && target.BrowseName != BrowseName)
             {
@@ -367,24 +308,6 @@ namespace Opc.Ua
         /// Indicates that the browser can return duplicate references during browse.
         /// </summary>
         public bool CanProduceDuplicateReferences => m_seenReferences == null;
-
-        /// <summary>
-        /// Copies the remaining stored targets, including the pushed-back reference, without advancing.
-        /// Derived browsers must also account for targets they produce outside this stored set.
-        /// </summary>
-        protected ArrayOf<ExpandedNodeId> GetRemainingReferenceTargets()
-        {
-            var targets = new HashSet<ExpandedNodeId>();
-            if (m_pushBack != null)
-            {
-                targets.Add(m_pushBack.TargetId);
-            }
-            for (int index = m_index; index < m_references.Count; index++)
-            {
-                targets.Add(m_references[index].TargetId);
-            }
-            return [.. targets];
-        }
 
         /// <summary>
         /// Ensure unique references are added.

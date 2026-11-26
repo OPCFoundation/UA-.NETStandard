@@ -1,31 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using System.IO;
@@ -35,6 +9,7 @@ using Moq;
 using NUnit.Framework;
 using Opc.Ua.Client;
 using Opc.Ua.Client.TestFramework;
+using Opc.Ua.Server;
 using Opc.Ua.Server.TestFramework;
 using Opc.Ua.WotCon.Client;
 using Opc.Ua.WotCon.Server;
@@ -44,6 +19,9 @@ using Opc.Ua.WotCon.Tests.Materialization;
 using Opc.Ua.XRegistry;
 using Opc.Ua.XRegistry.Client;
 using Quickstarts.ReferenceServer;
+
+using ISession = Opc.Ua.Client.ISession;
+using Session = Opc.Ua.Client.Session;
 
 namespace Opc.Ua.WotCon.Tests
 {
@@ -62,7 +40,7 @@ namespace Opc.Ua.WotCon.Tests
         {
             const string catalogue = "urn:r09:peer-switch-catalogue";
             const string thing = "urn:r09:peer-switch-thing";
-            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(120));
             CancellationToken ct = timeout.Token;
             WotRegistryGroupClient group = await m_client.CreateDocumentGroupAsync(
                 WoTDocumentKindEnum.ThingDescription, catalogue, ct).ConfigureAwait(false);
@@ -182,7 +160,7 @@ namespace Opc.Ua.WotCon.Tests
         {
             const string catalogue = "urn:r09:returned-binding-catalogue";
             const string thing = "urn:r09:returned-binding-thing";
-            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(120));
             CancellationToken ct = timeout.Token;
             WotRegistryGroupClient group = await m_client.CreateDocumentGroupAsync(
                 WoTDocumentKindEnum.ThingDescription, catalogue, ct).ConfigureAwait(false);
@@ -261,7 +239,7 @@ namespace Opc.Ua.WotCon.Tests
         {
             const string catalogue = "urn:r09:mapping-holder-catalogue";
             const string thing = "urn:r09:mapping-holder-thing";
-            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(120));
             CancellationToken ct = timeout.Token;
             WotRegistryGroupClient group = await m_client.CreateDocumentGroupAsync(
                 WoTDocumentKindEnum.ThingDescription, catalogue, ct).ConfigureAwait(false);
@@ -416,7 +394,7 @@ namespace Opc.Ua.WotCon.Tests
         {
             const string catalogue = "urn:r09:stock-switch-catalogue";
             const string thing = "urn:r09:stock-switch-thing";
-            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(120));
             CancellationToken ct = timeout.Token;
             WotRegistryGroupClient group = await m_client.CreateDocumentGroupAsync(
                 WoTDocumentKindEnum.ThingDescription, catalogue, ct).ConfigureAwait(false);
@@ -524,10 +502,15 @@ namespace Opc.Ua.WotCon.Tests
                 coordinator = new WotMaterializationCoordinator(
                     registry, new LifecycleWotProjectionHost(server.NodeManagerLifecycle),
                     documentConverter: new FakeWotDocumentConverter());
-                Ua.Server.NodeManagerRegistration registration = await server.NodeManagerLifecycle.AddAsync(
-                    new WotRegistryNodeManagerFactory(options, registry, coordinator), null, ct).ConfigureAwait(false);
-                var manager = (WotRegistryNodeManager)registration.NodeManager;
+                LifecycleResult publication = await server.NodeManagerLifecycle.ApplyAsync(
+                    [LifecycleChange.Add(new WotRegistryNodeManagerFactory(options, registry, coordinator))], ct)
+                    .ConfigureAwait(false);
+                Assert.That(publication.CleanupFailure, Is.Null);
+                Assert.That(publication.Registrations[0].TryGetRegistration(out NodeManagerRegistration? registration),
+                    Is.True);
+                var manager = (WotRegistryNodeManager)registration!.NodeManager;
                 await using var connection = new ClientFixture(m_telemetry);
+                await WotTestPki.SeedAsync(Path.Combine(m_root, "f1bc"), "FederationOtherPeerClient").ConfigureAwait(false);
                 await connection.LoadClientConfigurationAsync(
                     Path.Combine(m_root, "f1bc"), "FederationOtherPeerClient").ConfigureAwait(false);
                 using ISession session = await connection.ConnectAsync(

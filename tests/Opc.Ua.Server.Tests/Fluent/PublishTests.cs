@@ -1,31 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 // CA2000: per-test fixture lifecycle is managed by NUnit; managers and other
 // disposables are explicitly disposed in TearDown or by the using-block.
@@ -1338,10 +1312,10 @@ namespace Opc.Ua.Server.Tests.Fluent
             {
                 SubscriptionCallback = subscription.Object
             };
-            var detachable = (IDetachableMonitoredItem)item;
-            var lifecycle = (INodeManagerMonitoredItemLifecycle)manager;
-            detachable.Detach(m_mockServer.Object);
-            ServiceResult attached = await lifecycle.AttachMonitoredItemAsync(item).ConfigureAwait(false);
+            var detachable = (IMonitoredItemGenerationBinding)item;
+            var lifecycle = (INodeManagerMonitoredItemSource)manager;
+            detachable.ReleaseSource();
+            ServiceResult attached = await lifecycle.AdoptSourceAsync(item).ConfigureAwait(false);
             Assert.That(attached.StatusCode, Is.EqualTo(StatusCodes.Good));
             var originalFailure = new InvalidOperationException("Event unsubscribe failed after stopping its source.");
             manager.UnsubscribeCallback = async ct =>
@@ -1351,7 +1325,7 @@ namespace Opc.Ua.Server.Tests.Fluent
             };
             Task transition = deleteNode
                 ? manager.DeleteNodeAsync(manager.SystemContext, source.NodeId).AsTask()
-                : lifecycle.DetachMonitoredItemAsync(item).AsTask();
+                : lifecycle.ReleaseSourceAsync(item).AsTask();
             var independentItem = new Mock<IEventMonitoredItem>();
             independentItem.SetupGet(value => value.Id).Returns(38);
             independentItem.SetupGet(value => value.NodeId).Returns(independent.NodeId);
@@ -1380,7 +1354,7 @@ namespace Opc.Ua.Server.Tests.Fluent
                 Assert.That(failure.InnerExceptions[1],
                     Is.InstanceOf<OperationCanceledException>().Or.InstanceOf<TimeoutException>());
                 Assert.That(replacement.Ready.Task.IsCompleted, Is.False);
-                Assert.That(detachable.IsDetached, Is.False);
+                Assert.That(detachable.IsSourceUnavailable, Is.False);
                 Assert.That(item.NodeManager, Is.SameAs(manager));
                 Assert.That(source.AreEventsMonitored, Is.True);
                 Assert.That(manager.Find(source.NodeId), Is.SameAs(source));
@@ -1399,7 +1373,7 @@ namespace Opc.Ua.Server.Tests.Fluent
                 {
                 }
                 manager.UnsubscribeCallback = null!;
-                await lifecycle.DetachMonitoredItemAsync(item).ConfigureAwait(false);
+                await lifecycle.ReleaseSourceAsync(item).ConfigureAwait(false);
                 await manager.SubscribeEventAsync(independent, independentItem.Object, true).ConfigureAwait(false);
             }
         }
@@ -1782,7 +1756,7 @@ namespace Opc.Ua.Server.Tests.Fluent
             {
             }
 
-            public new NodeIdDictionary<NodeState> RootNotifiers => base.RootNotifiers;
+            public new PredefinedNodeDictionary RootNotifiers => base.RootNotifiers;
 
             /// <summary>
             /// Honours the cancellation token before the base implementation
@@ -1807,7 +1781,7 @@ namespace Opc.Ua.Server.Tests.Fluent
             /// </summary>
             public bool FailRootNotifierRegistration { get; set; }
 
-            public new NodeIdDictionary<NodeState> PredefinedNodes => base.PredefinedNodes;
+            public new PredefinedNodeDictionary PredefinedNodes => base.PredefinedNodes;
 
             public int EventItemCount => MonitoredItems.Count;
 

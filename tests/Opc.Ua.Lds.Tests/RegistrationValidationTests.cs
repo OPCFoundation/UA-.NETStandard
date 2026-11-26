@@ -1,31 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using System.IO;
@@ -322,6 +296,32 @@ namespace Opc.Ua.Lds.Tests
             Assert.That(store.Snapshot(), Is.Empty);
             fileSystem.Verify(f => f.Exists(path, false), Times.Exactly(2));
             fileSystem.VerifyNoOtherCalls();
+        }
+
+        [Test]
+        public async Task SemaphoreRegistrationOutlivesRegistrationLifetimeAsync()
+        {
+            string path = Path.GetFullPath("local.sem");
+            var fileSystem = new Mock<IFileSystem>(MockBehavior.Strict);
+            fileSystem.Setup(f => f.Exists(path, false)).Returns(true);
+            using var store = new RegisteredServerStore(null, null, fileSystem.Object);
+            RegisteredServer withSemaphore = CreateRegisteredServer(ServerUri);
+            withSemaphore.SemaphoreFilePath = path;
+            RegisteredServer withoutSemaphore = CreateRegisteredServer("urn:test:no-semaphore");
+
+            await store.RegisterAsync(withSemaphore, null).ConfigureAwait(false);
+            await store.RegisterAsync(withoutSemaphore, null).ConfigureAwait(false);
+
+            // Part 4 §7.31: a semaphore registration stays while the file exists,
+            // the server is not expected to refresh it.
+            store.Prune(DateTime.UtcNow + store.RegistrationLifetime + TimeSpan.FromHours(1));
+
+            Assert.That(store.Snapshot(), Has.Count.EqualTo(1));
+            Assert.That(store.Snapshot()[0].ServerUri, Is.EqualTo(ServerUri));
+
+            fileSystem.Setup(f => f.Exists(path, false)).Returns(false);
+            store.Prune(DateTime.UtcNow);
+            Assert.That(store.Snapshot(), Is.Empty);
         }
 
         private static Certificate CreateCertificate(

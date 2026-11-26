@@ -1,31 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 #pragma warning disable CA2007
 
@@ -34,6 +8,7 @@ using System.Net;
 using System.Threading.Tasks;
 using Crdt;
 using Crdt.Transport;
+using Microsoft.Extensions.Time.Testing;
 using NUnit.Framework;
 
 namespace Opc.Ua.Redundancy.Server.Tests
@@ -118,6 +93,40 @@ namespace Opc.Ua.Redundancy.Server.Tests
             await using ReplicatedSharedKeyValueStore store = CreateStore(network, 1);
 
             Assert.That(() => store.WatchAsync("session/"), Throws.TypeOf<NotSupportedException>());
+        }
+
+        /// <summary>
+        /// Local changes must supersede accepted observations from a replica with a faster clock.
+        /// </summary>
+        [Test]
+        public async Task WritesAndDeletesConvergeWithinClockToleranceAsync()
+        {
+            await using var network = new InMemoryNetwork();
+            var time = new FakeTimeProvider();
+            var aheadTime = new FakeTimeProvider(time.GetUtcNow() + TimeSpan.FromSeconds(5));
+            await using var ahead = new ReplicatedSharedKeyValueStore(
+                ReplicaId.FromUInt64(1), network.CreateTransport(), aheadTime, CrdtReaderOptions.Default);
+            await using var behind = new ReplicatedSharedKeyValueStore(
+                ReplicaId.FromUInt64(2), network.CreateTransport(), time, CrdtReaderOptions.Default);
+            const string key = "session/clock";
+            ByteString original = ByteString.From(new byte[] { 1 });
+            ByteString update = ByteString.From(new byte[] { 2 });
+            _ = await behind.TryGetAsync(key).ConfigureAwait(false);
+
+            await ahead.SetAsync(key, original).ConfigureAwait(false);
+            await AssertEventuallyAsync(
+                async () => (await behind.TryGetAsync(key).ConfigureAwait(false)).Value == original,
+                "The later observation must be visible to the replica with the slower clock").ConfigureAwait(false);
+
+            await behind.SetAsync(key, update).ConfigureAwait(false);
+            await AssertEventuallyAsync(
+                async () => (await ahead.TryGetAsync(key).ConfigureAwait(false)).Value == update,
+                "The slower replica must be able to update the value after receiving it").ConfigureAwait(false);
+
+            Assert.That(await behind.DeleteAsync(key).ConfigureAwait(false), Is.True);
+            await AssertEventuallyAsync(
+                async () => !(await ahead.TryGetAsync(key).ConfigureAwait(false)).Found,
+                "Both replicas must observe the deletion").ConfigureAwait(false);
         }
 
         [Test]

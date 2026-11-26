@@ -1,31 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using System.Collections.Generic;
@@ -227,6 +201,12 @@ namespace Opc.Ua.AMB.Server.Assets
                     Logger,
                     cancellationToken).ConfigureAwait(false);
 
+                handle.History = await AssetHistoryBinding.CreateAsync(
+                    handle,
+                    manager.Server,
+                    builder.HistoryConfigured ? builder.History : Options.History,
+                    cancellationToken).ConfigureAwait(false);
+
                 lock (m_lock)
                 {
                     m_assets.Add(node.NodeId, handle);
@@ -234,9 +214,32 @@ namespace Opc.Ua.AMB.Server.Assets
                 }
                 handle.MarkRegistered();
             }
-            catch
+            catch (Exception failure)
             {
-                Release(handle);
+                var failures = new List<Exception> { failure };
+                try
+                {
+                    if (handle.History != null)
+                    {
+                        await handle.History.DisposeAsync().ConfigureAwait(false);
+                    }
+                }
+                catch (Exception cleanupFailure)
+                {
+                    failures.Add(cleanupFailure);
+                }
+                try
+                {
+                    Release(handle);
+                }
+                catch (Exception cleanupFailure)
+                {
+                    failures.Add(cleanupFailure);
+                }
+                if (failures.Count > 1)
+                {
+                    throw new AggregateException("Asset registration and cleanup failed.", failures);
+                }
                 throw;
             }
             finally
@@ -390,20 +393,89 @@ namespace Opc.Ua.AMB.Server.Assets
                 return;
             }
 
+            // The NodeId stays reserved until the cleanup ends, so a concurrent
+            // registration of the same node fails with BadNodeIdExists instead
+            // of rebinding the health and history of the retiring asset.
             AmbNodeManager? manager;
+            bool reserved;
             lock (m_lock)
             {
                 m_assets.Remove(handle.NodeId);
                 m_order.Remove(handle);
+                reserved = m_pending.Add(handle.NodeId);
                 manager = m_manager;
             }
-            handle.UnwatchIdentification();
-            Release(handle);
-            Logger.AssetUnregistered(handle.BrowseName, handle.NodeId);
+            try
+            {
+                await CleanUpAsync(handle, manager).ConfigureAwait(false);
+            }
+            finally
+            {
+                if (reserved)
+                {
+                    lock (m_lock)
+                    {
+                        m_pending.Remove(handle.NodeId);
+                    }
+                }
+            }
+        }
 
+        /// <summary>
+        /// Withdraws what an asset removed from the registry still holds.
+        /// </summary>
+        private async ValueTask CleanUpAsync(AssetHandle handle, AmbNodeManager? manager)
+        {
+            var failures = new List<Exception>();
+            try
+            {
+                handle.UnwatchIdentification();
+            }
+            catch (Exception failure)
+            {
+                failures.Add(failure);
+            }
+            try
+            {
+                if (handle.History != null)
+                {
+                    await handle.History.DisposeAsync().ConfigureAwait(false);
+                }
+            }
+            catch (Exception failure)
+            {
+                failures.Add(failure);
+            }
+            try
+            {
+                Release(handle);
+            }
+            catch (Exception failure)
+            {
+                failures.Add(failure);
+            }
+            try
+            {
+                Logger.AssetUnregistered(handle.BrowseName, handle.NodeId);
+            }
+            catch (Exception failure)
+            {
+                failures.Add(failure);
+            }
             if (manager != null)
             {
-                await manager.OnAssetUnregisteredAsync(handle, CancellationToken.None).ConfigureAwait(false);
+                try
+                {
+                    await manager.OnAssetUnregisteredAsync(handle, CancellationToken.None).ConfigureAwait(false);
+                }
+                catch (Exception failure)
+                {
+                    failures.Add(failure);
+                }
+            }
+            if (failures.Count != 0)
+            {
+                throw new AggregateException("Asset unregistration cleanup failed.", failures);
             }
         }
 
@@ -428,9 +500,35 @@ namespace Opc.Ua.AMB.Server.Assets
         /// </summary>
         private static void Release(AssetHandle handle)
         {
-            handle.ConfigurableAssetIdBinding?.Release();
-            handle.ConfigurableAssetIdBinding?.Dispose();
-            handle.DocumentationLinks?.Dispose();
+            var failures = new List<Exception>();
+            try
+            {
+                handle.ConfigurableAssetIdBinding?.Release();
+            }
+            catch (Exception failure)
+            {
+                failures.Add(failure);
+            }
+            try
+            {
+                handle.ConfigurableAssetIdBinding?.Dispose();
+            }
+            catch (Exception failure)
+            {
+                failures.Add(failure);
+            }
+            try
+            {
+                handle.DocumentationLinks?.Dispose();
+            }
+            catch (Exception failure)
+            {
+                failures.Add(failure);
+            }
+            if (failures.Count != 0)
+            {
+                throw new AggregateException("Asset owner cleanup failed.", failures);
+            }
         }
 
         private ILogger Logger

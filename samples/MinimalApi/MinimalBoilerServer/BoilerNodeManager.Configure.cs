@@ -1,31 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using System.Collections.Generic;
@@ -34,6 +8,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Opc.Ua;
+using Opc.Ua.Server;
 using Opc.Ua.Server.Fluent;
 
 namespace Boiler
@@ -46,7 +21,7 @@ namespace Boiler
     /// <remarks>
     /// The <c>[NodeManager]</c> attribute opts this partial class in to
     /// source generation: the generator emits a sibling partial that
-    /// derives from <c>CustomNodeManager2</c>, owns the predefined-node
+    /// derives from <c>FluentNodeManagerBase</c>, owns the predefined-node
     /// load, and calls back into <see cref="Configure"/> below. No
     /// MSBuild flag is required; the attribute alone selects the class
     /// and (since this project carries a single design) the single
@@ -64,7 +39,7 @@ namespace Boiler
     /// </para>
     /// </remarks>
     [NodeManager(NamespaceUri = "http://opcfoundation.org/UA/Boiler/")]
-    public partial class BoilerNodeManager
+    public partial class BoilerNodeManager : INodeManagerReadinessNotification
     {
         private long m_drumLevelTicks;
         private long m_pipeFlowTicks;
@@ -140,15 +115,8 @@ namespace Boiler
             // is reached via generated accessors with no string paths or
             // NodeIds in sight. The Func<double> handler is the same shape
             // as wiring (3) but the resolution is fully type-checked.
-            // The trailing .Historize() opts this variable in to Part 11
-            // historical access; with no prior UseHistorian() call the
-            // fluent surface lazily installs an in-memory engine and
-            // registers it as the server-wide default. Subsequent
-            // .Historize() calls in this manager would reuse the same
-            // binding.
             builder.Boilers.Boiler__1.LCX001.Measurement
-                .OnRead(GenerateLevelControlMeasurement)
-                .Historize();
+                .OnRead(GenerateLevelControlMeasurement);
 
             // (7) Typed traversal of a method node — the Halt method is
             // bound to an async lambda. The generator emits the typed
@@ -168,8 +136,25 @@ namespace Boiler
             // the last interested monitored item disappears. The
             // registry auto-populates EventId/EventType/Time/SourceNode
             // so the iterator only fills the user-meaningful fields.
-            builder.Boilers.Boiler__1.DrumX001
-                .Publish(GenerateDrumHeartbeatAsync);
+            DeferPublishedAuthoringUntilReady(builder, (published, _) =>
+            {
+                var typed = new BoilerNodeManagerTypedBuilder(published);
+                // Historian and event-source registration require the published server registries.
+                typed.Boilers.Boiler__1.LCX001.Measurement.Historize();
+                return default;
+            });
+            DeferPublishedAuthoringUntilReady(builder, (published, _) =>
+            {
+                var typed = new BoilerNodeManagerTypedBuilder(published);
+                typed.Boilers.Boiler__1.DrumX001.Publish(GenerateDrumHeartbeatAsync);
+                return default;
+            });
+        }
+
+        /// <inheritdoc/>
+        ValueTask INodeManagerReadinessNotification.OnServerReadyAsync(CancellationToken cancellationToken)
+        {
+            return CompletePublishedConfigurationAsync(cancellationToken);
         }
 
         private long m_levelMeasurementTicks;

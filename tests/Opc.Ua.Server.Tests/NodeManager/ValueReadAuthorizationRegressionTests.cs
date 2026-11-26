@@ -1,31 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using System.Collections.Concurrent;
@@ -183,6 +157,212 @@ namespace Opc.Ua.Server.Tests.NodeManager
             await harness.QueueImmediateAsync().ConfigureAwait(false);
 
             AssertDenied(harness.First.Values.ToArray()[0], StatusCodes.BadSecurityModeInsufficient);
+        }
+
+        /// <summary>
+        /// A restriction served by a read callback is checked on every delivery, also after a cached grant.
+        /// </summary>
+        [Test]
+        [Category("SecurityRegression")]
+        public async Task SecurityF29TightenedRestrictionCallbackAppliesAfterGrantAsync()
+        {
+            await using var harness = new Harness();
+            await harness.InitializeAsync().ConfigureAwait(false);
+            harness.First.Endpoint.SecurityMode = MessageSecurityMode.Sign;
+            AccessRestrictionType? served = AccessRestrictionType.None;
+            harness.Node.OnReadAccessRestrictions =
+                (ISystemContext _, NodeState _, ref AccessRestrictionType? value) =>
+                {
+                    value = served;
+                    return ServiceResult.Good;
+                };
+
+            await harness.EnqueueAsync().ConfigureAwait(false);
+            await harness.WaitAsync().ConfigureAwait(false);
+            served = AccessRestrictionType.EncryptionRequired;
+            await harness.EnqueueAsync().ConfigureAwait(false);
+            await harness.WaitAsync().ConfigureAwait(false);
+
+            DataValue[] values = harness.First.Values.ToArray();
+            AssertValue(values[0]);
+            AssertDenied(values[1], StatusCodes.BadSecurityModeInsufficient);
+        }
+
+        /// <summary>
+        /// A namespace default restriction served by a read callback is checked on every delivery,
+        /// also when the callback is attached after a grant was reused.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        [Category("SecurityRegression")]
+        public async Task SecurityF29TightenedNamespaceDefaultCallbackAppliesAfterGrantAsync(bool attachLater)
+        {
+            await using var harness = new Harness();
+            await harness.InitializeAsync().ConfigureAwait(false);
+            harness.First.Endpoint.SecurityMode = MessageSecurityMode.Sign;
+            var metadata = new NamespaceMetadataState(null);
+            metadata.AddDefaultAccessRestrictions(harness.Owner.SystemContext);
+            DeterministicServerMock.SetNamespaceMetadata(harness.Server, harness.Owner.NamespaceIndex, metadata);
+            AccessRestrictionType served = AccessRestrictionType.None;
+            void AttachCallback()
+            {
+                metadata.DefaultAccessRestrictions!.OnSimpleReadValue =
+                    (ISystemContext _, NodeState _, ref Variant value) =>
+                    {
+                        value = new Variant((ushort)served);
+                        return ServiceResult.Good;
+                    };
+            }
+            if (!attachLater)
+            {
+                AttachCallback();
+            }
+
+            await harness.EnqueueAsync().ConfigureAwait(false);
+            await harness.WaitAsync().ConfigureAwait(false);
+            await harness.EnqueueAsync().ConfigureAwait(false);
+            await harness.WaitAsync().ConfigureAwait(false);
+            served = AccessRestrictionType.EncryptionRequired;
+            if (attachLater)
+            {
+                AttachCallback();
+            }
+            await harness.EnqueueAsync().ConfigureAwait(false);
+            await harness.WaitAsync().ConfigureAwait(false);
+
+            DataValue[] values = harness.First.Values.ToArray();
+            AssertValue(values[0]);
+            AssertValue(values[1]);
+            AssertDenied(values[2], StatusCodes.BadSecurityModeInsufficient);
+        }
+
+        /// <summary>
+        /// Namespace metadata linked after a grant was reused (without moving the defaults generation,
+        /// as a reference added to Server/Namespaces does) applies its defaults to the next delivery.
+        /// </summary>
+        [Test]
+        [Category("SecurityRegression")]
+        public async Task SecurityF29NamespaceMetadataLinkedAfterGrantAppliesItsDefaultsAsync()
+        {
+            await using var harness = new Harness();
+            await harness.InitializeAsync().ConfigureAwait(false);
+            harness.First.Endpoint.SecurityMode = MessageSecurityMode.Sign;
+
+            await harness.EnqueueAsync().ConfigureAwait(false);
+            await harness.WaitAsync().ConfigureAwait(false);
+            await harness.EnqueueAsync().ConfigureAwait(false);
+            await harness.WaitAsync().ConfigureAwait(false);
+            var metadata = new NamespaceMetadataState(null);
+            metadata.AddDefaultAccessRestrictions(harness.Owner.SystemContext);
+            metadata.DefaultAccessRestrictions!.Value = (ushort)AccessRestrictionType.EncryptionRequired;
+            DeterministicServerMock.SetNamespaceMetadata(harness.Server, harness.Owner.NamespaceIndex, metadata);
+            await harness.EnqueueAsync().ConfigureAwait(false);
+            await harness.WaitAsync().ConfigureAwait(false);
+
+            DataValue[] values = harness.First.Values.ToArray();
+            AssertValue(values[0]);
+            AssertValue(values[1]);
+            AssertDenied(values[2], StatusCodes.BadSecurityModeInsufficient);
+        }
+
+        /// <summary>
+        /// Revoking read access to a namespace default property fails delivery closed after a grant was
+        /// reused, whether a user access level callback revokes it (present from the start or attached
+        /// later) or the property's user access level is changed.
+        /// </summary>
+        [TestCase(0)]
+        [TestCase(1)]
+        [TestCase(2)]
+        [Category("SecurityRegression")]
+        public async Task SecurityF29RevokedNamespaceDefaultReadAccessFailsClosedAfterGrantAsync(int revocation)
+        {
+            await using var harness = new Harness();
+            await harness.InitializeAsync().ConfigureAwait(false);
+            var metadata = new NamespaceMetadataState(null);
+            metadata.AddDefaultAccessRestrictions(harness.Owner.SystemContext);
+            BaseVariableState property = metadata.DefaultAccessRestrictions!;
+            property.AccessLevel = AccessLevels.CurrentRead;
+            property.UserAccessLevel = AccessLevels.CurrentRead;
+            DeterministicServerMock.SetNamespaceMetadata(harness.Server, harness.Owner.NamespaceIndex, metadata);
+            bool revoked = false;
+            void AttachCallback()
+            {
+                property.OnReadUserAccessLevel = (ISystemContext _, NodeState _, ref byte value) =>
+                {
+                    if (revoked)
+                    {
+                        value = AccessLevels.None;
+                    }
+                    return ServiceResult.Good;
+                };
+            }
+            if (revocation == 0)
+            {
+                AttachCallback();
+            }
+
+            await harness.EnqueueAsync().ConfigureAwait(false);
+            await harness.WaitAsync().ConfigureAwait(false);
+            await harness.EnqueueAsync().ConfigureAwait(false);
+            await harness.WaitAsync().ConfigureAwait(false);
+            revoked = true;
+            if (revocation == 1)
+            {
+                AttachCallback();
+            }
+            else if (revocation == 2)
+            {
+                property.UserAccessLevel = AccessLevels.None;
+            }
+            await harness.EnqueueAsync().ConfigureAwait(false);
+            await harness.WaitAsync().ConfigureAwait(false);
+
+            DataValue[] values = harness.First.Values.ToArray();
+            AssertValue(values[0]);
+            AssertValue(values[1]);
+            Assert.That(StatusCode.IsBad(values[2].StatusCode), Is.True);
+            Assert.That(values[2].WrappedValue.IsNull, Is.True);
+        }
+
+        /// <summary>
+        /// A grant reused across deliveries is withdrawn when the node's restrictions or the
+        /// subscriber's channel change.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        [Category("SecurityRegression")]
+        public async Task SecurityF29ReusedGrantFollowsRestrictionAndChannelChangesAsync(bool downgradeChannel)
+        {
+            await using var harness = new Harness();
+            await harness.InitializeAsync().ConfigureAwait(false);
+            if (downgradeChannel)
+            {
+                harness.Node.AccessRestrictions = AccessRestrictionType.EncryptionRequired;
+            }
+            else
+            {
+                harness.First.Endpoint.SecurityMode = MessageSecurityMode.Sign;
+            }
+
+            await harness.EnqueueAsync().ConfigureAwait(false);
+            await harness.WaitAsync().ConfigureAwait(false);
+            await harness.EnqueueAsync().ConfigureAwait(false);
+            await harness.WaitAsync().ConfigureAwait(false);
+            if (downgradeChannel)
+            {
+                harness.First.Endpoint.SecurityMode = MessageSecurityMode.Sign;
+            }
+            else
+            {
+                harness.Node.AccessRestrictions = AccessRestrictionType.EncryptionRequired;
+            }
+            await harness.EnqueueAsync().ConfigureAwait(false);
+            await harness.WaitAsync().ConfigureAwait(false);
+
+            DataValue[] values = harness.First.Values.ToArray();
+            AssertValue(values[0]);
+            AssertValue(values[1]);
+            AssertDenied(values[2], StatusCodes.BadSecurityModeInsufficient);
         }
 
         /// <summary>

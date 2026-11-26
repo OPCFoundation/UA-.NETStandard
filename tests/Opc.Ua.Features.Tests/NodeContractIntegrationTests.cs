@@ -1,31 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using System.Collections.Generic;
@@ -116,9 +90,12 @@ namespace Opc.Ua.Features.Tests
             }
         }
 
+        /// <summary>
+        /// Verifies real file sizes after initial creation, terminal removal/resubscription, and re-enabling.
+        /// </summary>
         [Test]
         [Category("FileSystem")]
-        public async Task FirstFileSizeNotificationsAreRealAcrossCreateReattachAndReenableAsync()
+        public async Task FirstFileSizeNotificationsAreRealAcrossCreateResubscribeAndReenableAsync()
         {
             NodeManagerRegistration registration = m_server.NodeManagerLifecycle.Registrations.ToArray()!
                 .Single(value => value.NodeManager is FileSystemNodeManager);
@@ -134,16 +111,22 @@ namespace Opc.Ua.Features.Tests
                 AssertSize(await PublishDataAsync(subscriptionId).ConfigureAwait(false), 10240);
                 Assert.That(manager.TrackedFileCount, Is.Zero);
 
-                await m_server.NodeManagerLifecycle.RemoveAsync(registration, null).ConfigureAwait(false);
+                await ApplyChangeAsync(LifecycleChange.Remove(registration.Slot), registration).ConfigureAwait(false);
                 DataValue removed = await PublishDataAsync(subscriptionId).ConfigureAwait(false);
                 Assert.That(removed.StatusCode, Is.EqualTo(StatusCodes.BadNodeIdUnknown));
                 await WritePayloadAsync(20480).ConfigureAwait(false);
                 IAsyncNodeManagerFactory replacement = new FileSystemNodeManagerFactory(
                     new PhysicalFileSystemProvider(m_providerDirectory, "Metadata"));
-                NodeManagerRegistration restored = await m_server.NodeManagerLifecycle
-                    .AddAsync(replacement, null).ConfigureAwait(false);
+                LifecycleResult restoration = await ApplyChangeAsync(
+                    LifecycleChange.Add(replacement)).ConfigureAwait(false);
+                NodeManagerRegistration restored = GetRegistration(restoration);
                 var restoredManager = (FileSystemNodeManager)restored.NodeManager;
                 Assert.That(restoredManager.NamespaceIndex, Is.EqualTo(manager.NamespaceIndex));
+                uint originalItemId = created.MonitoredItemId;
+                await DeleteItemAsync(subscriptionId, originalItemId).ConfigureAwait(false);
+                created = await CreateItemAsync(subscriptionId, sizeId, Attributes.Value).ConfigureAwait(false);
+                Assert.That(created.StatusCode, Is.EqualTo(StatusCodes.Good));
+                Assert.That(created.MonitoredItemId, Is.Not.Zero.And.Not.EqualTo(originalItemId));
                 AssertSize(await PublishDataAsync(subscriptionId).ConfigureAwait(false), 20480);
                 Assert.That(restoredManager.TrackedFileCount, Is.Zero);
 
@@ -173,8 +156,9 @@ namespace Opc.Ua.Features.Tests
         public async Task ReloadPreservesItemAndPublishesAsyncProviderValueWithoutPlaceholderAsync()
         {
             var provider = new PhysicalFileSystemProvider(m_providerDirectory, "Reload");
-            NodeManagerRegistration registration = await m_server.NodeManagerLifecycle
-                .AddAsync(new ReloadableValueFactory(provider), null).ConfigureAwait(false);
+            LifecycleResult addition = await ApplyChangeAsync(
+                LifecycleChange.Add(new ReloadableValueFactory(provider))).ConfigureAwait(false);
+            NodeManagerRegistration registration = GetRegistration(addition);
             var manager = (ReloadableValueManager)registration.NodeManager;
             uint subscriptionId = await CreateSubscriptionAsync().ConfigureAwait(false);
             try
@@ -185,8 +169,10 @@ namespace Opc.Ua.Features.Tests
                 AssertSize(await PublishDataAsync(subscriptionId).ConfigureAwait(false), 10240);
                 await WritePayloadAsync(40960).ConfigureAwait(false);
 
-                NodeManagerRegistration reloaded = await m_server.NodeManagerLifecycle
-                    .ReloadAsync(registration, new ReloadableValueFactory(provider), null).ConfigureAwait(false);
+                LifecycleResult reload = await ApplyChangeAsync(
+                    LifecycleChange.Reload(registration.Slot, new ReloadableValueFactory(provider)), registration)
+                    .ConfigureAwait(false);
+                NodeManagerRegistration reloaded = GetRegistration(reload);
 
                 Assert.That(reloaded.Id, Is.EqualTo(registration.Id));
                 Assert.That(reloaded.Generation, Is.GreaterThan(registration.Generation));
@@ -202,8 +188,9 @@ namespace Opc.Ua.Features.Tests
         [Test]
         public async Task ServerEventsSurviveUnsupportedRootsAndRollBackRealStartupFailureAsync()
         {
-            NodeManagerRegistration registration = await m_server.NodeManagerLifecycle
-                .AddAsync(new EventNodeManagerFactory(), null).ConfigureAwait(false);
+            LifecycleResult addition = await ApplyChangeAsync(
+                LifecycleChange.Add(new EventNodeManagerFactory())).ConfigureAwait(false);
+            NodeManagerRegistration registration = GetRegistration(addition);
             var manager = (TestableAsyncCustomNodeManager)registration.NodeManager;
             BaseObjectState supported = await AddRootAsync(manager, "Supported", true).ConfigureAwait(false);
             BaseObjectState unsupported = await AddRootAsync(manager, "Unsupported", false).ConfigureAwait(false);
@@ -248,6 +235,42 @@ namespace Opc.Ua.Features.Tests
             {
                 await DeleteSubscriptionAsync(subscriptionId).ConfigureAwait(false);
             }
+        }
+
+        /// <summary>
+        /// Publishes one real lifecycle change and rejects committed reconciliation failures.
+        /// </summary>
+        private async Task<LifecycleResult> ApplyChangeAsync(
+            LifecycleChange change,
+            NodeManagerRegistration? expected = null)
+        {
+            ILifecycleCapture capture = m_server.NodeManagerLifecycle.CaptureChanges();
+            if (expected is not null &&
+                (!expected.Slot.TryGetCurrent(out NodeManagerSlotSnapshot current) ||
+                    !ReferenceEquals(current.NodeManager, expected.NodeManager) ||
+                    current.Generation != expected.Generation))
+            {
+                throw new InvalidOperationException("The expected generation is no longer current.");
+            }
+            await using ILifecycleWriter writer = await capture.BeginAsync().ConfigureAwait(false);
+            await using IPreparedChanges prepared = await writer
+                .PrepareAsync([change]).ConfigureAwait(false);
+            LifecycleResult result = await prepared.CommitAsync(static _ => default).ConfigureAwait(false);
+            Assert.That(result.CleanupFailure, Is.Null);
+            return result;
+        }
+
+        /// <summary>
+        /// Resolves the exact live registration represented by a committed weak snapshot.
+        /// </summary>
+        private static NodeManagerRegistration GetRegistration(LifecycleResult result)
+        {
+            if (!result.Registrations[0].TryGetRegistration(out NodeManagerRegistration? registration) ||
+                registration is null)
+            {
+                throw new InvalidOperationException("The committed registration is no longer available.");
+            }
+            return registration;
         }
 
         private async Task WritePayloadAsync(int length)

@@ -1,34 +1,9 @@
-/* ========================================================================
- * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 #if NET8_0_OR_GREATER
 using System;
+using System.Collections.Concurrent;
 using System.IO;
 using System.Text.Json;
 using System.Threading;
@@ -38,6 +13,7 @@ using NUnit.Framework;
 using Opc.Ua.Client;
 using Opc.Ua.Client.TestFramework;
 using Opc.Ua.Export;
+using Opc.Ua.Server;
 using Opc.Ua.Server.RuntimeNodeSet;
 using Opc.Ua.Server.TestFramework;
 using Opc.Ua.Tests;
@@ -45,8 +21,10 @@ using Opc.Ua.Wot;
 using Opc.Ua.WotCon.Bindings;
 using Opc.Ua.WotCon.Bindings.OpcUa;
 using Opc.Ua.WotCon.Server.Materialization;
-using Quickstarts.ReferenceServer;
 using WotAffordanceKind = Opc.Ua.WotCon.Bindings.WotAffordanceKind;
+using ISession = Opc.Ua.Client.ISession;
+using MonitoredItem = Opc.Ua.Client.MonitoredItem;
+using Subscription = Opc.Ua.Client.Subscription;
 
 #pragma warning disable CS0618 // tests exercise the obsolete classic API
 
@@ -56,7 +34,6 @@ namespace Opc.Ua.WotCon.Tests.Materialization
     /// Contains tests for WoT event modes live.
     /// </summary>
     [TestFixture]
-    [NonParallelizable]
     [Category("Integration")]
     public sealed partial class WotEventModesLiveTests
     {
@@ -243,12 +220,14 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             }
         }
 
+        private static readonly ConcurrentDictionary<string, int> s_endpointsPerTest = new(StringComparer.Ordinal);
+
         private sealed class NativeEndpoint : IAsyncDisposable
         {
             /// <summary>
             /// Gets or sets the server for <c>NativeEndpoint</c>.
             /// </summary>
-            public ReferenceServer Server { get; private set; } = null!;
+            public StandardServer Server { get; private set; } = null!;
 
             /// <summary>
             /// Gets or sets the session for <c>NativeEndpoint</c>.
@@ -267,6 +246,8 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 bool managed, CancellationToken ct, string securityPolicy = SecurityPolicies.Basic256Sha256)
             {
                 m_fixture.SecurityNone = securityPolicy == SecurityPolicies.None;
+                await WotTestPki.SeedAsync<StandardServer>(
+                    m_root, t => new StandardServer(t), m_identity, "EventModesClient").ConfigureAwait(false);
                 Server = await m_fixture.StartAsync(m_root).ConfigureAwait(false);
                 await m_client.LoadClientConfigurationAsync(m_root, "EventModesClient").ConfigureAwait(false);
                 m_session = await m_client.ConnectAsync(new Uri(EndpointUrl), securityPolicy)
@@ -290,7 +271,8 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             public async Task InstallAsync(UANodeSet nodes, CancellationToken ct)
             {
                 byte[] bytes = Serialize(nodes);
-                _ = await Server.NodeManagerLifecycle.AddRuntimeNodeSetAsync(new RuntimeNodeSetOptions
+                _ = await Server.NodeManagerLifecycle.ApplyAsync(
+                    [LifecycleChange.Add(new RuntimeNodeSetNodeManagerFactory(new RuntimeNodeSetOptions
                 {
                     Sources =
                     [
@@ -298,7 +280,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                             _ => new ValueTask<Stream>(new MemoryStream(bytes, writable: false)),
                             nodes.NamespaceUris!.ToArrayOf())
                     ]
-                }, null, ct).ConfigureAwait(false);
+                }))], ct).ConfigureAwait(false);
             }
 
             /// <summary>
@@ -356,11 +338,16 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 }
             }
 
-            private readonly ServerFixture<ReferenceServer> m_fixture = new(t => new ReferenceServer(t))
+            private readonly ServerFixture<StandardServer> m_fixture = new(t => new StandardServer(t))
             {
                 AutoAccept = true
             };
             private readonly ClientFixture m_client = new(NUnitTelemetryContext.Create());
+
+            // Endpoints of one test authenticate as different authorities, as
+            // they would with freshly generated certificates.
+            private readonly int m_identity = s_endpointsPerTest.AddOrUpdate(
+                TestContext.CurrentContext.Test.ID, 0, (_, count) => count + 1);
             private readonly string m_root = Path.Combine(
                 Environment.GetEnvironmentVariable("WOT_EVENT_TEST_ROOT") ?? Path.GetTempPath(),
                 "wem-" + Guid.NewGuid().ToString("N")[..8]);
@@ -444,6 +431,17 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             public ValueTask<ArrayOf<Variant>> ReadAsync(CancellationToken ct)
             {
                 return m_events.Reader.ReadAsync(ct);
+            }
+
+            /// <summary>
+            /// Enables or disables publishing. While publishing is disabled the
+            /// server keeps new notifications queued instead of delivering them.
+            /// </summary>
+            /// <param name="enabled">Whether the subscription publishes.</param>
+            /// <param name="ct">The cancellation token supplied by the caller.</param>
+            public Task SetPublishingAsync(bool enabled, CancellationToken ct)
+            {
+                return m_subscription.SetPublishingModeAsync(enabled, ct);
             }
 
             public async ValueTask DisposeAsync()

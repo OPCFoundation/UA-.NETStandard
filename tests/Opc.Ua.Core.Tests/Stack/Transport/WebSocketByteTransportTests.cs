@@ -1,31 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 #if NET5_0_OR_GREATER
 
@@ -299,6 +273,7 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
                 kBufferSize,
                 m_telemetry);
 
+            // one chunk of 40 bytes, gathered from two segments
             byte[] body1 = new byte[16];
             byte[] body2 = new byte[24];
             for (int i = 0; i < body1.Length; i++)
@@ -309,6 +284,7 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             {
                 body2[i] = (byte)(i + 16);
             }
+            WriteChunkHeader(body1, body1.Length + body2.Length);
 
             var collection = new BufferCollection
             {
@@ -333,6 +309,109 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             for (int i = 0; i < body2.Length; i++)
             {
                 Assert.That(receive[body1.Length + i], Is.EqualTo(body2[i]));
+            }
+        }
+
+        /// <summary>
+        /// The channel hands over all chunks of a message in one collection. Each chunk
+        /// goes out as its own WebSocket message (Part 6 §7.5.2), whether it fills a
+        /// segment or spans several, and the whole message may exceed the largest
+        /// buffer the transport can rent.
+        /// </summary>
+        [Test]
+        public async Task SendChunkAsyncBufferCollectionSendsOneMessagePerChunk()
+        {
+            using WebSocketPair pair = await CreatePeeredWebSocketsAsync().ConfigureAwait(false);
+            using var transport = new WebSocketServerByteTransport(
+                pair.Server,
+                localEndpoint: null,
+                remoteEndpoint: null,
+                m_bufferManager,
+                kBufferSize,
+                m_telemetry);
+
+            // three full-size chunks, one in its own segment, one spanning two segments
+            // with a header split across them, one sharing a segment with the next
+            byte[] first = CreateChunk(kBufferSize, 1);
+            byte[] second = CreateChunk(kBufferSize, 2);
+            byte[] third = CreateChunk(kBufferSize, 3);
+            byte[] last = CreateChunk(100, 4);
+            byte[] shared = new byte[third.Length + last.Length];
+            Buffer.BlockCopy(third, 0, shared, 0, third.Length);
+            Buffer.BlockCopy(last, 0, shared, third.Length, last.Length);
+            var collection = new BufferCollection
+            {
+                new ArraySegment<byte>(first),
+                new ArraySegment<byte>(second, 0, 6),
+                new ArraySegment<byte>(second, 6, second.Length - 6),
+                new ArraySegment<byte>(shared)
+            };
+            Assert.That(collection.TotalSize, Is.GreaterThan(kBufferSize));
+
+            await transport.SendChunkAsync(collection, CancellationToken.None).ConfigureAwait(false);
+
+            foreach (byte[] expected in new[] { first, second, third, last })
+            {
+                byte[] received = await ReceiveMessageAsync(pair.Client).ConfigureAwait(false);
+                Assert.That(received, Is.EqualTo(expected));
+            }
+        }
+
+        [Test]
+        public async Task SendChunkAsyncBufferCollectionRejectsIncompleteChunk()
+        {
+            using WebSocketPair pair = await CreatePeeredWebSocketsAsync().ConfigureAwait(false);
+            using var transport = new WebSocketServerByteTransport(
+                pair.Server,
+                localEndpoint: null,
+                remoteEndpoint: null,
+                m_bufferManager,
+                kBufferSize,
+                m_telemetry);
+
+            // the header announces more bytes than the collection holds
+            byte[] chunk = CreateChunk(64, 1);
+            var collection = new BufferCollection { new ArraySegment<byte>(chunk, 0, 32) };
+
+            ServiceResultException ex = (await Assert.ThrowsAsync<ServiceResultException>(
+                async () => await transport.SendChunkAsync(collection, CancellationToken.None)
+                    .ConfigureAwait(false)))!;
+            Assert.That(ex.StatusCode, Is.EqualTo((uint)StatusCodes.BadTcpInternalError));
+        }
+
+        private static byte[] CreateChunk(int size, byte fill)
+        {
+            byte[] chunk = new byte[size];
+            chunk.AsSpan().Fill(fill);
+            WriteChunkHeader(chunk, size);
+            return chunk;
+        }
+
+        private static void WriteChunkHeader(byte[] buffer, int chunkSize)
+        {
+            System.Buffers.Binary.BinaryPrimitives.WriteUInt32LittleEndian(
+                buffer,
+                TcpMessageType.Message | TcpMessageType.Final);
+            System.Buffers.Binary.BinaryPrimitives.WriteUInt32LittleEndian(
+                buffer.AsSpan(4),
+                (uint)chunkSize);
+        }
+
+        private static async Task<byte[]> ReceiveMessageAsync(WebSocket socket)
+        {
+            byte[] buffer = new byte[kBufferSize * 2];
+            int total = 0;
+            while (true)
+            {
+                WebSocketReceiveResult result = await socket
+                    .ReceiveAsync(new ArraySegment<byte>(buffer, total, buffer.Length - total), CancellationToken.None)
+                    .ConfigureAwait(false);
+                Assert.That(result.MessageType, Is.EqualTo(WebSocketMessageType.Binary));
+                total += result.Count;
+                if (result.EndOfMessage)
+                {
+                    return buffer.AsSpan(0, total).ToArray();
+                }
             }
         }
 

@@ -1,31 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using System.Collections.Generic;
@@ -182,6 +156,206 @@ namespace Opc.Ua.Types.Tests.State
 
             await Assert.ThrowsAsync<TaskCanceledException>(
                 async () => await browser.NextAsync(cts.Token).ConfigureAwait(false));
+        }
+
+        [Test]
+        public void OverriddenChildDefersBrowseNameAndTargetToTheServingView()
+        {
+            var targetId = new NodeId(29878u);
+            var context = new OverrideSystemContext(targetId);
+            var parent = new BaseObjectState(null);
+            var child = new BaseObjectState(parent)
+            {
+                NodeId = targetId,
+                BrowseName = new QualifiedName("OldName", 0),
+                ReferenceTypeId = ReferenceTypeIds.HasComponent
+            };
+            parent.AddChild(child);
+
+            using INodeBrowser browser = parent.CreateBrowser(
+                context, null, NodeId.Null, true, BrowseDirection.Forward,
+                new QualifiedName("NewName", 0), null, false);
+            IReference? reference = browser.Next();
+            Assert.That(reference, Is.InstanceOf<NodeStateReference>());
+            Assert.That(reference!.TargetId, Is.EqualTo((ExpandedNodeId)targetId));
+            Assert.That(((NodeStateReference)reference).Target, Is.Null);
+        }
+
+        [Test]
+        public void PopulateHookDefersOverriddenLocalTargetMetadata()
+        {
+            var targetId = new NodeId(29878u);
+            var context = new OverrideSystemContext(targetId);
+            var parent = new BaseObjectState(null);
+            var target = new BaseObjectState(null)
+            {
+                NodeId = targetId,
+                BrowseName = new QualifiedName("OldName", 0)
+            };
+            parent.OnPopulateBrowser = (_, _, browser) =>
+                browser.Add(ReferenceTypeIds.HasComponent, false, target);
+
+            using INodeBrowser browser = parent.CreateBrowser(
+                context, null, NodeId.Null, true, BrowseDirection.Forward,
+                new QualifiedName("NewName", 0), null, false);
+            IReference? reference = browser.Next();
+            Assert.That(reference, Is.InstanceOf<NodeStateReference>());
+            Assert.That(reference!.TargetId, Is.EqualTo((ExpandedNodeId)targetId));
+            Assert.That(((NodeStateReference)reference).Target, Is.Null);
+        }
+
+        [Test]
+        public void ReferenceImageComposesWithCustomBrowserChildrenAndPopulateHook()
+        {
+            var oldId = new NodeId(1000u);
+            var currentId = new NodeId(1001u);
+            var childId = new NodeId(1002u);
+            var hookId = new NodeId(1003u);
+            var additionalId = new NodeId(1004u);
+            var parent = new BaseObjectState(null);
+            parent.AddReference(ReferenceTypeIds.Organizes, false, currentId);
+            parent.AddChild(new BaseObjectState(parent)
+            {
+                NodeId = childId,
+                ReferenceTypeId = ReferenceTypeIds.HasComponent
+            });
+            parent.OnPopulateBrowser = (_, _, browser) =>
+                browser.Add(ReferenceTypeIds.HasProperty, false, hookId);
+            parent.OnCreateBrowser = (context, _, view, type, subtypes, direction, name, additional, internalOnly) =>
+                new NodeBrowser(context, view, type, subtypes, direction, name, additional, internalOnly);
+            var oldView = new ReferenceImageSystemContext(
+                parent, [new NodeStateReference(ReferenceTypeIds.Organizes, false, oldId)]);
+            var extra = new NodeStateReference(ReferenceTypeIds.HasNotifier, false, additionalId);
+
+            AssertTargets(oldView, oldId, currentId);
+            AssertTargets(m_context, currentId, oldId);
+
+            void AssertTargets(ISystemContext context, NodeId expected, NodeId excluded)
+            {
+                using INodeBrowser browser = parent.CreateBrowser(
+                    context, null, NodeId.Null, true, BrowseDirection.Forward, default, [extra], false);
+                var targets = new HashSet<ExpandedNodeId>();
+                for (IReference? reference = browser.Next(); reference is not null; reference = browser.Next())
+                {
+                    targets.Add(reference.TargetId);
+                }
+                Assert.That(targets, Does.Contain((ExpandedNodeId)expected));
+                Assert.That(targets, Does.Not.Contain((ExpandedNodeId)excluded));
+                Assert.That(targets, Does.Contain((ExpandedNodeId)childId));
+                Assert.That(targets, Does.Contain((ExpandedNodeId)hookId));
+                Assert.That(targets, Does.Contain((ExpandedNodeId)additionalId));
+            }
+        }
+
+        [TestCase(false)]
+        [TestCase(true)]
+        public void SnapshotBrowserRejectsHooksBeforeCallingEitherHandler(bool createHook)
+        {
+            var source = new BaseObjectState(null);
+            int calls = 0;
+            if (createHook)
+            {
+                source.OnCreateBrowser = (context, _, view, type, subtypes, direction, name, extra, internalOnly) =>
+                {
+                    calls++;
+                    return new NodeBrowser(context, view, type, subtypes, direction, name, extra, internalOnly);
+                };
+            }
+            else
+            {
+                source.OnPopulateBrowser = (_, _, _) => calls++;
+            }
+
+            var context = new GuardedSystemContext();
+            Assert.That(() => source.CreateBrowser(
+                context, null, NodeId.Null, true, BrowseDirection.Forward, default, null, false),
+                Throws.TypeOf<ServiceResultException>()
+                    .With.Property(nameof(ServiceResultException.StatusCode))
+                    .EqualTo(StatusCodes.BadNotSupported));
+            Assert.That(calls, Is.Zero);
+        }
+
+        [Test]
+        public void SnapshotBrowserWithoutHooksPreservesStoredReferences()
+        {
+            var source = new BaseObjectState(null);
+            var targetId = new NodeId(29878u);
+            source.AddReference(ReferenceTypeIds.Organizes, false, targetId);
+
+            using INodeBrowser browser = source.CreateBrowser(
+                new GuardedSystemContext(), null, NodeId.Null, true, BrowseDirection.Forward, default, null, false);
+            Assert.That(browser.Next()?.TargetId, Is.EqualTo((ExpandedNodeId)targetId));
+        }
+
+        [Test]
+        public void SynchronizedPopulationRejectsHookBeforeInvocationForSnapshotView()
+        {
+            var source = new SynchronizedPopulationNode();
+            int calls = 0;
+            source.OnPopulateBrowser = (_, _, _) => calls++;
+            var context = new GuardedSystemContext();
+            using var browser = new NodeBrowser(
+                context, null, NodeId.Null, true, BrowseDirection.Forward, default, null, false);
+
+            Assert.That(() => source.Populate(context, browser),
+                Throws.TypeOf<ServiceResultException>()
+                    .With.Property(nameof(ServiceResultException.StatusCode))
+                    .EqualTo(StatusCodes.BadNotSupported));
+            Assert.That(calls, Is.Zero);
+        }
+
+        [Test]
+        public void OrdinaryBrowserObservesPopulateHookInstalledByCreateHook()
+        {
+            var source = new BaseObjectState(null);
+            int calls = 0;
+            source.OnCreateBrowser = (context, _, view, type, subtypes, direction, name, extra, internalOnly) =>
+            {
+                source.OnPopulateBrowser = (_, _, _) => calls++;
+                return new NodeBrowser(context, view, type, subtypes, direction, name, extra, internalOnly);
+            };
+
+            using INodeBrowser browser = source.CreateBrowser(
+                m_context, null, NodeId.Null, true, BrowseDirection.Forward, default, null, false);
+            Assert.That(calls, Is.EqualTo(1));
+        }
+
+        private sealed class GuardedSystemContext() :
+            SystemContext(NUnitTelemetryContext.Create()), INodeStateSnapshotBrowserGuard
+        {
+            public bool RequiresSnapshotSafeBrowser => true;
+        }
+
+        private sealed class SynchronizedPopulationNode() : BaseObjectState(null)
+        {
+            public void Populate(ISystemContext context, NodeBrowser browser)
+            {
+                PopulateBrowserSynchronized(context, browser);
+            }
+        }
+
+        private sealed class ReferenceImageSystemContext(NodeState owner, ArrayOf<IReference> image) :
+            SystemContext(NUnitTelemetryContext.Create()), INodeStateReferenceView
+        {
+            public bool TryGetReferences(NodeState node, out ArrayOf<IReference> references)
+            {
+                references = image;
+                return ReferenceEquals(node, owner);
+            }
+
+            public bool IsOverridden(NodeId nodeId) => false;
+        }
+
+        private sealed class OverrideSystemContext(NodeId overridden) :
+            SystemContext(NUnitTelemetryContext.Create()), INodeStateReferenceView
+        {
+            public bool TryGetReferences(NodeState node, out ArrayOf<IReference> references)
+            {
+                references = default;
+                return false;
+            }
+
+            public bool IsOverridden(NodeId nodeId) => nodeId == overridden;
         }
 
         private NodeBrowser CreateBrowser(IEnumerable<IReference> references)

@@ -1,31 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using System.Globalization;
@@ -229,10 +203,18 @@ namespace Opc.Ua.Redundancy.Kubernetes
             try
             {
                 string path = context.Request.Url?.AbsolutePath ?? string.Empty;
-                bool isReadyPath = string.Equals(path, m_options.ReadinessPath, StringComparison.OrdinalIgnoreCase);
-                bool ok = !isReadyPath || IsReady();
-                context.Response.StatusCode = ok ? (int)HttpStatusCode.OK : (int)HttpStatusCode.ServiceUnavailable;
-                string body = ok ? "ok" : "not ready";
+                bool isReadyPath = MatchesProbePath(path, m_options.ReadinessPath);
+                bool isLivePath = MatchesProbePath(path, m_options.LivenessPath);
+                HttpStatusCode status = isReadyPath
+                    ? (IsReady() ? HttpStatusCode.OK : HttpStatusCode.ServiceUnavailable)
+                    : (isLivePath ? HttpStatusCode.OK : HttpStatusCode.NotFound);
+                context.Response.StatusCode = (int)status;
+                string body = status switch
+                {
+                    HttpStatusCode.OK => "ok",
+                    HttpStatusCode.ServiceUnavailable => "not ready",
+                    _ => "not found"
+                };
                 byte[] bytes = Encoding.UTF8.GetBytes(body);
                 context.Response.ContentType = "text/plain; charset=utf-8";
                 context.Response.ContentLength64 = bytes.Length;
@@ -248,10 +230,16 @@ namespace Opc.Ua.Redundancy.Kubernetes
             }
         }
 
+        private static bool MatchesProbePath(string requestPath, string configuredPath)
+        {
+            string path = configuredPath.StartsWith('/', StringComparison.Ordinal) ? configuredPath : "/" + configuredPath;
+            return string.Equals(requestPath.TrimEnd('/'), path.TrimEnd('/'), StringComparison.OrdinalIgnoreCase);
+        }
+
         private static string ToPrefix(string host, int port, string path)
         {
-            string normalizedPath = path.StartsWith('/') ? path : "/" + path;
-            if (!normalizedPath.EndsWith('/'))
+            string normalizedPath = path.StartsWith('/', StringComparison.Ordinal) ? path : "/" + path;
+            if (!normalizedPath.EndsWith('/', StringComparison.Ordinal))
             {
                 normalizedPath += "/";
             }

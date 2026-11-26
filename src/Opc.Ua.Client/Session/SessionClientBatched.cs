@@ -1,31 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using System.Collections.Generic;
@@ -1595,6 +1569,7 @@ namespace Opc.Ua
             {
                 return;
             }
+            using CancellationTokenSource cts = CreateCleanupTokenSource();
             try
             {
                 await HistoryReadAsync(
@@ -1603,13 +1578,35 @@ namespace Opc.Ua
                     timestampsToReturn,
                     true,
                     nodesToRelease.ToArrayOf(),
-                    CancellationToken.None).ConfigureAwait(false);
+                    cts.Token).ConfigureAwait(false);
             }
             catch (Exception)
             {
                 // Best effort, the original failure is what the caller sees.
             }
         }
+
+        /// <summary>
+        /// Creates the token that bounds a best effort cleanup call. The cleanup
+        /// runs after the caller's request failed, often because the channel is
+        /// down, so it must not wait for the channel without a bound: the
+        /// caller (for example a subscription update that session recovery
+        /// drains) would otherwise never complete.
+        /// </summary>
+        private CancellationTokenSource CreateCleanupTokenSource()
+        {
+            int timeout = OperationTimeout;
+            if (timeout <= 0 || timeout > kMaxCleanupTimeout)
+            {
+                timeout = kMaxCleanupTimeout;
+            }
+            return new CancellationTokenSource(timeout);
+        }
+
+        /// <summary>
+        /// Upper bound of a best effort cleanup call in milliseconds.
+        /// </summary>
+        private const int kMaxCleanupTimeout = 10_000;
 
         /// <summary>
         /// Best effort deletion of the monitored items created by the batches
@@ -1631,13 +1628,14 @@ namespace Opc.Ua
             {
                 return;
             }
+            using CancellationTokenSource cts = CreateCleanupTokenSource();
             try
             {
                 await DeleteMonitoredItemsAsync(
                     null,
                     subscriptionId,
                     monitoredItemIds.ToArrayOf(),
-                    CancellationToken.None).ConfigureAwait(false);
+                    cts.Token).ConfigureAwait(false);
             }
             catch (Exception)
             {

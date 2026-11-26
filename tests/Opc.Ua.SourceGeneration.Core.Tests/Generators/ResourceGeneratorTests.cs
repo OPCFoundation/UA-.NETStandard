@@ -1,31 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System.IO;
 using System.Text;
@@ -86,6 +60,42 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
             string content = Embed(new TextResource("Nothing", string.Empty, AsUtf16: true));
 
             Assert.That(content, Does.Contain("public const string Nothing = \"\";"));
+        }
+
+        /// <summary>
+        /// Model text (schema documentation) is embedded as a raw UTF-8 string
+        /// literal. A run of three quotes in it used to close the literal and
+        /// let the rest of the text compile as code; the delimiter is now
+        /// longer than any quote run in the text.
+        /// </summary>
+        [Test]
+        public void EmbedTextWithQuoteRunUsesLongerRawLiteralDelimiter()
+        {
+            string content = Embed(new TextResource(
+                "Doc",
+                "<doc>\n\"\"\"u8;\nstatic void Injected() { }\n\"\"\"\"\"</doc>"));
+
+            // Five quotes in the text: the literal is delimited by six.
+            Assert.That(content, Does.Contain("\"\"\"\"\"\"u8"));
+        }
+
+        /// <summary>
+        /// C# ends a line at NEL, LINE SEPARATOR and PARAGRAPH SEPARATOR, which
+        /// the line-based raw literal writer does not split on, so text that
+        /// contains one is embedded as bytes instead.
+        /// </summary>
+        [TestCase('\u0085')]
+        [TestCase('\u2028')]
+        [TestCase('\u2029')]
+        public void EmbedTextWithUnicodeLineTerminatorEmitsBytes(char terminator)
+        {
+            string content = Embed(new TextResource(
+                "Doc",
+                "<doc>a" + terminator + "\"\"\"u8; static void Injected() { }</doc>"));
+
+            Assert.That(content, Does.Contain("new byte[]"));
+            Assert.That(content, Does.Not.Contain("Injected"));
+            Assert.That(content, Does.Not.Contain(terminator.ToString()));
         }
 
         private static string Embed(Resource resource)

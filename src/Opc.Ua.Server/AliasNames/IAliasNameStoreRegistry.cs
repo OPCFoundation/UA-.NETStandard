@@ -1,31 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using System.Collections.Generic;
@@ -164,6 +138,46 @@ namespace Opc.Ua.Server.AliasNames
                 NodeId categoryId,
                 IReadOnlyList<AliasDeleteRequest> requests,
                 CancellationToken ct = default);
+    }
+
+    /// <summary>
+    /// Optional registry capability for independently owned, replaceable alias-store registrations.
+    /// </summary>
+    /// <remarks>
+    /// A new registration for the same owner replaces its previous claim. Releasing a superseded
+    /// registration does not remove its replacement. Different owners may share one store instance,
+    /// but cannot claim overlapping categories through different stores. Manual registrations remain
+    /// independent of these claims.
+    /// </remarks>
+    public interface IAliasNameStoreRegistrationProvider
+    {
+        /// <summary>
+        /// Acquires the current claim for an owner after publication.
+        /// </summary>
+        /// <param name="store">The backend that owns the categories.</param>
+        /// <param name="ownerId">The nonempty, stable owner identity shared by its successive generations.</param>
+        /// <returns>A lease that releases only this claim, without disposing the store.</returns>
+        /// <exception cref="InvalidOperationException">
+        /// Another owner or a manual registration claims overlapping categories through a different store.
+        /// </exception>
+        IDisposable AcquireRegistration(IAliasNameStore store, Guid ownerId);
+    }
+
+    /// <summary>
+    /// Optional server capability that checks alias-registration compatibility during private preparation.
+    /// </summary>
+    /// <remarks>
+    /// Validation neither acquires a claim nor reserves categories. Publication still revalidates ownership
+    /// when acquiring the registration. This interface does not expose the serving registry.
+    /// </remarks>
+    public interface IAliasNameStoreRegistrationValidator
+    {
+        /// <summary>
+        /// Rejects shared or replacement claims that a legacy registry cannot own independently.
+        /// </summary>
+        /// <param name="store">The candidate's backend.</param>
+        /// <param name="replacesRegisteredStore">Whether the previous generation owns a server-registry claim.</param>
+        void ValidateAliasNameStoreRegistration(IAliasNameStore store, bool replacesRegisteredStore);
     }
 
     /// <summary>

@@ -1,38 +1,11 @@
-/* ========================================================================
- * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Globalization;
 using System.Linq;
-using System.Text;
 using System.Threading;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
@@ -117,6 +90,7 @@ namespace Opc.Ua.SourceGeneration
                     OptimizeForCompileSpeed =
                         m_compilationOptions.OptimizationLevel == OptimizationLevel.Debug,
                     OmitObjectTypeProxies = m_options.OmitObjectTypeProxies,
+                    ObjectTypeProxyMethodsWithStatus = m_options.ObjectTypeProxyMethodsWithStatus,
                     ObjectTypeProxyNamespace =
                         string.IsNullOrWhiteSpace(m_options.ObjectTypeProxyNamespace)
                             ? null
@@ -128,6 +102,7 @@ namespace Opc.Ua.SourceGeneration
                     OmitFluentApi = m_options.OmitFluentApi,
                     FluentAccessorsOnly = m_options.FluentAccessorsOnly,
                     ClientAccessorsOnly = m_options.ClientAccessorsOnly,
+                    ClientAccessorsInternal = m_options.ClientAccessorsInternal,
                     ClientAccessorNamespace = m_options.ClientAccessorNamespace,
                     ClientAccessorClassName = m_options.ClientAccessorClassName,
                     OmitEventRecords = m_options.OmitEventRecords
@@ -329,8 +304,8 @@ namespace Opc.Ua.SourceGeneration
                 foreach (string file in vfs.CreatedFiles
                     .Where(f => f.EndsWith(".cs", StringComparison.OrdinalIgnoreCase)))
                 {
-                    string content = Encoding.UTF8.GetString(vfs.Get(file));
-                    m_context.AddSource(file, content);
+                    cancellationToken.ThrowIfCancellationRequested();
+                    m_context.AddSource(file, SourceGenerator.ReadGeneratedSource(vfs, file));
                 }
             }
             catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
@@ -456,15 +431,15 @@ namespace Opc.Ua.SourceGeneration
                     map[candidate.ModelUri] = candidate;
                     continue;
                 }
-                if (IsMatchingTransitiveReference(candidate, existing))
+                if (IsMatchingTransitiveReference(candidate, existing, m_context.CancellationToken))
                 {
-                    if (IsModelProducer(candidate))
+                    if (IsModelProducer(candidate, m_context.CancellationToken))
                     {
                         map[candidate.ModelUri] = candidate;
                     }
                     continue;
                 }
-                int cmp = CompareReferencedModels(candidate, existing);
+                int cmp = CompareReferencedModels(candidate, existing, m_context.CancellationToken);
                 if (cmp == 0)
                 {
                     continue;
@@ -474,6 +449,10 @@ namespace Opc.Ua.SourceGeneration
                 if (cmp > 0)
                 {
                     map[candidate.ModelUri] = candidate;
+                }
+                if (IsSameAssemblyReexport(selected, ignored))
+                {
+                    continue;
                 }
                 m_context.ReportDiagnostic(
                     Diagnostic.Create(
@@ -491,7 +470,8 @@ namespace Opc.Ua.SourceGeneration
         /// </summary>
         private static bool IsMatchingTransitiveReference(
             ModelDependencyReference candidate,
-            ModelDependencyReference existing)
+            ModelDependencyReference existing,
+            CancellationToken cancellationToken)
         {
             if (!string.Equals(candidate.ModelUri, existing.ModelUri, StringComparison.Ordinal) ||
                 !string.Equals(candidate.Prefix, existing.Prefix, StringComparison.Ordinal) ||
@@ -502,8 +482,26 @@ namespace Opc.Ua.SourceGeneration
                 return false;
             }
             return (candidate.Payload.Length == 0 &&
-                    (existing.Payload.Length == 0 || IsModelProducer(existing))) ||
-                (existing.Payload.Length == 0 && IsModelProducer(candidate));
+                    (existing.Payload.Length == 0 || IsModelProducer(existing, cancellationToken))) ||
+                (existing.Payload.Length == 0 && IsModelProducer(candidate, cancellationToken));
+        }
+
+        /// <summary>
+        /// Identifies two entries for the same model URI declared by one
+        /// assembly where at least one is a payloadless dependency declaration,
+        /// e.g. an assembly that produces a model and also re-exports it as a
+        /// dependency of another model it compiles (GDS in Opc.Ua.Gds is both
+        /// produced and referenced by the Onboarding model). That is not a
+        /// conflict between referenced assemblies, so the selection made by
+        /// <see cref="CompareReferencedModels"/> stands without a diagnostic.
+        /// Two payload-bearing entries in one assembly are still reported.
+        /// </summary>
+        private static bool IsSameAssemblyReexport(
+            ModelDependencyReference selected,
+            ModelDependencyReference ignored)
+        {
+            return string.Equals(selected.AssemblyName, ignored.AssemblyName, StringComparison.Ordinal) &&
+                (selected.Payload.Length == 0 || ignored.Payload.Length == 0);
         }
 
         /// <summary>
@@ -528,9 +526,11 @@ namespace Opc.Ua.SourceGeneration
         /// </remarks>
         internal static int CompareReferencedModels(
             ModelDependencyReference candidate,
-            ModelDependencyReference existing)
+            ModelDependencyReference existing,
+            CancellationToken cancellationToken = default)
         {
-            int cmp = IsModelProducer(candidate).CompareTo(IsModelProducer(existing));
+            int cmp = IsModelProducer(candidate, cancellationToken)
+                .CompareTo(IsModelProducer(existing, cancellationToken));
             if (cmp == 0)
             {
                 cmp = SemVer.CompareModels(
@@ -565,9 +565,9 @@ namespace Opc.Ua.SourceGeneration
                 : DateTime.MinValue;
         }
 
-        private static bool IsModelProducer(ModelDependencyReference reference)
+        private static bool IsModelProducer(ModelDependencyReference reference, CancellationToken cancellationToken)
         {
-            ModelDependencyV1 dependency = reference.GetDependency();
+            ModelDependencyV1 dependency = reference.GetDependencyForGeneration(cancellationToken);
             return dependency != null &&
                 string.Equals(dependency.ModelUri, reference.ModelUri, StringComparison.Ordinal);
         }

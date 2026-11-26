@@ -1,31 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System.Globalization;
 
@@ -48,7 +22,12 @@ namespace Opc.Ua.SourceGeneration
         /// <inheritdoc/>
         public void Write(char text)
         {
-            Write(text.ToString());
+            if (m_atLineStart)
+            {
+                m_inner.Write(kIndent);
+                m_atLineStart = false;
+            }
+            m_inner.Write(text);
         }
 
         /// <inheritdoc/>
@@ -62,23 +41,41 @@ namespace Opc.Ua.SourceGeneration
             m_inner.Write(text);
         }
 
+        // The formatted overloads forward format and arguments separately, so
+        // the inner writer can tell generator text from model values (see
+        // TemplateWriter.Emit).
+
         /// <inheritdoc/>
         public void Write(string format, object arg1)
         {
-            Write(string.Format(CultureInfo.InvariantCulture, format ?? string.Empty, arg1));
+            WriteIndentIfNeeded(
+                string.Format(CultureInfo.InvariantCulture, format ?? string.Empty, arg1));
+            m_inner.Write(format!, arg1);
         }
 
         /// <inheritdoc/>
         public void Write(string format, object arg1, object arg2)
         {
-            Write(string.Format(CultureInfo.InvariantCulture, format ?? string.Empty, arg1, arg2));
+            WriteIndentIfNeeded(
+                string.Format(CultureInfo.InvariantCulture, format ?? string.Empty, arg1, arg2));
+            m_inner.Write(format!, arg1, arg2);
         }
 
         /// <inheritdoc/>
         public void Write(string format, object arg1, object arg2, object arg3)
         {
-            Write(string.Format(
+            WriteIndentIfNeeded(string.Format(
                 CultureInfo.InvariantCulture, format ?? string.Empty, arg1, arg2, arg3));
+            m_inner.Write(format!, arg1, arg2, arg3);
+        }
+
+        private void WriteIndentIfNeeded(string formatted)
+        {
+            if (m_atLineStart && !string.IsNullOrEmpty(formatted))
+            {
+                m_inner.Write(kIndent);
+                m_atLineStart = false;
+            }
         }
 
         /// <inheritdoc/>
@@ -102,7 +99,14 @@ namespace Opc.Ua.SourceGeneration
         /// <inheritdoc/>
         public void WriteLine(string text, params object?[] args)
         {
-            WriteLine(string.Format(CultureInfo.InvariantCulture, text ?? string.Empty, args ?? []));
+            if (m_atLineStart &&
+                !string.IsNullOrEmpty(
+                    string.Format(CultureInfo.InvariantCulture, text ?? string.Empty, args ?? [])))
+            {
+                m_inner.Write(kIndent);
+            }
+            m_inner.WriteLine(text!, args ?? []);
+            m_atLineStart = true;
         }
 
         private const string kIndent = "    ";

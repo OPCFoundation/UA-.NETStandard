@@ -1,32 +1,7 @@
-/* ========================================================================
- * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
+using System.Collections.Generic;
 using Moq;
 using NUnit.Framework;
 using Opc.Ua.Tests;
@@ -128,11 +103,16 @@ namespace Opc.Ua.Server.Tests
                 QualifiedName.From(BrowseNames.AggregateFunction_StandardDeviationPopulation)));
         }
 
+        /// <summary>
+        /// An unknown aggregate identifier has a null OPC UA qualified name.
+        /// </summary>
         [Test]
-        public void GetNameForStandardAggregateReturnsDefaultForUnknownId()
+        public void GetNameForStandardAggregateReturnsNullForUnknownId()
         {
             QualifiedName name = Aggregators.GetNameForStandardAggregate(new NodeId(999999));
-            Assert.That(name, Is.Default);
+            Assert.That(name.IsNull, Is.True);
+            Assert.That(name.Name, Is.Null);
+            Assert.That(name.NamespaceIndex, Is.Zero);
         }
 
         [Test]
@@ -830,6 +810,54 @@ namespace Opc.Ua.Server.Tests
 
             Assert.That(calculator, Is.Not.Null);
             Assert.That(calculator, Is.InstanceOf<MinMaxAggregateCalculator>());
+        }
+
+        /// <summary>
+        /// The server registers every aggregate function the core model declares
+        /// (<see cref="AggregateFunctionIds.All"/>) with the standard calculator. A model
+        /// update that declares a new aggregate function must fail here rather than
+        /// let the server advertise an aggregate it cannot calculate.
+        /// </summary>
+        [Test]
+        public void CreateStandardCalculatorCoversEveryDeclaredAggregateFunction()
+        {
+            var startTime = new DateTimeUtc(2024, 1, 1, 0, 0, 0);
+            DateTimeUtc endTime = startTime.AddMilliseconds(10000);
+            List<(NodeId AggregateId, string BrowseName)> aggregates = AggregateFunctionIds.All.ToList();
+
+            Assert.That(aggregates, Is.Not.Empty);
+            Assert.Multiple(() =>
+            {
+                foreach ((NodeId aggregateId, string browseName) in aggregates)
+                {
+                    IAggregateCalculator? calculator = Aggregators.CreateStandardCalculator(
+                        aggregateId, startTime, endTime, 10000, false, m_configuration, m_telemetry);
+
+                    Assert.That(
+                        calculator,
+                        Is.Not.Null,
+                        $"No standard calculator for the aggregate function {browseName} ({aggregateId}).");
+                }
+            });
+        }
+
+        /// <summary>
+        /// The generated list names every aggregate function once, with the BrowseName
+        /// of its node.
+        /// </summary>
+        [Test]
+        public void DeclaredAggregateFunctionsAreUniqueAndNamedByBrowseName()
+        {
+            List<(NodeId AggregateId, string BrowseName)> aggregates = AggregateFunctionIds.All.ToList();
+
+            Assert.That(aggregates, Has.Count.EqualTo(37));
+            Assert.That(aggregates, Is.Unique);
+            Assert.That(
+                aggregates,
+                Does.Contain((ObjectIds.AggregateFunction_Interpolative, BrowseNames.AggregateFunction_Interpolative)));
+            Assert.That(
+                aggregates,
+                Does.Contain((ObjectIds.AggregateFunction_VariancePopulation, BrowseNames.AggregateFunction_VariancePopulation)));
         }
     }
 }

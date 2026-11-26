@@ -1,31 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
@@ -159,7 +133,7 @@ namespace Opc.Ua.Schema.Binary
             {
                 foreach (ImportDirective directive in Dictionary.Import)
                 {
-                    Import(directive.Location, directive.Namespace);
+                    Import(directive.Location, directive.Namespace, 1);
                 }
             }
             else if (Dictionary.TargetNamespace != Ua.Types.Namespaces.OpcUa &&
@@ -170,7 +144,7 @@ namespace Opc.Ua.Schema.Binary
                 // namespace: no resource is registered for Namespaces.OpcUa, so
                 // importing that one threw "Cannot import namespace" for every
                 // dictionary that declares no imports of its own.
-                Import(null, Ua.Types.Namespaces.OpcUaBuiltInTypes);
+                Import(null, Ua.Types.Namespaces.OpcUaBuiltInTypes, 1);
             }
 
             // import types from imported dictionaries.
@@ -203,18 +177,34 @@ namespace Opc.Ua.Schema.Binary
         }
 
         /// <summary>
+        /// The deepest chain of dictionary imports that is followed. Imports are
+        /// loaded recursively, one level per dictionary in the chain.
+        /// </summary>
+        internal const int MaxImportDepth = 64;
+
+        /// <summary>
         /// Imports a dictionary identified by an import directive.
         /// </summary>
         [UnconditionalSuppressMessage("ReflectionAnalysis", "IL2026",
             Justification = "XmlSerializer is used with known schema types at design time.")]
         [UnconditionalSuppressMessage("AOT", "IL3050",
             Justification = "XmlSerializer is used with known schema types at design time.")]
-        private void Import(string? location, string? namespaceUri)
+        private void Import(string? location, string? namespaceUri, int depth)
         {
-            // check if already loaded.
-            if (LoadedFiles.ContainsKey(namespaceUri!))
+            // check if already loaded: a cycle or a shared import ends here,
+            // also one back to the dictionary being validated.
+            if (LoadedFiles.ContainsKey(namespaceUri!) ||
+                (namespaceUri != null && namespaceUri == Dictionary?.TargetNamespace))
             {
                 return;
+            }
+
+            if (depth > MaxImportDepth)
+            {
+                throw Exception(
+                    "Imports of dictionary {0} nest deeper than {1} levels.",
+                    namespaceUri,
+                    MaxImportDepth);
             }
 
             TypeDictionary dictionary = Load<TypeDictionary>(location, namespaceUri);
@@ -238,7 +228,7 @@ namespace Opc.Ua.Schema.Binary
                 for (int ii = 0; ii < dictionary.Import.Length; ii++)
                 {
                     ImportDirective directive = dictionary.Import[ii];
-                    Import(directive.Location, directive.Namespace);
+                    Import(directive.Location, directive.Namespace, depth + 1);
                 }
             }
 

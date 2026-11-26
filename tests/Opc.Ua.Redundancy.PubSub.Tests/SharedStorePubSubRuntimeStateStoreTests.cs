@@ -1,35 +1,11 @@
-/* ========================================================================
- * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
+using System;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using Opc.Ua.Redundancy;
+using Opc.Ua.Tests;
 
 namespace Opc.Ua.PubSub.Configuration
 {
@@ -108,8 +84,38 @@ namespace Opc.Ua.PubSub.Configuration
                     9).ConfigureAwait(false),
                 Throws.InvalidOperationException);
             Assert.That(
+                async () => await store.SetStateAsync("pubsub:datasetwriter:Writer1", PubSubState.Error)
+                    .ConfigureAwait(false),
+                Throws.InvalidOperationException);
+            Assert.That(
                 await store.GetStateAsync("pubsub:datasetwriter:Writer1").ConfigureAwait(false),
                 Is.EqualTo(PubSubState.Operational));
+        }
+
+        [Test]
+        public async Task ProtectedRuntimeStateOnlyAcceptsCurrentOrHigherFenceAsync()
+        {
+            const string componentId = "pubsub:writer:Connection1:Group1:Writer1";
+            using var payload = new SimulatedSharedKeyValueStore();
+            using var authority = new SimulatedSharedKeyValueStore();
+            using var protector = new AesCbcHmacRecordProtector(new byte[32]);
+            var fresh = new FreshnessProtectedKeyValueStore(
+                payload, authority, protector, Guid.NewGuid(), Guid.NewGuid());
+            await fresh.EnrollAsync().ConfigureAwait(false);
+            var active = new SharedStorePubSubRuntimeStateStore(fresh);
+            var standby = new SharedStorePubSubRuntimeStateStore(fresh);
+
+            Assert.That(
+                async () => await standby.SetStateAsync(componentId, PubSubState.Paused).ConfigureAwait(false),
+                Throws.InvalidOperationException);
+            await active.SetStateAsync(componentId, PubSubState.Operational, 1).ConfigureAwait(false);
+            await standby.SetStateAsync(componentId, PubSubState.PreOperational, 2).ConfigureAwait(false);
+            Assert.That(
+                async () => await active.SetStateAsync(componentId, PubSubState.Disabled, 1).ConfigureAwait(false),
+                Throws.InvalidOperationException);
+            await standby.SetStateAsync(componentId, PubSubState.Operational, 2).ConfigureAwait(false);
+            Assert.That(
+                await active.GetStateAsync(componentId).ConfigureAwait(false), Is.EqualTo(PubSubState.Operational));
         }
 
         [Test]

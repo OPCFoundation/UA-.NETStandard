@@ -17,6 +17,17 @@ name: NuGet Publish
 #
 # Manual (workflow_dispatch) runs can build/validate from any branch, but the
 # same eligibility rules gate whether packages actually get pushed anywhere.
+#
+# Signing: only master and release/* builds are signed. Every other branch (and
+# every tag) packs and validates an UNSIGNED set and never sees a signing
+# secret: the pack job builds the branch's own code - MSBuild targets, source
+# generators, restored packages - so a secret in that job is readable by
+# whoever can push a branch. The signing secrets must therefore live in the
+# `nuget-signing` environment, restricted to the master and release/*
+# deployment branches, and not as repository secrets; a branch that edits this
+# file to request the environment is then refused by GitHub. Within a signed
+# job each secret is visible only to the step that uses it, and the decoded
+# strong-name key is deleted once the build no longer needs it.
 
 on:
   workflow_dispatch:
@@ -52,11 +63,29 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       relevant: ${{ steps.relevance.outputs.relevant }}
+      # 'true' only for the refs whose builds are signed (see the header).
+      signed: ${{ steps.signing.outputs.signed }}
     steps:
+      - name: Resolve signing
+        id: signing
+        shell: pwsh
+        # Expression comparisons and startsWith() ignore case, but the
+        # nuget-signing deployment branch rules do not: compare case
+        # sensitively here, so "Release/x" or "MASTER" builds unsigned
+        # instead of being refused by the environment. The rule "release/*"
+        # does not match a further '/', so "release/a/b" builds unsigned too.
+        run: |
+          $ref = $env:GITHUB_REF
+          $signed = $ref -ceq 'refs/heads/master' -or
+              $ref -cmatch '^refs/heads/release/[^/]+$'
+          "signed=$($signed.ToString().ToLowerInvariant())" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+          Write-Host "Packages for '$($env:GITHUB_REF)' are $(if ($signed) { 'signed' } else { 'built unsigned' })."
+
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           fetch-depth: 0
+          persist-credentials: false
 
       - name: Resolve path relevance
         id: relevance
@@ -69,41 +98,102 @@ jobs:
           if ($env:EVENT_NAME -eq 'push' -and $env:PROTECTED_REF -ne 'true') {
               # Triple-dot: everything the branch changed since it left master,
               # ignoring what landed on master afterwards.
-              $changed = @(& git diff --name-only "origin/master...$($env:GITHUB_SHA)" 2>$null)
-              if ($LASTEXITCODE -eq 0) {
+              # Include both paths when a package input is moved into the docs tree.
+              $diffOutput = @(& git diff --name-only --no-renames "origin/master...$($env:GITHUB_SHA)" 2>&1)
+              $diffExitCode = $LASTEXITCODE
+              if ($diffExitCode -eq 0) {
+                  $changed = @($diffOutput | Where-Object { $_ -isnot [System.Management.Automation.ErrorRecord] })
+                  $diffWarnings = @($diffOutput | Where-Object {
+                      $_ -is [System.Management.Automation.ErrorRecord]
+                  })
+                  foreach ($warning in $diffWarnings) {
+                      Write-Warning $warning.ToString()
+                  }
                   $relevant = [bool](& ./.github/scripts/get-path-relevance.ps1 -ChangedFile $changed)
                   Write-Host "Changed files since the merge base with master: $($changed.Count); package-relevant: $relevant"
               }
               else {
+                  & git show-ref --verify --quiet refs/remotes/origin/master
+                  $refExitCode = $LASTEXITCODE
+                  if ($refExitCode -ne 0 -and $refExitCode -ne 1) {
+                      throw "Could not inspect origin/master (git exit code $refExitCode)."
+                  }
+                  $missingBase = $refExitCode -eq 1
+                  if (-not $missingBase) {
+                      & git merge-base origin/master $env:GITHUB_SHA | Out-Null
+                      $mergeBaseExitCode = $LASTEXITCODE
+                      if ($mergeBaseExitCode -ne 0 -and $mergeBaseExitCode -ne 1) {
+                          throw "Could not determine the merge base with master (git exit code $mergeBaseExitCode)."
+                      }
+                      $missingBase = $mergeBaseExitCode -eq 1
+                  }
+                  if (-not $missingBase) {
+                      $detail = ($diffOutput | Out-String).Trim()
+                      throw (
+                          "Could not diff origin/master against $($env:GITHUB_SHA) (git exit code $diffExitCode): " +
+                          $detail)
+                  }
+                  if ($env:GITHUB_SHA -notmatch '^[0-9a-f]{40}$') {
+                      throw "Could not verify branch commit '$($env:GITHUB_SHA)': invalid commit ID."
+                  }
+                  $verifyOutput = @(& git diff --name-only --no-renames "$($env:GITHUB_SHA)..$($env:GITHUB_SHA)" 2>&1)
+                  $verifyExitCode = $LASTEXITCODE
+                  if ($verifyExitCode -ne 0) {
+                      $detail = ($verifyOutput | Out-String).Trim()
+                      throw (
+                          "Could not verify branch commit '$($env:GITHUB_SHA)' (git exit code $verifyExitCode): " +
+                          $detail)
+                  }
+                  $unexpectedPaths = @($verifyOutput | Where-Object {
+                      $_ -isnot [System.Management.Automation.ErrorRecord]
+                  })
+                  if ($unexpectedPaths.Count -ne 0) {
+                      throw "Could not verify branch commit '$($env:GITHUB_SHA)': unexpected Git diff output."
+                  }
+                  $verifyWarnings = @($verifyOutput | Where-Object {
+                      $_ -is [System.Management.Automation.ErrorRecord]
+                  })
+                  foreach ($warning in $verifyWarnings) {
+                      Write-Warning $warning.ToString()
+                  }
                   Write-Host 'Could not resolve the merge base with master; packing.'
+                  $LASTEXITCODE = 0
               }
           }
           "relevant=$($relevant.ToString().ToLowerInvariant())" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
 
   pack:
-    name: Build and sign ${{ matrix.configuration }}
+    name: Build and ${{ needs.changes.outputs.signed == 'true' && 'sign' || 'pack unsigned' }} ${{ matrix.configuration }}
     needs: changes
     if: ${{ needs.changes.outputs.relevant == 'true' }}
     runs-on: windows-2025
+    # The signing secrets live in this environment, which only master and
+    # release/* may use; every other ref runs without an environment and
+    # therefore without them.
+    environment: ${{ needs.changes.outputs.signed == 'true' && 'nuget-signing' || '' }}
     strategy:
       fail-fast: false
       matrix:
         configuration: [ Release, Debug ]
 
+    # No secret at job level: each signing step maps only the secrets it uses.
     env:
-      SIGNING_URL: ${{ secrets.SIGNING_URL }}
-      SIGNING_VAULT_URL: ${{ secrets.SIGNING_VAULT_URL }}
-      SIGNING_TENANT_ID: ${{ secrets.SIGNING_TENANT_ID }}
-      SIGNING_CLIENT_ID: ${{ secrets.SIGNING_CLIENT_ID }}
-      SIGNING_CLIENT_SECRET: ${{ secrets.SIGNING_CLIENT_SECRET }}
-      SIGNING_CERT_NAME: ${{ secrets.SIGNING_CERT_NAME }}
-      OPCFOUNDATION_NETSTANDARD_SNK_BASE64: ${{ secrets.OPCFOUNDATION_NETSTANDARD_SNK_BASE64 }}
+      SIGNED: ${{ needs.changes.outputs.signed }}
       ARTIFACTS_DIR: ${{ github.workspace }}/artifacts
       TOOLS_DIR: ${{ github.workspace }}/tools
 
     steps:
       - name: Require signing configuration
+        if: env.SIGNED == 'true'
         shell: pwsh
+        env:
+          SIGNING_URL: ${{ secrets.SIGNING_URL }}
+          SIGNING_VAULT_URL: ${{ secrets.SIGNING_VAULT_URL }}
+          SIGNING_TENANT_ID: ${{ secrets.SIGNING_TENANT_ID }}
+          SIGNING_CLIENT_ID: ${{ secrets.SIGNING_CLIENT_ID }}
+          SIGNING_CLIENT_SECRET: ${{ secrets.SIGNING_CLIENT_SECRET }}
+          SIGNING_CERT_NAME: ${{ secrets.SIGNING_CERT_NAME }}
+          OPCFOUNDATION_NETSTANDARD_SNK_BASE64: ${{ secrets.OPCFOUNDATION_NETSTANDARD_SNK_BASE64 }}
         run: |
           $required = @(
               'SIGNING_URL',
@@ -121,17 +211,19 @@ jobs:
           }
 
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           fetch-depth: 0
+          persist-credentials: false
 
       - name: Setup .NET 10.0
-        uses: actions/setup-dotnet@v6
-        with:
-          dotnet-version: '10.0.402'
+        uses: ./.github/actions/setup-repository-dotnet
 
       - name: Decode strong-name key
+        if: env.SIGNED == 'true'
         shell: pwsh
+        env:
+          OPCFOUNDATION_NETSTANDARD_SNK_BASE64: ${{ secrets.OPCFOUNDATION_NETSTANDARD_SNK_BASE64 }}
         run: |
           $snkDir = Join-Path $env:GITHUB_WORKSPACE '.snk'
           New-Item -ItemType Directory -Force -Path $snkDir | Out-Null
@@ -149,6 +241,7 @@ jobs:
           "SNK_PATH=$snkPath" | Out-File -FilePath $env:GITHUB_ENV -Append
 
       - name: Install signing tools
+        if: env.SIGNED == 'true'
         shell: pwsh
         run: |
           New-Item -ItemType Directory -Force -Path "$env:TOOLS_DIR" | Out-Null
@@ -193,14 +286,20 @@ jobs:
       - name: Build with strong-name signing
         shell: pwsh
         run: |
+          # Only a signed build has the key (see "Decode strong-name key").
+          $strongName = if ($env:SIGNED -eq 'true') {
+              @("/p:AssemblyOriginatorKeyFile=$env:SNK_PATH", '/p:SignAssembly=true')
+          }
+          else {
+              @()
+          }
           dotnet build 'preview-pack.slnx' `
             --no-incremental `
             --configuration '${{ matrix.configuration }}' `
             "/p:Version=$env:NBGV_NuGetPackageVersion" `
             "/p:AssemblyVersion=$env:NBGV_SimpleVersion" `
             "/p:FileVersion=$env:NBGV_AssemblyFileVersion" `
-            "/p:AssemblyOriginatorKeyFile=$env:SNK_PATH" `
-            /p:SignAssembly=true
+            @strongName
           if ($LASTEXITCODE -ne 0) {
               throw '${{ matrix.configuration }} build failed.'
           }
@@ -217,6 +316,12 @@ jobs:
           if ($LASTEXITCODE -ne 0) {
               throw 'UaLens managed tool restore failed.'
           }
+          $strongName = if ($env:SIGNED -eq 'true') {
+              @("/p:AssemblyOriginatorKeyFile=$env:SNK_PATH", '/p:SignAssembly=true')
+          }
+          else {
+              @()
+          }
           foreach ($rid in @('win-x64', 'linux-x64', 'osx-arm64')) {
               dotnet build tools/Opc.Ua.Lens/Opc.Ua.Lens.csproj `
                 --no-restore `
@@ -227,15 +332,33 @@ jobs:
                 "/p:Version=$env:NBGV_NuGetPackageVersion" `
                 "/p:AssemblyVersion=$env:NBGV_SimpleVersion" `
                 "/p:FileVersion=$env:NBGV_AssemblyFileVersion" `
-                "/p:AssemblyOriginatorKeyFile=$env:SNK_PATH" `
-                /p:SignAssembly=true
+                @strongName
               if ($LASTEXITCODE -ne 0) {
                   throw "UaLens managed payload build failed for $rid."
               }
           }
 
-      - name: Authenticode-sign assemblies
+      - name: Delete strong-name key
+        # Nothing after the builds needs the key; do not leave it on disk for
+        # the remaining steps.
+        if: ${{ always() && env.SIGNED == 'true' }}
         shell: pwsh
+        run: |
+          $snkDir = Join-Path $env:GITHUB_WORKSPACE '.snk'
+          if (Test-Path -LiteralPath $snkDir) {
+              Remove-Item -LiteralPath $snkDir -Recurse -Force
+          }
+
+      - name: Authenticode-sign assemblies
+        if: env.SIGNED == 'true'
+        shell: pwsh
+        env:
+          SIGNING_URL: ${{ secrets.SIGNING_URL }}
+          SIGNING_VAULT_URL: ${{ secrets.SIGNING_VAULT_URL }}
+          SIGNING_TENANT_ID: ${{ secrets.SIGNING_TENANT_ID }}
+          SIGNING_CLIENT_ID: ${{ secrets.SIGNING_CLIENT_ID }}
+          SIGNING_CLIENT_SECRET: ${{ secrets.SIGNING_CLIENT_SECRET }}
+          SIGNING_CERT_NAME: ${{ secrets.SIGNING_CERT_NAME }}
         run: |
           $signList = '.azurepipelines/signlist${{ matrix.configuration }}.txt'
           # Pack --no-build must consume these signed RID outputs, not rebuild
@@ -416,7 +539,14 @@ jobs:
           }
 
       - name: Sign NuGet packages
+        if: env.SIGNED == 'true'
         shell: pwsh
+        env:
+          SIGNING_VAULT_URL: ${{ secrets.SIGNING_VAULT_URL }}
+          SIGNING_TENANT_ID: ${{ secrets.SIGNING_TENANT_ID }}
+          SIGNING_CLIENT_ID: ${{ secrets.SIGNING_CLIENT_ID }}
+          SIGNING_CLIENT_SECRET: ${{ secrets.SIGNING_CLIENT_SECRET }}
+          SIGNING_CERT_NAME: ${{ secrets.SIGNING_CERT_NAME }}
         run: |
           $packages = @(Get-ChildItem "$env:ARTIFACTS_DIR" -File | Where-Object {
               $_.Name.EndsWith('.nupkg') -or $_.Name.EndsWith('.snupkg')
@@ -439,16 +569,17 @@ jobs:
               }
           }
 
-      - name: Verify signed package set
+      - name: Verify package set
         shell: pwsh
         run: |
           ./.azurepipelines/validate-nuget-package-set.ps1 `
             -PackageDirectory "$env:ARTIFACTS_DIR" `
             -ManifestPath "$env:ARTIFACTS_DIR/package-set.json" `
             -ExpectedVersion "$env:PACK_VERSION" `
-            -VerifySignatures
+            -VerifySignatures:($env:SIGNED -eq 'true')
 
       - name: Upload signed package set
+        if: env.SIGNED == 'true'
         uses: actions/upload-artifact@v7
         with:
           name: opcua-${{ matrix.configuration }}-${{ github.run_id }}
@@ -456,15 +587,27 @@ jobs:
           if-no-files-found: error
           retention-days: 1
 
+      - name: Upload unsigned package set
+        # A name outside the publish job's 'opcua-*' pattern: an unsigned set
+        # is for inspection only and can never be aggregated or promoted.
+        if: env.SIGNED != 'true'
+        uses: actions/upload-artifact@v7
+        with:
+          name: unsigned-opcua-${{ matrix.configuration }}-${{ github.run_id }}
+          path: ${{ env.ARTIFACTS_DIR }}
+          if-no-files-found: error
+          retention-days: 1
+
   publish:
     name: Publish signed package set
-    needs: pack
+    needs: [ changes, pack ]
     if: >-
       ${{
-        github.event_name == 'workflow_dispatch' ||
+        needs.changes.outputs.signed == 'true' &&
+        (github.event_name == 'workflow_dispatch' ||
         (github.event_name == 'push' &&
           (github.ref == 'refs/heads/master' ||
-            startsWith(github.ref, 'refs/heads/release/')))
+            startsWith(github.ref, 'refs/heads/release/'))))
       }}
     runs-on: windows-2025
     permissions:
@@ -474,12 +617,12 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
 
       - name: Setup .NET 10.0
-        uses: actions/setup-dotnet@v6
-        with:
-          dotnet-version: '10.0.402'
+        uses: ./.github/actions/setup-repository-dotnet
 
       - name: Download signed package sets
         uses: actions/download-artifact@v8

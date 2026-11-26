@@ -1,31 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using System.Net;
@@ -107,12 +81,15 @@ namespace Opc.Ua.Bindings
         ValueTask SendChunkAsync(ReadOnlyMemory<byte> chunk, CancellationToken ct);
 
         /// <summary>
-        /// Sends one complete UASC <c>MessageChunk</c> gathered from multiple
-        /// buffer segments (vectored / gather send). Concrete implementations
-        /// may copy into a single buffer if the underlying transport does not
-        /// support vectored writes.
+        /// Sends one or more complete UASC <c>MessageChunk</c>s gathered from
+        /// multiple buffer segments (vectored / gather send). A message larger
+        /// than the negotiated buffer size arrives here as all of its chunks, and
+        /// a chunk may span segments. Concrete implementations may copy into a
+        /// single buffer if the underlying transport does not support vectored
+        /// writes; transports that frame each chunk (a WebSocket message, for
+        /// instance) split the segments at the chunk headers.
         /// </summary>
-        /// <param name="buffers">The buffer segments that make up the chunk,
+        /// <param name="buffers">The buffer segments that make up the chunks,
         /// in order.</param>
         /// <param name="ct">Cancellation token.</param>
         ValueTask SendChunkAsync(BufferCollection buffers, CancellationToken ct);

@@ -1,31 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using System.Collections.Generic;
@@ -187,7 +161,7 @@ namespace Opc.Ua.Wot
             string identifier = value;
             if (value.StartsWith("nsu=", StringComparison.Ordinal))
             {
-                int delimiter = value.IndexOf(';', 4);
+                int delimiter = value.IndexOf(';', 4, StringComparison.Ordinal);
                 if (delimiter < 0 || delimiter == 4 || delimiter + 1 >= value.Length)
                 {
                     return false;
@@ -215,7 +189,7 @@ namespace Opc.Ua.Wot
             }
             if (value!.StartsWith("nsu=", StringComparison.Ordinal))
             {
-                int delimiter = value.IndexOf(';', 4);
+                int delimiter = value.IndexOf(';', 4, StringComparison.Ordinal);
                 return delimiter > 4 && delimiter + 1 < value.Length;
             }
             int colon = value.IndexOf(':', StringComparison.Ordinal);
@@ -257,7 +231,7 @@ namespace Opc.Ua.Wot
             }
             if (value!.StartsWith("nsu=", StringComparison.Ordinal))
             {
-                int delimiter = value.IndexOf(';', 4);
+                int delimiter = value.IndexOf(';', 4, StringComparison.Ordinal);
                 qualifiedName = new WotBrowsePathElement(
                     CoreUtils.UnescapeUri(value.AsSpan(4, delimiter - 4)),
                     value[(delimiter + 1)..]);
@@ -388,7 +362,7 @@ namespace Opc.Ua.Wot
                 throw new ArgumentException("A portable NodeId is required.", nameof(value));
             }
             ExpandedNodeId expanded = ExpandedNodeId.Parse(value);
-            int delimiter = value.StartsWith("nsu=", StringComparison.Ordinal) ? value.IndexOf(';', 4) : -1;
+            int delimiter = value.StartsWith("nsu=", StringComparison.Ordinal) ? value.IndexOf(';', 4, StringComparison.Ordinal) : -1;
             NodeId identifier = NodeId.Parse(delimiter < 0 ? value : value[(delimiter + 1)..]);
             if (identifier.IsNull)
             {
@@ -555,7 +529,7 @@ namespace Opc.Ua.Wot
             }
             if (browseName!.StartsWith("nsu=", StringComparison.Ordinal))
             {
-                int delimiter = browseName.IndexOf(';', 4);
+                int delimiter = browseName.IndexOf(';', 4, StringComparison.Ordinal);
                 return delimiter >= 0 && delimiter + 1 < browseName.Length
                     ? browseName[(delimiter + 1)..]
                     : null;

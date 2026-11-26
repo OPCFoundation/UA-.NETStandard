@@ -1,35 +1,11 @@
-/* ========================================================================
- * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
+using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
+using Moq;
 using NUnit.Framework;
 using Opc.Ua.Server.TestFramework;
 using ServerSession = Opc.Ua.Server.Session;
@@ -114,7 +90,11 @@ namespace Opc.Ua.Server.Tests
                         new RequestHeader { AuthenticationToken = requestHeader.AuthenticationToken },
                         0,
                         TimestampsToReturn.Neither,
-                        [new ReadValueId { NodeId = VariableIds.Server_ServerStatus_State, AttributeId = Attributes.Value }],
+                        [new ReadValueId
+                        {
+                            NodeId = VariableIds.Server_ServerStatus_State,
+                            AttributeId = Attributes.Value
+                        }],
                         RequestLifetime.None).ConfigureAwait(false)))!;
 
                 Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadSessionClosed));
@@ -172,17 +152,17 @@ namespace Opc.Ua.Server.Tests
                         },
                         0,
                         TimestampsToReturn.Neither,
-                        [new ReadValueId { NodeId = VariableIds.Server_ServerStatus_State, AttributeId = Attributes.Value }],
+                        [new ReadValueId
+                        {
+                            NodeId = VariableIds.Server_ServerStatus_State,
+                            AttributeId = Attributes.Value
+                        }],
                         lifetime).ConfigureAwait(false)))!;
 
                 Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadRequestCancelledByClient));
                 Assert.That(lifetime.StatusCode, Is.EqualTo(StatusCodes.BadRequestCancelledByClient));
 
-                using var drainTimeout = new CancellationTokenSource(TimeSpan.FromSeconds(10));
-                await Assert.DoesNotThrowAsync(
-                    async () => await serverInternal.RequestManager
-                        .WaitForCurrentRequestsAsync(drainTimeout.Token)
-                        .ConfigureAwait(false),
+                Assert.That(serverInternal.RequestManager.TrackedRequestCount, Is.Zero,
                     "The rejected request must not stay registered.");
             }
             finally
@@ -282,6 +262,227 @@ namespace Opc.Ua.Server.Tests
         }
 
         /// <summary>
+        /// The routing view is pinned before application admission and released when the request completes.
+        /// </summary>
+        [Test]
+        public async Task RequestRoutingIsPinnedBeforeApplicationAdmissionAndReleasedAfterCompletionAsync()
+        {
+            var fixture = new ServerFixture<AdmissionServer>(t => new AdmissionServer(t));
+            try
+            {
+                AdmissionServer server = await fixture.StartAsync().ConfigureAwait(false);
+                (RequestHeader requestHeader, SecureChannelContext channel) =
+                    await server.CreateAndActivateSessionAsync("PinnedRouting").ConfigureAwait(false);
+                await server.ReadAsync(
+                    channel,
+                    new RequestHeader { AuthenticationToken = requestHeader.AuthenticationToken },
+                    0,
+                    TimestampsToReturn.Neither,
+                    [
+                        new ReadValueId
+                        {
+                            NodeId = VariableIds.Server_ServerStatus_State,
+                            AttributeId = Attributes.Value
+                        }
+                    ],
+                    RequestLifetime.None).ConfigureAwait(false);
+
+                using (Assert.EnterMultipleScope())
+                {
+                    Assert.That(server.AdmittedReadView, Is.Not.Null,
+                        "Application admission must see the request's explicit routing view.");
+                    Assert.That(server.AdmittedReadView!.VisibleNodeManagers, Has.Length.GreaterThanOrEqualTo(2));
+                    Assert.That(server.AdmittedReadContext, Is.Not.Null);
+                    Assert.That(server.AdmittedReadContext!.RoutingSnapshot, Is.Null,
+                        "Completion must release the request's view.");
+                }
+            }
+            finally
+            {
+                await fixture.StopAsync().ConfigureAwait(false);
+            }
+        }
+
+        /// <summary>
+        /// A held Publish waits up to a keep-alive period. While it waits the server must not keep
+        /// its decoded additional header (which can decode to many times its wire size) nor its
+        /// acknowledgements: neither the request nor the Publish handlers' state may retain them.
+        /// </summary>
+        [Test]
+        public async Task ParkedPublishRetainsNeitherAdditionalHeaderNorAcknowledgementsAsync()
+        {
+            var fixture = new ServerFixture<StandardServer>(t => new StandardServer(t));
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(60));
+            RequestLifetime? lifetime = null;
+            Task<PublishResponse>? publish = null;
+            try
+            {
+                StandardServer server = await fixture.StartAsync().ConfigureAwait(false);
+                (RequestHeader header, SecureChannelContext channel) =
+                    await server.CreateAndActivateSessionAsync("ParkedPublishPayload").ConfigureAwait(false);
+                var services = new ServerTestServices(server, channel);
+                CreateSubscriptionResponse subscription = await services.CreateSubscriptionAsync(
+                    header, 60_000, 1_000, 100, 0, false, 0).ConfigureAwait(false);
+
+                (publish, lifetime, RequestParkSink sink, WeakReference additional, WeakReference acknowledgement) =
+                    StartPublish(server, channel, header.AuthenticationToken, subscription.SubscriptionId);
+                await sink.ParkedTask.WaitAsync(timeout.Token).ConfigureAwait(false);
+                Assert.That(publish.IsCompleted, Is.False, "the Publish request did not park");
+
+                GC.Collect();
+                GC.WaitForPendingFinalizers();
+                GC.Collect();
+                Assert.That(additional.IsAlive, Is.False, "the parked Publish keeps its additional header");
+                Assert.That(acknowledgement.IsAlive, Is.False, "the parked Publish keeps its acknowledgements");
+                Assert.That(publish.IsCompleted, Is.False);
+            }
+            finally
+            {
+                lifetime?.TryCancel(StatusCodes.BadRequestCancelledByClient);
+                try
+                {
+                    if (publish is not null)
+                    {
+                        await Assert.ThatAsync(() => publish.WaitAsync(TimeSpan.FromSeconds(10)),
+                            Throws.InstanceOf<OperationCanceledException>()).ConfigureAwait(false);
+                    }
+                }
+                finally
+                {
+                    lifetime?.Dispose();
+                    await fixture.StopAsync().ConfigureAwait(false);
+                }
+            }
+        }
+
+        /// <summary>
+        /// Sends a Publish request as the endpoint dispatches a decoded one, keeping only weak
+        /// references to its additional header and acknowledgement.
+        /// </summary>
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        private static (Task<PublishResponse>, RequestLifetime, RequestParkSink, WeakReference, WeakReference) StartPublish(
+            StandardServer server,
+            SecureChannelContext channel,
+            NodeId authenticationToken,
+            uint subscriptionId)
+        {
+            var parameters = new AdditionalParametersType();
+            var acknowledgement = new SubscriptionAcknowledgement
+            {
+                SubscriptionId = subscriptionId,
+                SequenceNumber = 1
+            };
+            var request = new PublishRequest
+            {
+                RequestHeader = new RequestHeader
+                {
+                    AuthenticationToken = authenticationToken,
+                    RequestHandle = 7,
+                    AdditionalHeader = new ExtensionObject(parameters)
+                },
+                SubscriptionAcknowledgements = [acknowledgement]
+            };
+            var sink = new RequestParkSink(request);
+            var lifetime = new RequestLifetime { ParkSink = sink };
+            Task<PublishResponse> publish = server.PublishAsync(
+                channel,
+                request.RequestHeader,
+                request.SubscriptionAcknowledgements,
+                lifetime).AsTask();
+            return (publish, lifetime, sink, new WeakReference(parameters), new WeakReference(acknowledgement));
+        }
+
+        /// <summary>
+        /// A parked Publish retains its request admission without retaining a NodeManager routing epoch.
+        /// </summary>
+        /// <exception cref="AssertionException"></exception>
+        [Test]
+        public async Task ParkedPublishDoesNotDelayNodeManagerRetirementAsync()
+        {
+            const string namespaceUri = "urn:opcfoundation:tests:parked-publish";
+            var fixture = new ServerFixture<AdmissionServer>(telemetry => new AdmissionServer(telemetry));
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(60));
+            var parked = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var parkSink = new Mock<IRequestParkSink>();
+            parkSink.Setup(value => value.NotifyParked()).Callback(() => parked.TrySetResult(true));
+            using var lifetime = new RequestLifetime { ParkSink = parkSink.Object };
+            Task<PublishResponse>? publish = null;
+            LifecycleResult? removal = null;
+            try
+            {
+                AdmissionServer server = await fixture.StartAsync().ConfigureAwait(false);
+                var manager = new Mock<IAsyncNodeManager>();
+                manager.SetupGet(value => value.NamespaceUris).Returns([namespaceUri]);
+                var factory = new Mock<IAsyncNodeManagerFactory>();
+                factory.SetupGet(value => value.NamespacesUris).Returns([namespaceUri]);
+                factory.Setup(value => value.CreateAsync(
+                    It.IsAny<IServerInternal>(), It.IsAny<ApplicationConfiguration>(), It.IsAny<CancellationToken>()))
+                    .ReturnsAsync(manager.Object);
+                NodeManagerRegistration registration;
+                await using (IPreparedChanges addition = await server.NodeManagerLifecycle.PrepareAsync(
+                    [LifecycleChange.Add(factory.Object)], timeout.Token).ConfigureAwait(false))
+                {
+                    LifecycleResult added = await addition.CommitAsync(static _ => default, timeout.Token)
+                        .ConfigureAwait(false);
+                    Assert.That(added.CleanupFailure, Is.Null);
+                    Assert.That(
+                        added.Registrations[0].TryGetRegistration(out NodeManagerRegistration? current), Is.True);
+                    registration = current ?? throw new AssertionException("The live registration was not available.");
+                }
+                (RequestHeader header, SecureChannelContext channel) =
+                    await server.CreateAndActivateSessionAsync("ParkedPublishRouting").ConfigureAwait(false);
+                var services = new ServerTestServices(server, channel);
+                CreateSubscriptionResponse subscription = await services.CreateSubscriptionAsync(
+                    header, 60_000, 1_000, 100, 0, false, 0).ConfigureAwait(false);
+                Assert.That(subscription.RevisedPublishingInterval, Is.GreaterThanOrEqualTo(30_000));
+                publish = server.PublishAsync(channel, header, [], lifetime).AsTask();
+                await parked.Task.WaitAsync(timeout.Token).ConfigureAwait(false);
+                Assert.That(publish.IsCompleted, Is.False);
+                Assert.That(server.CurrentInstance.RequestManager.TrackedRequestCount, Is.EqualTo(1));
+
+                ILifecycleCapture capture = server.NodeManagerLifecycle.CaptureChanges();
+                Assert.That(server.NodeManagerLifecycle.Registrations.Contains(value =>
+                    ReferenceEquals(value.Identity, registration.Identity)), Is.True);
+                await using (ILifecycleWriter writer = await capture.BeginAsync(timeout.Token).ConfigureAwait(false))
+                {
+                    await using IPreparedChanges prepared = await writer.PrepareAsync(
+                        [LifecycleChange.Remove(registration.Slot)], timeout.Token).ConfigureAwait(false);
+                    removal = await prepared.CommitAsync(static _ => default, timeout.Token).ConfigureAwait(false);
+                }
+                Assert.That(removal.CleanupFailure, Is.Null);
+                await removal.Retired.WaitAsync(TimeSpan.FromSeconds(10), timeout.Token).ConfigureAwait(false);
+
+                Assert.That(publish.IsCompleted, Is.False,
+                    "Physical retirement must complete while the Publish request is still parked.");
+                Assert.That(server.AdmittedPublishContext, Is.Not.Null);
+                Assert.That(server.AdmittedPublishContext!.RoutingSnapshot, Is.Null);
+                Assert.That(server.CurrentInstance.RequestManager.TrackedRequestCount, Is.EqualTo(1));
+                manager.Verify(value => value.DeleteAddressSpaceAsync(It.IsAny<CancellationToken>()), Times.Once);
+            }
+            finally
+            {
+                lifetime.TryCancel(StatusCodes.BadRequestCancelledByClient);
+                try
+                {
+                    if (publish is not null)
+                    {
+                        await Assert.ThatAsync(() => publish.WaitAsync(TimeSpan.FromSeconds(10)),
+                            Throws.InstanceOf<OperationCanceledException>()).ConfigureAwait(false);
+                        Assert.That(lifetime.StatusCode.Code, Is.EqualTo(StatusCodes.BadRequestCancelledByClient));
+                    }
+                    if (removal is not null)
+                    {
+                        await removal.Retired.WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
+                    }
+                }
+                finally
+                {
+                    await fixture.StopAsync().ConfigureAwait(false);
+                }
+            }
+        }
+
+        /// <summary>
         /// A server whose session manager can start a close inside the admission window.
         /// </summary>
         public sealed class AdmissionServer : StandardServer
@@ -293,6 +494,21 @@ namespace Opc.Ua.Server.Tests
 
             public bool RejectCreateSession { get; set; }
 
+            /// <summary>
+            /// Gets the Read operation observed at application admission.
+            /// </summary>
+            internal OperationContext? AdmittedReadContext { get; private set; }
+
+            /// <summary>
+            /// Gets the routing view observed before application admission runs.
+            /// </summary>
+            internal NodeManagerRoutingTable.RoutingSnapshot? AdmittedReadView { get; private set; }
+
+            /// <summary>
+            /// Gets the Publish operation observed at application admission.
+            /// </summary>
+            internal OperationContext? AdmittedPublishContext { get; private set; }
+
             protected override ISessionManager CreateSessionManager(
                 IServerInternal server,
                 ApplicationConfiguration configuration)
@@ -302,6 +518,15 @@ namespace Opc.Ua.Server.Tests
 
             protected override ValueTask OnRequestValidatedAsync(OperationContext context)
             {
+                if (context.RequestType == RequestType.Read)
+                {
+                    AdmittedReadContext = context;
+                    AdmittedReadView = context.RoutingSnapshot;
+                }
+                if (context.RequestType == RequestType.Publish)
+                {
+                    AdmittedPublishContext = context;
+                }
                 if (RejectCreateSession && context.RequestType == RequestType.CreateSession)
                 {
                     throw new ServiceResultException(StatusCodes.BadUserAccessDenied);

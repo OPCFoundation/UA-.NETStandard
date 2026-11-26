@@ -1,38 +1,14 @@
-/* ========================================================================
- * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 // CA2007: tests run without a SynchronizationContext; ConfigureAwait(false)
 // adds noise without a behavioural benefit. Disabled file-level for the suite.
 #pragma warning disable CA2007
 
+using System;
 using System.Security.Cryptography;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Time.Testing;
 using NUnit.Framework;
 using Opc.Ua.Redundancy;
 using Opc.Ua.Redundancy.Server;
@@ -58,7 +34,11 @@ namespace Opc.Ua.Server.Tests.Redundancy
             random.GetBytes(key);
             using var protector = new AesCbcHmacRecordProtector(key);
             IServiceMessageContext context = CreateContext();
-            var options = new LoadDirectionOptions { EndpointKeyPrefix = "deployment/endpoints/" };
+            var options = new LoadDirectionOptions
+            {
+                EndpointKeyPrefix = "deployment/endpoints/",
+                PeerApplicationUris = ["urn:server:a", "urn:server:b"]
+            };
             var publisher = new SharedPeerEndpointPublisher(
                 store, context, protector, options, "urn:server:a");
             await publisher.PublishAsync(
@@ -69,7 +49,9 @@ namespace Opc.Ua.Server.Tests.Redundancy
             await store.SetAsync(options.EndpointKeyPrefix + "urn:server:b", record).ConfigureAwait(false);
             var directory = new SharedPeerEndpointDirectory(store, context, protector, options);
 
-            Assert.That(await directory.GetEndpointsAsync("urn:server:b").ConfigureAwait(false), Is.Empty);
+            ArrayOf<EndpointDescription> other = await directory.GetEndpointsAsync("urn:server:b")
+                .ConfigureAwait(false);
+            Assert.That(other.Count, Is.Zero);
             ArrayOf<EndpointDescription> original = await directory.GetEndpointsAsync("urn:server:a")
                 .ConfigureAwait(false);
             Assert.That(original, Has.Count.EqualTo(1));
@@ -81,7 +63,7 @@ namespace Opc.Ua.Server.Tests.Redundancy
         {
             using var store = new InMemorySharedKeyValueStore();
             IServiceMessageContext context = CreateContext();
-            var options = new LoadDirectionOptions();
+            var options = new LoadDirectionOptions { PeerApplicationUris = ["urn:server:a"] };
 
             var publisher = new SharedPeerEndpointPublisher(
                 store, context, NullRecordProtector.Instance, options, "urn:server:a");
@@ -103,17 +85,22 @@ namespace Opc.Ua.Server.Tests.Redundancy
         }
 
         [Test]
-        public async Task UnknownPeerReturnsEmptyAsync()
+        public async Task UnconfiguredPeerReturnsEmptyAsync()
         {
+            const string serverUri = "urn:server:b";
             using var store = new InMemorySharedKeyValueStore();
             IServiceMessageContext context = CreateContext();
-            var options = new LoadDirectionOptions();
+            var options = new LoadDirectionOptions { PeerApplicationUris = ["urn:server:a"] };
+            var publisher = new SharedPeerEndpointPublisher(
+                store, context, NullRecordProtector.Instance, options, serverUri);
+            await publisher.PublishAsync(
+                [Endpoint("opc.tcp://b:4840", MessageSecurityMode.None, serverUri)]).ConfigureAwait(false);
 
             var directory = new SharedPeerEndpointDirectory(
                 store, context, NullRecordProtector.Instance, options);
-            EndpointDescription[] resolved = (await directory.GetEndpointsAsync("urn:server:missing").ConfigureAwait(false)).ToArray()!;
+            ArrayOf<EndpointDescription> resolved = await directory.GetEndpointsAsync(serverUri).ConfigureAwait(false);
 
-            Assert.That(resolved, Is.Empty);
+            Assert.That(resolved.Count, Is.Zero);
         }
 
         [Test]
@@ -121,7 +108,7 @@ namespace Opc.Ua.Server.Tests.Redundancy
         {
             using var store = new InMemorySharedKeyValueStore();
             IServiceMessageContext context = CreateContext();
-            var options = new LoadDirectionOptions();
+            var options = new LoadDirectionOptions { PeerApplicationUris = ["urn:server:a"] };
 
             var directory = new SharedPeerEndpointDirectory(
                 store, context, NullRecordProtector.Instance, options);
@@ -135,7 +122,7 @@ namespace Opc.Ua.Server.Tests.Redundancy
         {
             using var store = new InMemorySharedKeyValueStore();
             IServiceMessageContext context = CreateContext();
-            var options = new LoadDirectionOptions();
+            var options = new LoadDirectionOptions { PeerApplicationUris = ["urn:server:a"] };
             await store.SetAsync("endpoint/urn:server:a", ByteString.From(new byte[] { 7, 7, 7 })).ConfigureAwait(false);
 
             var directory = new SharedPeerEndpointDirectory(
@@ -143,6 +130,57 @@ namespace Opc.Ua.Server.Tests.Redundancy
             EndpointDescription[] resolved = (await directory.GetEndpointsAsync("urn:server:a").ConfigureAwait(false)).ToArray()!;
 
             Assert.That(resolved, Is.Empty, "an undecodable endpoint record must be dropped (fail-closed)");
+        }
+
+        [Test]
+        public async Task DirectoryRejectsMixedEndpointIdentitiesAsync()
+        {
+            using var store = new InMemorySharedKeyValueStore();
+            using var random = RandomNumberGenerator.Create();
+            byte[] key = new byte[32];
+            random.GetBytes(key);
+            using var protector = new AesCbcHmacRecordProtector(key);
+            IServiceMessageContext context = CreateContext();
+            var options = new LoadDirectionOptions { PeerApplicationUris = ["urn:server:a", "urn:server:b"] };
+            var publisher = new SharedPeerEndpointPublisher(store, context, protector, options, "urn:server:a");
+            var directory = new SharedPeerEndpointDirectory(store, context, protector, options);
+            await publisher.PublishAsync(
+                [
+                    Endpoint("opc.tcp://a:4840", MessageSecurityMode.None, "urn:server:a"),
+                    Endpoint("opc.tcp://b:4840", MessageSecurityMode.None, "urn:server:b")
+                ]).ConfigureAwait(false);
+
+            ArrayOf<EndpointDescription> endpoints = await directory.GetEndpointsAsync("urn:server:a")
+                .ConfigureAwait(false);
+            Assert.That(endpoints.Count, Is.Zero);
+        }
+
+        [TestCase(-1L, false)]
+        [TestCase(0L, true)]
+        [TestCase(TimeSpan.TicksPerSecond, true)]
+        [TestCase(TimeSpan.TicksPerSecond + 1, false)]
+        public async Task DirectoryEnforcesEndpointFreshnessAsync(long ageTicks, bool expected)
+        {
+            const string serverUri = "urn:server:a";
+            using var store = new InMemorySharedKeyValueStore();
+            IServiceMessageContext context = CreateContext();
+            var options = new LoadDirectionOptions
+            {
+                PeerApplicationUris = [serverUri],
+                StalenessWindow = TimeSpan.FromSeconds(1)
+            };
+            var clock = new FakeTimeProvider();
+            var publishedAt = new FakeTimeProvider(clock.GetUtcNow().AddTicks(-ageTicks));
+            var publisher = new SharedPeerEndpointPublisher(
+                store, context, NullRecordProtector.Instance, options, serverUri, publishedAt);
+            var directory = new SharedPeerEndpointDirectory(
+                store, context, NullRecordProtector.Instance, options, clock);
+            await publisher.PublishAsync(
+                [Endpoint("opc.tcp://a:4840", MessageSecurityMode.None, serverUri)]).ConfigureAwait(false);
+
+            ArrayOf<EndpointDescription> endpoints = await directory.GetEndpointsAsync(serverUri).ConfigureAwait(false);
+
+            Assert.That(endpoints.Count, Is.EqualTo(expected ? 1 : 0));
         }
 
         private static EndpointDescription Endpoint(string url, MessageSecurityMode mode, string serverUri)

@@ -1,31 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using System.Collections.Generic;
@@ -159,6 +133,7 @@ namespace Opc.Ua.Bindings
                 Volatile.Write(ref m_disposed, 1);
                 Volatile.Write(ref m_peerCertificateChain, null);
                 Quotas.MessageAssemblyScheduler.Unregister(this, TimeProvider);
+                CancelPendingRequests();
             }
             base.Dispose(disposing);
         }
@@ -323,8 +298,37 @@ namespace Opc.Ua.Bindings
         }
 
         /// <summary>
+        /// Whether chunks of an unfinished message are waiting on the channel.
+        /// Admission reclaim tries channels without one first.
+        /// </summary>
+        internal bool HoldsPartialMessage => HasPartialMessage;
+
+        /// <summary>
+        /// How long outstanding response writes keep a channel without a session from
+        /// being reclaimed for admission.
+        /// </summary>
+        /// <remarks>
+        /// Long enough to deliver a discovery response over a slow link; a peer that
+        /// needs longer while the server is out of channel slots connects again.
+        /// </remarks>
+        internal static readonly TimeSpan SessionlessWriteGrace = TimeSpan.FromSeconds(5);
+
+        /// <summary>
         /// Closes an unused channel to make room for admission unless it is disposed, closing, or serving a session.
         /// </summary>
+        /// <remarks>
+        /// An unfinished message does not protect a channel that serves no session
+        /// (Part 4 §5.6.2.1 closes the oldest SecureChannel that has no Session).
+        /// Otherwise a peer without credentials could pin every channel slot by
+        /// trickling chunks of messages it never finishes. Callers try channels
+        /// without an unfinished message first (<see cref="HoldsPartialMessage"/>).
+        /// <para>
+        /// A response still being written protects such a channel only for
+        /// <see cref="SessionlessWriteGrace"/>. The peer decides how fast it reads,
+        /// so it could otherwise keep one response outstanding on every channel by
+        /// reading slowly, and hold every slot without a credential.
+        /// </para>
+        /// </remarks>
         internal bool TryIdleCleanupForAdmission()
         {
             using (Gate.Enter())
@@ -332,14 +336,19 @@ namespace Opc.Ua.Bindings
                 if (Volatile.Read(ref m_disposed) != 0 ||
                     UsedBySession ||
                     !(State is TcpChannelState.Open or TcpChannelState.Faulted ||
-                        (State == TcpChannelState.Connecting && IsReclaimableWhileConnecting)) ||
-                    HasPartialMessage ||
-                    HasPendingWrites ||
-                    Volatile.Read(ref m_pendingServiceRequests) != 0)
+                        (State == TcpChannelState.Connecting && IsReclaimableWhileConnecting)))
                 {
                     return false;
                 }
-                State = TcpChannelState.Closing;
+                lock (m_pendingRequestLock)
+                {
+                    if (m_pendingServiceRequests != 0 ||
+                        (HasPendingWrites && GetPendingWriteAge() <= SessionlessWriteGrace))
+                    {
+                        return false;
+                    }
+                    State = TcpChannelState.Closing;
+                }
             }
             OnCleanup(new ServiceResult(
                 StatusCodes.BadNoCommunication,
@@ -356,12 +365,157 @@ namespace Opc.Ua.Bindings
         private protected virtual bool IsReclaimableWhileConnecting => false;
 
         /// <summary>
+        /// How long the requests of a channel that lost its transport keep running for a reconnect.
+        /// </summary>
+        /// <remarks>
+        /// A client that reconnects within it receives the responses on the new transport. A client
+        /// that is gone (it dropped its socket without closing its Session) no longer holds server
+        /// workers and queue slots with requests nobody reads.
+        /// </remarks>
+        internal static TimeSpan FaultedRequestGracePeriod { get; set; } = TimeSpan.FromSeconds(10);
+
+        /// <summary>
+        /// Cancelled once the listener drops the channel (closed by the client, closed after a fault
+        /// or disposed), or once the channel lost its transport and was not reconnected within
+        /// <see cref="FaultedRequestGracePeriod"/>. Queued and running requests of the channel observe
+        /// it, so the work of a client that abandoned its channel without closing its Session does not
+        /// keep holding server capacity. A reconnect after the cancellation starts a new token.
+        /// </summary>
+        internal CancellationToken RequestCancellationToken => m_requestCancellation.Token;
+
+        /// <summary>
+        /// Cancels <see cref="RequestCancellationToken"/> once, on the thread pool: the callers may hold
+        /// the channel gate, which the cancellation callbacks (completing queued requests) must not run under.
+        /// </summary>
+        private void CancelPendingRequests()
+        {
+            Interlocked.Exchange(ref m_faultedRequestTimer, null)?.Dispose();
+            if (Interlocked.Exchange(ref m_requestsCancelled, 1) != 0)
+            {
+                return;
+            }
+            ThreadPool.UnsafeQueueUserWorkItem(
+                static state =>
+                {
+                    try
+                    {
+                        ((CancellationTokenSource)state!).Cancel();
+                    }
+                    catch (AggregateException)
+                    {
+                        // a request's callback failed; that request completes on its own
+                    }
+                },
+                m_requestCancellation);
+        }
+
+        /// <summary>
+        /// Cancels the requests of a channel that lost its transport unless it is reconnected
+        /// within <see cref="FaultedRequestGracePeriod"/>. Called with the gate held.
+        /// </summary>
+        internal void ScheduleFaultedRequestCancellation()
+        {
+            if (Volatile.Read(ref m_requestsCancelled) != 0 || m_faultedRequestTimer != null)
+            {
+                return;
+            }
+            // a callback of an earlier fault may still wait for the gate after a reconnect:
+            // only the callback of the current fault's timer may cancel
+            long generation = ++m_faultedRequestGeneration;
+            ITimer timer = TimeProvider.CreateTimer(
+                _ => OnFaultedRequestGraceElapsed(generation),
+                null,
+                FaultedRequestGracePeriod,
+                Timeout.InfiniteTimeSpan);
+            Interlocked.Exchange(ref m_faultedRequestTimer, timer)?.Dispose();
+        }
+
+        /// <summary>
+        /// The grace period of the fault numbered <paramref name="generation"/> ended: cancels
+        /// the requests if that is still the current fault and the channel is still faulted.
+        /// </summary>
+        internal void OnFaultedRequestGraceElapsed(long generation)
+        {
+            using (Gate.Enter())
+            {
+                if (generation != m_faultedRequestGeneration || State != TcpChannelState.Faulted)
+                {
+                    return;
+                }
+                CancelPendingRequests();
+            }
+        }
+
+        /// <summary>
+        /// The number of the current fault's grace timer; a stale timer callback carries an older number.
+        /// </summary>
+        internal long FaultedRequestGeneration
+        {
+            get
+            {
+                using (Gate.Enter())
+                {
+                    return m_faultedRequestGeneration;
+                }
+            }
+        }
+
+        /// <summary>
+        /// Keeps the requests of a channel that reconnected running, and gives the reconnected
+        /// channel a new request token if the grace period already cancelled the old one.
+        /// Called with the gate held, once the channel is open again.
+        /// </summary>
+        internal void OnRequestTransportReconnected()
+        {
+            Interlocked.Exchange(ref m_faultedRequestTimer, null)?.Dispose();
+            if (Volatile.Read(ref m_requestsCancelled) != 0 && Volatile.Read(ref m_disposed) == 0)
+            {
+                m_requestCancellation = new CancellationTokenSource();
+                Volatile.Write(ref m_requestsCancelled, 0);
+            }
+        }
+
+        /// <summary>
         /// Keeps a decoded sessionless request classified as in-use through dispatch and asynchronous processing.
         /// </summary>
         internal PendingRequestScope TrackPendingRequest()
         {
-            Interlocked.Increment(ref m_pendingServiceRequests);
+            // Cleanup claims Closing under the same lock. A request that starts after the claim
+            // is rejected when it acquires the channel gate.
+            lock (m_pendingRequestLock)
+            {
+                m_pendingServiceRequests++;
+            }
             return new PendingRequestScope(this);
+        }
+
+        /// <summary>
+        /// Claims an inactive channel for cleanup only if no request or response write is in progress.
+        /// </summary>
+        internal bool TryIdleCleanupForInactivity(int lifetime)
+        {
+            using (Gate.Enter())
+            {
+                if (Volatile.Read(ref m_disposed) != 0 ||
+                    State is not (TcpChannelState.Open or TcpChannelState.Connecting or
+                        TcpChannelState.Opening or TcpChannelState.Faulted) ||
+                    ElapsedSinceLastActiveTime <= lifetime)
+                {
+                    return false;
+                }
+                lock (m_pendingRequestLock)
+                {
+                    if (m_pendingServiceRequests != 0 || HasPendingWrites)
+                    {
+                        return false;
+                    }
+                    State = TcpChannelState.Closing;
+                }
+            }
+            OnCleanup(new ServiceResult(
+                StatusCodes.BadNoCommunication,
+                LocalizedText.From("Channel closed due to inactivity.")));
+            return true;
         }
 
         /// <summary>
@@ -890,6 +1044,11 @@ namespace Opc.Ua.Bindings
 
             State = TcpChannelState.Faulted;
             m_responseRequired = false;
+            if (!close)
+            {
+                // kept for a reconnect: its requests keep running for a while only
+                ScheduleFaultedRequestCancellation();
+            }
 
             if (close)
             {
@@ -1014,6 +1173,7 @@ namespace Opc.Ua.Bindings
                 State = TcpChannelState.Closed;
                 ClosePartialMessage();
                 Quotas.MessageAssemblyScheduler.Unregister(this, TimeProvider);
+                CancelPendingRequests();
                 Listener.ChannelClosed(ChannelId);
 
                 // notify any monitors.
@@ -1041,6 +1201,7 @@ namespace Opc.Ua.Bindings
                 State = finalState;
                 ClosePartialMessage();
                 Quotas.MessageAssemblyScheduler.Unregister(this, TimeProvider);
+                CancelPendingRequests();
                 Listener.ChannelClosed(ChannelId);
             }
         }
@@ -1335,7 +1496,10 @@ namespace Opc.Ua.Bindings
             {
                 if (m_channel != null)
                 {
-                    Interlocked.Decrement(ref m_channel.m_pendingServiceRequests);
+                    lock (m_channel.m_pendingRequestLock)
+                    {
+                        m_channel.m_pendingServiceRequests--;
+                    }
                 }
             }
 
@@ -1343,12 +1507,21 @@ namespace Opc.Ua.Bindings
         }
 
         private readonly ILogger m_logger;
+        private readonly System.Threading.Lock m_pendingRequestLock = new();
         private int m_pendingServiceRequests;
 
         /// <summary>
         /// Prevents new transport attachment or admission cleanup after disposal begins.
         /// </summary>
         private int m_disposed;
+        // Cancelled, never disposed: requests of the channel may still register on its token
+        // after the channel was disposed, and a source without a timer holds no resources.
+#pragma warning disable CA2213 // Disposable fields should be disposed
+        private volatile CancellationTokenSource m_requestCancellation = new();
+#pragma warning restore CA2213 // Disposable fields should be disposed
+        private int m_requestsCancelled;
+        private ITimer? m_faultedRequestTimer;
+        private long m_faultedRequestGeneration;
         private byte[]? m_peerCertificateChain;
         private int m_messageCleanupPending;
         private volatile TcpChannelRequestEventHandler? m_requestReceived;

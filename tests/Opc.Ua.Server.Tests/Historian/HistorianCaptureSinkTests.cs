@@ -1,31 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 // CA2000: test code; disposables are ownership-transferred to test fixtures or are short-lived,
 // making CA2000 noisy without a real leak risk. Disabled file-level for the suite.
@@ -701,6 +675,180 @@ namespace Opc.Ua.Server.Tests.Historian
                     throw new InvalidOperationException("forced");
                 }
                 return m_inner.InsertBatchAsync(c, b, ct);
+            }
+        }
+
+        /// <summary>
+        /// Verifies that repeated disposal removes only the calling builder's capture
+        /// handler while another builder and the serving registry retain the same provider.
+        /// </summary>
+        [Test]
+        public async Task RepeatedBuilderDisposalDetachesOnlyItsCaptureHandlerAndPreservesSharedProviderAsync()
+        {
+            var namespaceUris = new NamespaceTable();
+            namespaceUris.Append("urn:test:builder-disposal");
+            var registry = new HistorianProviderRegistry(namespaceUris);
+            var mockTelemetry = new Mock<ITelemetryContext>();
+            var mockServer = new Mock<IServerInternal>();
+            mockServer.Setup(server => server.NamespaceUris).Returns(namespaceUris);
+            mockServer.Setup(server => server.ServerUris).Returns(new StringTable());
+            mockServer.Setup(server => server.TypeTree).Returns(new TypeTable(namespaceUris));
+            mockServer.Setup(server => server.Factory).Returns(EncodeableFactory.Create());
+            mockServer.Setup(server => server.Telemetry).Returns(mockTelemetry.Object);
+            mockServer.As<IHistorianRegistryProvider>()
+                .Setup(server => server.HistorianRegistry)
+                .Returns(registry);
+
+            IServerInternal server = mockServer.Object;
+            var systemContext = new ServerSystemContext(server);
+            var provider = new AsyncDisposeTrackingProvider();
+            var firstBuilder = new HistorianBuilder(server);
+            var secondBuilder = new HistorianBuilder(server);
+            firstBuilder.UseProvider(provider).RegisterAsDefault();
+            secondBuilder.UseProvider(provider);
+            var variable = new BaseDataVariableState(parent: null)
+            {
+                NodeId = new NodeId("builder-disposal-shared", kNs),
+                BrowseName = new QualifiedName("builder-disposal-shared", kNs),
+                DisplayName = new LocalizedText("builder-disposal-shared"),
+                DataType = DataTypeIds.Int32,
+                ValueRank = ValueRanks.Scalar
+            };
+
+            static Delegate[] StateChangedHandlers(BaseVariableState node)
+            {
+                var handlersField = typeof(NodeState).GetField(
+                    nameof(NodeState.StateChanged),
+                    System.Reflection.BindingFlags.Instance |
+                    System.Reflection.BindingFlags.NonPublic);
+                Assert.That(handlersField, Is.Not.Null,
+                    "The StateChanged event must expose its backing delegate for this detach assertion.");
+                return ((Delegate?)handlersField!.GetValue(node))?.GetInvocationList() ?? Array.Empty<Delegate>();
+            }
+
+            static bool ContainsHandler(Delegate[] handlers, Delegate expected)
+            {
+                foreach (Delegate handler in handlers)
+                {
+                    if (ReferenceEquals(handler, expected))
+                    {
+                        return true;
+                    }
+                }
+                return false;
+            }
+
+            static Delegate AddedHandler(Delegate[] before, Delegate[] after)
+            {
+                Delegate? added = null;
+                foreach (Delegate handler in after)
+                {
+                    if (!ContainsHandler(before, handler))
+                    {
+                        Assert.That(added, Is.Null,
+                            "Each Historize call must add exactly one new StateChanged delegate.");
+                        added = handler;
+                    }
+                }
+                Assert.That(added, Is.Not.Null,
+                    "Historize must add a StateChanged delegate that can be tracked by identity.");
+                return added!;
+            }
+
+            Delegate[] initialHandlers = StateChangedHandlers(variable);
+            firstBuilder.Historize(
+                variable, systemContext: systemContext, captureOptions: kFastFlush);
+            Delegate[] afterFirstHandlers = StateChangedHandlers(variable);
+            Delegate firstCaptureHandler = AddedHandler(initialHandlers, afterFirstHandlers);
+            secondBuilder.Historize(
+                variable, systemContext: systemContext, captureOptions: kFastFlush);
+            Delegate[] afterSecondHandlers = StateChangedHandlers(variable);
+            Delegate secondCaptureHandler = AddedHandler(afterFirstHandlers, afterSecondHandlers);
+
+            Assert.That(afterFirstHandlers, Has.Length.EqualTo(initialHandlers.Length + 1));
+            Assert.That(afterSecondHandlers, Has.Length.EqualTo(initialHandlers.Length + 2));
+            Assert.That(ContainsHandler(afterSecondHandlers, firstCaptureHandler), Is.True);
+            Assert.That(ContainsHandler(afterSecondHandlers, secondCaptureHandler), Is.True);
+
+            await firstBuilder.DisposeAsync().ConfigureAwait(false);
+            await firstBuilder.DisposeAsync().ConfigureAwait(false);
+
+            Delegate[] afterFirstDisposalHandlers = StateChangedHandlers(variable);
+            Assert.That(afterFirstDisposalHandlers, Has.Length.EqualTo(initialHandlers.Length + 1));
+            Assert.That(ContainsHandler(afterFirstDisposalHandlers, firstCaptureHandler), Is.False,
+                "Repeated disposal must remove the first builder's own capture delegate.");
+            Assert.That(ContainsHandler(afterFirstDisposalHandlers, secondCaptureHandler), Is.True,
+                "Disposing the first builder must leave the second builder's capture delegate attached.");
+            foreach (Delegate initialHandler in initialHandlers)
+            {
+                Assert.That(ContainsHandler(afterFirstDisposalHandlers, initialHandler), Is.True,
+                    "Disposal must preserve StateChanged delegates that predated both builders.");
+            }
+            Assert.That(secondBuilder.Provider, Is.SameAs(provider));
+            Assert.That(registry.Resolve(variable.NodeId), Is.SameAs(provider));
+            Assert.That(provider.DisposeCount, Is.Zero);
+            Assert.That(provider.DisposeAsyncCount, Is.Zero,
+                "Builder disposal must not asynchronously dispose a provider owned by the registry.");
+
+            await secondBuilder.DisposeAsync().ConfigureAwait(false);
+            Delegate[] afterSecondDisposalHandlers = StateChangedHandlers(variable);
+            Assert.That(afterSecondDisposalHandlers, Has.Length.EqualTo(initialHandlers.Length));
+            Assert.That(ContainsHandler(afterSecondDisposalHandlers, firstCaptureHandler), Is.False);
+            Assert.That(ContainsHandler(afterSecondDisposalHandlers, secondCaptureHandler), Is.False,
+                "Disposing the second builder must remove its own capture delegate.");
+            foreach (Delegate initialHandler in initialHandlers)
+            {
+                Assert.That(ContainsHandler(afterSecondDisposalHandlers, initialHandler), Is.True,
+                    "Disposal must preserve StateChanged delegates that predated both builders.");
+            }
+            Assert.That(registry.Resolve(variable.NodeId), Is.SameAs(provider));
+            Assert.That(provider.DisposeCount, Is.Zero);
+            Assert.That(provider.DisposeAsyncCount, Is.Zero);
+
+            registry.Dispose();
+
+            Assert.That(provider.DisposeCount, Is.EqualTo(1));
+            Assert.That(provider.DisposeAsyncCount, Is.Zero);
+            Assert.That(registry.Resolve(variable.NodeId), Is.Null);
+        }
+
+        private sealed class AsyncDisposeTrackingProvider :
+            HistorianProviderBase,
+            IHistorianBulkInsertProvider,
+            IDisposable,
+            IAsyncDisposable
+        {
+            public int DisposeCount { get; private set; }
+
+            public int DisposeAsyncCount { get; private set; }
+
+            public ValueTask<ArrayOf<HistorianUpdateOutcome<DataValue>>> InsertBatchAsync(
+                HistorianOperationContext context,
+                ArrayOf<HistorianDataBatch> batch,
+                CancellationToken cancellationToken)
+            {
+                var outcomes = new HistorianUpdateOutcome<DataValue>[batch.Count];
+                for (int batchIndex = 0; batchIndex < batch.Count; batchIndex++)
+                {
+                    var statuses = new StatusCode[batch[batchIndex].Values.Count];
+                    for (int valueIndex = 0; valueIndex < statuses.Length; valueIndex++)
+                    {
+                        statuses[valueIndex] = StatusCodes.Good;
+                    }
+                    outcomes[batchIndex] = new HistorianUpdateOutcome<DataValue>(statuses);
+                }
+                return new ValueTask<ArrayOf<HistorianUpdateOutcome<DataValue>>>(outcomes);
+            }
+
+            public void Dispose()
+            {
+                DisposeCount++;
+            }
+
+            public ValueTask DisposeAsync()
+            {
+                DisposeAsyncCount++;
+                return default;
             }
         }
     }

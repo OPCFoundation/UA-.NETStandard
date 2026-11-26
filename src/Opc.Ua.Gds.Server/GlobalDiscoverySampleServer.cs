@@ -1,31 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using System.Collections.Generic;
@@ -202,30 +176,30 @@ namespace Opc.Ua.Gds.Server
         /// by the specification.
         /// Any additional NodeManagers are expected to handle application specific nodes.
         /// </remarks>
-        protected override ValueTask<IMasterNodeManager> CreateMasterNodeManagerAsync(
+        protected override async ValueTask<IMasterNodeManager> CreateMasterNodeManagerAsync(
             IServerInternal server,
             ApplicationConfiguration configuration,
             CancellationToken cancellationToken = default)
         {
             m_logger.CreatingTheNodeManagers();
 
-            // create the custom node managers.
-            var nodeManagers = new IAsyncNodeManager[]
+            cancellationToken.ThrowIfCancellationRequested();
+            MasterNodeManager? master = null;
+            try
             {
-                new ApplicationsNodeManager(
-                    server,
-                    configuration,
-                    m_database,
-                    m_request,
-                    m_certificateGroup,
-                    m_autoApprove)
-            };
-
-            // create master node manager.
-#pragma warning disable CA2000 // ownership of MasterNodeManager transfers to the caller via the returned ValueTask<IMasterNodeManager>
-            return new ValueTask<IMasterNodeManager>(
-                new MasterNodeManager(server, configuration, null, nodeManagers));
-#pragma warning restore CA2000
+                master = new MasterNodeManager(server, configuration, null,
+                    [
+                        new ApplicationsStartupFactory(m_database, m_request, m_certificateGroup, m_autoApprove),
+                        .. GetInitialNodeManagerFactories()
+                    ]);
+                IMasterNodeManager result = await new ValueTask<IMasterNodeManager>(master).ConfigureAwait(false);
+                master = null;
+                return result;
+            }
+            finally
+            {
+                master?.Dispose();
+            }
         }
 
         /// <summary>
@@ -378,6 +352,54 @@ namespace Opc.Ua.Gds.Server
                         LoadServerProperties().ProductUri,
                         new StatusCode(result.Code, info.Key),
                         new LocalizedText(info)));
+            }
+        }
+
+        /// <summary>
+        /// Defers the GDS model and its injected services until private initial preparation.
+        /// </summary>
+        private protected sealed class ApplicationsStartupFactory(
+            IApplicationsDatabase database,
+            ICertificateRequest request,
+            ICertificateGroup certificateGroup,
+            bool autoApprove,
+            IAccessTokenProvider? accessTokenProvider = null,
+            IKeyCredentialRequestStore? keyCredentialStore = null,
+            Action<ApplicationsNodeManager>? configure = null) : IAsyncNodeManagerFactory
+        {
+            /// <inheritdoc/>
+            public ArrayOf<string> NamespacesUris =>
+                [Namespaces.OpcUaGds, ApplicationsNodeManager.ApplicationsNamespaceUri];
+
+            /// <inheritdoc/>
+            public async ValueTask<IAsyncNodeManager> CreateAsync(
+                IServerInternal server,
+                ApplicationConfiguration configuration,
+                CancellationToken cancellationToken = default)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                ApplicationsNodeManager? manager = null;
+                try
+                {
+                    manager = new ApplicationsNodeManager(
+                        server, configuration, database, request, certificateGroup, autoApprove);
+                    if (accessTokenProvider is not null)
+                    {
+                        manager.AccessTokenProvider = accessTokenProvider;
+                    }
+                    if (keyCredentialStore is not null)
+                    {
+                        manager.KeyCredentialRequestStore = keyCredentialStore;
+                    }
+                    configure?.Invoke(manager);
+                    IAsyncNodeManager result = await new ValueTask<IAsyncNodeManager>(manager).ConfigureAwait(false);
+                    manager = null;
+                    return result;
+                }
+                finally
+                {
+                    manager?.Dispose();
+                }
             }
         }
 

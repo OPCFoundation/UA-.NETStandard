@@ -1,31 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using System.Collections.Generic;
@@ -159,6 +133,8 @@ namespace Opc.Ua.Client
         /// default <see cref="DefaultServerRedundancyHandler"/>. To use a
         /// custom handler, pass it explicitly to
         /// <see cref="ManagedSession"/>.<c>CreateAsync</c>.
+        /// Supply an independently provisioned
+        /// <see cref="ServerRedundancyOptions.ExpectedServerApplicationUri"/> in <see cref="ServerRedundancy"/>.
         /// </summary>
         public bool EnableServerRedundancy { get; init; }
 
@@ -171,6 +147,8 @@ namespace Opc.Ua.Client
         /// failover). Requires the server side to mirror session state; the
         /// standby still performs the full <c>ActivateSession</c> signature
         /// validation, so the token alone never admits a session.
+        /// Supply <see cref="ServerRedundancyOptions.ExpectedServerApplicationUri"/> in
+        /// <see cref="ServerRedundancy"/>.
         /// </summary>
         public bool EnableTokenReuseFailover { get; init; }
 
@@ -265,6 +243,25 @@ namespace Opc.Ua.Client
         /// </para>
         /// </summary>
         public bool PoolNotifications { get; init; }
+
+        /// <summary>
+        /// <para>
+        /// Decode the notifications of a Publish response right before they
+        /// are dispatched instead of when the response arrives. Under load,
+        /// responses wait for their subscription; as raw bytes they do not
+        /// cost the garbage collector anything while they wait.
+        /// </para>
+        /// <para>
+        /// A notification body that cannot be decoded is logged and not
+        /// delivered, instead of failing the whole Publish response.
+        /// Default: <c>true</c>.
+        /// </para>
+        /// <para>
+        /// Applies to both subscription engines (see
+        /// <see cref="Session.DeferNotificationDecoding"/>).
+        /// </para>
+        /// </summary>
+        public bool DeferNotificationDecoding { get; init; } = true;
 
         /// <summary>
         /// <para>

@@ -1,31 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using Microsoft.Extensions.DependencyInjection;
@@ -54,11 +28,11 @@ namespace Opc.Ua.Redundancy.Server
         /// <see cref="DistributedPushConfigurationTransactionCoordinator"/> as
         /// the server's <see cref="IPushConfigurationTransactionCoordinator"/>
         /// and a <see cref="SharedKeyValuePendingCertificateKeyStore"/> as its
-        /// <see cref="IPendingCertificateKeyStore"/>, both backed by the shared
-        /// <see cref="ISharedKeyValueStore"/> already used by the other
-        /// distributed features (address space, sessions). The coordinator uses
-        /// a shared-store compare-and-swap lease to guarantee that at most one
-        /// replica has an active PushManagement transaction at a time, and the
+        /// <see cref="IPendingCertificateKeyStore"/>. Register an independently enrolled
+        /// <see cref="FreshnessProtectedKeyValueStore"/> (for example with
+        /// <c>AddSharedRecordFreshness</c>) for the transaction lease and configure
+        /// explicit lease membership on each replica. The pending-key store uses the
+        /// configured <see cref="ISharedKeyValueStore"/> and
         /// pending-key store keeps a regenerated private key available across
         /// replicas until a matching <c>UpdateCertificate</c> consumes it.
         /// </para>
@@ -72,6 +46,11 @@ namespace Opc.Ua.Redundancy.Server
         /// <see cref="ILeaderElection"/> service - no additional Kubernetes
         /// client is created. Raft and shared-store leader election compose the
         /// same way.
+        /// </para>
+        /// <para>
+        /// The distributed coordinator does not support trust-list updates or issuer imports through
+        /// the built-in per-entry certificate and CRL APIs; those APIs cannot atomically verify the
+        /// current grant when making the change visible. Trust-list reads remain available.
         /// </para>
         /// <para>
         /// Distributed behaviour is opt-in: a server that does not call this
@@ -102,13 +81,6 @@ namespace Opc.Ua.Redundancy.Server
             configure?.Invoke(options);
             options.Validate();
 
-            // Share the same shared key/value store as the other distributed
-            // features. TryAdd so a store already registered by
-            // UseDistributedAddressSpace / UseDistributedSessions (for example a
-            // Redis-backed store) is reused rather than replaced.
-            builder.Services.TryAddSingleton<ISharedKeyValueStore>(
-                _ => new InMemorySharedKeyValueStore());
-
             if (options.RecordProtectorFactory != null)
             {
                 builder.Services.TryAddSingleton(sp => options.RecordProtectorFactory(sp));
@@ -122,7 +94,7 @@ namespace Opc.Ua.Redundancy.Server
             builder.Services.AddSingleton<IPushConfigurationTransactionCoordinator>(sp =>
                 new DistributedPushConfigurationTransactionCoordinator(
                     inner: null,
-                    store: sp.GetRequiredService<ISharedKeyValueStore>(),
+                    store: sp.GetRequiredService<FreshnessProtectedKeyValueStore>(),
                     options: options,
                     telemetry: sp.GetRequiredService<ITelemetryContext>(),
                     timeProvider: sp.GetService<TimeProvider>(),

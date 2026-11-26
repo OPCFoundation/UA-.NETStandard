@@ -1,31 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using System.Collections;
@@ -310,6 +284,38 @@ namespace Opc.Ua.Gds.Tests.Hosting
         }
 
         [Test]
+        public async Task RegisteredAuthorizationPolicyAndAuditSinkReachHostedGdsAsync()
+        {
+            var policy = new ServerAuthorizationPolicy();
+            var sink = new RecordingAuditEventSink();
+
+            await using GdsTestHost host = await StartGdsAsync(
+                nameof(RegisteredAuthorizationPolicyAndAuditSinkReachHostedGdsAsync),
+                services =>
+                {
+                    services.AddSingleton<IUserDatabase>(new StubUserDatabase());
+                    services.AddSingleton<IServerAuthorizationPolicy>(policy);
+                    services.AddSingleton<IAuditEventSink>(sink);
+                },
+                _ => { }).ConfigureAwait(false);
+
+            var server = (ServerInternalData)host.Server;
+            Assert.Multiple(() =>
+            {
+                Assert.That(server.AuthorizationPolicy, Is.SameAs(policy));
+                Assert.That(server.AuditEventSink, Is.InstanceOf<CompositeAuditEventSink>());
+                Assert.That(((CompositeAuditEventSink)server.AuditEventSink).Sinks, Does.Contain(sink));
+            });
+        }
+
+        private sealed class RecordingAuditEventSink : IAuditEventSink
+        {
+            public void ReportAuditEvent(ISystemContext context, AuditEventState e)
+            {
+            }
+        }
+
+        [Test]
         public async Task StartupTasksRunInOrderAfterGdsStartedAsync()
         {
             var calls = new ConcurrentQueue<string>();
@@ -480,12 +486,14 @@ namespace Opc.Ua.Gds.Tests.Hosting
             return services;
         }
 
+        /// <summary>
+        /// Creates a unique root with room for certificate filenames on .NET Framework.
+        /// </summary>
         private static string CreateTestRoot()
         {
             string testRoot = Path.Combine(
-                TestContext.CurrentContext.WorkDirectory,
-                nameof(GdsServerHostedServiceTests),
-                Guid.NewGuid().ToString("N"));
+                Path.GetTempPath(),
+                "gds-" + Guid.NewGuid().ToString("N"));
             Directory.CreateDirectory(testRoot);
             return testRoot;
         }

@@ -1,47 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
-
-// ===========================================================================
-// Adapter that binds the external Raft engine `RaftCs` (shipped alongside the
-// Crdt libraries) to the in-repo IRaftConsensus seam. Opc.Ua.Redundancy
-// references the `RaftCs` and `RaftCs.Transport` packages, so this is the
-// default IRaftConsensus implementation.
-//
-// Usage:
-//   - Single-node / in-process: DefaultRaftConsensus.CreateSingleNode().
-//   - Multi-pod: construct a RaftNode with durable storage
-//     (RaftCs.Storage.File) and a networked transport
-//     (RaftCs.Transport.NanoMsg, sharing the NanoMsg substrate with the CRDT
-//     gossip layer), then `new DefaultRaftConsensus(node)`. Wire either through
-//     RedundancyConsistencyOptions.RaftConsensusFactory (server) or the client
-//     AddRaftClientSharedStore/AddRedundantClientSharedStore factories.
-// ===========================================================================
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using System.Threading;
@@ -64,11 +22,13 @@ namespace Opc.Ua.Redundancy
     /// <remarks>
     /// <see cref="CompactAsync"/> needs storage that keeps snapshots (<see cref="IRaftSnapshotStorage"/>): the
     /// in-memory storage of the factory methods and <c>RaftCs.Storage.File</c> do.
+    /// The factory methods validate the key/value store snapshot format before Raft persists it. An adapter over
+    /// an externally constructed node cannot change that node's snapshot validation.
     /// </remarks>
-    public sealed class DefaultRaftConsensus : IRaftSnapshotConsensus
+    public sealed class DefaultRaftConsensus : IRaftSnapshotConsensus, IRaftConsensusLocality
     {
         /// <summary>
-        /// Creates an adapter over a <c>RaftCs</c> replica.
+        /// Creates an adapter over a <c>RaftCs</c> replica whose transport locality is unknown.
         /// </summary>
         /// <param name="node">The Raft replica (constructed with its storage and transport).</param>
         /// <param name="ownsNode">When <c>true</c>, the node is disposed with this adapter.</param>
@@ -89,8 +49,32 @@ namespace Opc.Ua.Redundancy
             TimeSpan leadershipPollInterval = default,
             IAsyncDisposable? ownedHost = null,
             TimeSpan readyTimeout = default)
+            : this(node, ownsNode, leadershipPollInterval, ownedHost, readyTimeout, isProcessLocal: true)
+        {
+        }
+
+        /// <summary>
+        /// Creates an adapter over a <c>RaftCs</c> replica with a known transport locality.
+        /// </summary>
+        /// <param name="node">The Raft replica (constructed with its storage and transport).</param>
+        /// <param name="ownsNode">When <c>true</c>, the node is disposed with this adapter.</param>
+        /// <param name="leadershipPollInterval">How often the adapter samples leadership changes.</param>
+        /// <param name="ownedHost">An optional resource disposed after the node.</param>
+        /// <param name="readyTimeout">How long startup waits for the cluster to elect an initial leader.</param>
+        /// <param name="isProcessLocal">
+        /// Pass <c>false</c> only for a transport configured to share the same Raft cluster across processes.
+        /// A single-voter replica is reported as process-local regardless.
+        /// </param>
+        public DefaultRaftConsensus(
+            RaftNode node,
+            bool ownsNode,
+            TimeSpan leadershipPollInterval,
+            IAsyncDisposable? ownedHost,
+            TimeSpan readyTimeout,
+            bool isProcessLocal)
         {
             m_node = node ?? throw new ArgumentNullException(nameof(node));
+            IsProcessLocal = isProcessLocal || node.Configuration.Voters.Count <= 1;
             m_committedItems = new CommittedItemReader(node.CommittedItems);
             m_ownsNode = ownsNode;
             m_ownedHost = ownedHost;
@@ -211,11 +195,33 @@ namespace Opc.Ua.Redundancy
             var config = new RaftConfig { Id = nodeId };
             configure?.Invoke(config);
 
+            options ??= new RaftNodeOptions();
+            Func<Snapshot, bool>? validateSnapshot = options.SnapshotValidator;
+            var storeOptions = new RaftNodeOptions
+            {
+                TickInterval = options.TickInterval,
+                MaxApplyBytes = options.MaxApplyBytes,
+                MaxIncomingMessageBytes = options.MaxIncomingMessageBytes,
+                StateObservationCapacity = options.StateObservationCapacity,
+                SnapshotValidator = snapshot =>
+                    RaftSharedKeyValueStore.IsValidEngineSnapshot(snapshot.Data.Span, snapshot.Metadata.Index) &&
+                    (validateSnapshot?.Invoke(snapshot) ?? true)
+            };
+
             // CA2000: the node (which disposes the transport) and ownedResources
             // transfer to the returned adapter, which disposes them.
 #pragma warning disable CA2000
-            var node = new RaftNode(config, storage, transport, options);
-            return new DefaultRaftConsensus(node, ownsNode: true, ownedHost: ownedResources, readyTimeout: readyTimeout);
+            var node = new RaftNode(config, storage, transport, storeOptions);
+            return new DefaultRaftConsensus(
+                node,
+                ownsNode: true,
+                leadershipPollInterval: default,
+                ownedHost: ownedResources,
+                readyTimeout: readyTimeout,
+                isProcessLocal: transport is InMemoryTransport)
+            {
+                UsesOnlyInProcessMemory = transport is InMemoryTransport && storage is MemoryStorage
+            };
 #pragma warning restore CA2000
         }
 
@@ -230,7 +236,15 @@ namespace Opc.Ua.Redundancy
         }
 
         /// <inheritdoc/>
-        public bool IsLeader => m_node.IsLeader;
+        public bool IsLeader => IsAvailable && m_node.IsLeader;
+
+        /// <inheritdoc/>
+        public bool IsProcessLocal { get; }
+
+        /// <summary>
+        /// Gets whether both the transport and backing storage are known to be private process memory.
+        /// </summary>
+        internal bool UsesOnlyInProcessMemory { get; private init; }
 
         /// <inheritdoc/>
         public event Action<bool>? LeadershipChanged;
@@ -240,6 +254,14 @@ namespace Opc.Ua.Redundancy
 
         /// <inheritdoc/>
         public ChannelReader<RaftCommittedItem> CommittedItems => m_committedItems;
+
+        /// <summary>
+        /// Gets whether the consensus adapter has not failed or stopped.
+        /// </summary>
+        internal bool IsAvailable => Volatile.Read(ref m_disposed) == 0 &&
+            Volatile.Read(ref m_stateMachineFault) == null &&
+            Volatile.Read(ref m_startTask) is not ({ IsFaulted: true } or { IsCanceled: true }) &&
+            !m_committedItems.Completion.IsCompleted;
 
         /// <inheritdoc/>
         /// <exception cref="NotSupportedException">The node's storage does not keep snapshots.</exception>
@@ -253,19 +275,25 @@ namespace Opc.Ua.Redundancy
         }
 
         /// <inheritdoc/>
-        public async ValueTask StartAsync(CancellationToken ct = default)
+        public ValueTask StartAsync(CancellationToken ct = default)
         {
-            if (Interlocked.Exchange(ref m_started, 1) == 0)
+            lock (m_startLock)
             {
-                await m_node.StartAsync(ct).ConfigureAwait(false);
-                m_leadershipLoop = Task.Run(() => WatchLeadershipAsync(m_cts.Token), m_cts.Token);
-                await WaitForInitialLeaderAsync(ct).ConfigureAwait(false);
+                ThrowIfUnavailable();
+                ct.ThrowIfCancellationRequested();
+                m_startTask ??= Task.Run(StartCoreAsync, CancellationToken.None);
+                return new ValueTask(m_startTask.WaitAsync(ct));
             }
         }
 
         /// <inheritdoc/>
         public ValueTask ProposeAsync(ReadOnlyMemory<byte> command, CancellationToken ct = default)
         {
+            ThrowIfUnavailable();
+            if (command.Length > RaftSharedKeyValueStore.MaxCommandBytes)
+            {
+                throw new ArgumentOutOfRangeException(nameof(command), "The Raft command exceeds its size limit.");
+            }
             // RaftNode.ProposeAsync is accepted on the leader; on a follower the
             // node forwards the proposal to the leader it recognizes
             // (RaftConfig.DisableProposalForwarding is false). The opaque command
@@ -278,41 +306,99 @@ namespace Opc.Ua.Redundancy
         /// <inheritdoc/>
         public ValueTask CampaignAsync(CancellationToken ct = default)
         {
+            ThrowIfUnavailable();
             return m_node.CampaignAsync(ct);
         }
 
         /// <inheritdoc/>
         public async ValueTask DisposeAsync()
         {
-            if (Interlocked.Exchange(ref m_disposed, 1) != 0)
+            Task? startup;
+            lock (m_startLock)
             {
-                return;
+                if (m_disposed != 0)
+                {
+                    return;
+                }
+                Volatile.Write(ref m_disposed, 1);
+                startup = m_startTask;
             }
-
-            m_cts.Cancel();
-            if (m_leadershipLoop != null)
+            try
             {
-                try
+                m_cts.Cancel();
+                if (startup != null)
+                {
+                    await ObserveStartupAsync(startup).ConfigureAwait(false);
+                }
+                if (m_leadershipLoop != null)
                 {
                     await m_leadershipLoop.ConfigureAwait(false);
                 }
-                catch (OperationCanceledException)
+            }
+            finally
+            {
+                try
                 {
-                    // expected on shutdown
+                    if (m_ownsNode)
+                    {
+                        await m_node.DisposeAsync().ConfigureAwait(false);
+                    }
+                }
+                finally
+                {
+                    try
+                    {
+                        if (m_ownedHost != null)
+                        {
+                            await m_ownedHost.DisposeAsync().ConfigureAwait(false);
+                        }
+                    }
+                    finally
+                    {
+                        m_cts.Dispose();
+                    }
                 }
             }
+        }
 
-            if (m_ownsNode)
+        /// <summary>
+        /// Prevents this adapter from advertising usable leadership after its local state machine has failed.
+        /// </summary>
+        internal void ReportStateMachineFault(Exception error)
+        {
+            Interlocked.CompareExchange(ref m_stateMachineFault, error, null);
+        }
+
+        private void ThrowIfUnavailable()
+        {
+            if (Volatile.Read(ref m_disposed) != 0)
             {
-                await m_node.DisposeAsync().ConfigureAwait(false);
+                throw new ObjectDisposedException(nameof(DefaultRaftConsensus));
             }
-
-            if (m_ownedHost != null)
+            if (Volatile.Read(ref m_stateMachineFault) is Exception error)
             {
-                await m_ownedHost.DisposeAsync().ConfigureAwait(false);
+                throw new InvalidOperationException("The Raft key/value state machine has failed.", error);
             }
+        }
 
-            m_cts.Dispose();
+        private async Task StartCoreAsync()
+        {
+            CancellationToken ct = m_cts.Token;
+            await m_node.StartAsync(ct).ConfigureAwait(false);
+            await WaitForInitialLeaderAsync(ct).ConfigureAwait(false);
+            m_leadershipLoop = Task.Run(() => WatchLeadershipAsync(ct), CancellationToken.None);
+        }
+
+        private static async Task ObserveStartupAsync(Task startup)
+        {
+            try
+            {
+                await startup.ConfigureAwait(false);
+            }
+            catch (Exception)
+            {
+                // StartAsync owns the outcome; disposal still releases all owned resources.
+            }
         }
 
         private async Task WaitForInitialLeaderAsync(CancellationToken ct)
@@ -341,7 +427,7 @@ namespace Opc.Ua.Redundancy
             {
                 while (!ct.IsCancellationRequested)
                 {
-                    bool now = m_node.IsLeader;
+                    bool now = IsLeader;
                     if (now != last)
                     {
                         last = now;
@@ -393,9 +479,11 @@ namespace Opc.Ua.Redundancy
         private readonly IAsyncDisposable? m_ownedHost;
         private readonly TimeSpan m_pollInterval;
         private readonly TimeSpan m_readyTimeout;
+        private readonly Lock m_startLock = new();
         private readonly CancellationTokenSource m_cts = new();
+        private Task? m_startTask;
         private Task? m_leadershipLoop;
-        private int m_started;
+        private Exception? m_stateMachineFault;
         private int m_disposed;
     }
 }

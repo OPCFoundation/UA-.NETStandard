@@ -1,31 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using System.Collections.Generic;
@@ -90,7 +64,7 @@ namespace Opc.Ua.Gds.Server
         AdditionalNamespaceUris = [ApplicationsNamespaceUri],
         GenerateFactory = false,
         GenerateDefaultConstructor = false)]
-    public partial class ApplicationsNodeManager
+    public partial class ApplicationsNodeManager : INodeManagerReadinessNotification
     {
         /// <summary>
         /// Namespace the GDS mints application records, certificate
@@ -180,6 +154,7 @@ namespace Opc.Ua.Gds.Server
             m_autoApprove = autoApprove;
             m_database = database;
             m_request = request;
+            ClientCertificateBoundRequestStore = request as IClientCertificateBoundCertificateRequestStore;
             m_certificateGroupFactory = certificateGroupFactory;
             m_ownedCertificateGroups = [];
             m_certificateGroups = [];
@@ -227,7 +202,6 @@ namespace Opc.Ua.Gds.Server
         // the authorization service need is resolved against the
         // loaded address space here, once, from the source-generated
         // CreateAddressSpaceAsync.
-
         /// <summary>
         /// Brings the GDS up and binds its handlers to the loaded model.
         /// </summary>
@@ -264,7 +238,7 @@ namespace Opc.Ua.Gds.Server
 
             m_certTypeMap = s_certificateTypeMap;
             m_database.NamespaceIndex = ApplicationsNamespaceIndex;
-            m_request.NamespaceIndex = ApplicationsNamespaceIndex;
+            CertificateRequestStore.NamespaceIndex = ApplicationsNamespaceIndex;
 
             await InitializeCertificateGroupsAsync(builder).ConfigureAwait(false);
 
@@ -278,8 +252,22 @@ namespace Opc.Ua.Gds.Server
             // stages the node, finalises its NodeIds before handing it back,
             // and registers it once this pass returns.
             ConfigureAuthorizationService(EnsureDefaultAuthorizationService(builder));
+        }
 
-            InitializeAliasNameAggregation();
+        /// <inheritdoc/>
+        public ValueTask OnServerReadyAsync(CancellationToken cancellationToken = default)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            TaskCompletionSource<bool> operation = BeginAliasNameOperation();
+            try
+            {
+                InitializeAliasNameAggregation();
+            }
+            finally
+            {
+                CompleteAliasNameOperation(operation);
+            }
+            return default;
         }
 
         /// <summary>
@@ -776,64 +764,6 @@ namespace Opc.Ua.Gds.Server
             return null;
         }
 
-        private ICertificateGroup? GetGroupForCertificate(ByteString certificate)
-        {
-            if (certificate.Length > 0)
-            {
-                using var x509 = Certificate.FromRawData(certificate);
-                NodeId certificateType = CertificateIdentifier.GetCertificateType(x509);
-                foreach (ICertificateGroup certificateGroup in m_certificateGroups.Values)
-                {
-                    KeyValuePair<NodeId, Certificate?> matchingCert = certificateGroup
-                        .Certificates
-                        .FirstOrDefault(
-                            kvp =>
-                                X509Utils.CompareDistinguishedName(
-                                    kvp.Value!.Subject,
-                                    x509.Issuer) &&
-                                kvp.Key == certificateType);
-
-                    if (matchingCert.Value != null)
-                    {
-                        return certificateGroup;
-                    }
-                }
-            }
-
-            return null;
-        }
-
-        private async Task<bool> RevokeCertificateAsync(
-            ByteString certificate,
-            CancellationToken cancellationToken = default)
-        {
-            bool revoked = false;
-            if (certificate.Length > 0)
-            {
-                ICertificateGroup? certificateGroup = GetGroupForCertificate(certificate);
-
-                if (certificateGroup != null)
-                {
-                    using var x509 = Certificate.FromRawData(certificate);
-                    try
-                    {
-                        X509CRL crl = await certificateGroup
-                            .RevokeCertificateAsync(x509, cancellationToken)
-                            .ConfigureAwait(false);
-                        if (crl != null)
-                        {
-                            revoked = true;
-                        }
-                    }
-                    catch (Exception e)
-                    {
-                        m_logger.UnexpectedErrorRevokingCertificate(e, x509.Subject, certificateGroup.Id);
-                    }
-                }
-            }
-            return revoked;
-        }
-
         /// <summary>
         /// Builds the issuer-certificate chain for a newly issued
         /// <paramref name="certificate"/> per OPC 10000-12 §7.6.6.
@@ -1189,6 +1119,7 @@ namespace Opc.Ua.Gds.Server
             NodeId applicationId;
             AuthorizationHelper.HasAuthorization(
                 context,
+                ServerAuthorizationDecision.ApplicationRegistration,
                 AuthorizationHelper.DiscoveryAdminOrAppAdmin);
 
             m_logger.OnRegisterApplication(application.ApplicationUri);
@@ -1233,6 +1164,7 @@ namespace Opc.Ua.Gds.Server
         {
             AuthorizationHelper.HasAuthorization(
                 context,
+                ServerAuthorizationDecision.ApplicationRegistration,
                 AuthorizationHelper.DiscoveryAdminOrSelfAdminOrAppAdmin,
                 application.ApplicationId);
 
@@ -1284,6 +1216,7 @@ namespace Opc.Ua.Gds.Server
         {
             AuthorizationHelper.HasAuthorization(
                 context,
+                ServerAuthorizationDecision.ApplicationRegistration,
                 AuthorizationHelper.DiscoveryAdminOrSelfAdminOrAppAdmin,
                 applicationId);
 
@@ -1292,7 +1225,8 @@ namespace Opc.Ua.Gds.Server
                 m_logger.OnUnregisterApplication(applicationId.ToString());
             }
 
-            if (m_database.GetApplication(applicationId) == null)
+            ApplicationRecordDataType? application = m_database.GetApplication(applicationId);
+            if (application == null)
             {
                 return new UnregisterApplicationMethodStateResult
                 {
@@ -1302,27 +1236,33 @@ namespace Opc.Ua.Gds.Server
                 };
             }
 
-            foreach (KeyValuePair<NodeId, string> certType in m_certTypeMap)
+            // Revoke every certificate the GDS issued to the application, the
+            // current ones and the ones they replaced, and remove the record.
+            // A certificate published at the same time is either seen here or
+            // finds the record gone and is revoked by the publication.
+            await m_publicationLock.WaitAsync(cancellationToken).ConfigureAwait(false);
+            try
             {
-                try
+                foreach (ByteString certificate in await GetIssuedCertificatesAsync(
+                    application, cancellationToken).ConfigureAwait(false))
                 {
-                    if (m_database.GetApplicationCertificate(
-                            applicationId,
-                            certType.Value,
-                            out ByteString certificate) &&
-                        !certificate.IsEmpty)
+                    try
                     {
-                        await RevokeCertificateAsync(certificate, cancellationToken)
+                        await RevokeIssuedCertificateAsync(certificate, cancellationToken)
                             .ConfigureAwait(false);
                     }
+                    catch (Exception ex) when (ex is not OperationCanceledException)
+                    {
+                        m_logger.FailedToRevoke(ex, applicationId);
+                    }
                 }
-                catch (Exception ex)
-                {
-                    m_logger.FailedToRevoke(ex, certType.Value);
-                }
-            }
 
-            m_database.UnregisterApplication(applicationId);
+                m_database.UnregisterApplication(applicationId);
+            }
+            finally
+            {
+                m_publicationLock.Release();
+            }
 
             // OPC 10000-17 Annex C.3. The record is gone, so the cleanup must
             // not be cancelled with the request.
@@ -1363,9 +1303,14 @@ namespace Opc.Ua.Gds.Server
 
             try
             {
-                AuthorizationHelper.HasAuthorization(context, AuthorizationHelper.CertificateAuthorityAdmin);
+                AuthorizationHelper.HasAuthorization(
+                    context,
+                    ServerAuthorizationDecision.CertificateRevocation,
+                    AuthorizationHelper.CertificateAuthorityAdmin,
+                    applicationId);
 
-                if (m_database.GetApplication(applicationId) == null)
+                ApplicationRecordDataType? application = m_database.GetApplication(applicationId);
+                if (application == null)
                 {
                     result.ServiceResult = new ServiceResult(
                         StatusCodes.BadNotFound,
@@ -1379,27 +1324,14 @@ namespace Opc.Ua.Gds.Server
                         "The certificate is not a Certificate for the specified Application that was issued by the CertificateManager.");
                 }
 
-                bool revoked = false;
-                foreach (KeyValuePair<NodeId, string> certType in m_certTypeMap)
-                {
-                    if (!m_database.GetApplicationCertificate(
-                            applicationId,
-                            certType.Value,
-                            out ByteString applicationCertificate) ||
-                        applicationCertificate.IsEmpty ||
-                        !Utils.IsEqual(applicationCertificate, certificate))
-                    {
-                        continue;
-                    }
-
-                    revoked = await RevokeCertificateAsync(
-                        certificate,
-                        cancellationToken).ConfigureAwait(false);
-                    if (revoked)
-                    {
-                        break;
-                    }
-                }
+                // Accept any certificate the GDS issued to the application,
+                // not only the one it holds now. A failure to
+                // update the CRL is reported as such and never as Good.
+                bool revoked =
+                    await IsIssuedToApplicationAsync(application, certificate, cancellationToken)
+                        .ConfigureAwait(false) &&
+                    await RevokeIssuedCertificateAsync(certificate, cancellationToken)
+                        .ConfigureAwait(false);
                 if (!revoked)
                 {
                     throw new ServiceResultException(
@@ -1473,6 +1405,7 @@ namespace Opc.Ua.Gds.Server
         {
             AuthorizationHelper.HasAuthorization(
                 context,
+                ServerAuthorizationDecision.ApplicationQuery,
                 AuthorizationHelper.AuthenticatedUserOrSelfAdmin,
                 applicationId);
             m_logger.OnGetApplication(applicationId);
@@ -2146,6 +2079,7 @@ namespace Opc.Ua.Gds.Server
                     }
                     AuthorizationHelper.HasAuthorization(
                         context,
+                        ServerAuthorizationDecision.CertificateManagement,
                         AuthorizationHelper.CertificateAuthorityAdminOrSelfAdminOrAppAdmin,
                         applicationId);
                 }
@@ -2252,7 +2186,9 @@ namespace Opc.Ua.Gds.Server
                 }
 
                 IUserIdentity? userIdentity = (context as ISessionSystemContext)?.UserIdentity;
-                requestId = m_request.StartNewKeyPairRequest(
+                ByteString clientCertificateFingerprint =
+                    AuthorizationHelper.GetClientCertificateFingerprint(context);
+                requestId = RequireClientCertificateBoundRequestStore().StartBoundNewKeyPairRequest(
                     applicationId,
                     certificateGroup.Configuration.Id!,
                     certificateTypeNameId,
@@ -2260,13 +2196,14 @@ namespace Opc.Ua.Gds.Server
                     domainNames,
                     privateKeyFormat,
                     privateKeyPassword?.ToCharArray()!,
+                    clientCertificateFingerprint,
                     userIdentity?.DisplayName!);
 
                 if (m_autoApprove)
                 {
                     try
                     {
-                        m_request.ApproveRequest(requestId, false);
+                        CertificateRequestStore.ApproveRequest(requestId, false);
                     }
                     catch
                     {
@@ -2398,18 +2335,21 @@ namespace Opc.Ua.Gds.Server
 
                 // store request in the queue for approval
                 IUserIdentity? userIdentity = (context as ISessionSystemContext)?.UserIdentity;
-                result.RequestId = m_request.StartSigningRequest(
+                ByteString clientCertificateFingerprint =
+                    AuthorizationHelper.GetClientCertificateFingerprint(context);
+                result.RequestId = RequireClientCertificateBoundRequestStore().StartBoundSigningRequest(
                     applicationId,
                     certificateGroup.Configuration.Id!,
                     certificateTypeNameId,
                     certificateRequest,
+                    clientCertificateFingerprint,
                     userIdentity?.DisplayName!);
 
                 if (m_autoApprove)
                 {
                     try
                     {
-                        m_request.ApproveRequest(result.RequestId, false);
+                        CertificateRequestStore.ApproveRequest(result.RequestId, false);
                     }
                     catch
                     {
@@ -2546,9 +2486,11 @@ namespace Opc.Ua.Gds.Server
                 return result;
             }
 
-            CertificateRequestState state = m_request.FinishRequest(
+            ByteString clientCertificateFingerprint = AuthorizationHelper.GetClientCertificateFingerprint(context);
+            CertificateRequestState state = RequireClientCertificateBoundRequestStore().FinishBoundRequest(
                 applicationId,
                 requestId,
+                clientCertificateFingerprint,
                 out string? certificateGroupId,
                 out string? certificateTypeId,
                 out ByteString generatedCertificate,
@@ -2686,7 +2628,7 @@ namespace Opc.Ua.Gds.Server
             {
                 if (generatedCertificate.IsEmpty)
                 {
-                    CertificateRequestState state = m_request.ReadRequest(
+                    CertificateRequestState state = CertificateRequestStore.ReadRequest(
                         applicationId, requestId, out _, out _,
                         out ByteString certificateRequest, out string? subjectName,
                         out string[]? domainNames, out string? privateKeyFormat,
@@ -2739,6 +2681,13 @@ namespace Opc.Ua.Gds.Server
                 {
                     certificate = Certificate.FromRawData(generatedCertificate);
                 }
+
+                // Every certificate signed for the application is in the
+                // application certificate store before it is retained or
+                // delivered, so UnregisterApplication and RevokeCertificate
+                // find it even when the publication never completes.
+                await RecordIssuedCertificateAsync(applicationId, certificate).ConfigureAwait(false);
+
                 result.IssuerCertificates = BuildIssuerCertificateChain(
                     certificate, certificateGroup, certificateTypeNodeId);
                 return result;
@@ -2758,6 +2707,7 @@ namespace Opc.Ua.Gds.Server
         {
             AuthorizationHelper.HasAuthorization(
                 context,
+                ServerAuthorizationDecision.CertificateManagement,
                 AuthorizationHelper.CertificateAuthorityAdminOrSelfAdminOrAppAdmin,
                 applicationId);
 
@@ -2795,6 +2745,7 @@ namespace Opc.Ua.Gds.Server
             }
             AuthorizationHelper.HasAuthorization(
                 context,
+                ServerAuthorizationDecision.CertificateManagement,
                 AuthorizationHelper.CertificateAuthorityAdminOrSelfAdminOrAppAdmin,
                 applicationId);
 
@@ -2849,6 +2800,7 @@ namespace Opc.Ua.Gds.Server
             // ApplicationSelfAdmin Privilege, or the ApplicationAdmin Privilege.
             AuthorizationHelper.HasAuthorization(
                 context,
+                ServerAuthorizationDecision.CertificateManagement,
                 AuthorizationHelper.CertificateAuthorityAdminOrSelfAdminOrAppAdmin,
                 applicationId);
 
@@ -3244,6 +3196,7 @@ namespace Opc.Ua.Gds.Server
                 NodeId applicationId = ResolveKeyCredentialApplicationId(m_database, applicationUri);
                 AuthorizationHelper.HasAuthorization(
                     context,
+                    ServerAuthorizationDecision.KeyCredentialManagement,
                     AuthorizationHelper.KeyCredentialAdminOrSelfAdminOrAppAdmin,
                     applicationId);
                 IApplicationOwnedKeyCredentialRequestStore store = GetApplicationOwnedKeyCredentialStore();
@@ -3296,6 +3249,7 @@ namespace Opc.Ua.Gds.Server
                     .ConfigureAwait(false);
                 AuthorizationHelper.HasAuthorization(
                     context,
+                    ServerAuthorizationDecision.KeyCredentialManagement,
                     AuthorizationHelper.KeyCredentialAdminOrSelfAdminOrAppAdmin,
                     applicationId);
 
@@ -3350,6 +3304,7 @@ namespace Opc.Ua.Gds.Server
                     .ConfigureAwait(false);
                 AuthorizationHelper.HasAuthorization(
                     context,
+                    ServerAuthorizationDecision.KeyCredentialManagement,
                     AuthorizationHelper.KeyCredentialAdminOrSelfAdminOrAppAdmin,
                     applicationId);
 
@@ -3467,30 +3422,66 @@ namespace Opc.Ua.Gds.Server
         /// (events, simulation, monitored sources) are torn down by the base
         /// class.
         /// </remarks>
-        protected override void Dispose(bool disposing)
+        public override async ValueTask DeleteAddressSpaceAsync(CancellationToken cancellationToken = default)
         {
-            if (disposing)
-            {
-                DisposeAliasNameAggregation();
-                m_finishRequestGate.Dispose();
+            await StopAliasNameAggregationAsync().ConfigureAwait(false);
+            await base.DeleteAddressSpaceAsync(cancellationToken).ConfigureAwait(false);
+        }
 
-                // Every group this manager created is in the owning list, so
-                // a startup that failed before Configure could bind and index
-                // the groups still releases them.
-                foreach (ICertificateGroup certificateGroup in m_ownedCertificateGroups)
+        /// <inheritdoc/>
+        protected override async ValueTask DisposeAsyncCore()
+        {
+            var failures = new List<Exception>();
+            try
+            {
+                await StopAliasNameAggregationAsync().ConfigureAwait(false);
+            }
+            catch (Exception error) when (error is not OutOfMemoryException)
+            {
+                failures.Add(error);
+            }
+            try
+            {
+                await base.DisposeAsyncCore().ConfigureAwait(false);
+            }
+            catch (Exception error) when (error is not OutOfMemoryException)
+            {
+                failures.Add(error);
+            }
+            try
+            {
+                m_finishRequestGate.Dispose();
+                m_publicationLock.Dispose();
+            }
+            catch (Exception error) when (error is not OutOfMemoryException)
+            {
+                failures.Add(error);
+            }
+            foreach (ICertificateGroup certificateGroup in m_ownedCertificateGroups)
+            {
+                try
                 {
-                    // The TrustList handler holds its store instances open
-                    // for reuse across operations; the node manager owns the
-                    // node and therefore the handler's lifetime.
                     (certificateGroup.DefaultTrustList?.Handle as IDisposable)?.Dispose();
+                }
+                catch (Exception error) when (error is not OutOfMemoryException)
+                {
+                    failures.Add(error);
+                }
+                try
+                {
                     certificateGroup.Dispose();
                 }
-
-                m_ownedCertificateGroups.Clear();
-                m_certificateGroups.Clear();
+                catch (Exception error) when (error is not OutOfMemoryException)
+                {
+                    failures.Add(error);
+                }
             }
-
-            base.Dispose(disposing);
+            m_ownedCertificateGroups.Clear();
+            m_certificateGroups.Clear();
+            if (failures.Count > 0)
+            {
+                throw new AggregateException("GDS resource disposal failed.", failures);
+            }
         }
 
         private readonly bool m_autoApprove;
@@ -3613,8 +3604,8 @@ namespace Opc.Ua.Gds.Server
         public static partial void OnUnregisterApplication(this ILogger logger, string applicationId);
 
         [LoggerMessage(EventId = GdsServerCommonEventIds.ApplicationsNodeManager + 14, Level = LogLevel.Warning,
-            Message = "Failed to revoke: {CertificateType}")]
-        public static partial void FailedToRevoke(this ILogger logger, Exception ex, string certificateType);
+            Message = "Failed to revoke a certificate of application {ApplicationId}.")]
+        public static partial void FailedToRevoke(this ILogger logger, Exception ex, NodeId applicationId);
 
         [LoggerMessage(EventId = GdsServerCommonEventIds.ApplicationsNodeManager + 15, Level = LogLevel.Information,
             Message = "OnFindApplications: {ApplicationUri}")]
@@ -3651,5 +3642,12 @@ namespace Opc.Ua.Gds.Server
             Exception exception,
             NodeId requestId,
             [ApplicationIdentity] string? applicationUri);
+
+        [LoggerMessage(EventId = GdsServerCommonEventIds.ApplicationsNodeManager + 22, Level = LogLevel.Error,
+            Message = "Failed to notify the server of the revocation in certificate group {CertificateGroupId}.")]
+        public static partial void RevocationNotificationFailed(
+            this ILogger logger,
+            Exception exception,
+            NodeId certificateGroupId);
     }
 }

@@ -1,31 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using System.Collections.Generic;
@@ -299,8 +273,15 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Sets the flag which indicates whether event are being monitored for the instance and its children.
+        /// Reports an event and propagates it to the parent.
         /// </summary>
+        /// <remarks>
+        /// A derived override may run for each parent or inverse-notifier path reaching this node.
+        /// The base implementation tracks visited nodes to suppress repeated sink delivery during propagation.
+        /// When the caller retains a serialization gate while reporting an event, synchronous sinks must not
+        /// block on work that needs the same gate. The synchronous path also waits for asynchronous sinks,
+        /// which must not await such work.
+        /// </remarks>
         /// <param name="context">The system context.</param>
         /// <param name="e">The event to report.</param>
         public override void ReportEvent(ISystemContext context, IFilterTarget e)
@@ -318,9 +299,18 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Asynchronously reports an event and recursively notifies the parent, awaiting any
-        /// asynchronous report sink so the caller is never blocked.
+        /// Asynchronously reports an event and propagates it to the parent. Asynchronous sinks and
+        /// parent reporting are awaited; synchronous sinks are invoked directly.
         /// </summary>
+        /// <remarks>
+        /// This method does not invoke overrides of <see cref="ReportEvent"/>. A subclass that
+        /// customizes synchronous event reporting must also override this method to apply that
+        /// customization to asynchronous calls.
+        /// A derived override may run for each parent or inverse-notifier path reaching this node.
+        /// The base implementation tracks visited nodes to suppress repeated sink delivery during propagation.
+        /// When the caller retains a serialization gate while invoking or awaiting this method, report-event sinks
+        /// must not await or synchronously block on an operation that needs the same gate.
+        /// </remarks>
         /// <param name="context">The system context.</param>
         /// <param name="e">The event to report.</param>
         /// <param name="cancellationToken">The cancellation token.</param>

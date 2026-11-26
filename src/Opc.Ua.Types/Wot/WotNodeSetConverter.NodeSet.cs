@@ -1,32 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using System.Collections.Generic;
@@ -46,6 +19,15 @@ namespace Opc.Ua.Wot
     {
         private const uint AccessLevelCurrentRead = 1;
         private const uint AccessLevelCurrentWrite = 2;
+
+        /// <summary>
+        /// The default explicit unit mapping for callers without an injected provider.
+        /// </summary>
+        private static readonly IWotUnitMappingProvider s_unitMappingProvider = new WotQudtUnitMappingProvider();
+
+        /// <summary>Verified declaration-specific quantity kinds used outside dependency injection.</summary>
+        private static readonly IWotQuantityKindMappingProvider s_quantityKindMappingProvider =
+            new WotCompanionQuantityKindMappingProvider();
 
         private static readonly Dictionary<string, string> s_dataTypeToJsonType =
             new(StringComparer.Ordinal)
@@ -304,7 +286,9 @@ namespace Opc.Ua.Wot
             string? documentHref = null,
             HashSet<string>? projectedNodeIds = null,
             bool foldEventSourceType = true,
-            WotReferenceTypeNames? referenceTypes = null)
+            WotReferenceTypeNames? referenceTypes = null,
+            IReadOnlyDictionary<string, WotArgumentProperty>? resolvedArgumentProperties = null,
+            string? resolvedEventAncestor = null)
         {
             byte[]? digest = emitEnvelope ? ComputeSha256(nodeSetBytes) : null;
             using var output = new MemoryStream();
@@ -324,7 +308,8 @@ namespace Opc.Ua.Wot
                     ? preservedLocale : SelectDocumentLocale(root);
                 string defaultLocale = EffectiveLocale(documentLocale);
                 WriteContext(writer, nodeSet, documentLocale, root);
-                bool rootIsEventType = IsEventTypeRoot(root, nodeSet);
+                bool rootIsEventType = eventTypeHrefs?.ContainsKey(root?.NodeId ?? string.Empty) == true ||
+                    IsEventTypeRoot(root, nodeSet);
                 WriteRootType(writer, root, rootIsEventType);
 
                 // Section 4.1: a tool that generates a document against
@@ -380,7 +365,8 @@ namespace Opc.Ua.Wot
                         nodeSet.NamespaceUris,
                         nodeSet,
                         BuildIndex(nodeSet),
-                        defaultLocale);
+                        defaultLocale,
+                        resolvedEventAncestor);
                 }
                 referenceTypes ??= WotReferenceTypeNames.Build(nodeSet);
                 WriteDataTypeDefinitions(
@@ -392,7 +378,7 @@ namespace Opc.Ua.Wot
                     foldEventSourceType && nativeProjection is null && !emitEnvelope
                         ? FoldedTypeDefinitionHref(root, nodeSet)
                         : TypeDefinitionHref(root, nodeSet),
-                    eventTypeHrefs, documentHref, projectedNodeIds, documentLocale);
+                    eventTypeHrefs, documentHref, projectedNodeIds, documentLocale, resolvedArgumentProperties);
 
                 if (emitEnvelope)
                 {
@@ -542,6 +528,7 @@ namespace Opc.Ua.Wot
             writer.WriteStartObject();
             writer.WriteString("uav", WotVocabulary.VocabularyNamespace);
             writer.WriteString("ua", WotVocabulary.OpcUaNamespace);
+            writer.WriteString("qudt", "http://qudt.org/schema/qudt/");
             if (nodeSet.NamespaceUris is not null)
             {
                 for (int ii = 0; ii < nodeSet.NamespaceUris.Length; ii++)
@@ -781,7 +768,8 @@ namespace Opc.Ua.Wot
             IReadOnlyDictionary<string, string>? eventTypeHrefs = null,
             string? documentHref = null,
             HashSet<string>? projectedNodeIds = null,
-            string? documentLocale = null)
+            string? documentLocale = null,
+            IReadOnlyDictionary<string, WotArgumentProperty>? resolvedArgumentProperties = null)
         {
             if (root is null)
             {
@@ -790,6 +778,7 @@ namespace Opc.Ua.Wot
             }
 
             Dictionary<string, UANode> index = BuildIndex(nodeSet);
+            var scalarContext = new ReadableScalarContext(nodeSet, index);
             string[]? namespaceUris = nodeSet.NamespaceUris;
             var properties = new List<UAVariable>();
             var actions = new List<UAMethod>();
@@ -995,7 +984,8 @@ namespace Opc.Ua.Wot
             // of the Thing.
             var representedArguments = new HashSet<string>(StringComparer.Ordinal);
             Dictionary<string, WotMethodArguments> methodArguments =
-                CollectMethodArguments(actions, index, representedArguments, referenceTypeNames);
+                CollectMethodArguments(
+                    actions, index, representedArguments, referenceTypeNames, resolvedArgumentProperties);
 
             // A Variable may itself hold Variables — EURange and
             // EngineeringUnits sit below an analog Variable, two levels under
@@ -1003,7 +993,7 @@ namespace Opc.Ua.Wot
             // value this direction cannot decode is held the same way. Walking
             // only the root's references leaves all of them unreachable, so they
             // are collected here and stated as properties of the same Thing,
-            // each naming the Node it belongs to (§9.1's `uav:componentOf`).
+            // each retaining its typed ownership Reference to its parent.
             CollectOwnedVariables(
                 actions, properties, index, nestedParents, namespaceUris, representedArguments,
                 affordanceIds, referenceTypeNames);
@@ -1030,6 +1020,7 @@ namespace Opc.Ua.Wot
             }
             Dictionary<string, WotAnalogFacets> analogFacets =
                 CollectAnalogFacets(properties, index, propertyNames);
+            List<string>? optionalAffordances = root is UAObject or UAVariable ? null : [];
 
             if (properties.Count > 0)
             {
@@ -1051,9 +1042,23 @@ namespace Opc.Ua.Wot
                     nestedParents.TryGetValue(variable.NodeId ?? string.Empty, out string? owner);
                     analogFacets.TryGetValue(
                         variable.NodeId ?? string.Empty, out WotAnalogFacets? facets);
+                    if (facets?.Units is { } units)
+                    {
+                        ResolveQudtMapping(
+                            units, ToPortableNodeId(variable.NodeId, namespaceUris),
+                            options.UnitMappingProvider, options.QuantityKindMappingProvider,
+                            out string? unitIri, out string? quantityKindIri, out WotQuantityKindMapping? mapping);
+                        facets.UnitIri = unitIri;
+                        facets.QuantityKindIri = quantityKindIri;
+                        if (mapping is not null)
+                        {
+                            ReportQuantityKindMapping(mapping, variable.NodeId, diagnostics);
+                        }
+                    }
                     WriteVariableAffordance(
                         writer, variable, namespaceUris, nodeSet, defaultLocale,
-                        facets, owner, referenceTypeNames, documentLocale);
+                        facets, owner, referenceTypeNames, documentLocale, scalarContext);
+                    AddOptionalAffordance(optionalAffordances, "properties", propertyKeys[ii], variable, nodeSet);
                 }
                 writer.WriteEndObject();
             }
@@ -1086,8 +1091,9 @@ namespace Opc.Ua.Wot
                         ? (conditionAction, actsOn)
                         : null;
                     WriteMethodAffordance(
-                        writer, method, namespaceUris, nodeSet, defaultLocale, arguments,
-                        condition, referenceTypeNames);
+                        writer, method, namespaceUris, nodeSet, defaultLocale, root, arguments,
+                        condition, referenceTypeNames, scalarContext);
+                    AddOptionalAffordance(optionalAffordances, "actions", key, method, nodeSet);
                 }
                 writer.WriteEndObject();
             }
@@ -1109,19 +1115,41 @@ namespace Opc.Ua.Wot
                     }
                     writer.WritePropertyName(eventKeys[ii]);
                     WriteEventAffordance(
-                        writer, events[ii], namespaceUris, nodeSet, index, defaultLocale,
+                        writer, events[ii], namespaceUris, nodeSet, index, defaultLocale, root,
                         eventProjections[ii],
-                        ResolveEventTypeHref(events[ii], eventTypeHrefs, documentHref));
+                        ResolveEventTypeHref(events[ii], eventTypeHrefs, documentHref), scalarContext);
+                    AddOptionalAffordance(optionalAffordances, "events", eventKeys[ii], events[ii], nodeSet);
                 }
                 writer.WriteEndObject();
             }
 
+            if (optionalAffordances is not null)
+            {
+                WriteComponentArray(writer, "tm:optional", optionalAffordances);
+            }
             WriteTypedComponentLinks(
                 writer, typedComponentLinks, parentHref, typeDefinitionHref);
         }
 
         /// <summary>
-        /// Writes a Variable's <c>Value</c> as the property's <c>const</c>.
+        /// Records the W3C optionality of an emitted Thing Model affordance without replacing its UA modelling rule.
+        /// </summary>
+        private static void AddOptionalAffordance(
+            List<string>? optionalAffordances,
+            string collection,
+            string key,
+            UANode node,
+            UANodeSet nodeSet)
+        {
+            if (optionalAffordances is not null &&
+                GetBaselineModellingRule(node, nodeSet) is "Optional" or "OptionalPlaceholder" or "MandatoryPlaceholder")
+            {
+                optionalAffordances.Add("/" + collection + "/" + EscapePointerToken(key));
+            }
+        }
+
+        /// <summary>
+        /// Writes a Variable's initial <c>Value</c> as the property's <c>default</c>.
         /// </summary>
         /// <remarks>
         /// A NodeSet <c>Value</c> is a UA-XML fragment. Only the scalar shapes
@@ -1132,7 +1160,8 @@ namespace Opc.Ua.Wot
         private static void WriteVariableValue(
             Utf8JsonWriter writer,
             UAVariable variable,
-            UANodeSet? nodeSet = null)
+            UANodeSet? nodeSet = null,
+            string member = "default")
         {
             System.Xml.XmlElement? value = variable.Value;
             if (value is null || value.NamespaceURI != UaXmlNamespace)
@@ -1151,11 +1180,11 @@ namespace Opc.Ua.Wot
                 case "Boolean":
                     if (bool.TryParse(value.InnerText, out bool flag))
                     {
-                        writer.WriteBoolean("const", flag);
+                        writer.WriteBoolean(member, flag);
                     }
                     return;
                 case "String":
-                    writer.WriteString("const", value.InnerText);
+                    writer.WriteString(member, value.InnerText);
                     return;
                 case "SByte":
                 case "Int16":
@@ -1167,7 +1196,7 @@ namespace Opc.Ua.Wot
                         CultureInfo.InvariantCulture,
                         out long signed))
                     {
-                        writer.WriteNumber("const", signed);
+                        writer.WriteNumber(member, signed);
                     }
                     return;
                 case "Byte":
@@ -1180,7 +1209,7 @@ namespace Opc.Ua.Wot
                         CultureInfo.InvariantCulture,
                         out ulong unsigned))
                     {
-                        writer.WriteNumber("const", unsigned);
+                        writer.WriteNumber(member, unsigned);
                     }
                     return;
                 case "Float":
@@ -1192,7 +1221,7 @@ namespace Opc.Ua.Wot
                         !float.IsNaN(single) &&
                         !float.IsInfinity(single))
                     {
-                        writer.WriteNumber("const", single);
+                        writer.WriteNumber(member, single);
                     }
                     return;
                 case "Double":
@@ -1204,7 +1233,7 @@ namespace Opc.Ua.Wot
                         !double.IsNaN(number) &&
                         !double.IsInfinity(number))
                     {
-                        WotJsonCanonicalizer.WriteNumber(writer, "const", number);
+                        WotJsonCanonicalizer.WriteNumber(writer, member, number);
                     }
                     return;
                 case "LocalizedText":
@@ -1215,7 +1244,7 @@ namespace Opc.Ua.Wot
                         string.Equals(
                             value.FirstChild?.LocalName, "Text", StringComparison.Ordinal))
                     {
-                        writer.WriteString("const", value.FirstChild!.InnerText);
+                        writer.WriteString(member, value.FirstChild!.InnerText);
                     }
                     return;
                 default:
@@ -1541,16 +1570,29 @@ namespace Opc.Ua.Wot
             WotAnalogFacets? analogFacets = null,
             string? componentOf = null,
             WotReferenceTypeNames? referenceTypeNames = null,
-            string? documentLocale = null)
+            string? documentLocale = null,
+            ReadableScalarContext? scalarContext = null)
         {
             writer.WriteStartObject();
             writer.WriteString("@type", "uav:variable");
             if (componentOf is not null)
             {
-                writer.WritePropertyName("uav:componentOf");
-                writer.WriteStartArray();
-                writer.WriteStringValue(componentOf);
-                writer.WriteEndArray();
+                ArrayOf<Reference> references = referenceTypeNames?.GetReferences(variable) ??
+                    new ArrayOf<Reference>(variable.References ?? []);
+                foreach (Reference reference in references)
+                {
+                    if (!reference.IsForward &&
+                        (referenceTypeNames?.IsHasComponentReference(reference.ReferenceType) ??
+                            IsHasComponentReference(reference.ReferenceType, nodeSet, null)) &&
+                        ToPortableNodeId(reference.Value, namespaceUris) == componentOf)
+                    {
+                        writer.WritePropertyName("uav:componentOf");
+                        writer.WriteStartArray();
+                        writer.WriteStringValue(componentOf);
+                        writer.WriteEndArray();
+                        break;
+                    }
+                }
             }
             WriteLocalizedTextContext(writer, variable.DisplayName, variable.Description, defaultLocale);
             WriteLocalizedTitle(writer, variable.DisplayName, defaultLocale);
@@ -1575,10 +1617,8 @@ namespace Opc.Ua.Wot
             bool isUnitAffordance = IsUnitAffordance(variable);
             string? dataType = isUnitAffordance
                 ? WotVocabulary.String
-                : ResolveArchivedAlias(
-                    variable.DataType,
-                    NodeSetDeclaredAliases.FromNodeSet(nodeSet, WotNodeSetAliases.Instance));
-            WriteRankedJsonType(writer, dataType, variable.ValueRank);
+                : variable.DataType;
+            WriteRankedJsonType(writer, dataType, variable.ValueRank, scalarContext);
 
             // §9.1 gives a DataType one readable channel, the DataSchema's json
             // type, and that channel carries six types — so a LocalizedText and
@@ -1635,14 +1675,18 @@ namespace Opc.Ua.Wot
             string[]? namespaceUris,
             UANodeSet nodeSet,
             string defaultLocale,
+            UANode contextRoot,
             WotMethodArguments arguments,
             (string Action, string ActsOn)? condition,
-            WotReferenceTypeNames? referenceTypeNames = null)
+            WotReferenceTypeNames? referenceTypeNames = null,
+            ReadableScalarContext? scalarContext = null)
         {
             writer.WriteStartObject();
             writer.WriteString("@type", "uav:method");
             WriteLocalizedTextContext(
-                writer, method.DisplayName, method.Description, defaultLocale, inheritedLanguageMayDiffer: true);
+                writer, method.DisplayName, method.Description, defaultLocale,
+                inheritedTitleLanguage: GetGeneratedTermLanguage(contextRoot.DisplayName, defaultLocale),
+                inheritedDescriptionLanguage: GetGeneratedTermLanguage(contextRoot.Description, defaultLocale));
             WriteLocalizedTitle(writer, method.DisplayName, defaultLocale);
             WriteLocalizedDescription(writer, method.Description, defaultLocale);
             WriteOptional(
@@ -1663,8 +1707,9 @@ namespace Opc.Ua.Wot
 
             // §9.1: the Method's input and output arguments are the action's
             // input and output DataSchemas.
-            WriteArgumentSchema(writer, InputMember, arguments.Input, nodeSet, defaultLocale);
-            WriteArgumentSchema(writer, OutputMember, arguments.Output, nodeSet, defaultLocale);
+            scalarContext ??= new ReadableScalarContext(nodeSet);
+            WriteArgumentSchema(writer, InputMember, arguments.Input, nodeSet, defaultLocale, scalarContext);
+            WriteArgumentSchema(writer, OutputMember, arguments.Output, nodeSet, defaultLocale, scalarContext);
             WriteModellingRule(writer, method, nodeSet);
             writer.WriteEndObject();
         }
@@ -1676,8 +1721,10 @@ namespace Opc.Ua.Wot
             UANodeSet nodeSet,
             Dictionary<string, UANode> index,
             string defaultLocale,
+            UANode contextRoot,
             WotConditionProjection projection,
-            string? eventTypeHref = null)
+            string? eventTypeHref = null,
+            ReadableScalarContext? scalarContext = null)
         {
             writer.WriteStartObject();
             // Section 5.2: @type uav:eventType is the sole annotation that
@@ -1685,7 +1732,9 @@ namespace Opc.Ua.Wot
             // parallel boolean flag, so nothing else states event identity.
             writer.WriteString("@type", WotVocabulary.EventTypeAnnotation);
             WriteLocalizedTextContext(
-                writer, eventType.DisplayName, eventType.Description, defaultLocale, inheritedLanguageMayDiffer: true);
+                writer, eventType.DisplayName, eventType.Description, defaultLocale,
+                inheritedTitleLanguage: GetGeneratedTermLanguage(contextRoot.DisplayName, defaultLocale),
+                inheritedDescriptionLanguage: GetGeneratedTermLanguage(contextRoot.Description, defaultLocale));
             WriteLocalizedTitle(writer, eventType.DisplayName, defaultLocale);
             WriteLocalizedDescription(writer, eventType.Description, defaultLocale);
             WriteOptional(
@@ -1709,7 +1758,8 @@ namespace Opc.Ua.Wot
             // Sections 13.2 and 13.3: the ConditionType the event projects and
             // the notification schema its fields fill.
             WriteEventConditionAndData(
-                writer, eventType, projection, namespaceUris, nodeSet, index, defaultLocale);
+                writer, eventType, projection, namespaceUris, nodeSet, index, defaultLocale,
+                scalarContext ?? new ReadableScalarContext(nodeSet, index));
             WriteModellingRule(writer, eventType, nodeSet);
             writer.WriteEndObject();
         }
@@ -2610,7 +2660,9 @@ namespace Opc.Ua.Wot
                 }
                 if (rawBrowseName[ii] is not (>= '0' and <= '9'))
                 {
-                    return rawBrowseName;
+                    return rawBrowseName.Contains(':', StringComparison.Ordinal)
+                        ? "nsu=" + WotVocabulary.OpcUaNamespace + ";" + rawBrowseName
+                        : rawBrowseName;
                 }
             }
             if (separator <= 0 || separator + 1 >= rawBrowseName.Length)
@@ -2630,7 +2682,9 @@ namespace Opc.Ua.Wot
             string name = rawBrowseName[(separator + 1)..];
             if (namespaceIndex == 0)
             {
-                return name;
+                return name.Contains(':', StringComparison.Ordinal)
+                    ? "nsu=" + WotVocabulary.OpcUaNamespace + ";" + name
+                    : name;
             }
             if (namespaceUris is null || namespaceIndex > namespaceUris.Length)
             {

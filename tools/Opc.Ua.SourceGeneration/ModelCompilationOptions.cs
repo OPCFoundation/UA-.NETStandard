@@ -1,31 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System.Collections.Generic;
 using Microsoft.CodeAnalysis.Diagnostics;
@@ -69,6 +43,12 @@ namespace Opc.Ua.SourceGeneration
         /// <c>ModelSourceGeneratorOmitObjectTypeProxies</c> property.
         /// </summary>
         public bool OmitObjectTypeProxies { get; set; }
+
+        /// <summary>
+        /// Emits typed WithStatusAsync proxy variants when the
+        /// ModelSourceGeneratorObjectTypeProxyMethodsWithStatus MSBuild property is true.
+        /// </summary>
+        public bool ObjectTypeProxyMethodsWithStatus { get; set; }
 
         /// <summary>
         /// Optional override for the C# namespace used by classes emitted
@@ -175,6 +155,11 @@ namespace Opc.Ua.SourceGeneration
         public bool ClientAccessorsOnly { get; set; }
 
         /// <summary>
+        /// Keeps generated client accessor classes internal to their consuming assembly.
+        /// </summary>
+        public bool ClientAccessorsInternal { get; set; }
+
+        /// <summary>
         /// Overrides the namespace of the generated client accessor extensions.
         /// </summary>
         public string ClientAccessorNamespace { get; set; }
@@ -216,6 +201,8 @@ namespace Opc.Ua.SourceGeneration
                 UseAllowSubtypes = provider.GlobalOptions.GetBool(nameof(UseAllowSubtypes)),
                 OmitObjectTypeProxies = provider.GlobalOptions.GetBool(
                     nameof(OmitObjectTypeProxies)),
+                ObjectTypeProxyMethodsWithStatus = provider.GlobalOptions.GetBool(
+                    nameof(ObjectTypeProxyMethodsWithStatus)),
                 ObjectTypeProxyNamespace = provider.GlobalOptions.GetString(
                     nameof(ObjectTypeProxyNamespace)),
                 UseTypeDefinitionModellingRules = provider.GlobalOptions.GetBool(
@@ -230,6 +217,8 @@ namespace Opc.Ua.SourceGeneration
                     nameof(FluentAccessorsOnly)),
                 ClientAccessorsOnly = provider.GlobalOptions.GetBool(
                     nameof(ClientAccessorsOnly)),
+                ClientAccessorsInternal = provider.GlobalOptions.GetBool(
+                    nameof(ClientAccessorsInternal)),
                 ClientAccessorNamespace = provider.GlobalOptions.GetString(
                     nameof(ClientAccessorNamespace)),
                 ClientAccessorClassName = provider.GlobalOptions.GetString(

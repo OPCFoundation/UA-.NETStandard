@@ -1,31 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 #if NET8_0_OR_GREATER
 using System;
@@ -227,18 +201,23 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             }
         }
 
+        /// <summary>
+        /// Installs a source condition action with an optional asynchronous response barrier.
+        /// </summary>
         private static async Task<NodeId> InstallActionSourceAsync(
             NativeEndpoint source,
             ChannelWriter<NativeConditionCall> calls,
             CancellationToken ct,
             string conditionName = "ConditionA",
-            string pumpName = "PumpA")
+            string pumpName = "PumpA",
+            Func<CancellationToken, ValueTask>? beforeReturn = null)
         {
             UANodeSet nodes = ConditionSourceNodes();
             nodes.Items![2] = ConditionEventType(1, Ua.ObjectTypeIds.AcknowledgeableConditionType.ToString());
             byte[] bytes = Serialize(nodes);
             NodeId methodId = NodeId.Null;
-            _ = await source.Server.NodeManagerLifecycle.AddRuntimeNodeSetAsync(new RuntimeNodeSetOptions
+            _ = await source.Server.NodeManagerLifecycle.ApplyAsync(
+                [LifecycleChange.Add(new RuntimeNodeSetNodeManagerFactory(new RuntimeNodeSetOptions
             {
                 Sources =
                 [
@@ -265,7 +244,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                     method.OnCall = null;
                     method.OnCallAsync = null;
                     methodId = method.NodeId;
-                    builder.Node(method.NodeId).OnCallWithResult((context, _, receiver, arguments, cancellation) =>
+                    builder.Node(method.NodeId).OnCallWithResult(async (context, _, receiver, arguments, cancellation) =>
                     {
                         cancellation.ThrowIfCancellationRequested();
                         if (arguments.Count != 2 ||
@@ -274,18 +253,21 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                             context is not ServerSystemContext serverContext ||
                             serverContext.SessionId is not NodeId sourceSessionId)
                         {
-                            return new ValueTask<MethodInvocationResult>(
-                                new MethodInvocationResult(StatusCodes.BadInvalidArgument));
+                            return new MethodInvocationResult(StatusCodes.BadInvalidArgument);
                         }
                         bool written = calls.TryWrite(new NativeConditionCall(
                             NodeId.ToExpandedNodeId(receiver, context.NamespaceUris),
                             eventId, text, sourceSessionId));
-                        return new ValueTask<MethodInvocationResult>(new MethodInvocationResult(
-                            written ? StatusCodes.Good : StatusCodes.BadTooManyOperations));
+                        if (beforeReturn is not null)
+                        {
+                            await beforeReturn(cancellation).ConfigureAwait(false);
+                        }
+                        return new MethodInvocationResult(
+                            written ? StatusCodes.Good : StatusCodes.BadTooManyOperations);
                     });
                     return null;
                 }
-            }, null, ct).ConfigureAwait(false);
+            }))], ct).ConfigureAwait(false);
             Assert.That(methodId.IsNull, Is.False);
             return methodId;
         }

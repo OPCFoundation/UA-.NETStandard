@@ -1,38 +1,15 @@
-/* ========================================================================
- * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use, copy,
- * modify, merge, publish, distribute, sublicense, and/or sell copies
- * of the Software, and to permit persons to whom the Software is
- * furnished to do so, subject to the following conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
- * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
- * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
- * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
- * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
- * SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 // CA2007: tests run without a SynchronizationContext.
 #pragma warning disable CA2007
 
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
 using Moq;
 using NUnit.Framework;
 using Opc.Ua.Server.Historian;
@@ -869,6 +846,420 @@ namespace Opc.Ua.Server.Tests.Historian
         }
 
         /// <summary>
+        /// A successful local fallback retains the original state and reports the lost durable restoration.
+        /// </summary>
+        [Test]
+        public async Task LocalRestorationFallbackLogsDegradedDurabilityAsync()
+        {
+            var points = new Mock<ISessionContinuationPoints>();
+            var logger = new Mock<ILogger>();
+            logger.Setup(value => value.IsEnabled(LogLevel.Warning)).Returns(true);
+            var provider = new Mock<IHistorianProvider>();
+            HistorianContinuationState state = CreateRawState(provider.Object, new NodeId("fallback", 1));
+            IHistoryContinuationPoint? restored = null;
+            points.Setup(value => value.SaveHistoryAsync(
+                    It.IsAny<IHistoryContinuationPoint>(), It.IsAny<CancellationToken>()))
+                .Callback<IHistoryContinuationPoint, CancellationToken>((copy, _) => copy.Dispose())
+                .Throws(new IOException("Durable restoration failed."));
+            points.Setup(value => value.SaveHistory(It.IsAny<IHistoryContinuationPoint>()))
+                .Callback<IHistoryContinuationPoint>(value => restored = value);
+            var claim = new HistorianContinuationClaim(points.Object, state, logger.Object);
+
+            try
+            {
+                await claim.DisposeAsync().ConfigureAwait(false);
+                await claim.DisposeAsync().ConfigureAwait(false);
+
+                Assert.That(restored, Is.SameAs(state));
+                points.Verify(value => value.SaveHistoryAsync(
+                    It.IsAny<IHistoryContinuationPoint>(), It.IsAny<CancellationToken>()), Times.Once);
+                points.Verify(value => value.SaveHistory(state), Times.Once);
+                logger.Verify(value => value.Log(
+                    LogLevel.Warning,
+                    It.Is<EventId>(id => id.Name == "HistoryContinuationRestoredOnlyLocally"),
+                    It.IsAny<It.IsAnyType>(),
+                    It.IsAny<Exception?>(),
+                    It.IsAny<Func<It.IsAnyType, Exception?, string>>()), Times.Once);
+            }
+            finally
+            {
+                restored?.Dispose();
+            }
+        }
+
+        /// <summary>
+        /// A failed local fallback transfers ownership once and preserves both failures and disposal errors.
+        /// </summary>
+        [Test]
+        public async Task FailedRestorationFallbackPreservesEveryFailureWithoutRepeatingDisposalAsync()
+        {
+            var points = new Mock<ISessionContinuationPoints>();
+            var provider = new Mock<IHistorianProvider>();
+            HistorianContinuationState state = CreateRawState(provider.Object, new NodeId("failed-fallback", 1));
+            var durableFailure = new IOException("Durable restoration failed.");
+            var localFailure = new InvalidOperationException("Local restoration failed.");
+            var disposalFailure = new IOException("Cursor disposal failed.");
+            var cursor = new Mock<IDisposable>();
+            cursor.Setup(value => value.Dispose()).Throws(disposalFailure);
+            state.Ownership.Data = cursor.Object;
+            points.Setup(value => value.SaveHistoryAsync(
+                    It.IsAny<IHistoryContinuationPoint>(), It.IsAny<CancellationToken>()))
+                .Callback<IHistoryContinuationPoint, CancellationToken>((copy, _) => copy.Dispose())
+                .Throws(durableFailure);
+            points.Setup(value => value.SaveHistory(It.IsAny<IHistoryContinuationPoint>()))
+                .Callback<IHistoryContinuationPoint>(point =>
+                {
+                    try
+                    {
+                        point.Dispose();
+                    }
+                    catch (Exception failure)
+                    {
+                        throw new AggregateException(localFailure, failure);
+                    }
+                    throw localFailure;
+                });
+            var claim = new HistorianContinuationClaim(points.Object, state, logger: null);
+
+            AggregateException observed = (await Assert.ThrowsAsync<AggregateException>(
+                async () => await claim.DisposeAsync().ConfigureAwait(false)).ConfigureAwait(false))!;
+            System.Collections.ObjectModel.ReadOnlyCollection<Exception> failures =
+                observed.Flatten().InnerExceptions;
+            Assert.That(failures, Has.Count.EqualTo(3));
+            Assert.That(failures, Has.Exactly(1).SameAs(durableFailure));
+            Assert.That(failures, Has.Exactly(1).SameAs(localFailure));
+            Assert.That(failures, Has.Exactly(1).SameAs(disposalFailure));
+            await claim.DisposeAsync().ConfigureAwait(false);
+            points.Verify(value => value.SaveHistory(state), Times.Once);
+            cursor.Verify(value => value.Dispose(), Times.Once);
+        }
+
+        /// <summary>
+        /// A successful durable restoration is not followed by a local retry when retiring the original fails.
+        /// </summary>
+        [Test]
+        public async Task OriginalRetirementFailureAfterDurableRestorationDoesNotRetryAsync()
+        {
+            var points = new Mock<ISessionContinuationPoints>();
+            var provider = new Mock<IHistorianProvider>();
+            HistorianContinuationState state = CreateRawState(provider.Object, new NodeId("restored", 1));
+            var releaseFailure = new IOException("Releasing the original session slot failed.");
+            state.SetOwnerRelease(points.Object, () => throw releaseFailure);
+            IHistoryContinuationPoint? restored = null;
+            points.Setup(value => value.SaveHistoryAsync(
+                    It.IsAny<IHistoryContinuationPoint>(), It.IsAny<CancellationToken>()))
+                .Callback<IHistoryContinuationPoint, CancellationToken>((copy, _) => restored = copy)
+                .Returns(default(ValueTask));
+            var claim = new HistorianContinuationClaim(points.Object, state, logger: null);
+
+            try
+            {
+                IOException observed = (await Assert.ThrowsAsync<IOException>(
+                    async () => await claim.DisposeAsync().ConfigureAwait(false)).ConfigureAwait(false))!;
+                Assert.That(observed, Is.SameAs(releaseFailure));
+                Assert.That(restored, Is.Not.Null.And.Not.SameAs(state));
+                Assert.That(restored!.Id, Is.EqualTo(state.Id));
+                points.Verify(value => value.SaveHistory(It.IsAny<IHistoryContinuationPoint>()), Times.Never);
+                await claim.DisposeAsync().ConfigureAwait(false);
+                points.Verify(value => value.SaveHistoryAsync(
+                    It.IsAny<IHistoryContinuationPoint>(), It.IsAny<CancellationToken>()), Times.Once);
+            }
+            finally
+            {
+                restored?.Dispose();
+            }
+        }
+
+        /// <summary>
+        /// Cancellation or admission failure and a failed initial cleanup retain both failures without a retry.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task InitialAdmissionAndCleanupFailuresAreReportedAndRetainedAsync(bool cancel)
+        {
+            var points = new SessionContinuationPoints(() => NodeId.Null, 10, 10, null);
+            ServerSystemContext context = CreateSystemContext(points);
+            var manager = new Mock<IAsyncNodeManager>();
+            NodeManagerGeneration generation = NodeManagerGenerationRegistry.GetOrCreate(manager.Object);
+            var provider = new Mock<IHistorianProvider>();
+            HistorianContinuationState state = CreateRawState(provider.Object, new NodeId("initial-failure", 1));
+            state.Ownership.Generation = generation.Reference;
+            var operationFailure = new InvalidOperationException("The owning manager could not be resolved.");
+            var cleanupFailure = new IOException("Cursor disposal failed.");
+            var cursor = new Mock<IDisposable>();
+            cursor.Setup(value => value.Dispose()).Throws(cleanupFailure);
+            state.Ownership.Data = cursor.Object;
+            using var cancellation = new CancellationTokenSource();
+            if (cancel)
+            {
+                await cancellation.CancelAsync().ConfigureAwait(false);
+            }
+            else
+            {
+                Mock.Get(context.Server).SetupGet(value => value.NodeManager).Throws(operationFailure);
+            }
+
+            AggregateException observed = (await Assert.ThrowsAsync<AggregateException>(
+                async () => await HistorianDispatcher.TrySaveHistoryContinuationAsync(
+                    context, points, state, new HistoryReadResult(), cancellation.Token).ConfigureAwait(false))
+                .ConfigureAwait(false))!;
+
+            System.Collections.ObjectModel.ReadOnlyCollection<Exception> failures =
+                observed.Flatten().InnerExceptions;
+            Assert.That(failures, Has.Count.EqualTo(2));
+            if (cancel)
+            {
+                Assert.That(failures[0], Is.InstanceOf<OperationCanceledException>());
+                Assert.That(((OperationCanceledException)failures[0]).CancellationToken, Is.EqualTo(cancellation.Token));
+            }
+            else
+            {
+                Assert.That(failures, Has.Exactly(1).SameAs(operationFailure));
+            }
+            Assert.That(failures, Has.Exactly(1).SameAs(cleanupFailure));
+            Assert.That(points.HasHistoryForGeneration(generation), Is.True);
+            points.Clear();
+            Assert.That(points.HasHistoryForGeneration(generation), Is.True);
+            cursor.Verify(value => value.Dispose(), Times.Once);
+        }
+
+        /// <summary>
+        /// A canceled initial save disposes its untransferred state once and preserves cancellation.
+        /// </summary>
+        [Test]
+        public async Task CanceledInitialSaveDisposesUntransferredStateOnceAsync()
+        {
+            var points = new SessionContinuationPoints(() => NodeId.Null, 10, 10, null);
+            ServerSystemContext context = CreateSystemContext(points);
+            var provider = new Mock<IHistorianProvider>();
+            HistorianContinuationState state = CreateRawState(provider.Object, new NodeId("initial-cancel", 1));
+            var cursor = new Mock<IDisposable>();
+            state.Ownership.Data = cursor.Object;
+            using var cancellation = new CancellationTokenSource();
+            await cancellation.CancelAsync().ConfigureAwait(false);
+
+            OperationCanceledException observed = (await Assert.ThrowsAsync<OperationCanceledException>(
+                async () => await HistorianDispatcher.TrySaveHistoryContinuationAsync(
+                    context, points, state, new HistoryReadResult(), cancellation.Token).ConfigureAwait(false))
+                .ConfigureAwait(false))!;
+
+            Assert.That(observed.CancellationToken, Is.EqualTo(cancellation.Token));
+            Assert.That(points.RestoreHistory(new ByteString(state.Id.ToByteArray())), Is.Null);
+            cursor.Verify(value => value.Dispose(), Times.Once);
+            points.Clear();
+        }
+
+        /// <summary>
+        /// A successful initial save transfers the state to the session without disposing its cursor.
+        /// </summary>
+        [Test]
+        public async Task InitialSaveTransfersStateToSessionAsync()
+        {
+            var points = new SessionContinuationPoints(() => NodeId.Null, 10, 10, null);
+            ServerSystemContext context = CreateSystemContext(points);
+            var provider = new Mock<IHistorianProvider>();
+            HistorianContinuationState state = CreateRawState(provider.Object, new NodeId("initial-success", 1));
+            var cursor = new Mock<IDisposable>();
+            state.Ownership.Data = cursor.Object;
+
+            bool saved = await HistorianDispatcher.TrySaveHistoryContinuationAsync(
+                context, points, state, new HistoryReadResult(), CancellationToken.None).ConfigureAwait(false);
+
+            Assert.That(saved, Is.True);
+            cursor.Verify(value => value.Dispose(), Times.Never);
+            Assert.That(points.RestoreHistory(new ByteString(state.Id.ToByteArray())), Is.SameAs(state));
+            state.Dispose();
+            cursor.Verify(value => value.Dispose(), Times.Once);
+            points.Clear();
+        }
+
+        /// <summary>
+        /// A read failure and both restoration failures remain observable when the claim unwinds.
+        /// </summary>
+        [Test]
+        public async Task RawReadAndRestorationFailuresAreReportedTogetherAsync()
+        {
+            var points = new Mock<ISessionContinuationPoints>();
+            ServerSystemContext context = CreateSystemContext(points.Object);
+            var nodeId = new NodeId("failed-read-restoration", 1);
+            BaseDataVariableState node = CreateVariable(nodeId);
+            var provider = new Mock<IHistorianProvider>();
+            provider.Setup(value => value.GetCapabilitiesAsync(nodeId, It.IsAny<CancellationToken>()))
+                .Returns(new ValueTask<HistorianNodeCapabilities>(HistorianNodeCapabilities.ReadOnly));
+            var readFailure = new IOException("The provider read failed.");
+            provider.As<IHistorianDataProvider>()
+                .Setup(value => value.ReadRawAsync(
+                    It.IsAny<HistorianOperationContext>(), It.IsAny<HistorianRawReadRequest>(),
+                    It.IsAny<HistorianResumeToken>(), It.IsAny<CancellationToken>()))
+                .Throws(readFailure);
+            HistorianContinuationState state = CreateRawState(provider.Object, nodeId);
+            var durableFailure = new IOException("Durable restoration failed.");
+            var localFailure = new InvalidOperationException("Local restoration failed.");
+            var cursor = new Mock<IDisposable>();
+            state.Ownership.Data = cursor.Object;
+            points.Setup(value => value.RestoreHistoryAsync(
+                    It.IsAny<ByteString>(), It.IsAny<CancellationToken>()))
+                .Returns(new ValueTask<IHistoryContinuationPoint?>(state));
+            points.Setup(value => value.SaveHistoryAsync(
+                    It.IsAny<IHistoryContinuationPoint>(), It.IsAny<CancellationToken>()))
+                .Callback<IHistoryContinuationPoint, CancellationToken>((copy, _) => copy.Dispose())
+                .Throws(durableFailure);
+            points.Setup(value => value.SaveHistory(It.IsAny<IHistoryContinuationPoint>()))
+                .Callback<IHistoryContinuationPoint>(point =>
+                {
+                    point.Dispose();
+                    throw localFailure;
+                });
+            var nodeToRead = new HistoryReadValueId
+            {
+                NodeId = nodeId,
+                ContinuationPoint = ByteString.From(state.Id.ToByteArray())
+            };
+
+            AggregateException observed = (await Assert.ThrowsAsync<AggregateException>(
+                async () => await HistorianDispatcher.DispatchRawReadAsync(
+                    context, provider.Object, node, nodeToRead, new ReadRawModifiedDetails(),
+                    TimestampsToReturn.Source, new HistoryReadResult(), CancellationToken.None)
+                    .ConfigureAwait(false)).ConfigureAwait(false))!;
+
+            System.Collections.ObjectModel.ReadOnlyCollection<Exception> failures =
+                observed.Flatten().InnerExceptions;
+            Assert.That(failures, Has.Count.EqualTo(3));
+            Assert.That(failures, Has.Exactly(1).SameAs(readFailure));
+            Assert.That(failures, Has.Exactly(1).SameAs(durableFailure));
+            Assert.That(failures, Has.Exactly(1).SameAs(localFailure));
+            points.Verify(value => value.SaveHistory(state), Times.Once);
+            cursor.Verify(value => value.Dispose(), Times.Once);
+        }
+
+        /// <summary>
+        /// A failed successor save remains observable if both attempts to restore the original also fail.
+        /// </summary>
+        [Test]
+        public async Task SuccessorSaveAndRestorationFailuresAreReportedTogetherAsync()
+        {
+            var points = new Mock<ISessionContinuationPoints>();
+            ServerSystemContext context = CreateSystemContext(points.Object);
+            var nodeId = new NodeId("failed-successor-restoration", 1);
+            BaseDataVariableState node = CreateVariable(nodeId);
+            var provider = new Mock<IHistorianProvider>();
+            provider.Setup(value => value.GetCapabilitiesAsync(nodeId, It.IsAny<CancellationToken>()))
+                .Returns(new ValueTask<HistorianNodeCapabilities>(HistorianNodeCapabilities.ReadOnly));
+            provider.As<IHistorianDataProvider>()
+                .Setup(value => value.ReadRawAsync(
+                    It.IsAny<HistorianOperationContext>(), It.IsAny<HistorianRawReadRequest>(),
+                    It.IsAny<HistorianResumeToken>(), It.IsAny<CancellationToken>()))
+                .Returns(new ValueTask<HistorianPage<HistoricalDataValue>>(
+                    new HistorianPage<HistoricalDataValue>(
+                        [CreateHistoricalValue(2)], new HistorianResumeToken(ByteString.From([2])))));
+            HistorianContinuationState state = CreateRawState(provider.Object, nodeId);
+            var saveFailure = new IOException("Saving the successor failed.");
+            var durableFailure = new IOException("Durable restoration failed.");
+            var localFailure = new InvalidOperationException("Local restoration failed.");
+            var cursor = new Mock<IDisposable>();
+            state.Ownership.Data = cursor.Object;
+            points.Setup(value => value.RestoreHistoryAsync(
+                    It.IsAny<ByteString>(), It.IsAny<CancellationToken>()))
+                .Returns(new ValueTask<IHistoryContinuationPoint?>(state));
+            int saveAttempts = 0;
+            points.Setup(value => value.SaveHistoryAsync(
+                    It.IsAny<IHistoryContinuationPoint>(), It.IsAny<CancellationToken>()))
+                .Returns<IHistoryContinuationPoint, CancellationToken>((point, _) =>
+                {
+                    point.Dispose();
+                    if (++saveAttempts == 1)
+                    {
+                        throw saveFailure;
+                    }
+                    throw durableFailure;
+                });
+            points.Setup(value => value.SaveHistory(It.IsAny<IHistoryContinuationPoint>()))
+                .Callback<IHistoryContinuationPoint>(point =>
+                {
+                    point.Dispose();
+                    throw localFailure;
+                });
+            var nodeToRead = new HistoryReadValueId
+            {
+                NodeId = nodeId,
+                ContinuationPoint = ByteString.From(state.Id.ToByteArray())
+            };
+
+            AggregateException observed = (await Assert.ThrowsAsync<AggregateException>(
+                async () => await HistorianDispatcher.DispatchRawReadAsync(
+                    context, provider.Object, node, nodeToRead, new ReadRawModifiedDetails(),
+                    TimestampsToReturn.Source, new HistoryReadResult(), CancellationToken.None)
+                    .ConfigureAwait(false)).ConfigureAwait(false))!;
+
+            System.Collections.ObjectModel.ReadOnlyCollection<Exception> failures =
+                observed.Flatten().InnerExceptions;
+            Assert.That(failures, Has.Count.EqualTo(3));
+            Assert.That(failures, Has.Exactly(1).SameAs(saveFailure));
+            Assert.That(failures, Has.Exactly(1).SameAs(durableFailure));
+            Assert.That(failures, Has.Exactly(1).SameAs(localFailure));
+            Assert.That(saveAttempts, Is.EqualTo(2));
+            points.Verify(value => value.SaveHistory(state), Times.Once);
+            cursor.Verify(value => value.Dispose(), Times.Once);
+        }
+
+        /// <summary>
+        /// A failure retiring the old state after a successor is saved is not reported as a save failure.
+        /// </summary>
+        [Test]
+        public async Task SuccessorRetirementFailureDoesNotBecomeContinuationCapacityErrorAsync()
+        {
+            var points = new Mock<ISessionContinuationPoints>();
+            ServerSystemContext context = CreateSystemContext(points.Object);
+            var nodeId = new NodeId("successor-retirement", 1);
+            BaseDataVariableState node = CreateVariable(nodeId);
+            var provider = new Mock<IHistorianProvider>();
+            provider.Setup(value => value.GetCapabilitiesAsync(nodeId, It.IsAny<CancellationToken>()))
+                .Returns(new ValueTask<HistorianNodeCapabilities>(HistorianNodeCapabilities.ReadOnly));
+            provider.As<IHistorianDataProvider>()
+                .Setup(value => value.ReadRawAsync(
+                    It.IsAny<HistorianOperationContext>(), It.IsAny<HistorianRawReadRequest>(),
+                    It.IsAny<HistorianResumeToken>(), It.IsAny<CancellationToken>()))
+                .Returns(new ValueTask<HistorianPage<HistoricalDataValue>>(
+                    new HistorianPage<HistoricalDataValue>(
+                        [CreateHistoricalValue(2)], new HistorianResumeToken(ByteString.From([2])))));
+            HistorianContinuationState state = CreateRawState(provider.Object, nodeId);
+            var releaseFailure = new IOException("Releasing the original session slot failed.");
+            state.SetOwnerRelease(points.Object, () => throw releaseFailure);
+            points.Setup(value => value.RestoreHistoryAsync(
+                    It.IsAny<ByteString>(), It.IsAny<CancellationToken>()))
+                .Returns(new ValueTask<IHistoryContinuationPoint?>(state));
+            IHistoryContinuationPoint? successor = null;
+            points.Setup(value => value.SaveHistoryAsync(
+                    It.IsAny<IHistoryContinuationPoint>(), It.IsAny<CancellationToken>()))
+                .Callback<IHistoryContinuationPoint, CancellationToken>((saved, _) => successor = saved)
+                .Returns(default(ValueTask));
+            var nodeToRead = new HistoryReadValueId
+            {
+                NodeId = nodeId,
+                ContinuationPoint = ByteString.From(state.Id.ToByteArray())
+            };
+
+            try
+            {
+                IOException observed = (await Assert.ThrowsAsync<IOException>(
+                    async () => await HistorianDispatcher.DispatchRawReadAsync(
+                        context, provider.Object, node, nodeToRead, new ReadRawModifiedDetails(),
+                        TimestampsToReturn.Source, new HistoryReadResult(), CancellationToken.None)
+                        .ConfigureAwait(false)).ConfigureAwait(false))!;
+                Assert.That(observed, Is.SameAs(releaseFailure));
+                Assert.That(successor, Is.Not.Null.And.Not.SameAs(state));
+                Assert.That(successor!.Id, Is.Not.EqualTo(state.Id));
+                points.Verify(value => value.SaveHistory(It.IsAny<IHistoryContinuationPoint>()), Times.Never);
+                points.Verify(value => value.SaveHistoryAsync(
+                    It.IsAny<IHistoryContinuationPoint>(), It.IsAny<CancellationToken>()), Times.Once);
+            }
+            finally
+            {
+                successor?.Dispose();
+            }
+        }
+
+        /// <summary>
         /// Verifies that durable annotation resume addresses the annotation property's parent node.
         /// </summary>
         [Test]
@@ -1306,6 +1697,30 @@ namespace Opc.Ua.Server.Tests.Historian
                 StartTime = s_baseTime,
                 EndTime = s_baseTime.AddMinutes(1),
                 ProcessingInterval = 1000
+            };
+        }
+
+        /// <summary>
+        /// Creates a claimed raw continuation with a resumable request.
+        /// </summary>
+        private static HistorianContinuationState CreateRawState(IHistorianProvider provider, NodeId nodeId)
+        {
+            return new HistorianContinuationState
+            {
+                Id = Guid.NewGuid(),
+                Provider = provider,
+                NodeId = nodeId,
+                Kind = HistorianReadKind.Raw,
+                ResumeToken = new HistorianResumeToken(ByteString.From([1])),
+                RawRequest = new HistorianRawReadRequest
+                {
+                    NodeId = nodeId,
+                    StartTime = s_baseTime,
+                    EndTime = s_baseTime.AddMinutes(1),
+                    MaxValues = 1,
+                    IsForward = true
+                },
+                TimestampsToReturn = TimestampsToReturn.Source
             };
         }
 

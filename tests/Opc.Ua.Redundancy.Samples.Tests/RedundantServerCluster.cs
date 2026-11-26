@@ -1,41 +1,13 @@
-/* ========================================================================
- * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
 using System.Linq;
-using System.Security.Cryptography;
 using System.Threading;
 using System.Threading.Tasks;
-using NUnit.Framework;
 
 namespace Opc.Ua.Redundancy.Samples.Tests
 {
@@ -163,92 +135,15 @@ namespace Opc.Ua.Redundancy.Samples.Tests
         }
 
         /// <summary>
-        /// Starts a strongly-consistent (Raft), active/passive RedundantServer cluster on localhost.
-        /// </summary>
-        /// <param name="count">The number of replicas (an odd Raft quorum, for example 3).</param>
-        /// <param name="startupTimeout">How long to wait for each replica to report it is listening.</param>
-        /// <param name="cancellationToken">A token used to cancel startup.</param>
-        /// <returns>The started cluster.</returns>
-        public static async Task<RedundantServerCluster> StartStrongAsync(
-            int count,
-            TimeSpan startupTimeout,
-            CancellationToken cancellationToken = default)
-        {
-            (int[] ports, int[] raftPorts) = AllocateStrongPorts(count, TestPorts.GetFreePorts);
-            string pkiRoot = CreateFreshPkiRoot();
-            string[] nodeIds = new string[count];
-            string[] raftBinds = new string[count];
-            string recordKey = Convert.ToBase64String(RandomNumberGenerator.GetBytes(32));
-            for (int i = 0; i < count; i++)
-            {
-                nodeIds[i] = "replica-" + (char)('a' + i);
-                raftBinds[i] = string.Format(CultureInfo.InvariantCulture, "tcp://127.0.0.1:{0}", raftPorts[i]);
-            }
-
-            var replicas = new List<RedundantServerReplica>(count);
-            try
-            {
-                for (int i = 0; i < count; i++)
-                {
-                    var environment = new Dictionary<string, string?>(StringComparer.Ordinal)
-                    {
-                        ["HA_MODE"] = "ap",
-                        ["HA_CONSISTENCY"] = "strong",
-                        ["REDUNDANCY_MODE"] = "hot",
-                        ["HA_HISTORIAN"] = "true",
-                        ["HA_RECORD_KEY"] = recordKey,
-                        ["HA_FAST_RECONNECT"] = "true",
-                        ["HA_HOST"] = "127.0.0.1",
-                        ["HA_NODE_ID"] = nodeIds[i],
-                        ["HA_PKI_ROOT"] = Path.Combine(pkiRoot, nodeIds[i]),
-                        ["HA_RAFT_ID"] = (i + 1).ToString(CultureInfo.InvariantCulture),
-                        ["HA_RAFT_MEMBERS"] = count.ToString(CultureInfo.InvariantCulture),
-                        ["HA_RAFT_BIND"] = raftBinds[i],
-                        ["HA_RAFT_PEERS"] = string.Join(",", PeersExcept(raftBinds, i)),
-                        ["HA_REDUNDANT_PEERS"] = BuildRedundantPeers(nodeIds, ports, i)
-                    };
-
-                    replicas.Add(new RedundantServerReplica(
-                        nodeIds[i],
-                        ports[i],
-                        string.Format(CultureInfo.InvariantCulture, "opc.tcp://127.0.0.1:{0}/RedundantServer", ports[i]),
-                        ["--port", ports[i].ToString(CultureInfo.InvariantCulture)],
-                        environment));
-                }
-
-                foreach (RedundantServerReplica replica in replicas)
-                {
-                    await WaitUntilListeningAsync(replica.Process, startupTimeout, cancellationToken)
-                        .ConfigureAwait(false);
-                }
-
-                return new RedundantServerCluster(replicas, pkiRoot);
-            }
-            catch
-            {
-                foreach (RedundantServerReplica replica in replicas)
-                {
-                    await replica.Process.DisposeAsync().ConfigureAwait(false);
-                    TestContext.Out.WriteLine(
-                        "Sample server '{0}' startup output:{1}{2}",
-                        replica.NodeId,
-                        Environment.NewLine,
-                        replica.Process.GetOutputTail(40));
-                }
-
-                throw;
-            }
-        }
-
-        /// <summary>
-        /// Starts a single-node, eventual-consistency, active/passive RedundantServer on localhost. This
-        /// is the lightweight, dependency-free setup used by the short-haul connectivity smoke test.
+        /// Starts a standalone RedundantServer on loopback.
         /// </summary>
         /// <param name="startupTimeout">How long to wait for the replica to report it is listening.</param>
+        /// <param name="insecure">Whether to opt into the isolated insecure UA demo.</param>
         /// <param name="cancellationToken">A token used to cancel startup.</param>
         /// <returns>The started single-node cluster.</returns>
-        public static async Task<RedundantServerCluster> StartSingleEventualAsync(
+        public static async Task<RedundantServerCluster> StartStandaloneAsync(
             TimeSpan startupTimeout,
+            bool insecure = false,
             CancellationToken cancellationToken = default)
         {
             int port = TestPorts.GetFreePort();
@@ -257,7 +152,8 @@ namespace Opc.Ua.Redundancy.Samples.Tests
             {
                 ["HA_MODE"] = "ap",
                 ["HA_CONSISTENCY"] = "eventual",
-                ["REDUNDANCY_MODE"] = "hot",
+                ["REDUNDANCY_MODE"] = "none",
+                ["HA_INSECURE"] = insecure ? "true" : null,
                 ["HA_HOST"] = "127.0.0.1",
                 ["HA_NODE_ID"] = "solo",
                 ["HA_PKI_ROOT"] = Path.Combine(pkiRoot, "solo")
@@ -308,7 +204,6 @@ namespace Opc.Ua.Redundancy.Samples.Tests
         {
             int[] ports = TestPorts.GetFreePorts(count);
             string pkiRoot = CreateFreshPkiRoot();
-            string recordKey = Convert.ToBase64String(RandomNumberGenerator.GetBytes(32));
             var allocated = new HashSet<int>(ports);
             int[] gossipPorts = new int[count];
             string[] nodeIds = new string[count];
@@ -342,10 +237,9 @@ namespace Opc.Ua.Redundancy.Samples.Tests
                     {
                         ["HA_MODE"] = "aa",
                         ["HA_CONSISTENCY"] = "eventual",
-                        ["REDUNDANCY_MODE"] = "hotandmirrored",
+                        ["REDUNDANCY_MODE"] = "hot",
                         ["HA_HISTORIAN"] = "false",
                         ["HA_INSECURE"] = "true",
-                        ["HA_RECORD_KEY"] = recordKey,
                         ["HA_HOST"] = "127.0.0.1",
                         ["HA_NODE_ID"] = nodeIds[i],
                         ["HA_PKI_ROOT"] = Path.Combine(pkiRoot, nodeIds[i]),
@@ -405,24 +299,6 @@ namespace Opc.Ua.Redundancy.Samples.Tests
             }
         }
 
-        /// <summary>
-        /// Allocates both endpoint groups together so released ports cannot repeat between protocols.
-        /// </summary>
-        /// <param name="count">The number of replicas.</param>
-        /// <param name="allocatePorts">Allocates one batch of distinct free ports.</param>
-        /// <returns>The disjoint OPC UA and Raft endpoint groups.</returns>
-        internal static (int[] ServerPorts, int[] RaftPorts) AllocateStrongPorts(
-            int count,
-            Func<int, int[]> allocatePorts)
-        {
-            int[] allocated = allocatePorts(checked(count * 2));
-            int[] serverPorts = new int[count];
-            int[] raftPorts = new int[count];
-            Array.Copy(allocated, 0, serverPorts, 0, count);
-            Array.Copy(allocated, count, raftPorts, 0, count);
-            return (serverPorts, raftPorts);
-        }
-
         private static string CreateFreshPkiRoot()
         {
             string root = Path.Combine(
@@ -465,17 +341,6 @@ namespace Opc.Ua.Redundancy.Samples.Tests
 
             throw new TimeoutException(
                 $"Sample server '{process.Name}' did not report it was listening within {timeout}.");
-        }
-
-        private static IEnumerable<string> PeersExcept(string[] values, int index)
-        {
-            for (int i = 0; i < values.Length; i++)
-            {
-                if (i != index)
-                {
-                    yield return values[i];
-                }
-            }
         }
 
         private static string BuildRedundantPeers(string[] nodeIds, int[] ports, int index)

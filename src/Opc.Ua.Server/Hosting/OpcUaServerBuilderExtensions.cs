@@ -1,31 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using System.Collections.Generic;
@@ -1727,10 +1701,24 @@ namespace Microsoft.Extensions.DependencyInjection
             services.AddHostedService<OpcUaServerHostedService>();
             services.AddOpcUa().AddApplicationInstance();
             services.TryAddSingleton<IOpcUaServerFactory, DefaultOpcUaServerFactory>();
-            services.TryAddSingleton<HostedNodeManagerLifecycle>();
+            services.TryAddSingleton<HostedNodeManagerLifecycle>(services =>
+                new(new NodeManagerCleanupAuthority(
+                    services.GetService<INodeManagerCleanupAuthorization>(),
+                    services.GetService<INodeManagerCleanupVerifier>(),
+                    services.GetService<INodeManagerCleanupAudit>())));
             services.TryAddSingleton<OpcUaServerAliasNameStartupTask>();
             services.TryAddSingleton<INodeManagerLifecycle>(services =>
                 services.GetRequiredService<HostedNodeManagerLifecycle>());
+            services.TryAddSingleton<INodeManagerCallbackLifecycle>(services =>
+                services.GetRequiredService<HostedNodeManagerLifecycle>());
+            services.TryAddSingleton<INodeManagerCleanupRecovery>(services =>
+            {
+                HostedNodeManagerLifecycle lifecycle = services.GetRequiredService<HostedNodeManagerLifecycle>();
+                return new NodeManagerCleanupRecovery(
+                    lifecycle.GetRecoveryOwners,
+                    lifecycle.ResumeCleanupAsync,
+                    lifecycle.CleanupAuthority);
+            });
             RegisterFallbackAnonymousAuthenticator(services);
         }
 
@@ -1841,6 +1829,8 @@ namespace Microsoft.Extensions.DependencyInjection
                 value => options.AutoAcceptUntrustedCertificates = value);
             BindBoolean(section, nameof(OpcUaServerOptions.DiagnosticsEnabled),
                 value => options.DiagnosticsEnabled = value);
+            BindBoolean(section, nameof(OpcUaServerOptions.ServeClientsDuringStartupTasks),
+                value => options.ServeClientsDuringStartupTasks = value);
             BindBoolean(section, nameof(OpcUaServerOptions.IncludeSignAndEncryptPolicies),
                 value => options.IncludeSignAndEncryptPolicies = value);
             BindBoolean(section, nameof(OpcUaServerOptions.IncludeUnsecurePolicyNone),
@@ -1859,6 +1849,14 @@ namespace Microsoft.Extensions.DependencyInjection
                 value => options.OperationTimeoutMs = value);
             BindUInt16(section, nameof(OpcUaServerOptions.MinCertificateKeySize),
                 value => options.MinCertificateKeySize = value);
+            string? anonymousAccess = section[nameof(OpcUaServerOptions.AnonymousAccess)];
+            if (anonymousAccess != null)
+            {
+                options.AnonymousAccess = ParseEnumOption<AnonymousAccess>(
+                    section,
+                    nameof(OpcUaServerOptions.AnonymousAccess),
+                    anonymousAccess);
+            }
 
             BindEndpointUrls(options, section.GetSection(nameof(OpcUaServerOptions.EndpointUrls)));
             BindUserTokenPolicies(options, section.GetSection(nameof(OpcUaServerOptions.UserTokenPolicies)));
@@ -1894,14 +1892,17 @@ namespace Microsoft.Extensions.DependencyInjection
             options.UserTokenPolicies.Clear();
             foreach (IConfigurationSection child in section.GetChildren())
             {
-                var policy = new OpcUaUserTokenPolicy();
-                string? tokenType = child[nameof(OpcUaUserTokenPolicy.TokenType)];
-                if (!string.IsNullOrEmpty(tokenType) &&
-                    Enum.TryParse(tokenType, ignoreCase: true, out UserTokenType parsedTokenType))
+                // an entry is either the token type itself ("UserName") or an object with a
+                // TokenType. A missing or unknown token type must not become the Anonymous
+                // default of OpcUaUserTokenPolicy.
+                string? tokenType = child[nameof(OpcUaUserTokenPolicy.TokenType)] ?? child.Value;
+                options.UserTokenPolicies.Add(new OpcUaUserTokenPolicy
                 {
-                    policy.TokenType = parsedTokenType;
-                }
-                options.UserTokenPolicies.Add(policy);
+                    TokenType = ParseEnumOption<UserTokenType>(
+                        child,
+                        nameof(OpcUaUserTokenPolicy.TokenType),
+                        tokenType)
+                });
             }
         }
 
@@ -2012,9 +2013,16 @@ namespace Microsoft.Extensions.DependencyInjection
             }
 
             string? clockSkew = section[nameof(DefaultAuthenticatorOptions.ClockSkewTolerance)];
-            if (!string.IsNullOrEmpty(clockSkew) &&
-                TimeSpan.TryParse(clockSkew, CultureInfo.InvariantCulture, out TimeSpan parsedClockSkew))
+            if (clockSkew != null)
             {
+                if (!TimeSpan.TryParse(clockSkew, CultureInfo.InvariantCulture, out TimeSpan parsedClockSkew) ||
+                    parsedClockSkew < TimeSpan.Zero)
+                {
+                    throw InvalidOptionValue(
+                        section,
+                        nameof(DefaultAuthenticatorOptions.ClockSkewTolerance),
+                        "a non-negative TimeSpan");
+                }
                 options.ClockSkewTolerance = parsedClockSkew;
             }
 
@@ -2026,6 +2034,46 @@ namespace Microsoft.Extensions.DependencyInjection
             }
 
             return options;
+        }
+
+        /// <summary>
+        /// A configured value that cannot be parsed fails the startup. Ignoring it would keep the
+        /// default, which for a security option can be the less restrictive setting.
+        /// </summary>
+        private static ArgumentException InvalidOptionValue(
+            IConfiguration section,
+            string key,
+            string expected)
+        {
+            string path = section is IConfigurationSection named && !string.IsNullOrEmpty(named.Path)
+                ? named.Path + ":" + key
+                : key;
+            return new ArgumentException(
+                $"The OPC UA server option {path} has an invalid value; expected {expected}.");
+        }
+
+        private static TEnum ParseEnumOption<TEnum>(
+            IConfiguration section,
+            string key,
+            string? value)
+            where TEnum : struct, Enum
+        {
+#if NET8_0_OR_GREATER
+            if (!string.IsNullOrEmpty(value) &&
+                Enum.TryParse(value, ignoreCase: true, out TEnum parsed) &&
+                Enum.IsDefined(parsed))
+#else
+            if (!string.IsNullOrEmpty(value) &&
+                Enum.TryParse(value, ignoreCase: true, out TEnum parsed) &&
+                Enum.IsDefined(typeof(TEnum), parsed))
+#endif
+            {
+                return parsed;
+            }
+            throw InvalidOptionValue(
+                section,
+                key,
+                "one of " + string.Join(", ", Enum.GetNames(typeof(TEnum))));
         }
 
         private static void BindString(
@@ -2046,10 +2094,15 @@ namespace Microsoft.Extensions.DependencyInjection
             Action<bool> assign)
         {
             string? value = section[key];
-            if (!string.IsNullOrEmpty(value) && bool.TryParse(value, out bool parsed))
+            if (value == null)
             {
-                assign(parsed);
+                return;
             }
+            if (!bool.TryParse(value, out bool parsed))
+            {
+                throw InvalidOptionValue(section, key, "true or false");
+            }
+            assign(parsed);
         }
 
         private static void BindInt32(
@@ -2058,15 +2111,19 @@ namespace Microsoft.Extensions.DependencyInjection
             Action<int> assign)
         {
             string? value = section[key];
-            if (!string.IsNullOrEmpty(value) &&
-                int.TryParse(
+            if (value == null)
+            {
+                return;
+            }
+            if (!int.TryParse(
                     value,
                     NumberStyles.Integer,
                     CultureInfo.InvariantCulture,
                     out int parsed))
             {
-                assign(parsed);
+                throw InvalidOptionValue(section, key, "an Int32");
             }
+            assign(parsed);
         }
 
         private static void BindNullableInt32(
@@ -2075,15 +2132,19 @@ namespace Microsoft.Extensions.DependencyInjection
             Action<int?> assign)
         {
             string? value = section[key];
-            if (!string.IsNullOrEmpty(value) &&
-                int.TryParse(
+            if (value == null)
+            {
+                return;
+            }
+            if (!int.TryParse(
                     value,
                     NumberStyles.Integer,
                     CultureInfo.InvariantCulture,
                     out int parsed))
             {
-                assign(parsed);
+                throw InvalidOptionValue(section, key, "an Int32");
             }
+            assign(parsed);
         }
 
         private static void BindUInt32(
@@ -2092,15 +2153,19 @@ namespace Microsoft.Extensions.DependencyInjection
             Action<uint> assign)
         {
             string? value = section[key];
-            if (!string.IsNullOrEmpty(value) &&
-                uint.TryParse(
+            if (value == null)
+            {
+                return;
+            }
+            if (!uint.TryParse(
                     value,
                     NumberStyles.Integer,
                     CultureInfo.InvariantCulture,
                     out uint parsed))
             {
-                assign(parsed);
+                throw InvalidOptionValue(section, key, "a UInt32");
             }
+            assign(parsed);
         }
 
         private static void BindUInt16(
@@ -2109,15 +2174,19 @@ namespace Microsoft.Extensions.DependencyInjection
             Action<ushort> assign)
         {
             string? value = section[key];
-            if (!string.IsNullOrEmpty(value) &&
-                ushort.TryParse(
+            if (value == null)
+            {
+                return;
+            }
+            if (!ushort.TryParse(
                     value,
                     NumberStyles.Integer,
                     CultureInfo.InvariantCulture,
                     out ushort parsed))
             {
-                assign(parsed);
+                throw InvalidOptionValue(section, key, "a UInt16");
             }
+            assign(parsed);
         }
 
         private static JwtIssuerOptions BindJwtIssuerOptions(IConfiguration section)
@@ -2350,6 +2419,13 @@ namespace Microsoft.Extensions.DependencyInjection
                 return RegisterFluentNodeManager(this, namespaceUri, build);
             }
 
+#if NET5_0_OR_GREATER
+            [Obsolete(SyncNodeManagerDeprecation.SyncNodeManagerFactory,
+                DiagnosticId = SyncNodeManagerDeprecation.DiagnosticId,
+                UrlFormat = SyncNodeManagerDeprecation.UrlFormat)]
+#else
+            [Obsolete(SyncNodeManagerDeprecation.SyncNodeManagerFactory)]
+#endif
             public IOpcUaServerBuilder AddSyncNodeManager<
                 [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)] TFactory>()
                 where TFactory : class, INodeManagerFactory

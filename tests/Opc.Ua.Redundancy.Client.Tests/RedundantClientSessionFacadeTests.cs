@@ -1,31 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 // CA2000: system-under-test disposables are created per test and released at teardown;
 //   there is no cross-test resource leak. Suppressed file-level for the suite.
@@ -197,7 +171,7 @@ namespace Opc.Ua.Client.Redundancy.Tests
             // Reference-typed members whose concrete instances are awkward to fabricate are asserted by delegation.
             _ = facade.ConfiguredEndpoint;
             _ = facade.PreferredLocales;
-            _ = facade.DefaultSubscription;
+            _ = ((ISession)facade).DefaultSubscription;
             _ = facade.OperationLimits;
             _ = facade.ServerCapabilities;
             _ = facade.Endpoint;
@@ -228,7 +202,7 @@ namespace Opc.Ua.Client.Redundancy.Tests
             facade.ReturnDiagnostics = DiagnosticsMasks.ServiceSymbolicId;
             facade.OperationTimeout = 30000;
             facade.DefaultTimeoutHint = 12345;
-            facade.DefaultSubscription = null!;
+            ((ISession)facade).DefaultSubscription = null!;
 
             session.VerifySet(s => s.DeleteSubscriptionsOnClose = true, Times.Once());
             session.VerifySet(s => s.PublishRequestCancelDelayOnCloseSession = 11, Times.Once());
@@ -280,8 +254,8 @@ namespace Opc.Ua.Client.Redundancy.Tests
             session.Verify(s => s.StartPublishing(1000, true), Times.Once());
 
             ITransportChannel channel = Mock.Of<ITransportChannel>();
-            facade.AttachChannel(channel);
-            facade.DetachChannel();
+            ((ISession)facade).AttachChannel(channel);
+            ((ISession)facade).DetachChannel();
             session.Verify(s => s.AttachChannel(channel), Times.Once());
             session.Verify(s => s.DetachChannel(), Times.Once());
         }
@@ -902,7 +876,7 @@ namespace Opc.Ua.Client.Redundancy.Tests
             facade.KeepAlive += KeepAliveHandler;
             facade.Notification += NotificationHandler;
             facade.PublishError += PublishErrorHandler;
-            facade.PublishSequenceNumbersToAcknowledge += AcknowledgeHandler;
+            ((ISession)facade).PublishSequenceNumbersToAcknowledge += AcknowledgeHandler;
             facade.SubscriptionsChanged += SubscriptionsChangedHandler;
             facade.SessionClosing += SessionClosingHandler;
             facade.SessionConfigurationChanged += SessionConfigurationChangedHandler;
@@ -944,7 +918,7 @@ namespace Opc.Ua.Client.Redundancy.Tests
             facade.KeepAlive -= KeepAliveHandler;
             facade.Notification -= NotificationHandler;
             facade.PublishError -= PublishErrorHandler;
-            facade.PublishSequenceNumbersToAcknowledge -= AcknowledgeHandler;
+            ((ISession)facade).PublishSequenceNumbersToAcknowledge -= AcknowledgeHandler;
             facade.SubscriptionsChanged -= SubscriptionsChangedHandler;
             facade.SessionClosing -= SessionClosingHandler;
             facade.SessionConfigurationChanged -= SessionConfigurationChangedHandler;

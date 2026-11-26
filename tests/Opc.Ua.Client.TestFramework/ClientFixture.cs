@@ -1,31 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 // CA2000: test code; many disposables are ownership-transferred to test fixtures or short-lived,
 // making CA2000 noisy without a real leak risk. Disabled file-level for the suite.
@@ -60,6 +34,16 @@ namespace Opc.Ua.Client.TestFramework
         public ReverseConnectManager ReverseConnectManager { get; private set; } = null!;
         public uint SessionTimeout { get; set; } = 10000;
         public int OperationTimeout { get; set; } = 10000;
+
+        /// <summary>
+        /// Whether an empty PKI folder is seeded with the application
+        /// certificates an identical client fixture created earlier in this
+        /// process (see <see cref="TestCertificateCache"/>). Off by default:
+        /// fixtures that build several applications of one identity may rely
+        /// on distinct key pairs. Harnesses that own one server and one client
+        /// per private PKI folder (ClientTestFramework, TestFixture) turn it on.
+        /// </summary>
+        public bool ReuseCachedCertificates { get; set; }
 
         public int TraceMasks { get; set; } =
             Utils.TraceMasks.Error |
@@ -257,8 +241,8 @@ namespace Opc.Ua.Client.TestFramework
                 .ConfigureAwait(false);
 
             // check the application certificate.
-            bool haveAppCertificate = await application
-                .CheckApplicationInstanceCertificatesAsync(true)
+            bool haveAppCertificate = await TestCertificateCache
+                .CheckApplicationInstanceCertificatesAsync(application, null, ReuseCachedCertificates, m_telemetry)
                 .ConfigureAwait(false);
             if (!haveAppCertificate)
             {
@@ -320,7 +304,10 @@ namespace Opc.Ua.Client.TestFramework
                     retryStartServer = true;
                 }
 
-                await Task.Delay(UnsecureRandom.Shared.Next(100, 1000)).ConfigureAwait(false);
+                if (retryStartServer)
+                {
+                    await Task.Delay(UnsecureRandom.Shared.Next(100, 1000)).ConfigureAwait(false);
+                }
             } while (retryStartServer);
         }
 

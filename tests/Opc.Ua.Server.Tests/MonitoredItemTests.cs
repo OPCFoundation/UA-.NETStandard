@@ -1,31 +1,7 @@
-/* ========================================================================
- * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
+
+#pragma warning disable CS0618, UA0031 // Test doubles implement or inspect the legacy IAsyncNodeManager.SyncNodeManager view.
 
 using System;
 using System.Collections.Generic;
@@ -101,7 +77,7 @@ namespace Opc.Ua.Server.Tests
             Assert.That(result, Is.Not.Empty);
             Assert.That(monitoredItem.ItemsInQueue, Is.Zero);
             MonitoredItemNotification publishResult = result.FirstOrDefault()!;
-            Assert.That(publishResult?.Value, Is.EqualTo(dataValue));
+            Assert.That(publishResult.Value, Is.EqualTo(dataValue));
             DiagnosticInfo publishErrorResult = result2.FirstOrDefault()!;
             Assert.That(
                 publishErrorResult!.InnerStatusCode,
@@ -109,17 +85,20 @@ namespace Opc.Ua.Server.Tests
         }
 
         /// <summary>
-        /// Verifies that a data change of a localized text value is published in the
+        /// Verifies that a data change of text or engineering units is published in the
         /// locale the session prefers (Part 4 5.4) without changing the queued value.
         /// </summary>
-        [Test]
-        public void PublishSelectsTranslationOfLocalizedTextValue()
+        [TestCase(false, false)]
+        [TestCase(true, false)]
+        [TestCase(false, true)]
+        public void PublishSelectsTranslationOfLocalizedTextValue(bool engineeringUnits, bool unrelatedStructure)
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
             ILogger logger = telemetry.CreateLogger<MonitoredItemTests>();
             using var queueFactory = new MonitoredItemQueueFactory(telemetry);
             Mock<IServerInternal> serverMock = CreateServerMock(telemetry, queueFactory);
-            using var resourceManager = new ResourceManager(new ApplicationConfiguration(telemetry));
+            var translator = new Mock<ResourceManager>(new ApplicationConfiguration(telemetry)) { CallBase = true };
+            using ResourceManager resourceManager = translator.Object;
             serverMock.Setup(s => s.ResourceManager).Returns(resourceManager);
             var session = new Mock<ISession>();
             session.Setup(s => s.PreferredLocales).Returns(["de-DE"]);
@@ -147,7 +126,12 @@ namespace Opc.Ua.Server.Tests
                 { "de-DE", "Hallo" }
             });
 
-            monitoredItem.QueueValue(new DataValue(Variant.From(text)), ServiceResult.Good);
+            Variant stored = unrelatedStructure
+                ? Variant.FromStructure(new Range { Low = 1, High = 2 })
+                : engineeringUnits
+                    ? Variant.FromStructure(new EUInformation { DisplayName = text, Description = text })
+                    : Variant.From(text);
+            monitoredItem.QueueValue(new DataValue(stored), ServiceResult.Good);
             var notifications = new Queue<MonitoredItemNotification>();
             var diagnostics = new Queue<DiagnosticInfo>();
             monitoredItem.Publish(
@@ -158,10 +142,123 @@ namespace Opc.Ua.Server.Tests
                 logger);
 
             Assert.That(notifications, Has.Count.EqualTo(1));
-            Assert.That(notifications.Peek().Value.WrappedValue.TryGetValue(out LocalizedText published), Is.True);
+            Variant value = notifications.Peek().Value.WrappedValue;
+            translator.Verify(
+                manager => manager.TranslateValue(It.IsAny<ArrayOf<string>>(), It.IsAny<Variant>()),
+                unrelatedStructure ? Times.Never() : Times.Once());
+            if (unrelatedStructure)
+            {
+                Assert.That(value, Is.EqualTo(stored));
+                return;
+            }
+            LocalizedText published;
+            if (engineeringUnits)
+            {
+                Assert.That(value.TryGetStructure<EUInformation>(out EUInformation? units), Is.True);
+                Assert.That(units, Is.Not.Null);
+                published = units!.DisplayName;
+                Assert.That(units.Description.Locale, Is.EqualTo("de-DE"));
+                Assert.That(units.Description.Text, Is.EqualTo("Hallo"));
+            }
+            else
+            {
+                Assert.That(value.TryGetValue(out published), Is.True);
+            }
             Assert.That(published.Locale, Is.EqualTo("de-DE"));
             Assert.That(published.Text, Is.EqualTo("Hallo"));
             Assert.That(text.Locale, Is.EqualTo("en-US"));
+        }
+
+        /// <summary>
+        /// Selects nested unit texts for an event field without modifying the source event value.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public void PublishSelectsTranslationOfEngineeringUnitEventField(bool unrelatedStructure)
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            using var queueFactory = new MonitoredItemQueueFactory(telemetry);
+            Mock<IServerInternal> server = CreateServerMock(telemetry, queueFactory);
+            var types = new TypeTable(server.Object.NamespaceUris);
+            types.AddSubtype(ObjectTypeIds.BaseObjectType, NodeId.Null);
+            types.AddSubtype(ObjectTypeIds.BaseEventType, ObjectTypeIds.BaseObjectType);
+            server.Setup(value => value.TypeTree).Returns(types);
+            var translator = new Mock<ResourceManager>(new ApplicationConfiguration(telemetry)) { CallBase = true };
+            using ResourceManager resourceManager = translator.Object;
+            server.Setup(value => value.ResourceManager).Returns(resourceManager);
+            var session = new Mock<ISession>();
+            session.Setup(value => value.PreferredLocales).Returns(["de-DE"]);
+            var subscription = new Mock<ISubscription>();
+            subscription.Setup(value => value.Session).Returns(session.Object);
+            var filter = new EventFilter
+            {
+                SelectClauses =
+                [
+                    new SimpleAttributeOperand
+                    {
+                        TypeDefinitionId = ObjectTypeIds.BaseEventType,
+                        BrowsePath = [new QualifiedName("Units")],
+                        AttributeId = Attributes.Value
+                    }
+                ]
+            };
+            using var monitoredItem = new MonitoredItem(
+                server.Object,
+                new Mock<IAsyncNodeManager>().Object,
+                null!,
+                1,
+                2,
+                new ReadValueId(),
+                DiagnosticsMasks.None,
+                TimestampsToReturn.Both,
+                MonitoringMode.Reporting,
+                3,
+                filter,
+                filter,
+                null,
+                0,
+                10,
+                discardOldest: false,
+                sourceSamplingInterval: 0);
+            monitoredItem.SubscriptionCallback = subscription.Object;
+            var text = new LocalizedText(new Dictionary<string, string>
+            {
+                { "en-US", "Hello" },
+                { "de-DE", "Hallo" }
+            });
+            var stored = new EUInformation { DisplayName = text, Description = text };
+            Variant field = unrelatedStructure
+                ? Variant.FromStructure(new Range { Low = 1, High = 2 })
+                : Variant.FromStructure(stored);
+            var target = new Mock<IFilterTarget>();
+            target.Setup(value => value.GetAttributeValue(
+                It.IsAny<IFilterContext>(),
+                It.IsAny<NodeId>(),
+                It.IsAny<ArrayOf<QualifiedName>>(),
+                It.IsAny<uint>(),
+                It.IsAny<NumericRange>())).Returns(field);
+
+            monitoredItem.QueueEvent(target.Object, bypassFilter: true);
+            var notifications = new Queue<QueuedEvent>();
+            monitoredItem.Publish(new OperationContext(monitoredItem), notifications, 1);
+
+            Assert.That(notifications, Has.Count.EqualTo(1));
+            Assert.That(notifications.Peek().EventFields.Count, Is.EqualTo(1));
+            translator.Verify(
+                manager => manager.TranslateValue(It.IsAny<ArrayOf<string>>(), It.IsAny<Variant>()),
+                unrelatedStructure ? Times.Never() : Times.Once());
+            if (unrelatedStructure)
+            {
+                Assert.That(notifications.Peek().EventFields[0], Is.EqualTo(field));
+                return;
+            }
+            Assert.That(notifications.Peek().EventFields[0]
+                .TryGetStructure<EUInformation>(out EUInformation? selected), Is.True);
+            Assert.That(selected, Is.Not.Null);
+            Assert.That(selected!.DisplayName.Text, Is.EqualTo("Hallo"));
+            Assert.That(selected.Description.Locale, Is.EqualTo("de-DE"));
+            Assert.That(stored.DisplayName.Locale, Is.EqualTo("en-US"));
+            Assert.That(stored.Description.Translations, Has.Count.EqualTo(2));
         }
 
         /// <summary>
@@ -181,14 +278,60 @@ namespace Opc.Ua.Server.Tests
 
             Assert.That(monitoredItem.ItemsInQueue, Is.EqualTo(1));
 
-            var result = new Queue<EventFieldList>();
+            var result = new Queue<QueuedEvent>();
             monitoredItem.Publish(new OperationContext(monitoredItem), result, 1);
 
             Assert.That(result, Is.Not.Empty);
             Assert.That(monitoredItem.ItemsInQueue, Is.Zero);
-            EventFieldList publishResult = result.FirstOrDefault()!;
-            Assert.That(publishResult, Is.Not.Null);
+            QueuedEvent publishResult = result.FirstOrDefault();
             Assert.That(publishResult.Handle, Is.AssignableTo<AuditUrlMismatchEventState>());
+        }
+
+        /// <summary>
+        /// Modifications of an event item made while events are queued combine into one
+        /// transform per queued event, whatever their number: the published event has the
+        /// client handle and select clauses of the last modification.
+        /// </summary>
+        [Test]
+        public void ModificationsOfAnEventItemCombineIntoOneQueuedEventTransform()
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            var oneField = new EventFilter();
+            oneField.AddSelectClause(ObjectTypeIds.BaseEventType, QualifiedName.From(BrowseNames.EventType));
+            var twoFields = new EventFilter();
+            twoFields.AddSelectClause(ObjectTypeIds.BaseEventType, QualifiedName.From(BrowseNames.Severity));
+            twoFields.AddSelectClause(ObjectTypeIds.BaseEventType, QualifiedName.From(BrowseNames.EventType));
+
+            using MonitoredItem monitoredItem = CreateMonitoredItem(telemetry, true, filter: oneField);
+            monitoredItem.QueueEvent(new AuditUrlMismatchEventState(null));
+            Assert.That(monitoredItem.ItemsInQueue, Is.EqualTo(1));
+
+            const uint modifications = 1000;
+            for (uint ii = 0; ii < modifications; ii++)
+            {
+                // alternate the select clauses, and change only the client handle in between.
+                EventFilter filter = ii % 4 < 2 ? twoFields : oneField;
+                ServiceResult result = monitoredItem.ModifyAttributes(
+                    DiagnosticsMasks.All,
+                    TimestampsToReturn.Both,
+                    100 + ii,
+                    filter,
+                    filter,
+                    null,
+                    1000,
+                    10,
+                    true)!;
+                Assert.That(ServiceResult.IsBad(result), Is.False);
+            }
+
+            Assert.That(monitoredItem.PendingQueuedEventTransformSteps, Is.EqualTo(1));
+
+            var published = new Queue<QueuedEvent>();
+            monitoredItem.Publish(new OperationContext(monitoredItem), published, 10);
+            QueuedEvent fields = published.Single();
+            Assert.That(fields.ClientHandle, Is.EqualTo(100 + modifications - 1));
+            Assert.That(fields.EventFields.Count, Is.EqualTo(1));
+            Assert.That(fields.Handle, Is.AssignableTo<AuditUrlMismatchEventState>());
         }
 
         /// <summary>
@@ -215,7 +358,7 @@ namespace Opc.Ua.Server.Tests
 
             Assert.That(result, Is.Not.Empty);
             MonitoredItemNotification publishResult = result.FirstOrDefault()!;
-            Assert.That(publishResult?.Value, Is.EqualTo(dataValue));
+            Assert.That(publishResult.Value, Is.EqualTo(dataValue));
             DiagnosticInfo publishErrorResult = result2.FirstOrDefault()!;
             Assert.That(
                 publishErrorResult!.InnerStatusCode,
@@ -1408,13 +1551,12 @@ namespace Opc.Ua.Server.Tests
 
             Assert.That(monitoredItem.ItemsInQueue, Is.EqualTo(2));
 
-            var result = new Queue<EventFieldList>();
+            var result = new Queue<QueuedEvent>();
             monitoredItem.Publish(new OperationContext(monitoredItem), result, 3);
 
             Assert.That(result, Is.Not.Empty);
             Assert.That(result, Has.Count.EqualTo(3));
-            EventFieldList publishResult = result.LastOrDefault()!;
-            Assert.That(publishResult, Is.Not.Null);
+            QueuedEvent publishResult = result.LastOrDefault();
             Assert.That(publishResult.Handle, Is.AssignableTo<EventQueueOverflowEventState>());
         }
 
@@ -1442,17 +1584,16 @@ namespace Opc.Ua.Server.Tests
 
             Assert.That(monitoredItem.ItemsInQueue, Is.EqualTo(2));
 
-            var result = new Queue<EventFieldList>();
+            var result = new Queue<QueuedEvent>();
             bool moreItems = monitoredItem.Publish(new OperationContext(monitoredItem), result, 2);
 
             Assert.That(moreItems, Is.True);
             Assert.That(result, Is.Not.Empty);
             Assert.That(result, Has.Count.EqualTo(2));
-            EventFieldList publishResult = result.LastOrDefault()!;
-            Assert.That(publishResult, Is.Not.Null);
+            QueuedEvent publishResult = result.LastOrDefault();
             Assert.That(publishResult.Handle, Is.AssignableTo<AuditUrlMismatchEventState>());
 
-            var result2 = new Queue<EventFieldList>();
+            var result2 = new Queue<QueuedEvent>();
             bool moreItems2 = monitoredItem.Publish(
                 new OperationContext(monitoredItem),
                 result2,
@@ -1461,8 +1602,7 @@ namespace Opc.Ua.Server.Tests
             Assert.That(moreItems2, Is.False);
             Assert.That(result2, Is.Not.Empty);
             Assert.That(result2, Has.Count.EqualTo(1));
-            EventFieldList publishResult2 = result2.FirstOrDefault()!;
-            Assert.That(publishResult2, Is.Not.Null);
+            QueuedEvent publishResult2 = result2.FirstOrDefault();
             Assert.That(publishResult2.Handle, Is.AssignableTo<EventQueueOverflowEventState>());
         }
 
@@ -1490,13 +1630,12 @@ namespace Opc.Ua.Server.Tests
 
             Assert.That(monitoredItem.ItemsInQueue, Is.EqualTo(2));
 
-            var result = new Queue<EventFieldList>();
+            var result = new Queue<QueuedEvent>();
             monitoredItem.Publish(new OperationContext(monitoredItem), result, 3);
 
             Assert.That(result, Is.Not.Empty);
             Assert.That(result, Has.Count.EqualTo(3));
-            EventFieldList publishResult = result.FirstOrDefault()!;
-            Assert.That(publishResult, Is.Not.Null);
+            QueuedEvent publishResult = result.FirstOrDefault();
             Assert.That(publishResult.Handle, Is.AssignableTo<EventQueueOverflowEventState>());
         }
 
@@ -1521,17 +1660,16 @@ namespace Opc.Ua.Server.Tests
 
             Assert.That(monitoredItem.ItemsInQueue, Is.EqualTo(3));
 
-            var result = new Queue<EventFieldList>();
+            var result = new Queue<QueuedEvent>();
             bool moreItems = monitoredItem.Publish(new OperationContext(monitoredItem), result, 2);
 
             Assert.That(moreItems, Is.True);
             Assert.That(result, Is.Not.Empty);
             Assert.That(result, Has.Count.EqualTo(2));
-            EventFieldList publishResult = result.LastOrDefault()!;
-            Assert.That(publishResult, Is.Not.Null);
+            QueuedEvent publishResult = result.LastOrDefault();
             Assert.That(publishResult.Handle, Is.AssignableTo<AuditUrlMismatchEventState>());
 
-            var result2 = new Queue<EventFieldList>();
+            var result2 = new Queue<QueuedEvent>();
             bool moreItems2 = monitoredItem.Publish(
                 new OperationContext(monitoredItem),
                 result2,
@@ -1540,8 +1678,7 @@ namespace Opc.Ua.Server.Tests
             Assert.That(moreItems2, Is.False);
             Assert.That(result2, Is.Not.Empty);
             Assert.That(result2, Has.Count.EqualTo(1));
-            EventFieldList publishResult2 = result2.LastOrDefault()!;
-            Assert.That(publishResult2, Is.Not.Null);
+            QueuedEvent publishResult2 = result2.LastOrDefault();
             Assert.That(publishResult2.Handle, Is.AssignableTo<AuditUrlMismatchEventState>());
         }
 
@@ -1624,9 +1761,10 @@ namespace Opc.Ua.Server.Tests
             ITelemetryContext telemetry,
             bool events = false,
             uint queueSize = 10,
-            bool discardOldest = false)
+            bool discardOldest = false,
+            MonitoringFilter? filter = null)
         {
-            MonitoringFilter filter = events ? new EventFilter() : new MonitoringFilter();
+            filter ??= events ? new EventFilter() : new MonitoringFilter();
 
             var serverMock = new Mock<IServerInternal>();
             serverMock.Setup(s => s.Telemetry).Returns(telemetry);

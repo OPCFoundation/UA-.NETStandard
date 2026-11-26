@@ -1,31 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 // CA2000: test code; disposables are ownership-transferred to test fixtures or are short-lived,
 // making CA2000 noisy without a real leak risk. Disabled file-level for the suite.
@@ -54,6 +28,54 @@ namespace Opc.Ua.Server.Tests.NodeManager
     public class AsyncCustomNodeManagerNodeManagementTests
     {
         private const string TestNamespaceUri = "http://test.org/UA/NodeManagement/";
+
+        [Test]
+        public async Task RemoveRootNotifierPreservesDistinctEqualReplacementAsync()
+        {
+            using Harness h = CreateHarness(allowNodeManagement: true);
+            ushort namespaceIndex = h.Manager.NamespaceIndexes[0];
+            var original = new EqualRootNotifierState
+            {
+                NodeId = new NodeId("Notifier", namespaceIndex)
+            };
+            var replacement = new EqualRootNotifierState { NodeId = original.NodeId };
+            h.Manager.RootNotifiers[original.NodeId] = replacement;
+
+            Assert.That(original, Is.EqualTo(replacement));
+            await h.Manager.RemoveRootNotifierPublicAsync(original).ConfigureAwait(false);
+
+            Assert.That(h.Manager.RootNotifiers[original.NodeId], Is.SameAs(replacement));
+        }
+
+        [Test]
+        public async Task DeleteAddressSpacePreservesReplacementRootNotifierAsync()
+        {
+            using Harness h = CreateHarness(allowNodeManagement: true);
+            ushort namespaceIndex = h.Manager.NamespaceIndexes[0];
+            var original = new EqualRootNotifierState();
+            original.CreateAsPredefinedNode(h.Context);
+            original.NodeId = new NodeId("Notifier", namespaceIndex);
+            original.BrowseName = new QualifiedName("Notifier", namespaceIndex);
+            var replacement = new EqualRootNotifierState();
+            replacement.CreateAsPredefinedNode(h.Context);
+            replacement.NodeId = original.NodeId;
+            replacement.BrowseName = original.BrowseName;
+            original.BeforeDelete = () =>
+            {
+                h.Manager.PredefinedNodes[original.NodeId] = replacement;
+                h.Manager.RootNotifiers[original.NodeId] = replacement;
+            };
+            h.Manager.PredefinedNodes[original.NodeId] = original;
+            h.Manager.RootNotifiers[original.NodeId] = original;
+
+            Assert.That(original, Is.EqualTo(replacement));
+            await h.Manager.DeleteAddressSpaceAsync().ConfigureAwait(false);
+
+            Assert.That(h.Manager.PredefinedNodes[original.NodeId], Is.SameAs(replacement));
+            Assert.That(h.Manager.RootNotifiers[original.NodeId], Is.SameAs(replacement));
+            Assert.That(original.DeleteCount, Is.EqualTo(1));
+            Assert.That(replacement.DeleteCount, Is.Zero);
+        }
 
         [TestCase("unknownDataType")]
         [TestCase("nonDataType")]
@@ -1397,6 +1419,140 @@ namespace Opc.Ua.Server.Tests.NodeManager
             Assert.That(FindChild(h, variable, "Range"), Is.Null);
         }
 
+        /// <summary>
+        /// Audit finding #42: the NodeIds of the Mandatory children of an added node derive
+        /// from the RequestedNewNodeId the client chose, so a client could make a child land
+        /// on an existing node's NodeId, and registration replaced that node.
+        /// </summary>
+        [Test]
+        public async Task AddNodeRollbackKeepsANodeThatTookAReservedChildNodeIdAsync()
+        {
+            using Harness h = CreateHarness(allowNodeManagement: true);
+            ushort ns = h.Manager.NamespaceIndexes[0];
+            NodeId typeId = await AddMandatoryTestTypesAsync(h).ConfigureAwait(false);
+            NodeId parentId = await h.AddObjectAsync("Parent").ConfigureAwait(false);
+            var requestedId = new NodeId("Attacker", ns);
+            AddNodesItem CreateItem(string name)
+            {
+                return new AddNodesItem
+                {
+                    ParentNodeId = parentId,
+                    ReferenceTypeId = ReferenceTypeIds.Organizes,
+                    RequestedNewNodeId = requestedId,
+                    BrowseName = new QualifiedName(name, ns),
+                    NodeClass = NodeClass.Object,
+                    TypeDefinition = typeId
+                };
+            }
+
+            // learn the NodeId of the MandatoryProp child, then free it again.
+            (ServiceResult result, NodeId added) = await h.Manager.AddNodeAsync(
+                h.OperationContext, CreateItem("Probe")).ConfigureAwait(false);
+            Assert.That(ServiceResult.IsGood(result), Is.True, result.ToString());
+            NodeId childId = FindChild(h, h.Manager.PredefinedNodes[added], "MandatoryProp").NodeId;
+            ServiceResult deleted = await h.Manager.DeleteNodeAsync(
+                h.OperationContext,
+                new DeleteNodesItem { NodeId = added, DeleteTargetReferences = true }).ConfigureAwait(false);
+            Assert.That(ServiceResult.IsGood(deleted), Is.True, deleted.ToString());
+
+            // another registration takes the child NodeId after the add reserved it and
+            // before the add indexes the child, so the add fails half way.
+            var other = new BaseDataVariableState(null)
+            {
+                NodeId = childId,
+                BrowseName = new QualifiedName("Other", ns),
+                DisplayName = new LocalizedText("Other"),
+                TypeDefinitionId = VariableTypeIds.BaseDataVariableType,
+                DataType = DataTypeIds.Int32,
+                ValueRank = ValueRanks.Scalar,
+                Value = 42
+            };
+            h.Manager.BeforeRegistration = node =>
+            {
+                if (node.NodeId == requestedId)
+                {
+                    h.Manager.PredefinedNodes.TryAdd(childId, other);
+                }
+            };
+
+            (result, added) = await h.Manager.AddNodeAsync(
+                h.OperationContext, CreateItem("Attack")).ConfigureAwait(false);
+            h.Manager.BeforeRegistration = null;
+
+            Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadNodeIdExists));
+            Assert.That(added.IsNull, Is.True);
+            Assert.That(h.Manager.PredefinedNodes.ContainsKey(requestedId), Is.False, "the root is rolled back");
+            Assert.That(
+                h.Manager.PredefinedNodes.TryGetValue(childId, out NodeState? holder) ? holder : null,
+                Is.SameAs(other),
+                "the rollback must not remove the node that took the child NodeId");
+        }
+
+        [Test]
+        public async Task AddNodeRefusesAMandatoryChildNodeIdThatIsHeldByAnExistingNodeAsync()
+        {
+            using Harness h = CreateHarness(allowNodeManagement: true);
+            ushort ns = h.Manager.NamespaceIndexes[0];
+            NodeId typeId = await AddMandatoryTestTypesAsync(h).ConfigureAwait(false);
+            NodeId parentId = await h.AddObjectAsync("Parent").ConfigureAwait(false);
+            var requestedId = new NodeId("Attacker", ns);
+            AddNodesItem CreateItem(string name, NodeId requested)
+            {
+                return new AddNodesItem
+                {
+                    ParentNodeId = parentId,
+                    ReferenceTypeId = ReferenceTypeIds.Organizes,
+                    RequestedNewNodeId = requested,
+                    BrowseName = new QualifiedName(name, ns),
+                    NodeClass = NodeClass.Object,
+                    TypeDefinition = typeId
+                };
+            }
+
+            // learn the NodeId the factory mints for the MandatoryProp child of the
+            // requested root (the attacker computes it offline), then free it again.
+            (ServiceResult result, NodeId added) = await h.Manager.AddNodeAsync(
+                h.OperationContext, CreateItem("Probe", requestedId)).ConfigureAwait(false);
+            Assert.That(ServiceResult.IsGood(result), Is.True, result.ToString());
+            NodeId childId = FindChild(h, h.Manager.PredefinedNodes[added], "MandatoryProp").NodeId;
+            ServiceResult deleted = await h.Manager.DeleteNodeAsync(
+                h.OperationContext,
+                new DeleteNodesItem { NodeId = added, DeleteTargetReferences = true }).ConfigureAwait(false);
+            Assert.That(ServiceResult.IsGood(deleted), Is.True, deleted.ToString());
+            Assert.That(h.Manager.PredefinedNodes.ContainsKey(childId), Is.False);
+
+            // the victim: an existing node that holds that NodeId.
+            var victim = new BaseDataVariableState(null)
+            {
+                NodeId = childId,
+                BrowseName = new QualifiedName("Victim", ns),
+                DisplayName = new LocalizedText("Victim"),
+                TypeDefinitionId = VariableTypeIds.BaseDataVariableType,
+                DataType = DataTypeIds.Int32,
+                ValueRank = ValueRanks.Scalar,
+                Value = 42
+            };
+            await h.Manager.AddPredefinedNodeAsyncPublic(h.Context, victim).ConfigureAwait(false);
+
+            (result, added) = await h.Manager.AddNodeAsync(
+                h.OperationContext, CreateItem("Attack", requestedId)).ConfigureAwait(false);
+
+            Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadNodeIdExists));
+            Assert.That(added.IsNull, Is.True);
+            Assert.That(h.Manager.PredefinedNodes[childId], Is.SameAs(victim), "the victim must not be replaced");
+            Assert.That(h.Manager.PredefinedNodes.ContainsKey(requestedId), Is.False);
+            Assert.That(
+                FindChild(h, h.Manager.PredefinedNodes[parentId], "Attack"),
+                Is.Null,
+                "a refused add leaves nothing under the parent");
+
+            // every reservation was released: the BrowseName and a fresh root are free again.
+            (result, _) = await h.Manager.AddNodeAsync(
+                h.OperationContext, CreateItem("Attack", new NodeId("Other", ns))).ConfigureAwait(false);
+            Assert.That(ServiceResult.IsGood(result), Is.True, result.ToString());
+            Assert.That(h.Manager.PredefinedNodes[childId], Is.SameAs(victim));
+        }
+
         [Test]
         public async Task AddNodeRejectsAbstractObjectTypeAsync()
         {
@@ -1978,6 +2134,35 @@ namespace Opc.Ua.Server.Tests.NodeManager
 
         private sealed class ConstrainedVariableType : BaseVariableTypeState;
 
+        private sealed class EqualRootNotifierState : BaseObjectState
+        {
+            public EqualRootNotifierState()
+                : base(null)
+            {
+            }
+
+            public Action? BeforeDelete { get; set; }
+
+            public int DeleteCount { get; private set; }
+
+            public override bool Equals(object? obj)
+            {
+                return obj is EqualRootNotifierState;
+            }
+
+            public override int GetHashCode()
+            {
+                return 0;
+            }
+
+            protected override void OnBeforeDelete(ISystemContext context)
+            {
+                DeleteCount++;
+                BeforeDelete?.Invoke();
+                base.OnBeforeDelete(context);
+            }
+        }
+
         private class NodeManagementTestNodeManager : AsyncCustomNodeManager
         {
             public NodeManagementTestNodeManager(
@@ -1989,11 +2174,32 @@ namespace Opc.Ua.Server.Tests.NodeManager
             {
             }
 
-            public new NodeIdDictionary<NodeState> PredefinedNodes => base.PredefinedNodes;
+            public new PredefinedNodeDictionary PredefinedNodes => base.PredefinedNodes;
+
+            public new PredefinedNodeDictionary RootNotifiers => base.RootNotifiers;
+
+            public ValueTask RemoveRootNotifierPublicAsync(NodeState node)
+            {
+                return RemoveRootNotifierAsync(node);
+            }
 
             public ValueTask AddPredefinedNodeAsyncPublic(ISystemContext context, NodeState node, CancellationToken ct = default)
             {
                 return AddPredefinedNodeAsync(context, node, ct);
+            }
+
+            /// <summary>
+            /// Runs before a node is registered, to interleave another registration.
+            /// </summary>
+            public Action<NodeState>? BeforeRegistration { get; set; }
+
+            protected override ValueTask AddPredefinedNodeAsync(
+                ISystemContext context,
+                NodeState node,
+                CancellationToken cancellationToken = default)
+            {
+                BeforeRegistration?.Invoke(node);
+                return base.AddPredefinedNodeAsync(context, node, cancellationToken);
             }
 
             public void AddPredefinedNodeSynchronouslyPublic(NodeState node)
@@ -2003,7 +2209,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
 
             public void SeedRootNotifier(NodeId nodeId)
             {
-                RootNotifiers[nodeId] = null!;
+                RootNotifiers[nodeId] = new BaseObjectState(null) { NodeId = nodeId };
             }
         }
 

@@ -7,6 +7,17 @@ OPC 40001-1 Machinery and OPC 10000-100 Device Integration. A server
 publishes pumps with a fluent builder; a client discovers them and reads
 them back into typed snapshots. Both sides share one set of contracts.
 
+Pumps support is Full in the
+[specification support matrix](Profiles.md#published-specification-support-matrix).
+Retained identification, diagnostic and limit conditions, event notification
+and raw/processed/event history are available through explicit configuration.
+At server conformance publication, the Pump Base and Advanced profile URIs are
+contributed only when their configured inherited profiles and live pump
+instances meet the requirements described under
+[profiles and conformance units](#profiles-and-conformance-units). The
+implementation uses the Pump Base URI defined in Table 153 for the Table 155
+dependency; the published CAS Base link remains a discrepancy.
+
 ## Contents
 
 - [Library layout](#library-layout)
@@ -30,6 +41,8 @@ them back into typed snapshots. Both sides share one set of contracts.
   - [Ports](#ports)
   - [Vibration measurements and other placeholders](#vibration-measurements-and-other-placeholders)
   - [Documentation files](#documentation-files)
+- [Retained writable identification](#retained-writable-identification)
+- [Conditions and history](#conditions-and-history)
 - [Updating values at runtime](#updating-values-at-runtime)
 - [Client reference](#client-reference)
   - [Creating the client](#creating-the-client)
@@ -485,15 +498,197 @@ placeholder kinds:
 | --- | --- | --- |
 | `<Vibration>` in `MeasurementsType` | `VibrationMeasurementType` | `AddVibration(name)` |
 | `<Drive>`, `<InletConnection>`, `<OutletConnection>` in `PortsGroupType` | the three port types | `AddPort(kind, name)` |
-| `<Marking>` in `MarkingsType` | `FileType` | none; a marking is a file, see [Documentation files](#documentation-files) |
+| `<Marking>` in `MarkingsType` | `FileType` | `runtime.BindMarkingFile(...)` |
 
 ### Documentation files
 
 The `Documentation` group pairs each document link with a `FileType` object.
-The library publishes the links; it does **not** implement the `FileType`
-methods (`Open`, `Read`, …). To serve the files, attach the handlers yourself
-through `With(browseName, node => …)`, or leave the file objects out and
-publish only the links.
+`runtime.BindDocumentationFile(pump, browseName, content, binder)` serves a
+declared file through the shared `IFileTypeBinder`; `BindMarkingFile` creates
+one named `<Marking>` below `Identification/Markings`. The binder enforces
+session-owned handles, open modes and a byte limit. The address-space owner
+disposes these bindings.
+
+Without a commit callback, a documentation file is read-only. When supplying
+one, the application owns replacement validation and durable storage. Serving
+a file does not grant authorization to replace it; configure the server's
+method permissions for the intended roles.
+
+## Retained writable identification
+
+`WithRetainedIdentificationAsync` restores `AssetId`, `ComponentName` and
+`Location` from the shared AMB `IAssetConfigurationStore`, then enables client
+writes for roles granted `Write`. The pump needs a stable, owner-unique
+`ProductInstanceUri`; changing its namespace index does not change the stored
+key. `ComponentName` retains its `LocalizedText` locale and text.
+
+```csharp
+using Opc.Ua.AMB.Server.Configuration;
+
+services.AddSingleton<IAssetConfigurationStore>(
+    _ => new FileSystemAssetConfigurationStore(stateRoot));
+
+// Inside ConfigurePumps, or after direct runtime creation:
+pump.WithNameplate(new PumpNameplate
+{
+    NodeId = NodeId.Null,
+    ProductInstanceUri = "urn:acme:pump:P-1",
+    AssetId = "P-1",
+    ComponentName = new LocalizedText("en", "Feed pump"),
+    Location = "Skid 2"
+});
+await runtime.WithRetainedIdentificationAsync(
+    pump, store,
+    [
+        new RolePermissionType
+        {
+            RoleId = Opc.Ua.ObjectIds.WellKnownRole_ConfigureAdmin,
+            Permissions = (uint)(PermissionType.Browse | PermissionType.Read | PermissionType.Write)
+        }
+    ],
+    ct);
+```
+
+In a hosting callback, resolve the store with `GetRequiredService<T>()` and
+use `context.Manager.Runtime`; direct construction passes the same store and
+runtime explicitly. DI owns registered services. Otherwise the application
+keeps the store alive until its address-space owner stops.
+
+Stored values override configured defaults. A restoration failure leaves the
+previous values and access levels in place, removes the incomplete bindings,
+and propagates the error. A write is accepted only after storage succeeds;
+a failed commit returns `BadResourceUnavailable` without caching the attempted
+value. Empty strings can clear the two string fields; null string writes are
+rejected so that a restart cannot replace an accepted clearing operation with a
+configured default. Manufacturer-owned fields and `ProductInstanceUri` remain
+read-only. A volatile store or a duplicate stable identity is rejected.
+
+The binding publishes writable access and state notifications in `AssetId`,
+`ComponentName`, then `Location` order. If a notification sink throws, the
+exception propagates at that field: its mutations remain, later fields are not
+made writable, and the retained identity is not registered. The installed
+persistence callbacks remain in place, so calling the binding method again
+fails because the fields are already bound.
+
+An authorized client uses the typed writes and reads the nameplate again:
+
+```csharp
+await pumps.WriteAssetIdAsync(pumpId, "CW-42", ct);
+await pumps.WriteComponentNameAsync(pumpId, new LocalizedText("de", "Speisepumpe"), ct);
+await pumps.WriteLocationAsync(pumpId, "Skid 3", ct);
+PumpNameplate? updated = await pumps.ReadNameplateAsync(pumpId, ct);
+```
+
+These methods resolve the declared namespace-qualified member with the Pumps
+client's existing bounds, then use internal generated DI/Machinery accessors and
+the shared `ClientVariable<T>.WriteInstanceAsync` operation. The generated codec
+determines the wire type; the server's instance permissions authorize the write.
+The operation requires one Good result under a Good service response. Denied,
+uncertain and malformed responses propagate as errors. Model-declared read-only
+accessors remain read-only through their ordinary `WriteAsync` operation.
+These methods do not write control signals or invoke physical equipment.
+
+## Conditions and history
+
+Alarm bindings use the standard condition implementation rather than treating a
+Boolean supervision value as an event. Select the DI NE107 category explicitly;
+the library does not infer a manufacturer's diagnosis from a browse name.
+Every instantiated supervision input needs its own mapping when implementing
+the Supervision Health Status conformance unit.
+
+```csharp
+var supervision = pump.Supervision(BrowseNames.SupervisionMechanics)
+    .SetDiscrete(BrowseNames.BearingFault, false);
+var input = (BaseVariableState)supervision.Child(BrowseNames.BearingFault)!;
+PumpAlarmBinding diagnostic = await runtime.AddDiagnosticAlarmAsync(
+    supervision, input, "BearingFailure", Opc.Ua.Di.DeviceHealthEnumeration.FAILURE,
+    cancellationToken: ct);
+PumpAlarmBinding limit = await runtime.AddMeasurementAlarmAsync(
+    pump.Measurements,
+    (BaseVariableState)pump.Measurements.Child(BrowseNames.MassFlow)!,
+    "FlowLimit", new PumpMeasurementLimits { Low = 6, High = 32 },
+    ct);
+```
+
+Publish input changes first, then await `EvaluateAsync(ct)` on each affected
+binding. This explicit evaluation step works with polling and provider-driven
+acquisition. Evaluation serializes state mutation and awaits state-change
+notifications while holding the binding gate. A notification callback must not
+await another evaluation on the same binding. Configured limits must be finite
+and strictly ordered; NaN omits a limit. Crossings are strict, so equality with
+a high limit does not cross it.
+Bad-quality or non-finite samples update condition quality without inventing a
+normal measurement. Reported events retain the input source timestamp.
+
+The node manager owns each alarm binding and disposes it during shutdown.
+`DisposeAsync()` rejects new evaluations, waits for admitted evaluations and
+their event reports to finish, then releases the evaluation gate. Repeated
+disposal calls await the same completion. A notification callback must not
+await disposal of its own binding.
+
+An evaluation records its duplicate-suppression state only after all state
+notifications finish. If a notification throws, earlier mutations remain
+visible and the exception propagates; the next evaluation retries the
+incomplete update using the current input. Completed event snapshots wait in
+publication order until reporting succeeds. A reporting exception or
+cancellation leaves the failed snapshot queued for the next evaluation.
+Retrying can notify a sink again if it received the event before another sink
+failed. Event delivery remains outside the state-mutation gate.
+
+The condition exposes standard enable/disable, acknowledgment and retained
+refresh behavior through the shared alarm service. `InputNode` and `SourceNode`
+identify the actual variable. The binding adds `HasCondition` and
+`GeneratesEvent` references, including the applicable group type declaration.
+Unchanged inputs do not produce duplicate condition events. Applications can
+configure the returned standard `Alarm` for further lifecycle options; the
+binding does not infer physical-control behavior. Overloads accepting
+`PumpAlarmOptions` preserve an explicit active severity and can expose standard
+suppression or shelving methods. Shelving requires a positive
+`MaximumShelvingTime`; one-shot shelving ends when the input clears or that
+maximum expires. Timed shelving ends after the requested duration, without
+clearing a separately applied suppression or acknowledging the condition.
+
+History is separately opt-in and uses the existing Part 11 providers:
+
+```csharp
+using Opc.Ua.Server.Historian.InMemory;
+
+using var archive = new InMemoryHistorianProvider(new InMemoryHistorianOptions
+{
+    RawDataRetentionPeriod = TimeSpan.FromMinutes(5),
+    MaxSamplesPerNode = 300
+});
+var flow = (BaseVariableState)pump.Measurements.Child(BrowseNames.MassFlow)!;
+archive.Register(flow.NodeId);
+archive.Register(pump.NodeId, Opc.Ua.Server.Historian.HistorianNodeCapabilities.EventReadWrite);
+await runtime.HistorizeAsync(pump, [flow], archive, cancellationToken: ct);
+await runtime.HistorizeEventsAsync(pump, archive, cancellationToken: ct);
+```
+
+Configure selected NodeIds in the provider before activating history, during
+address-space configuration and before publishing values. No fallback archive
+is created. Data providers need raw-read capability; event providers need
+event-read capability. Automatic capture additionally requires the corresponding
+insert capability. Read-only external archives can disable capture. History
+activation grants read access, not `HistoryWrite`, and leaves unselected nodes
+unchanged. The owner drains capture on shutdown; the application or its DI
+container owns the provider.
+
+Pumps registers new node routes with `ownsProvider: false`, so full server
+shutdown does not dispose an application-owned archive. A custom registry must
+implement `IHistorianProviderOwnershipRegistry` for this registration; otherwise
+activation throws `NotSupportedException` and restores the affected node metadata.
+Existing application routes are preserved, including any disposal ownership the
+application previously transferred to the registry. Failed activation restores
+existing annotation access levels and removes newly created historical
+configuration and annotation nodes together with their explicit references.
+
+Raw capture preserves status and source timestamps. Processed reads use the
+shared provider/aggregate dispatcher, and event history snapshots the same
+conditions delivered live. Clients reuse `pumps.Session.Historian()` for
+`ReadRawAsync`, `ReadProcessedAsync` and `ReadEventsAsync`; standard condition
+operations use `session.GetAlarmClient(telemetry)`. These services are not a
+second pump-specific historian or alarm client.
 
 ## Updating values at runtime
 
@@ -515,6 +710,16 @@ items; a client subscribed to `MassFlow` sees each update, and
 For a signal object the publish happens on the `DiscreteInputValue` /
 `DiscreteOutputValue` child that carries the state, which is also the node a
 client subscribes to (`PumpValue.NodeId`).
+
+When acquisition already supplies quality and source time, use
+`await runtime.PublishValueAsync(group, browseName, in dataValue, ct)` instead.
+It preserves those fields and awaits asynchronous state-change notifications
+after invoking synchronous observers. Cancellation is checked before mutation;
+after assigning the sample, notifications complete without cancellation. If a
+sink throws, the exception propagates and the acquired sample remains visible.
+The variable must already exist and
+remain registered under a pump owned by the runtime. Publication does not
+materialize an absent optional member, and a stopped runtime rejects updates.
 
 Keep the builders you need, as the
 [PumpsServer sample](../samples/Pumps/PumpsServer/PumpFleet.cs) does, instead
@@ -541,6 +746,11 @@ on the injected `PumpsClientFactory.CreateAsync`. Constructor and factory
 overloads without an explicit limit do not enable this bounded-read mode.
 Continuation cleanup accepts an empty successful release response without masking
 the original limit error or cancellation. A failed release preserves both failures.
+
+Identity writes require exactly one complete, session-local target at each
+resolution step, including when the client was created without a browse limit.
+Missing or ambiguous identity members prevent the write; cancellation between
+resolution steps or before dispatch prevents subsequent requests.
 
 `EnumeratePortEntriesAsync` returns port identities without reading every
 engineering group. Use it to select a port before fetching its values with
@@ -701,23 +911,90 @@ server profiles (§9.2, Tables 153–155). It defines no client facets.
 
 | Profile | URI | Status |
 | --- | --- | --- |
-| Pump Base Server Profile (Table 154) | `http://opcfoundation.org/UA-Profile/Pumps/Server/Base` | Partial: *Base System* and *Pump PumpType Mandatory Nodes* are met, but the mandatory *3:Machine Identification Writable Server Facet* is not, because client writes to the identification are not stored |
-| Pump Advanced Server Profile (Table 155) | `http://opcfoundation.org/UA-Profile/Pumps/Server/Advanced` | ❌ Not met: the mandatory alarm, notifier and historical-access facets are not implemented |
+| Pump Base Server Profile (Table 154) | `http://opcfoundation.org/UA-Profile/Pumps/Server/Base` | Advertised when every current pump has writable Machinery identification and the required inherited server profiles are present |
+| Pump Advanced Server Profile (Table 155) | `http://opcfoundation.org/UA-Profile/Pumps/Server/Advanced` | Advertised when Pump Base and every required inherited Advanced server profile are present |
 
-`PumpsNodeManager` therefore advertises neither profile URI.
+The owner computes these profiles from the current registered pumps and the
+server's `ServerProfileArray` when conformance is published. It does not infer
+a profile from loaded types, an enabled option, or an optional native
+conformance unit.
+
+Standalone and composed Pumps runtimes contribute native units through the
+owner's `IConformanceContributor` mechanism. Evaluation uses registered
+instances when the owner reads its contributions; it does not create optional
+members. Titles retain the spelling in Table 152 and are qualified with the
+Pumps model namespace to distinguish generic names such as `Base System`.
+That namespace is an implementation choice, not a requirement established by
+OPC 40223.
+
+All-instance rules require at least one pump. Removing mandatory nodes or
+read access withdraws the affected identification unit; every current pump
+needs a legal `PumpClass` for PumpClass Data. A supervision unit requires a
+registered DI diagnostic condition for every instantiated supervision signal,
+and limit-alarm publication requires a registered bound condition as well as
+the four measurement-type declarations. History requires a quantity with
+history access and an active shared data-provider route. Removed nodes and
+routes no longer contribute, and a disposed runtime contributes no native
+units.
+
+The published profile tables define two different URIs. OPC 40223
+[Table 153](https://reference.opcfoundation.org/specs/OPC-40223/v1.0/9.2.1)
+defines the Pump Base URI as
+`http://opcfoundation.org/UA-Profile/Pumps/Server/Base`, while Table 155 names
+the Pump Advanced Server Profile and its mandatory Pump Base Server Profile
+row links to
+`http://opcfoundation.org/UA-Profile/CAS/Server/Base`. OPC 40250-1
+[Table 163](https://reference.opcfoundation.org/specs/OPC-40250-1/v1.00.1/9.2.1)
+independently defines that second URI as CAS Base, and
+[Table 172](https://reference.opcfoundation.org/specs/OPC-40250-1/v1.00.1/9.2.2.10)
+assigns it CAS-specific mandatory requirements. OPC 40223
+[Table 154](https://reference.opcfoundation.org/specs/OPC-40223/v1.0/9.2.2.2)
+specifies the Pump Base profile's own requirements; OPC 40223
+[Table 155](https://reference.opcfoundation.org/specs/OPC-40223/v1.0/9.2.2.3)
+is titled Pump Advanced Server Profile. The implementation uses the Pump Base
+URI defined in Table 153 for Table 155's Pump Base dependency. The published
+CAS Base link remains a discrepancy; this interpretation does not advertise
+CAS Base or add its CAS-specific requirements.
+
+Pump Base requires the Embedded 2017 UA Server, Data Access, ComplexType 2017,
+and Aggregate Subscription profiles from Table 154. It also requires every
+current pump to have complete writable Machinery identification. The runtime
+keeps the Pumps NodeSet declaration unchanged and uses `HasAddIn` for the
+instance identification edge; `HasAddIn` is a subtype of the declared
+`HasComponent` reference and satisfies Machinery's identification relationship.
+The writable `AssetId`, `ComponentName` and `Location` members are enabled by
+`WithRetainedIdentificationAsync` after the application supplies a persistent
+store and role permissions that grant `Write` to at least one role.
+
+Table 154 includes Aggregate Subscription among the Pump Base requirements.
+Shared-server tests in `AsyncCustomNodeManagerTests`, including
+`ValidateMonitoringFilterAsyncUsesHistorianCapabilitiesAsync`,
+`ValidateMonitoringFilterAsyncUsesSamplingIntervalWithHistorianAsync` and
+`ReadInitialValueAsyncPrimesAggregateFilterFromPagedRawHistoryAsync`, exercise
+aggregate-filter validation and history priming. They provide evidence for
+shared Aggregate Subscription behavior; the Pumps profile evaluator separately
+requires the corresponding profile URI in the server's `ServerProfileArray`.
+The priming test applies only to the async manager.
+
+Advanced also requires the Address Space Notifier, A&C Address Space Instance,
+A&C Exclusive Alarming, Base Historical Event, Historical Raw Data and
+Historical Aggregate server profiles. The evaluator advertises Advanced only
+when each URI is present and Pump Base is eligible. The native optional units
+remain independent capabilities; enabling or omitting them does not alter
+eligibility for either profile.
 
 | Conformance unit (Table 152) | Status | Where |
 | --- | --- | --- |
 | Base System | ✅ | `PumpType` instances, see the server table below |
 | Pump PumpType Mandatory Nodes | ✅ | `CreatePumpAsync` materialises every mandatory node |
 | Pump Identification | ✅ | `Identification` nameplate |
-| PumpClass Data | 🔧 | `PumpClass` in the `Design` group can be set through the group builder; nothing enforces it or tests it |
+| PumpClass Data | 🔧 | `DeviceTypeEnum` values 0–6 are checked before changing `Design/PumpClass` |
 | Pump Connection Port | ✅ | Inlet and outlet connection ports |
 | Pump Drive Port | ✅ | Drive port |
-| Pump Control | 🧪 | `PumpActuation`; `Control` is not covered by a test |
-| Historizing | ❌ | No historical access for measurements |
-| Limit Alarm Status | ❌ | No `LimitAlarmType` alarms |
-| Supervision Health Status | ❌ | No `DeviceHealthDiagnosticAlarmType` alarms |
+| Pump Control | 🧪 | Control and actuation model members; no physical pump executor |
+| Historizing | 🔧 | Explicit shared raw/processed/event provider integration |
+| Limit Alarm Status | 🔧 | Exclusive measurement conditions and group-type `GeneratesEvent` declarations |
+| Supervision Health Status | 🔧 | Explicit DI NE107 diagnostic subtypes per configured input |
 
 The rows below follow the specification's structure.
 
@@ -748,16 +1025,17 @@ The rows below follow the specification's structure.
 | `Operational`: `Signals` (discrete input objects) | ✅ | same | `PumpBuilderTests`; `PumpsClientServerE2eTests` |
 | `Operational`: `PumpActuation` (discrete output objects) | 🧪 | same | `PumpBuilderTests` |
 | `Operational`: `MultiPump`, all eleven variables | ✅ | same | `PumpsClientServerE2eTests` |
-| `Operational`: `Control`, `BypassActuation`, `ThrottleValveActuation` | 🔧 | same | — |
+| `Operational`: `Control`, `BypassActuation`, `ThrottleValveActuation` | 🔧 | same | `PumpBuilderTests` |
 | `Measurements`: `<Vibration>` instances of `VibrationMeasurementType` | ✅ | [`PumpGroupBuilder`](../src/Opc.Ua.Pumps.Server/Builders/PumpGroupBuilder.cs) | `PumpBuilderTests`; `PumpsClientServerE2eTests` |
 | `Events`: seven supervision categories | ✅ | same | `PumpBuilderTests`; `PumpsClientServerE2eTests` |
 | `Maintenance`: four categories | ✅ | same | `PumpBuilderTests`; `PumpsClientServerE2eTests` |
 | `Ports`: drive, inlet and outlet ports with their groups | ✅ | [`PumpBuilder`](../src/Opc.Ua.Pumps.Server/Builders/PumpBuilder.cs) | `PumpBuilderTests`; `PumpsClientServerE2eTests` |
 | `Documentation` links | 🔧 | builder | — |
-| `Documentation` `FileType` methods | ❌ | — | Optional (§7.5); attach through `With(...)` |
-| `MarkingsType` `<Marking>` files | ❌ | — | Optional; `FileType`, see [Documentation files](#documentation-files) |
-| CU *Supervision Health Status*: NE 107 alarms (`2:DeviceHealthDiagnosticAlarmType` subtypes) for supervision signals | ❌ | — | Optional (Table 152/155). OPC 40223 defines no event types of its own; the pump is an event notifier, the alarms are not emitted |
-| CU *Limit Alarm Status*: `0:LimitAlarmType` alarms for measurements | ❌ | — | Optional (Table 152/155) |
+| `Documentation` `FileType` methods and `<Marking>` files | 🔧 | `PumpFileExtensions`, shared `IFileTypeBinder` | `PumpBuilderTests` |
+| Retained writable identification with explicit permissions | 🔧 | `PumpIdentificationExtensions`, shared AMB persistence | `PumpsIdentificationTests` |
+| CU *Supervision Health Status*: DI NE107 diagnostic alarm subtypes | 🔧 | `PumpsAlarmExtensions`, shared condition implementation | `PumpsAlarmTests`; `PumpsHistoryTests` |
+| CU *Limit Alarm Status*: exclusive limit alarms | 🔧 | same | `PumpsAlarmTests` |
+| Raw, aggregate and event historian integration | 🔧 | `PumpsHistoryExtensions`, shared Part 11 services | `PumpsHistoryTests` |
 | Data changes to subscribed clients on runtime updates | ✅ | [`PumpGroupBuilder`](../src/Opc.Ua.Pumps.Server/Builders/PumpGroupBuilder.cs) | `PumpBuilderTests`; `PumpsClientServerE2eTests` |
 | `AddPumps` / `ConfigurePumps` hosting | ✅ | [`OpcUaPumpsServerBuilderExtensions`](../src/Opc.Ua.Pumps.Server/Hosting/OpcUaPumpsServerBuilderExtensions.cs) | `PumpsClientServerE2eTests` |
 | Rejecting a second DI owner | 🔧 | same | — |
@@ -768,6 +1046,8 @@ The rows below follow the specification's structure.
 | --- | --- | --- | --- |
 | Discovery from `DeviceSet` and `Machines`, de-duplicated, subtypes included | ✅ | [`PumpsClient`](../src/Opc.Ua.Pumps.Client/PumpsClient.cs) | `PumpsClientServerE2eTests` |
 | Nameplate | ✅ | [`PumpsClient.Identification`](../src/Opc.Ua.Pumps.Client/PumpsClient.Identification.cs) | `PumpsClientServerE2eTests` |
+| Typed identity writes with status/cardinality checks | 🔧 | `PumpsClient.Writes` | `PumpsBoundedReadTests` |
+| Raw/processed/event history and condition operations | 🔧 | Shared `HistoryClient` and `AlarmClient` over `PumpsClient.Session` | `PumpsHistoryTests` |
 | Markings | 🔧 | same | — |
 | Configuration, measurements, signals, supervision, maintenance | ✅ | [`PumpsClient.Groups`](../src/Opc.Ua.Pumps.Client/PumpsClient.Groups.cs) | `PumpsClientServerE2eTests` |
 | Multi-pump configuration, all eleven variables | ✅ | same | `PumpsClientServerE2eTests` |
@@ -781,11 +1061,22 @@ The rows below follow the specification's structure.
 
 ## Samples
 
-`PumpsServer` accepts `--host`, `--port`, `--pki-root`, `--autoaccept` and
-`--run-seconds`. The PKI path must be absolute; a supplied runtime must be from
+`PumpsServer` accepts `--host`, `--port`, `--pki-root`, `--state-root`,
+`--autoaccept` and `--run-seconds`. PKI and state paths must be absolute; a supplied runtime must be from
 1 through 3600 seconds. Without the runtime option, the server runs until
 stopped interactively. Certificate auto-accept is enabled by default for sample
 convenience; disable it when testing explicit peer trust.
+
+The server binds every sample supervision input to a diagnostic condition and
+adds a bearing-temperature limit condition. Flow history retains five minutes,
+up to 300 samples per pump; event history is process-local and is not retained
+on restart. The sample serves an illustrative manual and marking through the
+shared file service. `--state-root` enables retained identity for ConfigureAdmin;
+the application must still authenticate users and assign that role. Without
+the option, no retained identity writes are enabled. The client `--history`
+option reads raw flow, minute averages and recorded conditions. `--conditions`
+refreshes retained conditions and watches subsequent events for the first pump.
+Neither option acknowledges alarms or changes equipment.
 
 UaLens launches its owned simulator on loopback with private PKI,
 `--autoaccept false` and an explicit finite runtime.
@@ -811,6 +1102,10 @@ dotnet test tests/Opc.Ua.Pumps.Tests
 | `PumpBuilderTests` | Every builder shape in-process |
 | `PumpValueSetTests` | Value-set and supervision evaluation |
 | `PumpsCompositionTests` | Stock Machinery owner, ordered providers, lazy groups, instance ownership, cancellation and runtime disposal |
+| `PumpsConformanceTests` | Native-unit evaluation; Pump Base/Advanced eligibility across identity permissions, each inherited profile prerequisite, pump removal and runtime shutdown |
+| `PumpsIdentificationTests` | Restart, locale, commit and restore failures, stable identity, ordered notification failures |
+| `PumpsAlarmTests` | NE107 mappings, limit boundaries, condition lifecycle and awaited state-notification ordering |
+| `PumpsHistoryTests` | Provider selection/capabilities and real-session raw/aggregate/event history with retained-condition refresh |
 | `PumpsClientServerE2eTests` | Standalone and composed Machinery hosts, read back by `PumpsClient` over real sessions and live data-change subscriptions |
 
 The end-to-end test is the one that matters for anything a client sees. An

@@ -1,36 +1,10 @@
-/* ========================================================================
- * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System.Collections.Generic;
 using System.IO;
 using System.Text.Json;
+using Opc.Ua.Export;
 
 namespace Opc.Ua.Wot
 {
@@ -94,11 +68,13 @@ namespace Opc.Ua.Wot
             WriteFieldArrayDimensions(writer, arrayDimensions);
         }
 
-        private static void WriteRankedJsonType(Utf8JsonWriter writer, string? dataType, int valueRank)
+        private static void WriteRankedJsonType(
+            Utf8JsonWriter writer, string? dataType, int valueRank, ReadableScalarContext? scalarContext = null)
         {
+            dataType = scalarContext?.Resolve(dataType) ?? dataType;
             if (valueRank is -3 or -2)
             {
-                if (MapDataTypeToJson(dataType) is null)
+                if (MapReadableScalarType(dataType) is null)
                 {
                     return;
                 }
@@ -132,6 +108,14 @@ namespace Opc.Ua.Wot
             for (int dimension = 0; dimension < dimensions; dimension++)
             {
                 writer.WriteString("type", "array");
+                if (dimension == dimensions - 1 && MapReadableScalarType(dataType) is null)
+                {
+                    for (int outer = 0; outer < dimension; outer++)
+                    {
+                        writer.WriteEndObject();
+                    }
+                    return;
+                }
                 writer.WritePropertyName("items");
                 writer.WriteStartObject();
             }
@@ -147,7 +131,8 @@ namespace Opc.Ua.Wot
         /// </summary>
         /// <param name="schema">The JSON element.</param>
         /// <param name="member">The schema member whose JSON type is checked against the value rank.</param>
-        internal static bool MapsRankedJsonType(JsonElement schema, string member)
+        /// <param name="scalarContext">The shared scalar subtype lookup state.</param>
+        internal static bool MapsRankedJsonType(JsonElement schema, string member, ReadableScalarContext scalarContext)
         {
             if (!schema.TryGetProperty(member, out JsonElement actual))
             {
@@ -165,12 +150,17 @@ namespace Opc.Ua.Wot
                     dimensions++;
                     nested = items;
                 }
-                if (dimensions != rank)
+                bool untypedLeaf = dimensions == rank - 1 &&
+                    GetElementString(nested, "type") == "array" &&
+                    !nested.TryGetProperty("items", out _) &&
+                    MapReadableScalarType(scalarContext.Resolve(
+                        GetElementString(schema, "uav:mapToType"))) is null;
+                if (dimensions != rank && !untypedLeaf)
                 {
                     return false;
                 }
             }
-            using JsonDocument? generated = CreateRankedJsonType(schema);
+            using JsonDocument? generated = CreateRankedJsonType(schema, scalarContext);
             return generated is not null &&
                 generated.RootElement.TryGetProperty(member, out JsonElement expected) &&
                 JsonElement.DeepEquals(actual, expected);
@@ -180,7 +170,8 @@ namespace Opc.Ua.Wot
         /// Regenerates the ranked JSON type only when the schema states its definitive DataType.
         /// </summary>
         /// <param name="schema">The JSON element.</param>
-        internal static JsonDocument? CreateRankedJsonType(JsonElement schema)
+        /// <param name="scalarContext">The shared scalar subtype lookup state.</param>
+        internal static JsonDocument? CreateRankedJsonType(JsonElement schema, ReadableScalarContext scalarContext)
         {
             string? dataType = GetElementString(schema, "uav:mapToType");
             if (dataType is null)
@@ -191,7 +182,7 @@ namespace Opc.Ua.Wot
             using (var writer = new Utf8JsonWriter(output))
             {
                 writer.WriteStartObject();
-                WriteRankedJsonType(writer, NormalizeExpandedNodeId(dataType), ReadValueRank(schema));
+                WriteRankedJsonType(writer, NormalizeExpandedNodeId(dataType), ReadValueRank(schema), scalarContext);
                 writer.WriteEndObject();
             }
             return JsonDocument.Parse(output.ToArray());

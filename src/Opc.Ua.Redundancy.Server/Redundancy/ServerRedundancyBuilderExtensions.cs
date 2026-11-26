@@ -1,31 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using System.Linq;
@@ -66,7 +40,8 @@ namespace Opc.Ua.Redundancy.Server
             configure?.Invoke(options);
             AddDiscoveryCapabilityConfiguration(builder, options);
             builder.Services.AddSingleton(options);
-            builder.Services.AddSingleton<ServerRedundancyController>();
+            builder.Services.AddSingleton(sp =>
+                new ServerRedundancyController(options, CreatePeerStatus(sp, options)));
             builder.Services.TryAddSingleton<IServerRedundancyController>(
                 sp => sp.GetRequiredService<ServerRedundancyController>());
             builder.Services.TryAddSingleton<IRedundantServerSetProvider>(
@@ -74,7 +49,8 @@ namespace Opc.Ua.Redundancy.Server
             builder.Services.AddSingleton<IServerStartupTask>(sp =>
                 new ServerRedundancyStartupTask(
                     sp.GetRequiredService<ServerRedundancyController>(),
-                    !sp.GetServices<IServiceLevelProvider>().Any()));
+                    !sp.GetServices<IServiceLevelProvider>().Any(),
+                    sp.GetService<TimeProvider>() ?? TimeProvider.System));
             return builder;
         }
 
@@ -103,21 +79,30 @@ namespace Opc.Ua.Redundancy.Server
             return builder;
         }
 
-        /// <summary>
-        /// Wires the standard <c>Server.RequestServerStateChange</c> method for OPC 10000-4 §6.6.5
-        /// administrator-driven manual Failover to Maintenance or NoData.
-        /// </summary>
-        /// <param name="builder">The server builder.</param>
-        /// <param name="configure">Optional method wiring configuration.</param>
-        /// <remarks>
-        /// Use <see cref="AddRequestServerStateChange(IOpcUaServerBuilder, Action{RequestServerStateChangeOptions}?)"/>.
-        /// </remarks>
-        [Obsolete("Use AddRequestServerStateChange.")]
-        public static IOpcUaServerBuilder AddManualFailover(
-            this IOpcUaServerBuilder builder,
-            Action<RequestServerStateChangeOptions>? configure = null)
+        private static SharedRedundantPeerStatus? CreatePeerStatus(
+            IServiceProvider services,
+            ServerRedundancyOptions options)
         {
-            return AddRequestServerStateChange(builder, configure);
+            ISharedKeyValueStore? store = services.GetService<ISharedKeyValueStore>();
+            if (store == null)
+            {
+                return null;
+            }
+            if (string.IsNullOrWhiteSpace(options.PeerStatusKeyPrefix))
+            {
+                throw new InvalidOperationException("The redundant peer status key prefix must not be empty.");
+            }
+            IRecordProtector? protector = services.GetService<IRecordProtector>();
+            if ((protector == null || protector is NullRecordProtector) &&
+                !HybridSharedKeyValueStore.UsesOnlyInProcessMemory(store))
+            {
+                throw new InvalidOperationException("A shared redundant peer status store requires record protection.");
+            }
+            return new SharedRedundantPeerStatus(
+                store,
+                protector ?? NullRecordProtector.Instance,
+                services.GetService<TimeProvider>() ?? TimeProvider.System,
+                options.PeerStatusKeyPrefix);
         }
 
         private static void AddDiscoveryCapabilityConfiguration(

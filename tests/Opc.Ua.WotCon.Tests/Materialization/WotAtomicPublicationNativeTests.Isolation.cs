@@ -1,31 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using System.Collections.Generic;
@@ -106,15 +80,15 @@ namespace Opc.Ua.WotCon.Tests.Materialization
         }
 
         /// <summary>
-        /// Verifies that invocation rejects conflicting lifecycle mutation before native effects.
+        /// Independent publication succeeds while a stale invocation rejects its next unit before native effects.
         /// </summary>
         [Test]
         [Platform("Win")]
-        public async Task InvocationRejectsConflictingLifecycleMutationBeforeNativeEffects()
+        public async Task IndependentPublicationMakesInvocationStaleBeforeNextNativeEffects()
         {
             HandoffProbe probe = ObserveHandoff();
-            await AddAsync("first").ConfigureAwait(false);
-            await AddAsync("second").ConfigureAwait(false);
+            WotResource first = await AddAsync("first").ConfigureAwait(false);
+            WotResource second = await AddAsync("second").ConfigureAwait(false);
             const string modelUri = "urn:wot:external-publication";
             ushort ns = m_server.CurrentInstance.NamespaceUris.GetIndexOrAppend(modelUri);
             var externalRoot = new NodeId(5000u, ns);
@@ -124,23 +98,15 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             var entered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
             var resume = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
             using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(60));
-            Task<WotProjectionHandle>? mutation = null;
-            EventHandler<WotRegistryChangedEventArgs> observe = (_, change) =>
+            int preparations = 0;
+            probe.BeforePrepareAsync = async token =>
             {
-                if (change.ProjectionOnly && change.Current.RefreshGeneration == 1 && mutation is null)
-                {
-                    mutation = external.AddAsync(document, timeout.Token).AsTask();
-                }
-            };
-            probe.BeforeDecisionAsync = async _ =>
-            {
-                if (probe.DecisionCount == 1)
+                if (Interlocked.Increment(ref preparations) == 2)
                 {
                     entered.TrySetResult(true);
-                    await resume.Task.WaitAsync(timeout.Token).ConfigureAwait(false);
+                    await resume.Task.WaitAsync(token).ConfigureAwait(false);
                 }
             };
-            m_registry.Changed += observe;
             Task<WotRefreshResult> pending = m_coordinator.RefreshAsync(new WotRefreshRequest
             {
                 Options = new WoTRefreshOptionsDataType { Atomicity = WoTAtomicityEnum.PerResource }
@@ -148,22 +114,27 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             try
             {
                 await entered.Task.WaitAsync(timeout.Token).ConfigureAwait(false);
-                Assert.That(mutation, Is.Not.Null);
-                await Assert.ThatAsync(() => mutation!.WaitAsync(timeout.Token),
-                    Throws.TypeOf<ServiceResultException>()
-                        .With.Property(nameof(ServiceResultException.StatusCode))
-                        .EqualTo(StatusCodes.BadServerTooBusy)).ConfigureAwait(false);
+                WotProjectionHandle accepted = await external.AddAsync(document, timeout.Token).ConfigureAwait(false);
+                Assert.That(accepted.Registration, Is.Not.Null);
                 Assert.That((await ReadNodeClassAsync(externalRoot).ConfigureAwait(false)).StatusCode,
-                    Is.EqualTo(StatusCodes.BadNodeIdUnknown));
+                    Is.EqualTo(StatusCodes.Good));
+                Assert.That(probe.DecisionCount, Is.EqualTo(1));
+                Assert.That(probe.PublicationCount, Is.EqualTo(1));
             }
             finally
             {
                 resume.TrySetResult(true);
-                m_registry.Changed -= observe;
-                await pending.WaitAsync(timeout.Token).ConfigureAwait(false);
+                await Assert.ThatAsync(() => pending.WaitAsync(timeout.Token),
+                    Throws.InvalidOperationException.With.Message.EqualTo(
+                        "A stale publication cannot prepare a candidate.")).ConfigureAwait(false);
             }
-            WotProjectionHandle accepted = await external.AddAsync(document, timeout.Token).ConfigureAwait(false);
-            Assert.That(accepted.Registration, Is.Not.Null);
+            Assert.That(probe.DecisionCount, Is.EqualTo(1));
+            Assert.That(probe.PublicationCount, Is.EqualTo(1));
+            Assert.That(probe.Changes, Has.Count.EqualTo(1));
+            Assert.That((await ReadNodeClassAsync(Root(first)).ConfigureAwait(false)).StatusCode,
+                Is.EqualTo(StatusCodes.Good));
+            Assert.That((await ReadNodeClassAsync(Root(second)).ConfigureAwait(false)).StatusCode,
+                Is.EqualTo(StatusCodes.BadNodeIdUnknown));
             Assert.That((await ReadNodeClassAsync(externalRoot).ConfigureAwait(false)).StatusCode,
                 Is.EqualTo(StatusCodes.Good));
         }

@@ -1,31 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using System.Collections.Generic;
@@ -115,12 +89,51 @@ namespace Opc.Ua.Client.Subscriptions.Fakes
         public Func<CancellationToken, ValueTask>? OnConditionRefreshAsync { get; set; }
         public Func<ValueTask>? OnDisposeAsync { get; set; }
 
-        public ValueTask OnPublishReceivedAsync(NotificationMessage message,
+        /// <summary>
+        /// Optional override that sees the wait policy and decides admission.
+        /// </summary>
+        public Func<NotificationMessage, IIngressWaitPolicy?, ValueTask<bool>>?
+            OnPublishAdmissionAsyncFunc
+        { get; set; }
+
+        public ValueTask<bool> OnPublishReceivedAsync(NotificationMessage message,
+            IReadOnlyList<uint>? availableSequenceNumbers,
+            IReadOnlyList<string> stringTable,
+            IIngressWaitPolicy? waitPolicy = null)
+        {
+            if (OnPublishAdmissionAsyncFunc != null)
+            {
+                lock (OnPublishReceivedCalls)
+                {
+                    OnPublishReceivedCalls.Add(new OnPublishReceivedCall(message,
+                        availableSequenceNumbers, stringTable));
+                }
+                return OnPublishAdmissionAsyncFunc(message, waitPolicy);
+            }
+            return OnPublishReceivedLegacyAsync(message, availableSequenceNumbers, stringTable);
+        }
+
+        private async ValueTask<bool> OnPublishReceivedLegacyAsync(NotificationMessage message,
             IReadOnlyList<uint>? availableSequenceNumbers,
             IReadOnlyList<string> stringTable)
         {
-            OnPublishReceivedCalls.Add(new OnPublishReceivedCall(message,
-                availableSequenceNumbers, stringTable));
+            await OnPublishReceivedCoreAsync(message, availableSequenceNumbers, stringTable)
+                .ConfigureAwait(false);
+            return true;
+        }
+
+        private ValueTask OnPublishReceivedCoreAsync(NotificationMessage message,
+            IReadOnlyList<uint>? availableSequenceNumbers,
+            IReadOnlyList<string> stringTable)
+        {
+            // Several publish workers deliver concurrently; an unsynchronized
+            // List<T>.Add corrupts the list and fails the Publish with an
+            // IndexOutOfRangeException, which requeues and resends acknowledgements.
+            lock (OnPublishReceivedCalls)
+            {
+                OnPublishReceivedCalls.Add(new OnPublishReceivedCall(message,
+                    availableSequenceNumbers, stringTable));
+            }
             return OnPublishReceivedAsyncFunc?.Invoke(message,
                 availableSequenceNumbers, stringTable) ??
                 default;
@@ -130,8 +143,11 @@ namespace Opc.Ua.Client.Subscriptions.Fakes
             IReadOnlyList<uint> availableSequenceNumbers,
             CancellationToken ct = default)
         {
-            TryCompleteTransferCalls.Add(new TryCompleteTransferCall(
-                availableSequenceNumbers));
+            lock (TryCompleteTransferCalls)
+            {
+                TryCompleteTransferCalls.Add(new TryCompleteTransferCall(
+                    availableSequenceNumbers));
+            }
             return OnTryCompleteTransferAsync?.Invoke(availableSequenceNumbers, ct)
                 ?? new ValueTask<bool>(true);
         }
@@ -144,7 +160,10 @@ namespace Opc.Ua.Client.Subscriptions.Fakes
 
         public void NotifySubscriptionManagerPaused(bool paused)
         {
-            NotifySubscriptionManagerPausedCalls.Add(paused);
+            lock (NotifySubscriptionManagerPausedCalls)
+            {
+                NotifySubscriptionManagerPausedCalls.Add(paused);
+            }
         }
 
         public ValueTask ConditionRefreshAsync(CancellationToken ct = default)
@@ -174,7 +193,10 @@ namespace Opc.Ua.Client.Subscriptions.Fakes
             TimeSpan lifetime,
             CancellationToken ct = default)
         {
-            SetAsDurableCalls.Add(new SetAsDurableCall(lifetime));
+            lock (SetAsDurableCalls)
+            {
+                SetAsDurableCalls.Add(new SetAsDurableCall(lifetime));
+            }
             return OnSetAsDurableAsync?.Invoke(lifetime, ct)
                 ?? new ValueTask<TimeSpan>(lifetime);
         }
@@ -202,8 +224,11 @@ namespace Opc.Ua.Client.Subscriptions.Fakes
             IReadOnlyCollection<IMonitoredItem>? linksToRemove = null,
             CancellationToken ct = default)
         {
-            SetTriggeringCalls.Add(new SetTriggeringCall(
-                triggeringItem, linksToAdd, linksToRemove));
+            lock (SetTriggeringCalls)
+            {
+                SetTriggeringCalls.Add(new SetTriggeringCall(
+                    triggeringItem, linksToAdd, linksToRemove));
+            }
             if (OnSetTriggeringAsync != null)
             {
                 return OnSetTriggeringAsync(triggeringItem,

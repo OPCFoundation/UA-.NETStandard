@@ -1,31 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using Microsoft.Extensions.DependencyInjection;
@@ -43,8 +17,13 @@ namespace Opc.Ua.PubSub.Redundancy
     /// <remarks>
     /// Register an <see cref="ISharedKeyValueStore"/> (and, for
     /// <see cref="PubSubRedundancyElection.LeaderElection"/>, an
-    /// <see cref="ILeaderElection"/>) plus an <see cref="IRecordProtector"/> in the same
-    /// container, then call <see cref="AddPubSubRedundancy"/>. It replaces the default
+    /// <see cref="ILeaderElection"/>) in the same container. External leases and
+    /// mirrored state require an enrolled <see cref="FreshnessProtectedKeyValueStore"/>.
+    /// External Warm and Hot stores also require an activation fence.
+    /// For a networked SKS also
+    /// register an <see cref="IRecordProtector"/> and a <see cref="FreshnessProtectedKeyValueStore"/>
+    /// whose separate authority was enrolled for this deployment. Calling
+    /// <see cref="AddPubSubRedundancy"/> replaces the default
     /// in-process PubSub activation coordinator, runtime-state store, and security-key store
     /// with distributed, shared-store-backed implementations so multiple PubSub instances run
     /// as an active/standby redundant set.
@@ -78,15 +57,21 @@ namespace Opc.Ua.PubSub.Redundancy
             {
                 services.Replace(ServiceDescriptor.Singleton<IPubSubLeaseStore>(sp =>
                     new SharedStorePubSubLeaseStore(
-                        sp.GetRequiredService<ISharedKeyValueStore>(),
-                        sp.GetService<TimeProvider>())));
+                        ResolveCoordinatedStore(sp),
+                        sp.GetService<TimeProvider>(),
+                        options.LeaseDuration)));
                 services.Replace(ServiceDescriptor.Singleton<IPubSubActivationCoordinator>(sp =>
                     new LeaseActivationCoordinator(
-                        sp.GetRequiredService<IPubSubLeaseStore>(),
+                        sp.GetRequiredService<PubSubNonceLeaseTracker>(),
                         sp.GetService<ITelemetryContext>(),
                         options.OwnerId,
                         options.LeaseDuration,
                         timeProvider: sp.GetService<TimeProvider>())));
+                services.TryAddSingleton(sp => new PubSubNonceLeaseTracker(
+                    sp.GetRequiredService<IPubSubLeaseStore>(),
+                    sp.GetService<TimeProvider>() ?? TimeProvider.System));
+                services.TryAddSingleton<IPubSubActivationFenceProvider>(
+                    sp => sp.GetRequiredService<PubSubNonceLeaseTracker>());
             }
             else
             {
@@ -99,22 +84,33 @@ namespace Opc.Ua.PubSub.Redundancy
             services.Replace(ServiceDescriptor.Singleton<IPubSubRuntimeStateStore>(sp =>
                 options.Mode == PubSubRedundancyMode.Cold
                     ? new InMemoryPubSubRuntimeStateStore()
-                    : new SharedStorePubSubRuntimeStateStore(sp.GetRequiredService<ISharedKeyValueStore>())));
+                    : new SharedStorePubSubRuntimeStateStore(ResolveCoordinatedStore(sp, requireFence: true))));
 
             services.Replace(ServiceDescriptor.Singleton<IPubSubSecurityKeyStore>(sp =>
             {
-                ISharedKeyValueStore store = sp.GetRequiredService<ISharedKeyValueStore>();
+                ISharedKeyValueStore payloadStore = sp.GetRequiredService<ISharedKeyValueStore>();
+                ISharedKeyValueStore store = payloadStore as FreshnessProtectedKeyValueStore
+                    ?? sp.GetService<FreshnessProtectedKeyValueStore>()
+                    ?? payloadStore;
+                if (store is not (FreshnessProtectedKeyValueStore or InMemorySharedKeyValueStore))
+                {
+                    throw new InvalidOperationException(
+                        "Register a FreshnessProtectedKeyValueStore for the distributed PubSub SKS.");
+                }
                 return new SharedStorePubSubSecurityKeyStore(
                     store,
                     ResolveProtectorOrThrow(sp, store),
                     sp.GetRequiredService<IServiceMessageContext>());
             }));
 
+            services.TryAddSingleton<IPubSubNonceRangeStore>(sp =>
+                new SharedStorePubSubNonceRangeStore(ResolveCoordinatedStore(sp)));
+
             if (options.Mode == PubSubRedundancyMode.Hot)
             {
                 services.Replace(ServiceDescriptor.Singleton<IPubSubWriterCheckpointStore>(sp =>
                     new SharedStorePubSubWriterCheckpointStore(
-                        sp.GetRequiredService<ISharedKeyValueStore>())));
+                        ResolveCoordinatedStore(sp, requireFence: true))));
             }
             else
             {
@@ -123,6 +119,25 @@ namespace Opc.Ua.PubSub.Redundancy
             }
 
             return services;
+        }
+
+        private static ISharedKeyValueStore ResolveCoordinatedStore(IServiceProvider services, bool requireFence = false)
+        {
+            ISharedKeyValueStore store = services.GetService<FreshnessProtectedKeyValueStore>() ??
+                services.GetRequiredService<ISharedKeyValueStore>();
+            if (store is not (FreshnessProtectedKeyValueStore or InMemorySharedKeyValueStore))
+            {
+                throw new InvalidOperationException(
+                    "Register an enrolled FreshnessProtectedKeyValueStore for coordinated PubSub records.");
+            }
+            if (requireFence && store is FreshnessProtectedKeyValueStore &&
+                services.GetService<IPubSubActivationFenceProvider>() is null)
+            {
+                throw new InvalidOperationException(
+                    "Distributed PubSub runtime state and checkpoints require a fenced activation provider. " +
+                    "Select lease-store election or register an IPubSubActivationFenceProvider.");
+            }
+            return store;
         }
 
         private static IRecordProtector ResolveProtectorOrThrow(

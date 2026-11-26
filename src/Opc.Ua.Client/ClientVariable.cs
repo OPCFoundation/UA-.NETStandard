@@ -1,31 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using System.Collections.Generic;
@@ -57,7 +31,7 @@ namespace Opc.Ua.Client
     /// safety and subscriptions. Optional absence is reported as BadNotFound, not a fabricated default.
     /// </remarks>
     /// <typeparam name="T">The exact generated/native UA value representation.</typeparam>
-    public sealed class ClientVariable<T>
+    public sealed partial class ClientVariable<T>
     {
         /// <summary>
         /// Creates a model-derived variable view.
@@ -112,6 +86,17 @@ namespace Opc.Ua.Client
         /// </summary>
         public async ValueTask WriteAsync(T value, CancellationToken cancellationToken = default)
         {
+            await WriteWithStatusAsync(value, cancellationToken).ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// Writes a typed value and retains Good or Uncertain operation status.
+        /// Bad operation status throws without treating the write as accepted.
+        /// </summary>
+        public async ValueTask<StatusCode> WriteWithStatusAsync(
+            T value,
+            CancellationToken cancellationToken = default)
+        {
             if (!Writable)
             {
                 throw ServiceResultException.Create(StatusCodes.BadNotWritable,
@@ -129,12 +114,17 @@ namespace Opc.Ua.Client
             ];
             WriteResponse response = await m_owner.Session.WriteAsync(null, writes,
                 cancellationToken).ConfigureAwait(false);
+            if (StatusCode.IsBad(response.ResponseHeader.ServiceResult))
+            {
+                throw new ServiceResultException(response.ResponseHeader.ServiceResult);
+            }
             ClientBase.ValidateResponse(response.Results, writes);
             ClientBase.ValidateDiagnosticInfos(response.DiagnosticInfos, writes);
             if (StatusCode.IsBad(response.Results[0]))
             {
                 throw new ServiceResultException(response.Results[0]);
             }
+            return response.Results[0];
         }
 
         /// <summary>

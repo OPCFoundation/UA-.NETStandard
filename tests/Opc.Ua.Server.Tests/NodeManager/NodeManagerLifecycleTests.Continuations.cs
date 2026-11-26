@@ -1,31 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using System.Collections.Generic;
@@ -36,6 +10,7 @@ using System.Threading.Tasks;
 using NUnit.Framework;
 using Opc.Ua.Client.TestFramework;
 using Opc.Ua.Tests;
+using static Opc.Ua.Server.Tests.NodeManager.LifecycleInspection;
 
 namespace Opc.Ua.Server.Tests.NodeManager
 {
@@ -45,19 +20,21 @@ namespace Opc.Ua.Server.Tests.NodeManager
         [TestCase(true)]
         [Category("Integration")]
         [Category("NativeTcp")]
-        public async Task PreparedBatchGracefulContinuationRetainsOwnerUntilFinalPageAsync(bool replace)
+        public async Task PreparedBatchMigrationInvalidatesNativeContinuationAndRetiresOwnerAsync(bool replace)
         {
             using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(60));
             IServerInternal server = m_server.CurrentInstance;
             server.NamespaceUris.GetIndexOrAppend("urn:opcfoundation.org:Tests:ContinuationPadding");
             TrackingLifecycleNodeManager? originalManager = null;
-            NodeManagerRegistration original = await m_server.NodeManagerLifecycle.AddAsync(
-                CreateTrackingNodeManagementFactory(kGeneration1Value, manager => originalManager = manager),
-                null, timeout.Token).ConfigureAwait(false);
+            LifecycleResult publicationResult1 = await CommitChangeAsync(
+                m_server.NodeManagerLifecycle, LifecycleChange.Add(
+                CreateTrackingNodeManagementFactory(
+                kGeneration1Value, manager => originalManager = manager)), timeout.Token).ConfigureAwait(false);
+            NodeManagerRegistration original = RequireRegistration(publicationResult1.Registrations[0]);
             AssertLifecycleValue(originalManager);
             await originalManager.AddContinuationChildrenAsync("Old", timeout.Token).ConfigureAwait(false);
             ushort ns = (ushort)server.NamespaceUris.GetIndex(kModelNamespaceUri);
-            await using var client = new ClientFixture(false, true, NUnitTelemetryContext.Create());
+            await using var client = new ClientFixture(false, true, NUnitTelemetryContext.Create()) { ReuseCachedCertificates = true };
             await client.LoadClientConfigurationAsync(m_pkiRoot).ConfigureAwait(false);
             using Opc.Ua.Client.ISession session = await client.ConnectAsync(
                 new Uri($"{Utils.UriSchemeOpcTcp}://localhost:{m_fixture.Port}"), SecurityPolicies.None)
@@ -70,17 +47,17 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 Assert.That(page.References.Count, Is.EqualTo(1));
                 Assert.That(page.ContinuationPoint.Length, Is.GreaterThan(0));
                 Assert.That(server.SubscriptionManager.GetSubscriptions(), Is.Empty);
-                List<ReferenceDescription> references = [.. page.References];
                 TrackingLifecycleNodeManager? replacement = null;
-                var lifecycle = (INodeManagerBatchLifecycle)m_server.NodeManagerLifecycle;
-                NodeManagerBatchResult result;
-                await using (IPreparedNodeManagerBatch prepared = await lifecycle.PrepareAsync(
-                    [
+                INodeManagerLifecycle lifecycle = m_server.NodeManagerLifecycle;
+                LifecycleResult result;
+                await using ILifecycleWriter exactWriter1 = await Capture(
+                    m_server.NodeManagerLifecycle, original).BeginAsync(timeout.Token).ConfigureAwait(false);
+                await using (IPreparedChanges prepared = await exactWriter1.PrepareAsync([
                         replace
-                            ? NodeManagerBatchChange.Replace(original, CreateTrackingNodeManagementFactory(
+                            ? LifecycleChange.Replace(original.Slot, CreateTrackingNodeManagementFactory(
                                 kGeneration2Value, manager => replacement = manager))
-                            : NodeManagerBatchChange.Remove(original)
-                    ], null, timeout.Token).ConfigureAwait(false))
+                            : LifecycleChange.Remove(original.Slot)
+                    ], timeout.Token).ConfigureAwait(false))
                 {
                     if (replace)
                     {
@@ -88,9 +65,11 @@ namespace Opc.Ua.Server.Tests.NodeManager
                         await replacement.AddContinuationChildrenAsync("New", timeout.Token).ConfigureAwait(false);
                     }
                     result = await prepared.CommitAsync(_ => default, timeout.Token).ConfigureAwait(false);
+                    await exactWriter1.DisposeAsync().ConfigureAwait(false);
                 }
-                int deletedAfterCommit = originalManager.DeleteAddressSpaceCount;
-                int disposedAfterCommit = originalManager.DisposeCount;
+                await result.Retired.WaitAsync(timeout.Token).ConfigureAwait(false);
+                int deletedAfterRetirement = originalManager.DeleteAddressSpaceCount;
+                int disposedAfterRetirement = originalManager.DisposeCount;
                 BrowseResult current = await BrowseContinuationRootAsync(session, ns, 0, timeout.Token)
                     .ConfigureAwait(false);
                 Assert.That(current.StatusCode, Is.EqualTo(replace ? StatusCodes.Good : StatusCodes.BadNodeIdUnknown));
@@ -101,44 +80,20 @@ namespace Opc.Ua.Server.Tests.NodeManager
                         Is.EquivalentTo(new[] { kValueBrowseName, "NewFirst", "NewSecond" }));
                 }
 
-                for (int pages = 0; page.ContinuationPoint.Length > 0; pages++)
-                {
-                    Assert.That(pages, Is.LessThan(4), "The old generation has exactly three matching references.");
-                    BrowseNextResponse next = await session.BrowseNextAsync(
-                        null, false, [page.ContinuationPoint], timeout.Token).ConfigureAwait(false);
-                    Assert.That(next.Results.Count, Is.EqualTo(1));
-                    page = next.Results[0];
-                    using (Assert.EnterMultipleScope())
-                    {
-                        Assert.That(page.StatusCode, Is.EqualTo(StatusCodes.Good),
-                            "A saved native continuation must retain its graceful old generation.");
-                        Assert.That(deletedAfterCommit, Is.Zero);
-                        Assert.That(disposedAfterCommit, Is.Zero);
-                        Assert.That(result.Retired, Is.Zero);
-                        Assert.That(result.CleanupFailure, Is.Null);
-                    }
-                    references.AddRange(page.References);
-                    if (page.ContinuationPoint.Length > 0)
-                    {
-                        Assert.That(originalManager.DisposeCount, Is.Zero);
-                    }
-                }
-                Assert.That(references.Select(reference => reference.BrowseName.Name),
-                    Is.EquivalentTo(new[] { kValueBrowseName, "OldFirst", "OldSecond" }));
-                Assert.That(references.Select(reference => reference.NodeId),
-                    Is.EquivalentTo(new[]
-                    {
-                        new ExpandedNodeId(kValueNodeId, ns),
-                        new ExpandedNodeId(8010u, ns),
-                        new ExpandedNodeId(8011u, ns)
-                    }));
-                Assert.That(references.All(reference =>
-                    reference.IsForward &&
-                    reference.NodeClass == NodeClass.Variable &&
-                    reference.ReferenceTypeId == ReferenceTypeIds.HasComponent), Is.True);
+                BrowseNextResponse stale = await session.BrowseNextAsync(
+                    null, false, [page.ContinuationPoint], timeout.Token).ConfigureAwait(false);
+                Assert.That(stale.Results[0].StatusCode, Is.EqualTo(StatusCodes.BadContinuationPointInvalid));
+                await ReleaseContinuationAsync(session, page.ContinuationPoint, timeout.Token).ConfigureAwait(false);
                 await originalManager.DisposalCompleted.WaitAsync(timeout.Token).ConfigureAwait(false);
-                Assert.That(originalManager.DeleteAddressSpaceCount, Is.EqualTo(1));
-                Assert.That(originalManager.DisposeCount, Is.EqualTo(1));
+                using (Assert.EnterMultipleScope())
+                {
+                    Assert.That(deletedAfterRetirement, Is.EqualTo(1));
+                    Assert.That(disposedAfterRetirement, Is.EqualTo(1));
+                    Assert.That(result.Retired.Status, Is.EqualTo(TaskStatus.RanToCompletion));
+                    Assert.That(result.CleanupFailure, Is.Null);
+                    Assert.That(originalManager.DeleteAddressSpaceCount, Is.EqualTo(1));
+                    Assert.That(originalManager.DisposeCount, Is.EqualTo(1));
+                }
                 if (replace)
                 {
                     TrackingLifecycleNodeManager replacementGeneration = RequireLifecycleValue(replacement);
@@ -154,14 +109,14 @@ namespace Opc.Ua.Server.Tests.NodeManager
         [Test]
         [Category("Integration")]
         [Category("NativeTcp")]
-        public async Task GracefulContinuationsReleaseOnlyTheirExactIndependentOwnersAsync()
+        public async Task RetiredBatchInvalidatesContinuationsAndReleasesIndependentOwnersAsync()
         {
             using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(60));
             var first = await AddContinuationOwnerAsync(kModelNamespaceUri, timeout.Token).ConfigureAwait(false);
             var second = await AddContinuationOwnerAsync(kSecondModelNamespaceUri, timeout.Token).ConfigureAwait(false);
             var unowned = await AddContinuationOwnerAsync(
                 "urn:opcfoundation.org:Tests:ContinuationUnowned", timeout.Token).ConfigureAwait(false);
-            await using var client = new ClientFixture(false, true, NUnitTelemetryContext.Create());
+            await using var client = new ClientFixture(false, true, NUnitTelemetryContext.Create()) { ReuseCachedCertificates = true };
             await client.LoadClientConfigurationAsync(m_pkiRoot).ConfigureAwait(false);
             using Opc.Ua.Client.ISession session = await client.ConnectAsync(
                 new Uri($"{Utils.UriSchemeOpcTcp}://localhost:{m_fixture.Port}"), SecurityPolicies.None)
@@ -177,45 +132,48 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 Assert.That(firstPoint.ContinuationPoint.Length, Is.GreaterThan(0));
                 Assert.That(anotherFirstPoint.ContinuationPoint.Length, Is.GreaterThan(0));
                 Assert.That(secondPoint.ContinuationPoint.Length, Is.GreaterThan(0));
-                var lifecycle = (INodeManagerBatchLifecycle)m_server.NodeManagerLifecycle;
-                await using (IPreparedNodeManagerBatch prepared = await lifecycle.PrepareAsync(
-                    [
-                        NodeManagerBatchChange.Remove(first.Registration),
-                        NodeManagerBatchChange.Remove(second.Registration),
-                        NodeManagerBatchChange.Remove(unowned.Registration)
-                    ], null, timeout.Token).ConfigureAwait(false))
+                INodeManagerLifecycle lifecycle = m_server.NodeManagerLifecycle;
+                await using ILifecycleWriter exactWriter2 = await Capture(
+                    m_server.NodeManagerLifecycle, first.Registration, second.Registration,
+                    unowned.Registration).BeginAsync(timeout.Token).ConfigureAwait(false);
+                await using (IPreparedChanges prepared = await exactWriter2.PrepareAsync([
+                        LifecycleChange.Remove(first.Registration.Slot),
+                        LifecycleChange.Remove(second.Registration.Slot),
+                        LifecycleChange.Remove(unowned.Registration.Slot)
+                    ], timeout.Token).ConfigureAwait(false))
                 {
-                    NodeManagerBatchResult result = await prepared.CommitAsync(_ => default, timeout.Token)
+                    LifecycleResult result = await prepared.CommitAsync(_ => default, timeout.Token)
                         .ConfigureAwait(false);
+                    await exactWriter2.DisposeAsync().ConfigureAwait(false);
                     Assert.That(result.CleanupFailure, Is.Null);
-                    Assert.That(result.Retired, Is.EqualTo(1u));
+                    await result.Retired.WaitAsync(timeout.Token).ConfigureAwait(false);
                 }
-                Assert.That(unowned.Manager.DisposeCount, Is.EqualTo(1));
-                Assert.That(first.Manager.DisposeCount, Is.Zero);
-                Assert.That(second.Manager.DisposeCount, Is.Zero);
 
-                await ReleaseContinuationAsync(session, firstPoint.ContinuationPoint, timeout.Token)
-                    .ConfigureAwait(false);
-                await ReleaseContinuationAsync(session, firstPoint.ContinuationPoint, timeout.Token)
-                    .ConfigureAwait(false);
-                Assert.That(first.Manager.DisposeCount, Is.Zero,
-                    "Releasing one point twice cannot release another point owned by the same generation.");
-                Assert.That(second.Manager.DisposeCount, Is.Zero);
-                await ReleaseContinuationAsync(session, secondPoint.ContinuationPoint, timeout.Token)
-                    .ConfigureAwait(false);
-                await second.Manager.DisposalCompleted.WaitAsync(timeout.Token).ConfigureAwait(false);
-                Assert.That(second.Manager.DeleteAddressSpaceCount, Is.EqualTo(1));
-                Assert.That(second.Manager.DisposeCount, Is.EqualTo(1));
-                Assert.That(first.Manager.DisposeCount, Is.Zero);
-                await ReleaseContinuationAsync(session, anotherFirstPoint.ContinuationPoint, timeout.Token)
-                    .ConfigureAwait(false);
-                await first.Manager.DisposalCompleted.WaitAsync(timeout.Token).ConfigureAwait(false);
-                Assert.That(first.Manager.DeleteAddressSpaceCount, Is.EqualTo(1));
-                Assert.That(first.Manager.DisposeCount, Is.EqualTo(1));
-                Assert.That(unowned.Manager.DisposeCount, Is.EqualTo(1));
                 BrowseNextResponse stale = await session.BrowseNextAsync(
-                    null, false, [anotherFirstPoint.ContinuationPoint], timeout.Token).ConfigureAwait(false);
-                Assert.That(stale.Results[0].StatusCode, Is.EqualTo(StatusCodes.BadContinuationPointInvalid));
+                    null,
+                    releaseContinuationPoints: false,
+                    [
+                        firstPoint.ContinuationPoint,
+                        anotherFirstPoint.ContinuationPoint,
+                        secondPoint.ContinuationPoint
+                    ],
+                    timeout.Token).ConfigureAwait(false);
+                Assert.That(stale.Results.Count, Is.EqualTo(3));
+                Assert.Multiple(() =>
+                {
+                    Assert.That(stale.Results[0].StatusCode, Is.EqualTo(StatusCodes.BadContinuationPointInvalid));
+                    Assert.That(stale.Results[1].StatusCode, Is.EqualTo(StatusCodes.BadContinuationPointInvalid));
+                    Assert.That(stale.Results[2].StatusCode, Is.EqualTo(StatusCodes.BadContinuationPointInvalid));
+                });
+
+                await Task.WhenAll(
+                    first.Manager.DisposalCompleted,
+                    second.Manager.DisposalCompleted).WaitAsync(timeout.Token).ConfigureAwait(false);
+                Assert.That(unowned.Manager.DisposeCount, Is.EqualTo(1));
+                Assert.That(second.Manager.DisposeCount, Is.EqualTo(1));
+                Assert.That(first.Manager.DisposeCount, Is.EqualTo(1));
+                Assert.That(first.Manager.DeleteAddressSpaceCount, Is.EqualTo(1));
+                Assert.That(second.Manager.DeleteAddressSpaceCount, Is.EqualTo(1));
             }
             finally
             {
@@ -227,11 +185,11 @@ namespace Opc.Ua.Server.Tests.NodeManager
         [TestCase(true)]
         [Category("Integration")]
         [Category("NativeTcp")]
-        public async Task GracefulContinuationSessionTeardownReleasesOwnerAsync(bool dispose)
+        public async Task GracefulRetirementDoesNotWaitForIdleContinuationAsync(bool dispose)
         {
             using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(60));
             var owner = await AddContinuationOwnerAsync(kModelNamespaceUri, timeout.Token).ConfigureAwait(false);
-            await using var client = new ClientFixture(false, true, NUnitTelemetryContext.Create());
+            await using var client = new ClientFixture(false, true, NUnitTelemetryContext.Create()) { ReuseCachedCertificates = true };
             await client.LoadClientConfigurationAsync(m_pkiRoot).ConfigureAwait(false);
             using Opc.Ua.Client.ISession session = await client.ConnectAsync(
                 new Uri($"{Utils.UriSchemeOpcTcp}://localhost:{m_fixture.Port}"), SecurityPolicies.None)
@@ -239,10 +197,16 @@ namespace Opc.Ua.Server.Tests.NodeManager
             BrowseResult page = await BrowseContinuationRootAsync(
                 session, owner.NamespaceIndex, 1, timeout.Token).ConfigureAwait(false);
             Assert.That(page.ContinuationPoint.Length, Is.GreaterThan(0));
-            NodeManagerBatchResult result = await RetireContinuationOwnerAsync(
-                owner.Registration, false, timeout.Token).ConfigureAwait(false);
-            Assert.That(result.Retired, Is.Zero);
-            Assert.That(owner.Manager.DisposeCount, Is.Zero);
+            LifecycleResult result = await RetireContinuationOwnerAsync(
+                owner.Registration, timeout.Token).ConfigureAwait(false);
+            // An idle continuation point does not retain its issuing generation; it is validated against that
+            // generation on use and rejected once the generation is retired.
+            await result.Retired.WaitAsync(timeout.Token).ConfigureAwait(false);
+            await owner.Manager.DisposalCompleted.WaitAsync(timeout.Token).ConfigureAwait(false);
+            Assert.That(owner.Manager.DisposeCount, Is.EqualTo(1));
+            BrowseNextResponse stale = await session.BrowseNextAsync(
+                null, false, [page.ContinuationPoint], timeout.Token).ConfigureAwait(false);
+            Assert.That(stale.Results[0].StatusCode, Is.EqualTo(StatusCodes.BadContinuationPointInvalid));
             if (dispose)
             {
                 ISession serverSession = m_server.CurrentInstance.SessionManager.GetSessions()
@@ -254,7 +218,6 @@ namespace Opc.Ua.Server.Tests.NodeManager
             {
                 await session.CloseAsync(timeout.Token).ConfigureAwait(false);
             }
-            await owner.Manager.DisposalCompleted.WaitAsync(timeout.Token).ConfigureAwait(false);
             Assert.That(owner.Manager.DeleteAddressSpaceCount, Is.EqualTo(1));
             Assert.That(owner.Manager.DisposeCount, Is.EqualTo(1));
             if (dispose)
@@ -267,62 +230,37 @@ namespace Opc.Ua.Server.Tests.NodeManager
         [Test]
         [Category("Integration")]
         [Category("NativeTcp")]
-        public async Task GracefulContinuationKeepsCheckedOutOwnerAndCapturedRoutesAsync()
+        public async Task ContinuationUsesCurrentRequestViewAfterUnrelatedPublicationAsync()
         {
             using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(60));
             var owner = await AddContinuationOwnerAsync(kModelNamespaceUri, timeout.Token).ConfigureAwait(false);
-            var master = (MasterNodeManager)m_server.CurrentInstance.NodeManager;
-            await using var client = new ClientFixture(false, true, NUnitTelemetryContext.Create());
+            var other = await AddContinuationOwnerAsync(kSecondModelNamespaceUri, timeout.Token).ConfigureAwait(false);
+            await using var client = new ClientFixture(false, true, NUnitTelemetryContext.Create()) { ReuseCachedCertificates = true };
             await client.LoadClientConfigurationAsync(m_pkiRoot).ConfigureAwait(false);
             using Opc.Ua.Client.ISession session = await client.ConnectAsync(
                 new Uri($"{Utils.UriSchemeOpcTcp}://localhost:{m_fixture.Port}"), SecurityPolicies.None)
                 .ConfigureAwait(false);
-            var entered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
-            var release = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
-            int calls = 0;
-            bool capturedRoutes = false;
             BrowseResult page = await BrowseContinuationRootAsync(
                 session, owner.NamespaceIndex, 1, timeout.Token).ConfigureAwait(false);
             Assert.That(page.ContinuationPoint.Length, Is.GreaterThan(0));
-            owner.Manager.ValidateNodeCallback = async (nodeId, token) =>
+            var added = await AddContinuationOwnerAsync(
+                "urn:opcfoundation.org:Tests:ContinuationAddedAfterBrowse",
+                timeout.Token).ConfigureAwait(false);
+            bool capturedCurrentView = false;
+            owner.Manager.ValidateNodeCallback = (context, _, _) =>
             {
-                if (nodeId == new NodeId(kRootNodeId, owner.NamespaceIndex) &&
-                    Interlocked.Increment(ref calls) == 1)
-                {
-                    entered.TrySetResult(true);
-                    await release.Task.WaitAsync(token).ConfigureAwait(false);
-                    capturedRoutes = master.NamespaceManagers[owner.NamespaceIndex].Contains(owner.Manager);
-                }
+                capturedCurrentView = context.OperationContext!.RoutingSnapshot!
+                    .VisibleNamespaceManagers[added.NamespaceIndex].Contains(
+                        added.Manager);
+                return default;
             };
-            Task<BrowseNextResponse> pending = session.BrowseNextAsync(
-                null, false, [page.ContinuationPoint], timeout.Token).AsTask();
-            try
-            {
-                await entered.Task.WaitAsync(timeout.Token).ConfigureAwait(false);
-                NodeManagerBatchResult result = await RetireContinuationOwnerAsync(
-                    owner.Registration, false, timeout.Token).ConfigureAwait(false);
-                Assert.That(result.Retired, Is.Zero);
-                Assert.That(pending.IsCompleted, Is.False);
-                Assert.That(owner.Manager.DeleteAddressSpaceCount, Is.Zero);
-                Assert.That(owner.Manager.DisposeCount, Is.Zero);
-                BrowseResult fresh = await BrowseContinuationRootAsync(
-                    session, owner.NamespaceIndex, 0, timeout.Token).ConfigureAwait(false);
-                Assert.That(fresh.StatusCode, Is.EqualTo(StatusCodes.BadNodeIdUnknown));
-            }
-            finally
-            {
-                release.TrySetResult(true);
-            }
-            BrowseNextResponse next = await pending.WaitAsync(timeout.Token).ConfigureAwait(false);
+            BrowseNextResponse next = await session.BrowseNextAsync(
+                null, false, [page.ContinuationPoint], timeout.Token).ConfigureAwait(false);
             Assert.That(next.Results[0].StatusCode, Is.EqualTo(StatusCodes.Good));
             Assert.That(next.Results[0].ContinuationPoint.Length, Is.GreaterThan(0));
-            Assert.That(capturedRoutes, Is.True);
-            Assert.That(owner.Manager.DisposeCount, Is.Zero);
+            Assert.That(capturedCurrentView, Is.True);
             await ReleaseContinuationAsync(session, next.Results[0].ContinuationPoint, timeout.Token)
                 .ConfigureAwait(false);
-            await owner.Manager.DisposalCompleted.WaitAsync(timeout.Token).ConfigureAwait(false);
-            Assert.That(owner.Manager.DeleteAddressSpaceCount, Is.EqualTo(1));
-            Assert.That(owner.Manager.DisposeCount, Is.EqualTo(1));
             await session.CloseAsync(timeout.Token).ConfigureAwait(false);
         }
 
@@ -332,11 +270,13 @@ namespace Opc.Ua.Server.Tests.NodeManager
         [TestCase(true, true)]
         [Category("Integration")]
         [Category("NativeTcp")]
-        public async Task GracefulContinuationFailedOrCancelledNextReleasesOwnerAsync(bool releasePoint, bool cancel)
+        public async Task InFlightBrowseNextFailureOrCancellationReleasesRetiredOwnerAsync(
+            bool releasePoint,
+            bool cancel)
         {
             using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(60));
             var owner = await AddContinuationOwnerAsync(kModelNamespaceUri, timeout.Token).ConfigureAwait(false);
-            await using var client = new ClientFixture(false, true, NUnitTelemetryContext.Create());
+            await using var client = new ClientFixture(false, true, NUnitTelemetryContext.Create()) { ReuseCachedCertificates = true };
             await client.LoadClientConfigurationAsync(m_pkiRoot).ConfigureAwait(false);
             using Opc.Ua.Client.ISession session = await client.ConnectAsync(
                 new Uri($"{Utils.UriSchemeOpcTcp}://localhost:{m_fixture.Port}"), SecurityPolicies.None)
@@ -346,8 +286,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             BrowseResult page = await BrowseContinuationRootAsync(
                 session, owner.NamespaceIndex, 1, timeout.Token).ConfigureAwait(false);
             Assert.That(page.ContinuationPoint.Length, Is.GreaterThan(0));
-            await RetireContinuationOwnerAsync(owner.Registration, false, timeout.Token).ConfigureAwait(false);
-            owner.Manager.ValidateNodeCallback = async (_, token) =>
+            owner.Manager.ValidateNodeCallback = async (_, _, token) =>
             {
                 entered.TrySetResult(true);
                 await release.Task.WaitAsync(token).ConfigureAwait(false);
@@ -359,6 +298,9 @@ namespace Opc.Ua.Server.Tests.NodeManager
             try
             {
                 await entered.Task.WaitAsync(timeout.Token).ConfigureAwait(false);
+                LifecycleResult retirement = await RetireContinuationOwnerAsync(
+                    owner.Registration, timeout.Token).ConfigureAwait(false);
+                Assert.That(retirement.RetiredCount, Is.Zero);
                 Assert.That(owner.Manager.DisposeCount, Is.Zero);
                 if (cancel)
                 {
@@ -379,7 +321,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             finally
             {
                 release.TrySetResult(true);
-                owner.Manager.ValidateNodeCallback = (_, _) => default;
+                owner.Manager.ValidateNodeCallback = (_, _, _) => default;
             }
             await owner.Manager.DisposalCompleted.WaitAsync(timeout.Token).ConfigureAwait(false);
             Assert.That(owner.Manager.DeleteAddressSpaceCount, Is.EqualTo(1));
@@ -390,15 +332,14 @@ namespace Opc.Ua.Server.Tests.NodeManager
             await session.CloseAsync(timeout.Token).ConfigureAwait(false);
         }
 
-        [TestCase(false)]
-        [TestCase(true)]
+        [Test]
         [Category("Integration")]
         [Category("NativeTcp")]
-        public async Task GracefulContinuationPermissionDenialReleasesOwnerAsync(bool releasePoint)
+        public async Task RetiredContinuationCannotReenterDisposedOwnerAsync()
         {
             using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(60));
             var owner = await AddContinuationOwnerAsync(kModelNamespaceUri, timeout.Token).ConfigureAwait(false);
-            await using var client = new ClientFixture(false, true, NUnitTelemetryContext.Create());
+            await using var client = new ClientFixture(false, true, NUnitTelemetryContext.Create()) { ReuseCachedCertificates = true };
             await client.LoadClientConfigurationAsync(m_pkiRoot).ConfigureAwait(false);
             using Opc.Ua.Client.ISession session = await client.ConnectAsync(
                 new Uri($"{Utils.UriSchemeOpcTcp}://localhost:{m_fixture.Port}"), SecurityPolicies.None)
@@ -406,21 +347,21 @@ namespace Opc.Ua.Server.Tests.NodeManager
             BrowseResult page = await BrowseContinuationRootAsync(
                 session, owner.NamespaceIndex, 1, timeout.Token).ConfigureAwait(false);
             Assert.That(page.ContinuationPoint.Length, Is.GreaterThan(0));
-            await RetireContinuationOwnerAsync(owner.Registration, false, timeout.Token).ConfigureAwait(false);
-            NodeState root = RequireLifecycleValue(owner.Manager.Find(new NodeId(kRootNodeId, owner.NamespaceIndex)));
-            root.RolePermissions =
-            [
-                new RolePermissionType
-                {
-                    RoleId = ObjectIds.WellKnownRole_Anonymous,
-                    Permissions = (uint)PermissionType.Read
-                }
-            ];
-            BrowseNextResponse denied = await session.BrowseNextAsync(
-                null, releasePoint, [page.ContinuationPoint], timeout.Token).ConfigureAwait(false);
-            Assert.That(denied.Results[0].StatusCode, Is.EqualTo(StatusCodes.BadUserAccessDenied));
-            Assert.That(denied.Results[0].ContinuationPoint.IsEmpty, Is.True);
+            int callbackCount = 0;
+            owner.Manager.ValidateNodeCallback = (_, _, _) =>
+            {
+                Interlocked.Increment(ref callbackCount);
+                return default;
+            };
+            LifecycleResult retirement = await RetireContinuationOwnerAsync(
+                owner.Registration, timeout.Token).ConfigureAwait(false);
+            await retirement.Retired.WaitAsync(timeout.Token).ConfigureAwait(false);
             await owner.Manager.DisposalCompleted.WaitAsync(timeout.Token).ConfigureAwait(false);
+
+            BrowseNextResponse stale = await session.BrowseNextAsync(
+                null, false, [page.ContinuationPoint], timeout.Token).ConfigureAwait(false);
+            Assert.That(stale.Results[0].StatusCode, Is.EqualTo(StatusCodes.BadContinuationPointInvalid));
+            Assert.That(callbackCount, Is.Zero);
             Assert.That(owner.Manager.DeleteAddressSpaceCount, Is.EqualTo(1));
             Assert.That(owner.Manager.DisposeCount, Is.EqualTo(1));
             await session.CloseAsync(timeout.Token).ConfigureAwait(false);
@@ -434,7 +375,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
         {
             using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(60));
             var owner = await AddContinuationOwnerAsync(kModelNamespaceUri, timeout.Token).ConfigureAwait(false);
-            await using var client = new ClientFixture(false, true, NUnitTelemetryContext.Create());
+            await using var client = new ClientFixture(false, true, NUnitTelemetryContext.Create()) { ReuseCachedCertificates = true };
             await client.LoadClientConfigurationAsync(m_pkiRoot).ConfigureAwait(false);
             using Opc.Ua.Client.ISession session = await client.ConnectAsync(
                 new Uri($"{Utils.UriSchemeOpcTcp}://localhost:{m_fixture.Port}"), SecurityPolicies.None)
@@ -442,18 +383,21 @@ namespace Opc.Ua.Server.Tests.NodeManager
             BrowseResult page = await BrowseContinuationRootAsync(
                 session, owner.NamespaceIndex, 1, timeout.Token).ConfigureAwait(false);
             Assert.That(page.ContinuationPoint.Length, Is.GreaterThan(0));
-            var lifecycle = (INodeManagerBatchLifecycle)m_server.NodeManagerLifecycle;
-            await using (IPreparedNodeManagerBatch prepared = await lifecycle.PrepareAsync(
-                [
+            INodeManagerLifecycle lifecycle = m_server.NodeManagerLifecycle;
+            await using ILifecycleWriter exactWriter3 = await Capture(
+                m_server.NodeManagerLifecycle, owner.Registration).BeginAsync(timeout.Token).ConfigureAwait(false);
+            await using (IPreparedChanges prepared = await exactWriter3.PrepareAsync([
                     replace
-                        ? NodeManagerBatchChange.Replace(owner.Registration,
-                            CreateTrackingNodeManagementFactory(kGeneration2Value, _ => { }), true)
-                        : NodeManagerBatchChange.Remove(owner.Registration, true)
-                ], null, timeout.Token).ConfigureAwait(false))
+                        ? LifecycleChange.Replace(
+                            owner.Registration.Slot, CreateTrackingNodeManagementFactory(
+                            kGeneration2Value, _ => { }), NodeManagerMonitoredItemTransitionMode.Invalidate)
+                        : LifecycleChange.Remove(owner.Registration.Slot)
+                ], timeout.Token).ConfigureAwait(false))
             {
-                NodeManagerBatchResult result = await prepared.CommitAsync(_ => default, timeout.Token)
+                LifecycleResult result = await prepared.CommitAsync(_ => default, timeout.Token)
                     .ConfigureAwait(false);
-                Assert.That(result.Retired, Is.EqualTo(1u));
+                await exactWriter3.DisposeAsync().ConfigureAwait(false);
+                await result.Retired.WaitAsync(timeout.Token).ConfigureAwait(false);
                 Assert.That(result.CleanupFailure, Is.Null);
             }
             Assert.That(owner.Manager.DeleteAddressSpaceCount, Is.EqualTo(1));
@@ -469,11 +413,11 @@ namespace Opc.Ua.Server.Tests.NodeManager
         [Test]
         [Category("Integration")]
         [Category("NativeTcp")]
-        public async Task ShadowReloadRetainsNativeContinuationWithoutMonitoredItemsAsync()
+        public async Task ShadowReloadInvalidatesNativeContinuationWithoutMonitoredItemsAsync()
         {
             using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(60));
             var owner = await AddContinuationOwnerAsync(kModelNamespaceUri, timeout.Token).ConfigureAwait(false);
-            await using var client = new ClientFixture(false, true, NUnitTelemetryContext.Create());
+            await using var client = new ClientFixture(false, true, NUnitTelemetryContext.Create()) { ReuseCachedCertificates = true };
             await client.LoadClientConfigurationAsync(m_pkiRoot).ConfigureAwait(false);
             using Opc.Ua.Client.ISession session = await client.ConnectAsync(
                 new Uri($"{Utils.UriSchemeOpcTcp}://localhost:{m_fixture.Port}"), SecurityPolicies.None)
@@ -481,17 +425,18 @@ namespace Opc.Ua.Server.Tests.NodeManager
             BrowseResult page = await BrowseContinuationRootAsync(
                 session, owner.NamespaceIndex, 1, timeout.Token).ConfigureAwait(false);
             Assert.That(page.ContinuationPoint.Length, Is.GreaterThan(0));
-            await m_server.NodeManagerLifecycle.ShadowReloadAsync(
-                owner.Registration, CreateTrackingNodeManagementFactory(kGeneration2Value, _ => { }),
-                ct: timeout.Token).ConfigureAwait(false);
-            Assert.That(owner.Manager.DisposeCount, Is.Zero);
+            RequireRegistration(
+                (await CommitChangeAsync(
+                Capture(
+                m_server.NodeManagerLifecycle, owner.Registration), LifecycleChange.Replace(
+                owner.Registration.Slot, CreateTrackingNodeManagementFactory(
+                kGeneration2Value, _ => { })), timeout.Token).ConfigureAwait(false)).Registrations[0]);
+            await owner.Manager.DisposalCompleted.WaitAsync(timeout.Token).ConfigureAwait(false);
+            Assert.That(owner.Manager.DisposeCount, Is.EqualTo(1));
             BrowseNextResponse next = await session.BrowseNextAsync(
                 null, false, [page.ContinuationPoint], timeout.Token).ConfigureAwait(false);
-            Assert.That(next.Results[0].StatusCode, Is.EqualTo(StatusCodes.Good));
-            Assert.That(next.Results[0].ContinuationPoint.Length, Is.GreaterThan(0));
-            await ReleaseContinuationAsync(session, next.Results[0].ContinuationPoint, timeout.Token)
-                .ConfigureAwait(false);
-            await owner.Manager.DisposalCompleted.WaitAsync(timeout.Token).ConfigureAwait(false);
+            Assert.That(next.Results[0].StatusCode, Is.EqualTo(StatusCodes.BadContinuationPointInvalid));
+            await ReleaseContinuationAsync(session, page.ContinuationPoint, timeout.Token).ConfigureAwait(false);
             Assert.That(owner.Manager.DeleteAddressSpaceCount, Is.EqualTo(1));
             Assert.That(owner.Manager.DisposeCount, Is.EqualTo(1));
             await session.CloseAsync(timeout.Token).ConfigureAwait(false);
@@ -500,11 +445,11 @@ namespace Opc.Ua.Server.Tests.NodeManager
         [Test]
         [Category("Integration")]
         [Category("NativeTcp")]
-        public async Task ShutdownDisposesGracefulOwnerWithOutstandingNativeContinuationAsync()
+        public async Task ShutdownDoesNotRedisposeRetiredOwnerWithOutstandingNativeContinuationAsync()
         {
             using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(60));
             var owner = await AddContinuationOwnerAsync(kModelNamespaceUri, timeout.Token).ConfigureAwait(false);
-            await using var client = new ClientFixture(false, true, NUnitTelemetryContext.Create());
+            await using var client = new ClientFixture(false, true, NUnitTelemetryContext.Create()) { ReuseCachedCertificates = true };
             await client.LoadClientConfigurationAsync(m_pkiRoot).ConfigureAwait(false);
             using Opc.Ua.Client.ISession session = await client.ConnectAsync(
                 new Uri($"{Utils.UriSchemeOpcTcp}://localhost:{m_fixture.Port}"), SecurityPolicies.None)
@@ -512,8 +457,10 @@ namespace Opc.Ua.Server.Tests.NodeManager
             BrowseResult page = await BrowseContinuationRootAsync(
                 session, owner.NamespaceIndex, 1, timeout.Token).ConfigureAwait(false);
             Assert.That(page.ContinuationPoint.Length, Is.GreaterThan(0));
-            await RetireContinuationOwnerAsync(owner.Registration, false, timeout.Token).ConfigureAwait(false);
-            Assert.That(owner.Manager.DisposeCount, Is.Zero);
+            LifecycleResult result = await RetireContinuationOwnerAsync(
+                owner.Registration, timeout.Token).ConfigureAwait(false);
+            await result.Retired.WaitAsync(timeout.Token).ConfigureAwait(false);
+            Assert.That(owner.Manager.DisposeCount, Is.EqualTo(1));
             await m_server.ShutdownInternalsAsync(timeout.Token).ConfigureAwait(false);
             await owner.Manager.DisposalCompleted.WaitAsync(timeout.Token).ConfigureAwait(false);
             Assert.That(owner.Manager.DeleteAddressSpaceCount, Is.EqualTo(1));
@@ -526,25 +473,30 @@ namespace Opc.Ua.Server.Tests.NodeManager
             ushort NamespaceIndex)> AddContinuationOwnerAsync(string namespaceUri, CancellationToken cancellationToken)
         {
             TrackingLifecycleNodeManager? manager = null;
-            NodeManagerRegistration registration = await m_server.NodeManagerLifecycle.AddAsync(
-                CreateTrackingNodeManagementFactory(kGeneration1Value, created => manager = created, namespaceUri),
-                null, cancellationToken).ConfigureAwait(false);
+            LifecycleResult publicationResult2 = await CommitChangeAsync(
+                m_server.NodeManagerLifecycle, LifecycleChange.Add(
+                CreateTrackingNodeManagementFactory(
+                kGeneration1Value, created => manager = created, namespaceUri)), cancellationToken)
+                .ConfigureAwait(false);
+            NodeManagerRegistration registration = RequireRegistration(publicationResult2.Registrations[0]);
             AssertLifecycleValue(manager);
             await manager.AddContinuationChildrenAsync("Old", cancellationToken).ConfigureAwait(false);
             return (registration, manager, (ushort)m_server.CurrentInstance.NamespaceUris.GetIndex(namespaceUri));
         }
 
-        private async Task<NodeManagerBatchResult> RetireContinuationOwnerAsync(
+        private async Task<LifecycleResult> RetireContinuationOwnerAsync(
             NodeManagerRegistration registration,
-            bool immediate,
             CancellationToken cancellationToken)
         {
-            var lifecycle = (INodeManagerBatchLifecycle)m_server.NodeManagerLifecycle;
-            await using IPreparedNodeManagerBatch prepared = await lifecycle.PrepareAsync(
-                [NodeManagerBatchChange.Remove(registration, immediate)], null, cancellationToken)
+            INodeManagerLifecycle lifecycle = m_server.NodeManagerLifecycle;
+            await using ILifecycleWriter exactWriter4 = await Capture(
+                m_server.NodeManagerLifecycle, registration).BeginAsync(cancellationToken).ConfigureAwait(false);
+            await using IPreparedChanges prepared = await exactWriter4.PrepareAsync(
+                [LifecycleChange.Remove(registration.Slot)], cancellationToken)
                 .ConfigureAwait(false);
-            NodeManagerBatchResult result = await prepared.CommitAsync(_ => default, cancellationToken)
+            LifecycleResult result = await prepared.CommitAsync(_ => default, cancellationToken)
                 .ConfigureAwait(false);
+            await exactWriter4.DisposeAsync().ConfigureAwait(false);
             Assert.That(result.CleanupFailure, Is.Null);
             Assert.That(m_server.CurrentInstance.SubscriptionManager.GetSubscriptions(), Is.Empty);
             return result;

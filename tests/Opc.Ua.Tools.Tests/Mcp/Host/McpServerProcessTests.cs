@@ -1,33 +1,7 @@
-/* ========================================================================
- * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
-#if NET10_0
+#if NET10_0_OR_GREATER
 using System;
 using System.Diagnostics;
 using System.Globalization;
@@ -49,6 +23,8 @@ namespace Opc.Ua.Tools.Tests.Mcp
     [NonParallelizable]
     public sealed class McpServerProcessTests
     {
+        private const string kHttpToken = "mcp-server-process-tests-http-token-0123456789";
+
         [Test]
         public async Task HelpCommandStartsAndExitsSuccessfullyAsync()
         {
@@ -109,6 +85,13 @@ namespace Opc.Ua.Tools.Tests.Mcp
                     "Streamable HTTP server did not become ready.");
                 using HttpResponseMessage initializedResponse = mcpResponse!;
                 Assert.That(initializedResponse.IsSuccessStatusCode, Is.True);
+
+                using HttpRequestMessage anonymousRequest = CreateInitializeRequest(
+                    $"http://127.0.0.1:{port}/mcp", authorize: false);
+                using HttpResponseMessage anonymousResponse = await client.SendAsync(
+                    anonymousRequest,
+                    timeout.Token).ConfigureAwait(false);
+                Assert.That(anonymousResponse.StatusCode, Is.EqualTo(HttpStatusCode.Unauthorized));
 
                 using HttpRequestMessage rootRequest = CreateInitializeRequest(
                     $"http://127.0.0.1:{port}/");
@@ -553,6 +536,9 @@ namespace Opc.Ua.Tools.Tests.Mcp
                 RedirectStandardInput = true,
                 UseShellExecute = false
             };
+            // Override both token sources so an ambient developer token cannot win.
+            startInfo.Environment["McpServer__Http__Token"] = kHttpToken;
+            startInfo.Environment["OPCUA_MCP_HTTP_TOKEN"] = kHttpToken;
             if (enableDiagnostics)
             {
                 startInfo.Environment["OPCUA_PCAP_ENABLE_DIAGNOSTICS"] = "true";
@@ -567,7 +553,7 @@ namespace Opc.Ua.Tools.Tests.Mcp
                 ?? throw new InvalidOperationException("Unable to start the MCP server process.");
         }
 
-        private static HttpRequestMessage CreateInitializeRequest(string requestUri)
+        private static HttpRequestMessage CreateInitializeRequest(string requestUri, bool authorize = true)
         {
             var request = new HttpRequestMessage(HttpMethod.Post, requestUri)
             {
@@ -580,6 +566,10 @@ namespace Opc.Ua.Tools.Tests.Mcp
             };
             request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
             request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("text/event-stream"));
+            if (authorize)
+            {
+                request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", kHttpToken);
+            }
             return request;
         }
 

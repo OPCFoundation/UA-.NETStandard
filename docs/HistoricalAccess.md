@@ -97,6 +97,13 @@ This release ships the following Part 11 capabilities:
 
 ## Server developer guide
 
+Asset Management Basics composes health and maintenance history onto assets
+owned by DI, Machinery, Pumps or Scales. Configure
+`AddAssetManagement(options => options.UseHistory(provider))` to use the same
+provider model and capture pipeline. The [AMB history guide](AMB.md#history)
+describes per-asset selection, event fields, source timestamps and typed client
+queries. History remains disabled when it is not configured.
+
 ### Quick start: in-memory provider
 
 ```csharp
@@ -181,13 +188,24 @@ the separate `ExtraData` conditions are defined in
 
 ### Fluent builder (`server.UseHistorian()…`)
 
-For the most common case — one provider per server, default fallback — use the fluent builder. It rolls up provider registration, per-variable `Historizing`/access-level flags, optional `Annotations` property creation, and asynchronous `HistoricalDataConfigurationType` installation:
+Use `HistorianBuilder` for one server-wide provider or an explicitly scoped
+provider. It configures provider routing and history access, including optional
+`Annotations` properties and asynchronous `HistoricalDataConfigurationType`
+installation.
+
+Register providers and configure new capture after publication, in
+`INodeManagerReadinessNotification.OnServerReadyAsync`. Registrations made
+during private address-space preparation are staged, not written to the serving
+registry, and become serving-owned after readiness. A plain fluent manager may
+borrow an already serving node, namespace or default binding without its own
+readiness callback. The lifecycle retains that binding for the borrowing
+generation; this does not exempt explicit new registrations from readiness.
 
 ```csharp
 using Opc.Ua.Server.Historian;
 using Opc.Ua.Server.Historian.InMemory;
 
-// inside your NodeManager.CreateAddressSpace:
+// Inside INodeManagerReadinessNotification.OnServerReadyAsync:
 HistorianBuilder historian = Server
     .UseHistorian()
     .UseInMemoryProvider()          // or .UseProvider(yourProvider)
@@ -222,55 +240,76 @@ Resolution precedence is deterministic — see [Provider resolution order](#prov
 
 ### Fluent server API integration (`builder.Variable<T>(...).Historize()`)
 
-The historian surface is also reachable from the standard `Opc.Ua.Server.Fluent` builder used by source-generated node managers — historization fits in the same `Configure(INodeManagerBuilder)` chain as `OnRead` / `OnWrite` / `OnCall` / `Publish<TEvent>`:
+Source-generated node managers use the same historian extensions through
+`Opc.Ua.Server.Fluent`. Bind ordinary read, write and method callbacks during
+`Configure`, but defer historian registration and `.Historize()` until published
+readiness. `DeferPublishedAuthoringUntilReady` supplies a builder attached to the
+published address space; use that builder instead of retaining the preparation
+builder for shared-service configuration.
+
+This example assumes the model contains a `Temperature` variable:
 
 ```csharp
-using Opc.Ua.Server.Fluent;       // exposes UseHistorian/Historize/WithHistorian
+using System.Threading;
+using System.Threading.Tasks;
+using Opc.Ua.Server;
+using Opc.Ua.Server.Fluent;
 using Opc.Ua.Server.Historian;
 
 [NodeManager(NamespaceUri = "http://example.com/Plant/")]
-public partial class PlantNodeManager
+public sealed partial class PlantNodeManager : INodeManagerReadinessNotification
 {
     partial void Configure(INodeManagerBuilder builder)
     {
-        // Provision once: in-memory engine, registered as the default.
-        HistorianBuilder hist = builder.UseHistorian();
-        hist.UseInMemory();
-        hist.RegisterAsDefault();
-
-        // Variable-typed Historize() — most common form.
         builder.Variable<double>("Temperature")
-               .OnRead(GetTemperature)
-               .Historize();
+               .OnRead(static () => 20.0);
+
+        DeferPublishedAuthoringUntilReady(builder, (published, _) =>
+        {
+            HistorianBuilder historian = published.UseHistorian();
+            historian.UseInMemory();
+            historian.RegisterAsDefault();
+            published.Variable<double>("Temperature").Historize();
+            return default;
+        });
+    }
+
+    ValueTask INodeManagerReadinessNotification.OnServerReadyAsync(CancellationToken cancellationToken)
+    {
+        return CompletePublishedConfigurationAsync(cancellationToken);
     }
 }
 ```
+
+The readiness implementation completes the deferred steps before the builders'
+final seal. A completed step is not replayed; a step interrupted by failure must
+support retry without duplicating its side effects.
 
 The fluent surface ships three entry points (extension methods on the standard builder interfaces):
 
 | Method | Use case |
 | --- | --- |
-| `builder.UseHistorian()` | Returns a per-manager `HistorianBuilder` cached in a `ConditionalWeakTable` keyed by the `INodeManagerBuilder`. Subsequent `Historize()` calls inherit this default. Calling it more than once on the same manager returns the same instance. |
-| `variable.Historize(...)` | Opts the variable in to historization. Without a prior `UseHistorian()` call (and without a per-call `provider` argument), the call lazily creates an in-memory provider and registers it as the server-wide default — the "just works" path. Returns the same builder so the chain can continue. |
+| `builder.UseHistorian()` | Returns a `HistorianBuilder` cached for that `INodeManagerBuilder`. Calls on the same published builder share the selected default; a separate authoring builder has its own cache entry. |
+| `variable.Historize(...)` | Opts the variable in to historization during published configuration. Without a selected provider or a per-call `provider` argument, it creates an in-memory provider and registers it as the server-wide default. Returns the same variable builder. |
 | `variable.WithHistorian(provider)` | Binds a specific `IHistorianProvider` to the variable's `NodeId`. Per-node bindings take precedence over the default, so this is the right knob for per-signal storage routing. |
 
-Per-call overrides on `Historize(...)`:
+Apply per-call overrides inside the published callback as well:
 
 ```csharp
 // Per-call provider — bypasses the cached default for this one variable.
-builder.Variable<int>("AuditLog")
+published.Variable<int>("AuditLog")
        .OnRead(GetAuditValue)
        .Historize(provider: mySqliteProvider);
 
 // History is read-only by default (historyAccessLevel = HistoryRead).
 // HistoryUpdate needs an explicit opt-in; restrict it with RolePermissions.
-builder.Variable<double>("CorrectableSetpoint")
+published.Variable<double>("CorrectableSetpoint")
        .Historize(
            historyAccessLevel: AccessLevels.HistoryRead | AccessLevels.HistoryWrite);
 
 // Per-call capabilities — the same HistorianNodeCapabilities POCO the
 // HistorianBuilder uses; propagated to the provider's GetCapabilitiesAsync.
-builder.Variable<double>("ReadOnlySensor")
+published.Variable<double>("ReadOnlySensor")
        .OnRead(GetReading)
        .Historize(capabilities: new HistorianNodeCapabilities
        {
@@ -280,7 +319,7 @@ builder.Variable<double>("ReadOnlySensor")
 
 // The archive owns the live Historizing state. Register history access and
 // provider routing without overwriting the current attribute value.
-builder.Variable<double>("ArchiveControlled")
+published.Variable<double>("ArchiveControlled")
        .Historize(
            historizing: null,
            autoCapture: false);
@@ -299,16 +338,27 @@ Provider registration, requested `HistoryRead` / `HistoryWrite` access bits,
 historical configuration installation, and automatic capture are independent
 from this attribute choice.
 
-Source-generated typed traversal works the same way — the trailing `.Historize()` attaches to any `IVariableBuilder<T>`:
+For source-generated typed traversal, construct a typed builder over the
+published builder inside the callback. Keep the readiness implementation shown
+above:
 
 ```csharp
 partial void Configure(IBoilerNodeManagerBuilder builder)
 {
     builder.Boilers.Boiler__1.LCX001.Measurement
-           .OnRead(GenerateLevelControlMeasurement)
-           .Historize();
+           .OnRead(GenerateLevelControlMeasurement);
+
+    DeferPublishedAuthoringUntilReady(builder, (published, _) =>
+    {
+        var typed = new BoilerNodeManagerTypedBuilder(published);
+        typed.Boilers.Boiler__1.LCX001.Measurement.Historize();
+        return default;
+    });
 }
 ```
+
+The [MinimalBoilerServer implementation](../samples/MinimalApi/MinimalBoilerServer/BoilerNodeManager.Configure.cs)
+uses this pattern for historian and event-source registration.
 
 No `GetHistorianProvider(...)` override is required on the manager — the fluent path writes into the server-wide `IHistorianProviderRegistry` so the dispatcher's normal precedence (per-NM override → registry NodeId → namespace → default) picks the provider automatically.
 
@@ -349,6 +399,78 @@ if (server is IHistorianRegistryProvider registryProvider)
 ```
 
 The interface lives next to the historian types in `Opc.Ua.Server.Historian` so that mocks of `IServerInternal` don't need to implement it; production servers built on `ServerInternalData` always satisfy the check.
+
+Components that detach their own capture can use the optional
+`IHistorianNodeBindingRegistry.TryRegisterForNode` contract. The default registry
+adds the exact-node mapping atomically only if none exists; namespace and
+default fallbacks do not block it. Dispose the returned registration to remove
+that mapping without removing a later replacement, even if the replacement uses
+the same provider instance. Disposing a registration does not dispose its
+provider; the registry retains provider lifetime ownership until shutdown.
+
+The default registry's scoped tokens implement `IHistorianNodeBinding`.
+`ReleaseAsync(cleanup)` retains the node registration while the caller removes
+its metadata and owner-index entries, then restores attributes and removes the
+mapping even when cleanup fails. Competing mutations on that node are rejected
+until release finishes. If replacement setup is already in progress, release
+waits for its outcome: a committed successor is preserved without running the
+earlier owner's cleanup; a rolled-back replacement leaves the earlier owner
+responsible for cleanup. Repeated release calls share the original operation and
+its completed outcome.
+
+The overload taking `NodeState` also snapshots a variable's `Historizing`,
+`AccessLevel` and `UserAccessLevel`, or an object's `EventNotifier`. Releasing
+that registration restores the snapshot only while its exact-node mapping is
+still current. Restoration and removal complete before another registration can
+replace that mapping. A replacement owner must register before setting its
+attributes; disposing an earlier registration then cannot restore an older
+snapshot over those attributes. The overload taking only `NodeId` manages the
+mapping without changing node attributes.
+
+The standard fluent `.Historize(provider: ...)` path reserves the new mapping
+before changing variable attributes. If setup fails, it restores the prior exact
+mapping, registration identity and attributes. An owner that disposed during setup
+is not restored. Resolution and advertised providers retain the committed provider
+until setup commits. While a replacement is reserved, a competing registration,
+unregistration or replacement for that node is rejected before mutation; other
+nodes remain available.
+Registry shutdown invalidates pending reservations. A later commit throws
+`ObjectDisposedException`, restores the pre-setup attributes and leaves the
+registry empty; it cannot report a successful unpublished binding. The fluent
+path detaches and cancels raw capture created by the failed setup.
+If capture cleanup or replacement rollback also throws, the fluent operation
+reports an `AggregateException` containing the initiating error and each cleanup
+error. If cleanup succeeds, the initiating error is rethrown unchanged.
+Successful setup retains the new binding even if an older scoped owner disposes
+between the attribute changes and completion.
+Injected registries can implement `IHistorianNodeReplacementRegistry` and return
+an `IHistorianNodeReplacement` reservation with the same commit/rollback contract.
+A scoped registry without that capability can still historize unrelated nodes:
+the fluent operation acquires a new exact-node binding with `TryRegisterForNode`
+and releases it if setup fails. When an exact binding already exists, that registry
+cannot preserve its ownership identity through replacement; the operation rejects
+only that node with `NotSupportedException` before changing attributes or capture.
+Configure that binding directly or provide the replacement capability.
+Registries without scoped bindings retain the existing explicit-provider behavior.
+
+Ordinary registration transfers provider disposal responsibility to the registry,
+even if the route is later removed. To retain application or DI ownership, use
+`registry.RegisterForNode(myNodeId, archive, ownsProvider: false)`. This extension
+uses the optional `IHistorianProviderOwnershipRegistry` capability implemented by
+`HistorianProviderRegistry`; custom registries without that capability reject
+borrowed registration with `NotSupportedException`. Owning registration remains
+available on existing custom implementations. A borrowed registration does not
+revoke ownership acquired by an earlier owning registration of the same provider.
+
+When a NodeManager generation leaves routing, its staged registry removes
+that generation's historian bindings from service. The registry rejects new
+registrations and publication after retirement. Until disposal, cleanup can
+still unregister the retired generation's private node, namespace, and default
+bindings. That cleanup cannot restore withdrawn bindings or change a
+successor's bindings, even if both generations use the same provider.
+
+After disposal, the registry rejects all changes. Removing a borrowed binding
+does not dispose the provider; the application still owns it.
 
 ### Provider resolution order
 
@@ -645,12 +767,20 @@ Pagination rules:
 3. To indicate "no more pages", return a page with a default (empty) `NextToken`. `IsFinal` becomes true automatically.
 4. **Do not** put live resources (cursors, transactions, connections) into a token. The token is retained server-side behind the wire continuation identifier and can outlive the originating task. Encode just enough state (typically the next timestamp or a keyset offset) to resume cleanly.
 
-The default Session cache retains a history continuation while it is saved or
-being used by a request. Each resumed read uses the original provider, source,
-query, timestamp selection, index range, data encoding and event filter. The
-server checks the calling Session's current permissions on every page. For
-Annotations reads, it also remembers the requested Property separately from
-the provider's source Variable.
+The default Session cache holds the provider, the source node when available,
+the provider cursor, and the original query parameters while a continuation
+is saved or in use. The continuation uses a weak reference to find the issuing
+NodeManager generation without keeping it alive. The provider and source node
+can still keep other objects alive through their own references. For
+Annotations reads, the continuation records the requested Property separately
+from the provider's source Variable.
+
+Before dispatching a resumed read, the server rechecks the caller's current
+permissions on the requested node. A continuation from a retired generation
+returns `BadContinuationPointInvalid`. Finish using the restored point before
+the history-read callback returns. Keeping the point or capturing the
+callback's asynchronous context does not let later work reuse the current
+read's admission.
 
 Clients use the continuation identifier returned by the latest response.
 Completion is indicated by an empty continuation identifier, not by the number
@@ -664,52 +794,45 @@ finished. Clients therefore check both the operation status and the returned
 continuation identifier, rather than treating an empty values array as failure
 or as completion by itself.
 
-When a source participates in dynamic NodeManager retirement, paginated providers additionally
-implement `IHistorianContinuationDependencies`. Its `TryGetContinuationDependencies` method
-returns an `ArrayOf<NodeId>` containing all additional local Nodes needed by this token and
-every successor page. The server records which NodeManager instance serves
-each declared Node when it creates the first continuation. Later pages use
-those same instances, even after a replacement model starts serving new
-requests. Returning `true` with an empty array means that no additional
-NodeManager is needed. Returning `false` rejects pagination with
-`BadNotSupported` and no partial result. Declare all dependencies, not only
-those needed for the next page. Register or construct the provider normally.
-There is no separate continuation registry.
-
-`InMemoryHistorianProvider` implements this interface. A custom provider needs
-it for paginated reads from dynamically managed Nodes, but not for unpaged reads
-or sources outside the dynamic lifecycle. Use the continuation cache supplied
-by `Session` for dynamic pagination. The dispatcher rejects a replacement cache
-with `BadNotSupported` before saving a dynamic continuation or returning partial
-data. Implementing `ISessionHistoryContinuationPointLifecycle` alone does not
-enable a replacement cache: that interface reports retained NodeManagers, but
-does not restore the original request's routing and type information.
-
-During graceful retirement, the server keeps the source and dependency
-NodeManagers alive until the final page, release, eviction, failed or cancelled
-read, or Session teardown releases the continuation. Immediate retirement
-invalidates its identifier. See
+Paginated providers do not declare NodeManager dependencies. A later page is
+admitted only while the issuing generation's gate is open; target resolution
+uses the current request view. Retirement closes the gate, so a stale identifier
+returns `BadContinuationPointInvalid` before the provider is called. The
+continuation cache supplied by `Session` stores state and disposes it on
+completion, release, eviction, cancellation, or Session teardown. A caller that
+keeps the disposed state can still retain its provider and source node. See
 [NodeManager continuation points](NodeManagers.md#continuation-points).
 
-Replicated history continuation records let a standby identify and remove
-records belonging to the original Session. They do not contain the live
-provider, source Node or NodeManager instance that executed the read.
-A standby therefore returns `BadContinuationPointInvalid` for such a record.
-The client starts a new HistoryRead against the standby instead of resuming
-the old provider cursor.
+The generic `IContinuationPointStore` mirrors continuation identity and, for
+Browse, request parameters, but does not reconstruct a NodeManager's cursor.
+A standby that only has that record returns `BadContinuationPointInvalid`,
+and the client starts a new `HistoryRead`.
+
+When an `IHistoryContinuationPointStore` is configured, the historian codec
+can restore a portable history record on a standby. It requires a matching
+provider identity and portable-resume-token support. With `MasterNodeManager`,
+the codec also validates the source and captures the standby's owning
+generation before admitting the cursor. An incompatible record is not restored,
+so the client must start a new `HistoryRead`.
 
 Resuming a continuation is an atomic claim. The dispatcher keeps the claimed
 state unchanged until it has durably saved a fresh successor. Provider,
 filtering, projection, encoding, cancellation, and successor-persistence
-failures restore the original continuation so the client can retry the same
-identifier. A successful page retires the old identifier, preserving
-single-use semantics.
+failures attempt to restore the original continuation so the client can retry
+the same identifier. If durable restoration fails but local restoration
+succeeds, the server logs a warning and the continuation remains available
+only in that session. If both attempts fail, both restoration errors are
+reported, together with the operation exception when one occurred. A
+successful page retires the old identifier, preserving single-use semantics.
 
 The shared continuation store gives each persisted envelope a distinct
-incarnation. Deferred cleanup conditionally deletes only that exact protected
-record, so a delayed cleanup cannot delete a restored continuation with the
-same identifier. Indeterminate save failures schedule the same conditional
-cleanup whether they were creating a record or replacing a claim marker.
+incarnation. Deferred deletion compares the protected record captured when
+cleanup was scheduled, so it does not delete a replacement written after
+scheduling. `ScheduleRemove` identifies a session and continuation ID, not a
+specific incarnation: a concurrent operation can replace the locally
+remembered incarnation before cleanup is scheduled. Indeterminate save
+failures schedule conditional cleanup whether they were creating a record or
+replacing a claim marker.
 
 The asynchronous release path claims the portable record before acknowledging
 release. Synchronous session teardown only schedules cleanup and is not a
@@ -836,7 +959,14 @@ marks the result Uncertain when Bad samples were skipped. Providers without
 this interface use the same calculation through the raw-read fallback. When the
 fallback scans 100,000 raw values without finding a bound for a requested time,
 that time returns `Bad_BoundNotSupported` (Part 11 §4.6) and the other requested
-times are still answered.
+times are still answered. The whole operation may scan 100,000 raw values plus
+64 per requested time; once that is spent, the remaining requested times return
+`Bad_BoundNotSupported` without reading the provider again.
+
+Because every requested time is answered whatever the archive holds, one
+HistoryRead may ask for at most 100,000 values: an operation with more requested
+times returns `Bad_TooManyOperations`, and a request whose requested times
+multiplied by its nodes exceed that limit fails with `Bad_TooManyOperations`.
 
 ### Annotations
 
@@ -969,6 +1099,13 @@ HistorianNodeCapabilities.ReadWrite;            // combined adapter/test preset
 ```
 
 Always set the `HistoricalDataConfigurationType` advisory fields (`Stepped`, `Definition`, `MaxTimeInterval`, `MinTimeInterval`, `ExceptionDeviation`, `StartOfArchive`, `StartOfOnlineArchive`) on the capability set you return for nodes whose companion object you want the framework to install.
+
+`InMemoryHistorianProvider.TryRegister` provisions a node only if neither its
+archive nor its per-node capabilities exist. With
+`HistorianBuilder.UseProvider(provider, provisionNodes: false)`, capture setup
+does not register or reconfigure in-memory nodes; the caller must provision them
+before attaching capture. The default builder behavior still calls `Register`
+and applies the supplied capabilities, including to previously registered nodes.
 
 For the server-wide `HistoryServerCapabilities` rollup the dispatcher calls `GetCapabilitiesAsync(NodeId.Null, ...)`. Treat `NodeId.Null` as "default — what does this provider support generally?" — the rollup unions the result across every registered provider.
 
@@ -1307,9 +1444,9 @@ Unexpected consumer termination remains an explicit error, and later discarded s
 Each capture pump owns one consumer task and a bounded channel; it does not spawn work per sample. Disposal closes
 the writer and drains the consumer for up to five seconds. A timeout cancels the pump and surfaces an error without
 starting further provider calls. An already-running provider must cooperate with cancellation; the framework cannot
-forcibly terminate it. Its token resources remain valid until it actually completes. A one-shot, static completion
-callback observes any late task failure and releases only the token source, without capturing the disposed pump,
-server, or request context. Normal graceful draining is preserved.
+forcibly terminate it. Until that consumer completes, the builder and provider remain retained, its token resources
+remain valid, and any late task failure is observed. Disposal is terminal: the builder rejects new capture
+registrations and later disposal calls report the original outcome, even after the consumer exits.
 
 ### What triggers a capture
 

@@ -1,31 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System.Collections.Generic;
 using System.Threading;
@@ -88,7 +62,7 @@ namespace Opc.Ua.Subscriptions.Durable.Tests
             try
             {
                 TransferSubscriptionsResponse xfer =
-                    await TransferOrIgnoreAsync(session2, subId, true)
+                    await TransferAsync(session2, subId, true)
                         .ConfigureAwait(false);
 
                 Assert.That(
@@ -136,7 +110,7 @@ namespace Opc.Ua.Subscriptions.Durable.Tests
                 .ConfigureAwait(false);
             try
             {
-                await TransferOrIgnoreAsync(session2, subId, true)
+                await TransferAsync(session2, subId, true)
                     .ConfigureAwait(false);
 
                 await Task.Delay(300).ConfigureAwait(false);
@@ -162,10 +136,8 @@ namespace Opc.Ua.Subscriptions.Durable.Tests
         }
 
         [Test]
-        public async Task DurableSubscriptionNotAvailableIgnoredAsync()
+        public async Task DurableSubscriptionTransfersToNewSessionAsync()
         {
-            // Test the ignore path for servers that don't support
-            // transfer (used as durable proxy)
             ISession session1 = await CreateSessionAsync()
                 .ConfigureAwait(false);
 
@@ -180,8 +152,7 @@ namespace Opc.Ua.Subscriptions.Durable.Tests
                 .ConfigureAwait(false);
             try
             {
-                // This will Assert.Ignore if not supported
-                await TransferOrIgnoreAsync(session2, subId, false)
+                await TransferAsync(session2, subId, false)
                     .ConfigureAwait(false);
 
                 await session2.DeleteSubscriptionsAsync(
@@ -211,7 +182,7 @@ namespace Opc.Ua.Subscriptions.Durable.Tests
                 .ConfigureAwait(false);
             try
             {
-                await TransferOrIgnoreAsync(session2, subId, false)
+                await TransferAsync(session2, subId, false)
                     .ConfigureAwait(false);
 
                 DeleteSubscriptionsResponse del =
@@ -303,7 +274,7 @@ namespace Opc.Ua.Subscriptions.Durable.Tests
                 .ConfigureAwait(false);
             try
             {
-                await TransferOrIgnoreAsync(session2, subId, false)
+                await TransferAsync(session2, subId, false)
                     .ConfigureAwait(false);
 
                 await Task.Delay(300).ConfigureAwait(false);
@@ -394,7 +365,7 @@ namespace Opc.Ua.Subscriptions.Durable.Tests
                 .ConfigureAwait(false);
             try
             {
-                await TransferOrIgnoreAsync(session2, subId, false)
+                await TransferAsync(session2, subId, false)
                     .ConfigureAwait(false);
 
                 // Re-enable
@@ -615,7 +586,7 @@ namespace Opc.Ua.Subscriptions.Durable.Tests
                 .ConfigureAwait(false);
             try
             {
-                await TransferOrIgnoreAsync(session2, subId, true)
+                await TransferAsync(session2, subId, true)
                     .ConfigureAwait(false);
 
                 await Task.Delay(300).ConfigureAwait(false);
@@ -670,7 +641,7 @@ namespace Opc.Ua.Subscriptions.Durable.Tests
                 .ConfigureAwait(false);
             try
             {
-                await TransferOrIgnoreAsync(session2, subId, false)
+                await TransferAsync(session2, subId, false)
                     .ConfigureAwait(false);
 
                 await Task.Delay(300).ConfigureAwait(false);
@@ -744,7 +715,7 @@ namespace Opc.Ua.Subscriptions.Durable.Tests
                 .ConfigureAwait(false);
             try
             {
-                await TransferOrIgnoreAsync(session2, subId, true)
+                await TransferAsync(session2, subId, true)
                     .ConfigureAwait(false);
 
                 await Task.Delay(300).ConfigureAwait(false);
@@ -811,14 +782,17 @@ namespace Opc.Ua.Subscriptions.Durable.Tests
             return resp.Results[0].MonitoredItemId;
         }
 
-        private Task<ISession> CreateSessionAsync()
+        private async Task<ISession> CreateSessionAsync()
         {
-            return ClientFixture
-                .ConnectAsync(ServerUrl, SecurityPolicies.None);
+            ISession session = await ConnectAsSysAdminAsync().ConfigureAwait(false);
+            Assert.That(session, Is.Not.Null);
+            session.DeleteSubscriptionsOnClose = false;
+            return session;
         }
 
         private async Task CloseSessionAsync(ISession session)
         {
+            session.DeleteSubscriptionsOnClose = true;
             await session.CloseAsync(5000, true).ConfigureAwait(false);
             session.Dispose();
         }
@@ -828,40 +802,19 @@ namespace Opc.Ua.Subscriptions.Durable.Tests
         private const uint DefaultKeepAlive = 10;
 
         private async Task<TransferSubscriptionsResponse>
-            TransferOrIgnoreAsync(
+            TransferAsync(
                 ISession target, uint subId, bool sendInitial)
         {
-            try
-            {
-                TransferSubscriptionsResponse resp =
-                    await target.TransferSubscriptionsAsync(
-                        null,
-                        new uint[] { subId }.ToArrayOf(),
-                        sendInitial,
-                        CancellationToken.None).ConfigureAwait(false);
+            TransferSubscriptionsResponse response = await target.TransferSubscriptionsAsync(
+                null,
+                new uint[] { subId }.ToArrayOf(),
+                sendInitial,
+                CancellationToken.None).ConfigureAwait(false);
 
-                if (resp.Results.Count > 0 &&
-                    StatusCode.IsBad(resp.Results[0].StatusCode))
-                {
-                    Assert.Ignore(
-                        "Durable/Transfer subscriptions failed: " +
-                        resp.Results[0].StatusCode.ToString());
-                }
-
-                return resp;
-            }
-            catch (ServiceResultException sre)
-                when (sre.StatusCode == StatusCodes.BadServiceUnsupported ||
-                    sre.StatusCode == StatusCodes.BadNotSupported ||
-                    sre.StatusCode == StatusCodes.BadNotImplemented ||
-                    sre.StatusCode == StatusCodes.BadNoSubscription ||
-                    sre.StatusCode == StatusCodes.BadSessionClosed)
-            {
-                Assert.Ignore(
-                    "Durable/Transfer subscriptions not supported: " +
-                    sre.StatusCode.ToString());
-                return null;
-            }
+            Assert.That(response.ResponseHeader.ServiceResult, Is.EqualTo(StatusCodes.Good));
+            Assert.That(response.Results.Count, Is.EqualTo(1));
+            Assert.That(response.Results[0].StatusCode, Is.EqualTo(StatusCodes.Good));
+            return response;
         }
 
         [Test]
@@ -881,7 +834,12 @@ namespace Opc.Ua.Subscriptions.Durable.Tests
 
                 if (revisedLifetime != uint.MaxValue)
                 {
-                    Assert.Warn($"Server revised lifetimeInHours from UInt32.MaxValue to {revisedLifetime}.");
+                    // A revision is the server's configured maximum: any larger request
+                    // must be capped at the same value.
+                    uint cappedLifetime = await SetSubscriptionDurableAsync(
+                        subId, revisedLifetime + 1).ConfigureAwait(false);
+                    Assert.That(cappedLifetime, Is.EqualTo(revisedLifetime),
+                        "An over-limit lifetime must be capped at the server maximum.");
                 }
             }
             finally

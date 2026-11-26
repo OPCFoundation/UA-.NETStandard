@@ -148,6 +148,23 @@ All state transitions go through typed setters that:
 | `SetLatchedState(context, latched)` | Direct latched-state setter; usually called automatically from `SetActiveState`. |
 | `SetSilenceState(context, silenced)` | Direct silence-state setter; usually called automatically on activation / re-alarm. |
 
+`SetSeverity`, `SetActiveState`, `SetAcknowledgedState`, `SetLatchedState` and
+`SetSilenceState` also have overloads with `clearChangeMasks: false`. These update
+the base-condition attributes without notifying state observers; call
+`ClearChangeMasks(context, includeChildren: true)` after the related writes are
+finished. They do not serialize concurrent writers or replace a derived alarm's
+specialized transition logic. The existing virtual setters retain their
+immediate-notification behavior.
+
+The active-state and acknowledgement overloads also require
+`updateRetainState`. Use `true` to recompute `Retain`, including a configured
+`RetainStateProvider`. With `false`, the caller must assign the resulting
+`Retain` value itself before publishing. This permits a component with its own
+retention policy to complete its attribute writes without invoking that
+provider. Deferred active-state notification is rejected before any attribute
+change when deactivation would unshelve a one-shot shelving machine; that
+machine has separate transition callbacks.
+
 ### Latched alarms
 
 If you populate `alarm.LatchedState`, the alarm becomes a *latching

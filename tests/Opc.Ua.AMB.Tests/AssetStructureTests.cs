@@ -1,42 +1,20 @@
-/* ========================================================================
- * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection;
 using NUnit.Framework;
 using Opc.Ua.AMB.Server;
 using Opc.Ua.AMB.Server.Assets;
+using Opc.Ua.AMB.Server.DocumentationLinks;
+using Opc.Ua.AMB.Server.Health;
 using Opc.Ua.AMB.Server.Hosting;
+using Opc.Ua.AMB.Server.Maintenance;
 using Opc.Ua.AMB.Server.Structure;
 using Opc.Ua.Di;
 using Opc.Ua.Di.Server;
@@ -699,6 +677,30 @@ namespace Opc.Ua.AMB.Tests
             });
         }
 
+        [Test]
+        public void ExistingAssetBuilderImplementationsDoNotNeedTheOptionalCapability()
+        {
+            IAssetBuilder builder = new LegacyAssetBuilder();
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(builder, Is.Not.Null);
+                Assert.That(builder, Is.Not.InstanceOf<IAssetHistoryBuilder>());
+                Assert.Throws<NotSupportedException>(() => builder.WithHistory(null));
+            });
+        }
+
+        [Test]
+        public void WithHistoryRejectsNullBuilder()
+        {
+            IAssetBuilder? builder = null;
+
+            ArgumentNullException? exception = Assert.Throws<ArgumentNullException>(
+                () => builder!.WithHistory(null));
+
+            Assert.That(exception?.ParamName, Is.EqualTo("builder"));
+        }
+
         private static async Task<NodeId> ChildAsync(AmbHostedServer server, NodeId parent, string name)
         {
             IReadOnlyList<ReferenceDescription> children = await server
@@ -820,6 +822,77 @@ namespace Opc.Ua.AMB.Tests
             hours.NodeId = context.Manager.New(context.Manager.SystemContext, hours);
             hours.WrappedValue = Variant.From(3_600_000d);
             context.Manager.AddNode(counters);
+        }
+
+        /// <summary>
+        /// An implementation using only the original <see cref="IAssetBuilder"/> members.
+        /// </summary>
+        private sealed class LegacyAssetBuilder : IAssetBuilder
+        {
+            /// <inheritdoc/>
+            public IAssetBuilder WithConfigurableAssetId(string? defaultAssetId = null) =>
+                throw new NotSupportedException();
+
+            /// <inheritdoc/>
+            public IAssetBuilder WithDeviceHealth(
+                DeviceHealthEnumeration initial = DeviceHealthEnumeration.NORMAL,
+                bool deriveFromAlarms = false) => throw new NotSupportedException();
+
+            /// <inheritdoc/>
+            public IAssetBuilder WithHealthAlarm(
+                string name,
+                AssetHealthAlarmKind kind,
+                AmbConditionClass conditionClass) => throw new NotSupportedException();
+
+            /// <inheritdoc/>
+            public IAssetBuilder WithMaintenance(
+                string name,
+                AmbConditionClass conditionClass,
+                Action<MaintenanceActivityDetails>? configure = null,
+                Func<MaintenanceStateKind, CancellationToken, ValueTask>? onStateChangedAsync = null) =>
+                throw new NotSupportedException();
+
+            /// <inheritdoc/>
+            public IAssetBuilder WithDocumentationLinks(Action<IDocumentationLinksBuilder> configure) =>
+                throw new NotSupportedException();
+
+            /// <inheritdoc/>
+            public IAssetBuilder WithVersionInformation(
+                string? hardwareRevision = null,
+                string? softwareRevision = null,
+                int? revisionCounter = null) => throw new NotSupportedException();
+
+            /// <inheritdoc/>
+            public IAssetBuilder WithLocation(
+                AssetLocationKind kind,
+                string? value = null,
+                bool writable = false) => throw new NotSupportedException();
+
+            /// <inheritdoc/>
+            public IAssetBuilder WithLocalTime(
+                short offset,
+                bool daylightSavingInOffset = false,
+                bool writable = false) => throw new NotSupportedException();
+
+            /// <inheritdoc/>
+            public IAssetBuilder LocatedIn(AssetLocationKind kind, string path) =>
+                throw new NotSupportedException();
+
+            /// <inheritdoc/>
+            public IAssetBuilder ClassifiedAs(ExpandedNodeId dictionaryEntry) =>
+                throw new NotSupportedException();
+
+            /// <inheritdoc/>
+            public IAssetBuilder WithRequirements(Action<IAssetEntriesBuilder> configure) =>
+                throw new NotSupportedException();
+
+            /// <inheritdoc/>
+            public IAssetBuilder WithCapabilities(Action<IAssetEntriesBuilder> configure) =>
+                throw new NotSupportedException();
+
+            /// <inheritdoc/>
+            public IAssetBuilder RelatesTo(NodeId referenceTypeId, NodeId target) =>
+                throw new NotSupportedException();
         }
 
         private static NodeId FunctionalGroup(IAssetManagementSetupContext context)

@@ -1,31 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using System.Threading;
@@ -57,12 +31,30 @@ namespace Opc.Ua.Redundancy.Server
             LoadDirectionOptions options,
             ServerLoadDirector director,
             TimeProvider timeProvider)
+            : this(store, protector, options, director, timeProvider,
+                (options ?? throw new ArgumentNullException(nameof(options))).PeerApplicationUris)
+        {
+        }
+
+        /// <summary>
+        /// Creates the task with the resolved static member list.
+        /// </summary>
+        internal LoadDirectionStartupTask(
+            ISharedKeyValueStore store,
+            IRecordProtector protector,
+            LoadDirectionOptions options,
+            ServerLoadDirector director,
+            TimeProvider timeProvider,
+            ArrayOf<string> peerApplicationUris,
+            bool useHostedPublishing = false)
         {
             m_store = store ?? throw new ArgumentNullException(nameof(store));
-            m_protector = protector ?? throw new ArgumentNullException(nameof(protector));
+            m_protector = LoadDirectionRecordValidation.RequireProtection(m_store, protector);
             m_options = options ?? throw new ArgumentNullException(nameof(options));
             m_director = director ?? throw new ArgumentNullException(nameof(director));
             m_timeProvider = timeProvider ?? throw new ArgumentNullException(nameof(timeProvider));
+            m_peerApplicationUris = peerApplicationUris;
+            m_useHostedPublishing = useHostedPublishing;
         }
 
         /// <inheritdoc/>
@@ -84,13 +76,21 @@ namespace Opc.Ua.Redundancy.Server
             }
 
             IServiceMessageContext context = server.MessageContext;
-            var view = new SharedPeerDirectionView(m_store, context, m_protector, m_options, m_timeProvider);
+            var view = new SharedPeerDirectionView(
+                m_store, context, m_protector, m_options, m_timeProvider, m_peerApplicationUris);
             var policy = new BandedServerDirectionPolicy(view, m_options, LoadDirectionRandom.NextIndex);
-            var directory = new SharedPeerEndpointDirectory(m_store, context, m_protector, m_options);
-            var endpointPublisher = new SharedPeerEndpointPublisher(
-                m_store, context, m_protector, m_options, localServerUri!);
-
-            m_director.Configure(policy, directory, endpointPublisher, localServerUri!);
+            var directory = new SharedPeerEndpointDirectory(
+                m_store, context, m_protector, m_options, m_timeProvider, m_peerApplicationUris);
+            if (m_useHostedPublishing && server is IServerEndpointRegistryProvider)
+            {
+                m_director.ConfigureForHostedPublishing(policy, directory, localServerUri!);
+            }
+            else
+            {
+                var endpointPublisher = new SharedPeerEndpointPublisher(
+                    m_store, context, m_protector, m_options, localServerUri!, m_timeProvider);
+                m_director.Configure(policy, directory, endpointPublisher, localServerUri!);
+            }
             return default;
         }
 
@@ -99,6 +99,8 @@ namespace Opc.Ua.Redundancy.Server
         private readonly LoadDirectionOptions m_options;
         private readonly ServerLoadDirector m_director;
         private readonly TimeProvider m_timeProvider;
+        private readonly ArrayOf<string> m_peerApplicationUris;
+        private readonly bool m_useHostedPublishing;
     }
 
     /// <summary>

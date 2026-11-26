@@ -1,31 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using System.Collections.Generic;
@@ -395,7 +369,7 @@ namespace Opc.Ua.Redundancy.Server.Tests.Identity
                 bool isProperty = entry.Key.EndsWith("/Units", StringComparison.Ordinal);
                 Assert.That(entry.Value.NodeClass,
                     Is.EqualTo(isReading || isProperty ? NodeClass.Variable : NodeClass.Object), entry.Key);
-                int separator = entry.Key.LastIndexOf('/');
+                int separator = entry.Key.LastIndexOf('/', StringComparison.Ordinal);
                 NodeId parentId = separator < 0 ? ObjectIds.ObjectsFolder : nodes[entry.Key[..separator]].NodeId;
                 NodeId referenceTypeId = isProperty
                     ? ReferenceTypeIds.HasProperty
@@ -723,13 +697,21 @@ namespace Opc.Ua.Redundancy.Server.Tests.Identity
             public async Task ReloadInstancesAsync(CancellationToken ct)
             {
                 INodeManagerLifecycle lifecycle = m_fixture.Server.NodeManagerLifecycle;
+                ILifecycleCapture capture = lifecycle.CaptureChanges();
                 NodeManagerRegistration registration = lifecycle.Registrations.ToList().Single(value =>
                     value.NamespaceUris.ToList().Contains(InstanceNamespaceUri));
-                await lifecycle.ReloadAsync(
-                    registration,
-                    new ReplicaNodeManagerFactory(InstanceNamespaceUri, PlantRootName, true, 0),
-                    callerContext: null,
+                await using ILifecycleWriter writer = await capture.BeginAsync(ct).ConfigureAwait(false);
+                await using IPreparedChanges prepared = await writer.PrepareAsync(
+                    [LifecycleChange.Reload(
+                        registration.Slot,
+                        new ReplicaNodeManagerFactory(InstanceNamespaceUri, PlantRootName, true, 0))],
                     ct).ConfigureAwait(false);
+                LifecycleResult result = await prepared.CommitAsync(static _ => default, ct)
+                    .ConfigureAwait(false);
+                if (result.CleanupFailure is { } failure)
+                {
+                    throw failure;
+                }
             }
 
             public async Task AssertStoredIdentityAsync(NodeId nodeId, CancellationToken ct)

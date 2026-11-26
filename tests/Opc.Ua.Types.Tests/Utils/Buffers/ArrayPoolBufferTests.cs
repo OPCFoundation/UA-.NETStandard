@@ -1,31 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using System.Buffers;
@@ -205,6 +179,69 @@ namespace Opc.Ua.Types.Buffers.Tests
                 Assert.That(backing[offset + i], Is.Zero,
                     "clearArray:true must zero the pooled buffer on return.");
             }
+        }
+
+        /// <summary>
+        /// A size hint of zero asks for any non-empty buffer: the writer hands
+        /// out the rest of the current chunk instead of closing it and renting
+        /// a new one per call, which stranded a pooled chunk per zero length
+        /// write until the writer was disposed.
+        /// </summary>
+        [Test]
+        public void ArrayPoolBufferWriterGetSpanZeroReturnsTheRestOfTheCurrentChunk()
+        {
+            using var writer = new ArrayPoolBufferWriter<byte>();
+            const int writes = 1000;
+            for (int i = 0; i < writes; i++)
+            {
+                Span<byte> span = writer.GetSpan(4);
+                span[..4].Fill((byte)i);
+                writer.Advance(4);
+
+                Assert.That(writer.GetSpan(0).Length, Is.GreaterThan(0));
+                writer.Advance(0);
+                Assert.That(writer.GetMemory(0).Length, Is.GreaterThan(0));
+                writer.Advance(0);
+            }
+
+            ReadOnlySequence<byte> sequence = writer.GetReadOnlySequence();
+            int segments = 0;
+            foreach (ReadOnlyMemory<byte> _ in sequence)
+            {
+                segments++;
+            }
+
+            Assert.That(sequence.Length, Is.EqualTo(writes * 4));
+            Assert.That(segments, Is.LessThanOrEqualTo(8),
+                "A zero size hint must not close the current chunk.");
+            byte[] bytes = sequence.ToArray();
+            for (int i = 0; i < writes; i++)
+            {
+                Assert.That(bytes[i * 4], Is.EqualTo((byte)i));
+            }
+        }
+
+        /// <summary>
+        /// A size hint of zero on a full chunk rents a new one, so the span
+        /// is never empty.
+        /// </summary>
+        [Test]
+        public void ArrayPoolBufferWriterGetSpanZeroOnAFullChunkReturnsANewChunk()
+        {
+            using var writer = new ArrayPoolBufferWriter<byte>(16, 16);
+            Span<byte> first = writer.GetSpan(0);
+            Assert.That(first.Length, Is.GreaterThan(0));
+            writer.Advance(first.Length);
+
+            Span<byte> second = writer.GetSpan(0);
+            Assert.That(second.Length, Is.GreaterThan(0));
+            second[0] = 0x42;
+            writer.Advance(1);
+
+            ReadOnlySequence<byte> sequence = writer.GetReadOnlySequence();
+            Assert.That(sequence.Length, Is.EqualTo(first.Length + 1));
+            byte[] bytes = sequence.ToArray();
+            Assert.That(bytes[bytes.Length - 1], Is.EqualTo(0x42));
         }
     }
 }

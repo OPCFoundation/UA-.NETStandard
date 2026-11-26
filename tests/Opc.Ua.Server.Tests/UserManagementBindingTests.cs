@@ -1,32 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using System.Threading;
@@ -774,6 +747,85 @@ namespace Opc.Ua.Server.Tests
 
             Assert.That(ServiceResult.IsGood(await change.ConfigureAwait(false)), Is.True);
             session.Verify(s => s.Dispose(), Times.Never);
+        }
+
+        /// <summary>
+        /// A callback captured by a provider cannot admit teardown after its user change and binding have ended.
+        /// </summary>
+        [TestCase(false, false)]
+        [TestCase(true, false)]
+        [TestCase(false, true)]
+        [TestCase(true, true)]
+        public async Task CapturedUserChangeDeactivationExpiresAfterDisposalAsync(bool remove, bool escape)
+        {
+            (TestableAsyncCustomNodeManager manager, UserManagementState state) =
+                CreateNodeManagerWithCreatedUserManagementNode();
+            using TestableAsyncCustomNodeManager managerLifetime = manager;
+            Mock<ISession> session = CreateSessionWithUser("bob");
+            var sessionManager = new Mock<ISessionManager>();
+            sessionManager.Setup(value => value.GetSessions()).Returns([session.Object]);
+            EventHandler<UserDeactivatedEventArgs>? notification = null;
+            m_userManagement.SetupAdd(value => value.UserDeactivated +=
+                    It.IsAny<EventHandler<UserDeactivatedEventArgs>>())
+                .Callback<EventHandler<UserDeactivatedEventArgs>>(value => notification = value);
+            var started = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var release = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            Task child = Task.CompletedTask;
+
+            async Task NotifyAfterReleaseAsync()
+            {
+                started.TrySetResult(true);
+                await release.Task.ConfigureAwait(false);
+                notification!(m_userManagement.Object, new UserDeactivatedEventArgs("bob"));
+            }
+
+            void Notify()
+            {
+                if (escape)
+                {
+                    child = NotifyAfterReleaseAsync();
+                }
+                else
+                {
+                    notification!(m_userManagement.Object, new UserDeactivatedEventArgs("bob"));
+                }
+            }
+
+            m_userManagement.Setup(value => value.RemoveUser("bob", "admin"))
+                .Callback(Notify).Returns(ServiceResult.Good);
+            m_userManagement.Setup(value => value.ModifyUser(
+                    "bob", false, string.Empty, true, UserConfigurationMask.Disabled, false, string.Empty, "admin"))
+                .Callback(Notify).Returns(ServiceResult.Good);
+            await using UserManagementBinding binding =
+                UserManagementBinding.Bind(manager, m_userManagement.Object, sessionManager.Object)!;
+            Assert.That(notification, Is.Not.Null);
+            try
+            {
+                ServiceResult result = await InvokeUserChangeAsync(
+                    state, BuildAdminContext(), remove, CancellationToken.None).ConfigureAwait(false);
+                Assert.That(ServiceResult.IsGood(result), Is.True);
+                if (escape)
+                {
+                    Assert.That(started.Task.IsCompleted, Is.True,
+                        "The child must capture the user-change context before its callback returns.");
+                    Assert.That(child.IsCompleted, Is.False);
+                }
+                await binding.DisposeAsync().ConfigureAwait(false);
+                release.TrySetResult(true);
+                await child.ConfigureAwait(false);
+                await binding.DisposeAsync().ConfigureAwait(false);
+
+                sessionManager.Verify(value => value.GetSessions(), escape ? Times.Never() : Times.Once());
+                m_mockServer.Verify(value => value.CloseSessionAsync(
+                    It.IsAny<OperationContext>(), session.Object.Id, true, CancellationToken.None),
+                    escape ? Times.Never() : Times.Once());
+            }
+            finally
+            {
+                release.TrySetResult(true);
+                await child.ConfigureAwait(false);
+                await binding.DisposeAsync().ConfigureAwait(false);
+            }
         }
 
         /// <summary>

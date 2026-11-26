@@ -1,32 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using System.Collections.Generic;
@@ -184,7 +157,7 @@ namespace Opc.Ua.Types.Tests.Wot
         }
 
         [Test]
-        public void QuantityKindIsNeverWrittenIntoTheUnitMember()
+        public void QudtMappingKeepsUnitAndQuantityKindDistinct()
         {
             UANodeSet source = WotAnalogTestData.CreateAnalogNodeSet();
 
@@ -199,10 +172,47 @@ namespace Opc.Ua.Types.Tests.Wot
                     "Section 6.4: unit carries an engineering unit, never a " +
                     "quantity kind.");
                 Assert.That(
-                    measurement.TryGetProperty("qudt:hasQuantityKind", out _),
-                    Is.False,
-                    "A NodeSet states no quantity kind, so none is invented.");
+                    measurement.GetProperty("qudt:hasUnit").GetProperty("@id").GetString(),
+                    Is.EqualTo("http://qudt.org/vocab/unit/DEG_C"));
+                Assert.That(
+                    measurement.GetProperty("qudt:hasQuantityKind").GetProperty("@id").GetString(),
+                    Is.EqualTo("http://qudt.org/vocab/quantitykind/Temperature"));
             });
+        }
+
+        /// <summary>
+        /// Checks that generated unit annotations do not introduce residue into a verified document set.
+        /// </summary>
+        [TestCase(null)]
+        [TestCase("en")]
+        public async Task QudtMappingPreservesTheOriginalNodeSetAsync(string? locale)
+        {
+            UANodeSet source = WotAnalogTestData.CreateAnalogNodeSet();
+            source.Items![0].DisplayName![0].Locale = locale;
+            WotConversionResult<WotDocumentSet> result = await WotNodeSetConverter
+                .FromNodeSetDocumentsAsync(source, "model").ConfigureAwait(false);
+            using WotDocumentSet? documents = result.Value;
+
+            Assert.That(result.Success, Is.True, WotAnalogTestData.Describe(result.Diagnostics));
+        }
+
+        /// <summary>
+        /// Checks that a foreign authority or unknown code never acquires an inferred quantity kind.
+        /// </summary>
+        [TestCase("urn:vendor:units", 4408652)]
+        [TestCase(WotAnalogTestData.UnitAuthority, 0)]
+        [TestCase(WotAnalogTestData.UnitAuthority, 5921370)]
+        public void UnmappedUnitsDoNotAcquireQudtAnnotations(string authority, int unitId)
+        {
+            UANodeSet source = WotAnalogTestData.CreateAnalogNodeSet();
+            UAVariable units = source.Items!.OfType<UAVariable>()
+                .Single(variable => variable.NodeId == WotAnalogTestData.EngineeringUnitsNodeId);
+            units.Value = WotAnalogTestData.EngineeringUnitsValue(authority, unitId, "C", null, null, null);
+
+            using WotDocument document = WotNodeSetConverter.FromNodeSet(source);
+
+            Assert.That(document.Properties["Measurement"].TryGetProperty("qudt:hasUnit", out _), Is.False);
+            Assert.That(document.Properties["Measurement"].TryGetProperty("qudt:hasQuantityKind", out _), Is.False);
         }
 
         [Test]
@@ -232,6 +242,155 @@ namespace Opc.Ua.Types.Tests.Wot
                     Is.EqualTo("qudt-quantitykind:AngularVelocity"),
                     "The quantity kind is a separate fact and survives unchanged.");
             });
+        }
+
+        /// <summary>
+        /// Keeps process-specific annotations instead of replacing them with the conventional mapping.
+        /// </summary>
+        [Test]
+        public void AuthoredQudtAnnotationsOverrideTheDefaultMapping()
+        {
+            using WotDocument initial = WotNodeSetConverter.FromNodeSet(WotAnalogTestData.CreateAnalogNodeSet());
+            JsonNode root = JsonNode.Parse(initial.RootElement.GetRawText())!;
+            JsonNode measurement = root["properties"]!["Measurement"]!;
+            measurement["qudt:hasUnit"] = new JsonObject { ["@id"] = "urn:test:authored-unit" };
+            measurement["qudt:hasQuantityKind"] = "urn:test:authored-kind";
+            using WotDocument authored = WotDocument.Parse(
+                System.Text.Encoding.UTF8.GetBytes(root.ToJsonString()));
+            UANodeSet source = WotNodeSetConverter.ToNodeSet(authored);
+
+            using WotDocument restored = WotNodeSetConverter.FromNodeSet(source);
+
+            Assert.That(restored.Properties["Measurement"].GetProperty("qudt:hasUnit")
+                .GetProperty("@id").GetString(), Is.EqualTo("urn:test:authored-unit"));
+            Assert.That(restored.Properties["Measurement"].GetProperty("qudt:hasQuantityKind")
+                .GetString(), Is.EqualTo("urn:test:authored-kind"));
+        }
+
+        /// <summary>
+        /// Verifies the connector mappings, without assigning percent a unique physical quantity.
+        /// </summary>
+        [TestCase(4408652, "DEG_C", "Temperature")]
+        [TestCase(5059638, "REV-PER-MIN", "AngularVelocity")]
+        [TestCase(20529, "PERCENT", null)]
+        [TestCase(12878, "DeciB", null)]
+        [TestCase(4403510, "MilliM-PER-SEC", null)]
+        [TestCase(4404789, "PA-SEC", null)]
+        [TestCase(4405556, "PER-MIN", null)]
+        [TestCase(4405559, "PER-SEC", null)]
+        [TestCase(4469812, "V-A_Reactive", null)]
+        [TestCase(4600375, "GM-PER-HR", null)]
+        [TestCase(4665393, "PA-M3-PER-SEC", null)]
+        [TestCase(4933459, "KiloGM-PER-SEC", null)]
+        [TestCase(21300, "M2-PER-SEC", null)]
+        public void ExplicitUnitMappingsKeepAmbiguousQuantityKindsUnset(int unitId, string unit, string? kind)
+        {
+            var provider = new WotQudtUnitMappingProvider();
+
+            Assert.That(provider.TryGetMapping(WotAnalogTestData.UnitAuthority, unitId,
+                out string unitIri, out string? kindIri), Is.True);
+            Assert.That(unitIri, Is.EqualTo("http://qudt.org/vocab/unit/" + unit));
+            Assert.That(kindIri, Is.EqualTo(kind is null ? null : "http://qudt.org/vocab/quantitykind/" + kind));
+        }
+
+        /// <summary>
+        /// Verifies added unit identities without deriving process quantities from their display symbols.
+        /// </summary>
+        [TestCase(12878, "DeciB")]
+        [TestCase(4403510, "MilliM-PER-SEC")]
+        [TestCase(4404789, "PA-SEC")]
+        [TestCase(4405556, "PER-MIN")]
+        [TestCase(4405559, "PER-SEC")]
+        [TestCase(4469812, "V-A_Reactive")]
+        [TestCase(4600375, "GM-PER-HR")]
+        [TestCase(4665393, "PA-M3-PER-SEC")]
+        [TestCase(4933459, "KiloGM-PER-SEC")]
+        [TestCase(21300, "M2-PER-SEC")]
+        public async Task AddedUnitMappingsPreserveSourceWithoutInventingQuantityKindsAsync(int unitId, string unit)
+        {
+            UANodeSet source = WotAnalogTestData.CreateAnalogNodeSet();
+            UAVariable units = source.Items!.OfType<UAVariable>()
+                .Single(variable => variable.NodeId == WotAnalogTestData.EngineeringUnitsNodeId);
+            units.Value = WotAnalogTestData.EngineeringUnitsValue(
+                WotAnalogTestData.UnitAuthority, unitId, "source-unit", null, "source description", null);
+
+            using WotDocument document = WotNodeSetConverter.FromNodeSet(source);
+
+            JsonElement measurement = document.Properties["Measurement"];
+            Assert.Multiple(() =>
+            {
+                Assert.That(measurement.GetProperty("qudt:hasUnit").GetProperty("@id").GetString(),
+                    Is.EqualTo("http://qudt.org/vocab/unit/" + unit));
+                Assert.That(measurement.GetProperty("unit").GetString(), Is.EqualTo("source-unit"));
+                Assert.That(measurement.TryGetProperty("qudt:hasQuantityKind", out _), Is.False);
+            });
+            WotConversionResult<WotDocumentSet> result = await WotNodeSetConverter
+                .FromNodeSetDocumentsAsync(source, "model").ConfigureAwait(false);
+            using WotDocumentSet? documents = result.Value;
+
+            Assert.That(result.Success, Is.True, WotAnalogTestData.Describe(result.Diagnostics));
+        }
+
+        /// <summary>
+        /// Prevents familiar unit identifiers from being interpreted under another authority.
+        /// </summary>
+        [TestCase(12878)]
+        [TestCase(4403510)]
+        [TestCase(4404789)]
+        [TestCase(4405556)]
+        [TestCase(4405559)]
+        [TestCase(4469812)]
+        [TestCase(4600375)]
+        [TestCase(4665393)]
+        [TestCase(4933459)]
+        [TestCase(21300)]
+        public void AddedUnitMappingsRejectForeignAuthorities(int unitId)
+        {
+            var provider = new WotQudtUnitMappingProvider();
+
+            Assert.That(provider.TryGetMapping("urn:vendor:units", unitId,
+                out string unitIri, out string? kindIri), Is.False);
+            Assert.That(unitIri, Is.Empty);
+            Assert.That(kindIri, Is.Null);
+        }
+
+        /// <summary>
+        /// Verifies that an injected mapping survives verified reconstruction without introducing residue.
+        /// </summary>
+        [Test]
+        public async Task CustomUnitMappingIsUsedDuringVerifiedReconstructionAsync()
+        {
+            var options = new WotNodeSetConverterOptions
+            {
+                UnitMappingProvider = new TestUnitMappingProvider()
+            };
+            UANodeSet source = WotAnalogTestData.CreateAnalogNodeSet();
+            using (WotDocument document = WotNodeSetConverter.FromNodeSet(source, options: options))
+            {
+                Assert.That(document.Properties["Measurement"].GetProperty("qudt:hasUnit")
+                    .GetProperty("@id").GetString(), Is.EqualTo("urn:test:unit"));
+                Assert.That(document.Properties["Measurement"].GetProperty("qudt:hasQuantityKind")
+                    .GetProperty("@id").GetString(), Is.EqualTo("urn:test:quantity"));
+            }
+            WotConversionResult<WotDocumentSet> result = await WotNodeSetConverter
+                .FromNodeSetDocumentsAsync(source, "model", options: options).ConfigureAwait(false);
+            using WotDocumentSet? documents = result.Value;
+
+            Assert.That(result.Success, Is.True, WotAnalogTestData.Describe(result.Diagnostics));
+        }
+
+        /// <summary>
+        /// Supplies a process-specific unit mapping.
+        /// </summary>
+        private sealed class TestUnitMappingProvider : IWotUnitMappingProvider
+        {
+            /// <inheritdoc/>
+            public bool TryGetMapping(string namespaceUri, int unitId, out string unitIri, out string? quantityKindIri)
+            {
+                unitIri = "urn:test:unit";
+                quantityKindIri = "urn:test:quantity";
+                return true;
+            }
         }
 
         [Test]
@@ -560,6 +719,41 @@ namespace Opc.Ua.Types.Tests.Wot
             Assert.That(
                 result.Diagnostics.Any(d => d.Code == WotDiagnosticCode.InvalidRangeValue),
                 Is.True);
+        }
+
+        /// <summary>
+        /// Rejects reversed engineering endpoints with or without a containing instrument range.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public void ReversedSeparateEngineeringRangeIsReported(bool withInstrumentRange)
+        {
+            string instrumentRange = withInstrumentRange
+                ? ",\"uav:instrumentRange\":{\"minimum\":0,\"maximum\":100}"
+                : string.Empty;
+            WotConversionResult<UANodeSet> result = Convert(
+                "\"properties\":{\"speed\":{\"type\":\"number\"," +
+                "\"uav:euRange\":{\"minimum\":10,\"maximum\":0}" + instrumentRange + "}}");
+
+            Assert.That(result.Diagnostics.Any(diagnostic =>
+                diagnostic.Code == WotDiagnosticCode.InvalidRangeValue &&
+                diagnostic.Location?.JsonPointer == "/properties/speed/uav:euRange/minimum"), Is.True);
+        }
+
+        /// <summary>
+        /// Accepts engineering metadata whose endpoints are ordered or omitted.
+        /// </summary>
+        [TestCase("\"minimum\":0")]
+        [TestCase("\"maximum\":10")]
+        [TestCase("\"minimum\":0,\"maximum\":10")]
+        public void OrderedOrPartialSeparateEngineeringRangeIsAccepted(string endpoints)
+        {
+            WotConversionResult<UANodeSet> result = Convert(
+                "\"properties\":{\"speed\":{\"type\":\"number\",\"uav:euRange\":{" + endpoints + "}}}");
+
+            Assert.That(result.Diagnostics.Any(diagnostic =>
+                diagnostic.Code == WotDiagnosticCode.InvalidRangeValue), Is.False,
+                WotAnalogTestData.Describe(result.Diagnostics));
         }
 
         [Test]

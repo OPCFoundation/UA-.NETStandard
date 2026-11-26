@@ -552,8 +552,11 @@ type. The runner invokes each matching delegate after:
 - authored-node registration through `RegisterAuthoredNodesAsync`;
 - `CompleteConfigureAsync`.
 
-The configurators run **before** `SealConfigurationAsync`. The base class
-then seals the builder and starts the manager's registries.
+The readiness callback runs after the initial application managers have been published, so services
+supplied by peer managers are available. When the callback returns successfully, the lifecycle runs
+the configurators and seals the builder before releasing readiness. A manager can call
+`CompletePublishedConfigurationAsync` from its callback when later callback work depends on those
+services. Private preparation does not invoke callbacks that resolve shared serving services.
 
 Configurator-type matching follows `Type.IsAssignableFrom`. A
 delegate targeting `DiNodeManager` runs against every Device Integration-derived
@@ -562,8 +565,10 @@ manager (including `PumpNodeManager`); a delegate targeting
 
 Multiple `ConfigureDevicesFor<T>` calls accumulate and run in
 registration order. **Exception semantics are fail-fast**: any
-exception thrown by a configurator aborts hosted-server startup with
-a diagnostic that identifies the failing index and target type.
+exception thrown by a configurator fails hosted-server startup with
+a diagnostic that identifies the failing index and target type. A runtime readiness failure
+retains the committed generation for recovery or removal; it does not roll back publication.
+Configurators that fail after performing side effects must support a subsequent readiness retry.
 
 ### Composing companion models
 
@@ -673,8 +678,9 @@ Runtimes use these public `DiNodeManager` members:
   atomically with its last batch; later registrations throw `ObjectDisposedException`.
   An ordinary explicit drain leaves registration open for new batches. The Machinery-named
   registration and disposal extensions forward to these neutral members.
-- `RegisterRootNotifierAsync` registers an event source and attaches existing
-  event subscriptions.
+- `RegisterRootNotifierAsync`, inherited from `AsyncCustomNodeManager`,
+  registers an event source as a Server root and attaches existing event
+  subscriptions. Deleting the node removes the registration.
 - `TryOrganizeUnder` adds both directions of an `Organizes` reference and
   returns `false` when the folder is not owned. Resolve
   `Machinery.ObjectIds.Machines` through the namespace table; a matching BrowseName
@@ -752,14 +758,16 @@ and lifetime traps).
 | `DiNodeManager` / `PumpNodeManager` | Per-server startup (factory passes runner) | app |
 
 The runner is injected into the manager via the factory. The base
-`DiNodeManager` auto-invokes it at the end of its own
-`CreateAddressSpaceAsync` for every concrete subclass:
+`DiNodeManager` auto-invokes it during published readiness for every concrete subclass:
 
 - The base `DiNodeManager.CreateAddressSpaceAsync` calls
   `LoadPredefinedNodesAsync` → `CreateFluentBuilder(...)` →
   `ConfigureAsync(builder, ct)` → `RegisterAuthoredNodesAsync` →
-  `CompleteConfigureAsync` → `PostSetupRunner.RunAsync(this, ct)` →
-  `SealConfigurationAsync(builder, ct)` in that order. Sealing comes last because the
+  `CompleteConfigureAsync`. With an injected runner it retains the open builder until
+  its `INodeManagerReadinessNotification` callback invokes `PostSetupRunner.RunAsync(this, ct)` and then
+  `SealConfigurationAsync(builder, ct)`. Without a runner or other deferred shared-service steps,
+  it seals during address-space creation.
+  Sealing comes last because the
   fluent registries (simulations, event sources) are owned by the manager,
   not by a single builder, and sealing starts them — a post-setup
   configurator must still be able to register a simulation loop.
@@ -771,6 +779,15 @@ The runner is injected into the manager via the factory. The base
   node registration and sealing. The runner fires automatically before
   `SealConfigurationAsync` — subclasses do not need to call
   `PostSetupRunner.RunAsync` themselves.
+
+Subclasses that require published shared services can register ordered steps with
+`DeferConfigurationUntilReady`. All steps must use the same original builder and be registered
+before readiness starts. `DeferPublishedAuthoringUntilReady` supplies a separate attached builder
+when a step also authors nodes. It resolves the prepared default namespace by URI after publication,
+registers the new roots and external references, and closes that pass's graph authoring.
+Manager-wide behavior activation waits until every step, including hosting post-setup, succeeds.
+Completed steps, roots and external-reference source groups are not replayed after a failure;
+an interrupted callback, subtree or source group must support idempotent retry.
 
 ```mermaid
 sequenceDiagram
@@ -793,6 +810,12 @@ sequenceDiagram
     Base->>Base: await RegisterAuthoredNodesAsync(builder, ct)
     Base->>Base: await CompleteConfigureAsync(externalReferences, ct)
 
+    Base-->>Host: private preparation complete
+    Note over Host: publish the initial application managers
+    Host->>Base: OnServerReadyAsync(ct)
+    Base-->>Host: readiness callback returns
+    Host->>Base: complete deferred shared-service authoring
+    Note over Sub: register published additions and references;<br/>do not activate manager-wide behaviors yet
     Base->>Run: await RunAsync(this, ct)
     Note over Run: configurators still register simulation<br/>loops and event sources here
 
@@ -804,6 +827,13 @@ Sealing is the last step for a reason: the fluent registries belong to
 the manager rather than to one builder, and sealing starts them. Sealing
 before `RunAsync` would leave the post-setup configurators unable to
 register a simulation loop of their own.
+
+A completed post-setup is not repeated when readiness is notified again or a later seal is retried.
+The manager owns its attached builders throughout preparation, readiness and shutdown, including
+when startup stops before post-setup runs. Custom standalone hosts that use deferred shared-service steps must call
+`INodeManagerReadinessNotification.OnServerReadyAsync` after publication and before accepting clients.
+DI post-setup and AMB setup callbacks run in manager registration order, so both observe the
+published peer managers without constructing or mutating peers during private preparation.
 
 ### Runtime conformance advertisement
 
@@ -879,11 +909,12 @@ missing when one of the factories is resolved.
 
 ## Lock service
 
-The lock service implements the OPC 10000-100 §10.5 locking facet.
-It tracks ownership of every `TopologyElementType.Lock` instance in
-the address space, enforces configurable timeouts, releases locks
-automatically when the owning session closes, and exposes the four
-spec-defined methods through the typed `LockingServicesState` proxy.
+The lock service implements [OPC 10000-100 §7](https://reference.opcfoundation.org/specs/OPC-10000-100/v1.05.0/7).
+Applications opt each topology element into request admission with
+`DiNodeManager.RegisterLockableElementAsync`. The registration binds its `Lock`
+child and checks UA writes and method calls throughout the owned subtree,
+including children added after registration. Other sessions receive `BadLocked`;
+ordinary value reads and browsing remain available.
 
 ### Components
 
@@ -892,22 +923,24 @@ spec-defined methods through the typed `LockingServicesState` proxy.
 | `ILockService` | Application-facing facade: `InitLock`, `RenewLock`, `ExitLock`, `BreakLock`, `GetState`. Thread-safe. |
 | `LockState` | Snapshot record (Locked, LockingClient, LockingUser, RemainingLockTimeSeconds). |
 | `LockStatus` | OPC 10000-100 status-code constants. |
-| `DefaultLockService` | Default in-memory implementation backed by a `ConcurrentDictionary`. |
-| `LockingServicesExtensions.BindToLockService` | Wires the four generated `*MethodState.OnCall` handlers on a `LockingServicesState` instance through an `ILockService`. |
+| `ILockActivityService` | Extends `ILockService` with atomic request admission, activity completion and session cleanup. |
+| `DefaultLockService` | In-memory session ownership and activity accounting under one private synchronization gate. |
+| `LockingServicesExtensions.BindToLockService` | Binds the four method handlers and live reads of the Lock properties. Does not itself admit subtree requests. |
+| `DiNodeManager.RegisterLockableElementAsync` | Registers subtree admission, publishes `MaxInactiveLockTime` and retains the session-close subscription until registration disposal. |
 
 Namespaces: `Opc.Ua.Di.Server.Locking`.
 
 ### Status codes
 
-Following OPC 10000-100 §10.5:
+The method output is an integer status, separate from the UA service status:
 
 | Constant | Value | Returned from |
 |----------|-------|---------------|
 | `LockStatus.Ok` | 0 | All methods (success) |
-| `LockStatus.AlreadyLocked` | 1 | `InitLock` only |
-| `LockStatus.CouldNotLock` | 2 | `InitLock` only |
-| `LockStatus.NotLocked` | 1 | `RenewLock` / `ExitLock` / `BreakLock` |
-| `LockStatus.WrongClient` | 2 | `RenewLock` / `ExitLock` |
+| `LockStatus.AlreadyLocked` | -1 | `InitLock` only |
+| `LockStatus.CouldNotLock` | -2 | `InitLock` only |
+| `LockStatus.NotLocked` | -1 | `RenewLock` / `ExitLock` / `BreakLock` |
+| `LockStatus.WrongClient` | -2 | `RenewLock` / `ExitLock` |
 
 ### Default lock service
 
@@ -916,22 +949,38 @@ var lockService = new DefaultLockService(
     lockDuration: TimeSpan.FromMinutes(5),   // optional, defaults to 5 min
     timeProvider: TimeProvider.System);       // optional, for tests
 
-// Hook session-close so locks held by a disconnecting session are
-// released automatically.
-lockService.AttachToSessionManager(server.SessionManager);
+IDisposable registration = await nodeManager.RegisterLockableElementAsync(
+    device, lockService, cancellationToken);
 ```
 
-Lock ownership is keyed by `ServerSystemContext.SessionId`. When the
-service is invoked from a test (`SystemContext` rather than
-`ServerSystemContext`), it falls back to a synthetic session id
-derived from `ISystemContext.UserId` so unit tests can still
-distinguish callers.
+The application retains the registration until the element's operations and
+cleanup finish, then disposes it. Registration requires a materialized `Lock`
+child. All registered elements must use the same advertised inactivity duration;
+a conflicting duration rejects registration with `BadConfigurationError`.
+
+Ownership uses `ISessionSystemContext.SessionId`, so two sessions with the same
+application and user do not share ownership. `LockingClient` reports the client's
+application URI. A direct, non-session context retains the legacy user-derived
+identity and uses the supplied context string; it is not a substitute for a UA
+session identity.
+
+An admitted owner request retains ownership until completion, including an
+asynchronous provider call. The inactivity period starts again when the last
+owner activity finishes. Owner reads, browsing and path translation also renew
+that period; another session's reads do not. `MaxInactiveLockTime` and
+`RemainingLockTime` use milliseconds on the wire, while the `LockState` snapshot
+retains its existing seconds-based property.
+
+If an unowned element already has an admitted mutation from another session,
+`InitLock` returns `CouldNotLock`. Closing a session releases idle ownership
+immediately, or after its admitted requests finish. `ExitLock` and an authorized
+`BreakLock` remove ownership without cancelling work already admitted; conflicting
+acquisition remains rejected until that work finishes.
 
 ### Binding to a `LockingServicesState`
 
-The Device Integration spec defines a `Lock` child on every `TopologyElementType`
-that implements four method invocations. Wire them through your
-service:
+Applications with their own request-admission path can bind only the generated
+methods and property reads:
 
 ```csharp
 LockingServicesState lockNode = device.Lock!;
@@ -941,26 +990,23 @@ lockNode.BindToLockService(elementId: device.NodeId, service: lockService);
 `BindToLockService` reads `lockNode.InitLock`, `RenewLock`,
 `ExitLock`, `BreakLock` and replaces their `OnCall` handlers with
 delegates that route into the `ILockService`. The `elementId`
-argument keys the service's internal dictionary — typically the
-topology element's own NodeId so two different devices can hold
-independent locks.
+argument keys the service's internal dictionary, normally by the topology
+element's NodeId. Different elements retain independent ownership. This helper
+does not check writes or calls elsewhere in the subtree.
 
-### End-to-end flow
+### Authorization and scope
 
-1. Client calls `InitLock(context: "tag")` on a device's Lock.
-2. The method's `OnCall` runs the bound `ILockService.InitLock`,
-   which checks the per-device record:
-   - If unlocked / expired → record `(SessionId, "tag", UserId,
-     now + duration)`, return `Ok` (0).
-   - If already locked by another session → return `AlreadyLocked` (1).
-3. `RenewLock` (same session) extends the expiry timestamp; from a
-   different session it returns `WrongClient` (2).
-4. `ExitLock` removes the record (subject to ownership check).
-5. `BreakLock` removes the record regardless of ownership; intended
-   for administrative recovery.
-6. If the owning session closes (server-emitted `SessionClosing`
-   event), the `DefaultLockService` walks its records and releases
-   anything that was held by that session.
+The registered element's own lock methods remain callable so a client can renew
+or release ownership. An ancestor's lock still applies to a nested element.
+Unless the application supplies explicit role permissions, registration permits
+`BreakLock` only to `SecurityAdmin` and `ConfigureAdmin`. Method output codes do
+not replace the server's role and user-access checks.
+
+Direct application handles and provider notifications remain trusted. Registration
+does not fence physical equipment, stop a launched program, or distribute
+ownership between servers. FileType methods, including Open, Read and Close,
+use method admission; another session cannot invoke them while the element is
+locked. Merely keeping a file handle open does not count as continuous activity.
 
 ### Hosting
 
@@ -968,28 +1014,13 @@ Register the service as a singleton through standard
 `Microsoft.Extensions.DependencyInjection`:
 
 ```csharp
-services.AddSingleton<ILockService, DefaultLockService>();
+services.AddSingleton<ILockActivityService, DefaultLockService>();
 ```
 
-Then attach the session-close hook from inside a
-`ConfigureDevicesFor<TNodeManager>` configurator once the server's
-`SessionManager` is available:
-
-```csharp
-.ConfigureDevicesFor<DiNodeManager>(ctx =>
-{
-    ILockService svc = ctx.GetRequiredService<ILockService>();
-    if (svc is DefaultLockService defaultSvc)
-    {
-        defaultSvc.AttachToSessionManager(ctx.Manager.Server.SessionManager);
-    }
-    foreach (DeviceState device in ctx.Manager.PredefinedNodes
-        .Values.OfType<DeviceState>())
-    {
-        device.Lock?.BindToLockService(device.NodeId, svc);
-    }
-});
-```
+Resolve it during device configuration and retain each returned registration
+with its element. Consumers that use only `ILockService`, without subtree
+registration, can call `DefaultLockService.AttachToSessionManager` for session
+cleanup, but must provide their own request admission and activity accounting.
 
 ## Software update
 

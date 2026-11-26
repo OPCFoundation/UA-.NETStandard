@@ -1,31 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using System.Buffers;
@@ -218,9 +192,31 @@ namespace Opc.Ua.PubSub.Encoding.Json
                 value = element.GetProperty("Value");
                 element.TryGetProperty("Dimensions", out dimensions);
             }
-            string? typeId = builtInType == BuiltInType.ExtensionObject && !dataType.IsNull
-                ? dataType.ToString()
-                : null;
+            string? typeId = null;
+            ExpandedNodeId unregisteredTypeId = ExpandedNodeId.Null;
+            if (builtInType == BuiltInType.ExtensionObject && !dataType.IsNull)
+            {
+                ExpandedNodeId absoluteTypeId = NodeId.ToExpandedNodeId(dataType, context.NamespaceUris);
+                if (absoluteTypeId.IsNull)
+                {
+                    absoluteTypeId = dataType;
+                }
+                if (context.Factory.TryGetEncodeableType(absoluteTypeId, out _))
+                {
+                    // The decoder needs the UaTypeId inside each Structure
+                    // to create the registered type.
+                    typeId = dataType.ToString();
+                }
+                else
+                {
+                    // An unregistered type is kept as a JSON body, so the
+                    // TypeId is set on the decoded values instead. Copying
+                    // the DataType of the (possibly received) metadata into
+                    // every element would let a small message expand into
+                    // gigabytes.
+                    unregisteredTypeId = absoluteTypeId;
+                }
+            }
             using JsonBufferWriter buffer = new(256);
             using (var writer = new Utf8JsonWriter(buffer, new JsonWriterOptions
             {
@@ -242,10 +238,91 @@ namespace Opc.Ua.PubSub.Encoding.Json
                 writer.WriteEndObject();
                 writer.WriteEndObject();
             }
-            using Ua.JsonDecoder decoder = new(
+            Variant decoded;
+            using (Ua.JsonDecoder decoder = new(
                 new ReadOnlySequence<byte>(buffer.WrittenMemory),
-                context);
-            return decoder.ReadVariant(SpliceFieldName);
+                context))
+            {
+                decoded = decoder.ReadVariant(SpliceFieldName);
+            }
+            return unregisteredTypeId.IsNull
+                ? decoded
+                : ApplyStructureTypeId(decoded, value, unregisteredTypeId);
+        }
+
+        /// <summary>
+        /// Sets <paramref name="typeId"/> on the decoded Structures that came
+        /// from a JSON object without a <c>UaTypeId</c>: the result is the
+        /// same as decoding the object with that <c>UaTypeId</c> added, minus
+        /// the <c>UaTypeId</c> member in the kept JSON body.
+        /// </summary>
+        private static Variant ApplyStructureTypeId(
+            Variant decoded,
+            JsonElement value,
+            ExpandedNodeId typeId)
+        {
+            if (value.ValueKind == JsonValueKind.Object)
+            {
+                return IsUntypedStructure(value) && decoded.TryGetValue(out ExtensionObject scalar)
+                    ? new Variant(WithStructureTypeId(scalar, typeId))
+                    : decoded;
+            }
+            if (value.ValueKind != JsonValueKind.Array)
+            {
+                return decoded;
+            }
+            if (decoded.TryGetValue(out ArrayOf<ExtensionObject> array) && !array.IsNull)
+            {
+                ExtensionObject[]? typed = ApplyStructureTypeId(array.Span, value, typeId);
+                return typed is null ? decoded : new Variant((ArrayOf<ExtensionObject>)typed);
+            }
+            if (decoded.TryGetValue(out MatrixOf<ExtensionObject> matrix) && !matrix.IsNull)
+            {
+                ExtensionObject[]? typed = ApplyStructureTypeId(matrix.Span, value, typeId);
+                return typed is null
+                    ? decoded
+                    : new Variant(new ReadOnlyMemory<ExtensionObject>(typed).ToMatrixOf(matrix.Dimensions));
+            }
+            return decoded;
+        }
+
+        private static ExtensionObject[]? ApplyStructureTypeId(
+            ReadOnlySpan<ExtensionObject> values,
+            JsonElement items,
+            ExpandedNodeId typeId)
+        {
+            // The type is only added to the items of the outer array, as when
+            // the UaTypeId is written into the JSON (see WriteWithTypeId).
+            if (items.GetArrayLength() != values.Length)
+            {
+                return null;
+            }
+            var typed = new ExtensionObject[values.Length];
+            int index = 0;
+            foreach (JsonElement item in items.EnumerateArray())
+            {
+                typed[index] = IsUntypedStructure(item)
+                    ? WithStructureTypeId(values[index], typeId)
+                    : values[index];
+                index++;
+            }
+            return typed;
+        }
+
+        private static bool IsUntypedStructure(JsonElement element)
+        {
+            return element.ValueKind == JsonValueKind.Object &&
+                !element.TryGetProperty("UaTypeId", out _);
+        }
+
+        private static ExtensionObject WithStructureTypeId(ExtensionObject value, ExpandedNodeId typeId)
+        {
+            if (value.IsNull)
+            {
+                // An empty JSON object: a Structure of the type without a body.
+                return new ExtensionObject(typeId);
+            }
+            return value.TypeId.IsNull ? value.WithTypeId(typeId) : value;
         }
 
         /// <summary>

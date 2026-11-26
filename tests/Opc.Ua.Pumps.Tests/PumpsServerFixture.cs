@@ -1,36 +1,12 @@
-/* ========================================================================
- * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
+using Moq;
 using Opc.Ua.Pumps.Server;
+using Opc.Ua.Security.Certificates;
 using Opc.Ua.Server;
 using Opc.Ua.Server.TestFramework;
 
@@ -53,7 +29,10 @@ namespace Opc.Ua.Pumps.Tests
         public async Task StartAsync(PumpsServerOptions? options = null)
         {
             m_fixture = new ServerFixture<StandardServer>(
-                telemetry => new StandardServer(telemetry))
+                telemetry => new StandardServer(telemetry)
+                {
+                    SessionManagerFactory = new DirectSessionManagerFactory()
+                })
             {
                 AutoAccept = true,
                 SecurityNone = true
@@ -83,6 +62,62 @@ namespace Opc.Ua.Pumps.Tests
             {
                 await m_fixture.StopAsync().ConfigureAwait(false);
             }
+        }
+
+        /// <summary>
+        /// Creates the ordinary session manager with registered direct-test owners.
+        /// </summary>
+        private sealed class DirectSessionManagerFactory : ISessionManagerFactory
+        {
+            /// <inheritdoc/>
+            public ISessionManager Create(
+                IServerInternal server,
+                ApplicationConfiguration configuration,
+                TimeProvider timeProvider,
+                Func<string, Certificate?> serverCertificateProvider) =>
+                new DirectSessionManager(server, configuration, timeProvider);
+        }
+
+        /// <summary>
+        /// Keeps the fixture's logical file owners visible to session-lifetime validation.
+        /// </summary>
+        private sealed class DirectSessionManager : SessionManager
+        {
+            /// <summary>
+            /// Creates the manager and the two direct-call session entries.
+            /// </summary>
+            public DirectSessionManager(
+                IServerInternal server,
+                ApplicationConfiguration configuration,
+                TimeProvider timeProvider)
+                : base(server, configuration, timeProvider)
+            {
+                m_directSessions = [CreateDirectSession(42), CreateDirectSession(43)];
+            }
+
+            /// <inheritdoc/>
+            public override IList<ISession> GetSessions()
+            {
+                IList<ISession> sessions = base.GetSessions();
+                foreach (Mock<ISession> session in m_directSessions)
+                {
+                    sessions.Add(session.Object);
+                }
+                return sessions;
+            }
+
+            /// <summary>
+            /// Creates a live entry for one direct-call owner.
+            /// </summary>
+            private static Mock<ISession> CreateDirectSession(uint id)
+            {
+                var session = new Mock<ISession>();
+                session.SetupGet(value => value.Id).Returns(new NodeId(id));
+                return session;
+            }
+
+            /// <summary>The registered direct-call owners retained by this fixture.</summary>
+            private readonly ArrayOf<Mock<ISession>> m_directSessions;
         }
     }
 }

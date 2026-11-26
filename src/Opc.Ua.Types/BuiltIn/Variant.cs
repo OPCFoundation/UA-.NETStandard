@@ -1,31 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using System.Collections.Generic;
@@ -1188,6 +1162,8 @@ namespace Opc.Ua
                     BuiltInType.ByteString when IsPackedScalar => HashByteString(GetByteString()),
                     BuiltInType.ByteString when m_value is ByteString boxed => HashByteString(boxed),
                     BuiltInType.LocalizedText when IsPackedScalar => GetLocalizedText().GetHashCode(),
+                    BuiltInType.ExtensionObject or
+                    BuiltInType.DataValue => HashNestedValue(),
                     _ => m_value?.GetHashCode() ?? 0
                 };
             }
@@ -1197,6 +1173,10 @@ namespace Opc.Ua
                 // the same way as ByteString does.
                 ReadOnlySpan<byte> bytes = GetByteArray().Span;
                 return bytes.IsEmpty ? 0 : ReadOnlySpan.ComputeHash32(bytes);
+            }
+            if (MayNest(TypeInfo.BuiltInType))
+            {
+                return HashNestedValue();
             }
             return m_value?.GetHashCode() ?? 0;
 
@@ -1228,7 +1208,110 @@ namespace Opc.Ua
         /// Copy the variant and if needed the inner value(s). Not using clone to
         /// prevent boxing, see <see cref="CoreUtils.Clone(Variant)"/>.
         /// </summary>
+        /// <exception cref="ServiceResultException">Thrown with
+        /// <see cref="StatusCodes.BadEncodingLimitsExceeded"/> when the value
+        /// nests deeper than the stack of the calling thread allows to copy.
+        /// </exception>
         public Variant Copy()
+        {
+            if (m_value is null)
+            {
+                return this; // Just copy the value type as-is
+            }
+
+            // A value that holds variants, data values or extension objects
+            // is copied by calling Copy once per nesting level. Keep that
+            // recursion out of the large type switches of CopyValue: their
+            // frames cost several KB per level (Debug and Release alike), so
+            // a ~100 level value a client may write ran a thread pool thread
+            // out of stack, which terminates the process.
+            if (MayNest(m_typeInfo.BuiltInType))
+            {
+                return CopyNestedValue();
+            }
+
+            // other scalars (strings, node ids, ...) are immutable; a null
+            // matrix reports a scalar type info but must stay a matrix.
+            if (m_typeInfo.IsScalar && m_value is not IMatrixOf)
+            {
+                return this;
+            }
+
+            return CopyValue();
+        }
+
+        /// <summary>
+        /// Copies a value that may hold nested values with frames small
+        /// enough that every value the decoders accept can be copied, and
+        /// fails instead of overflowing the stack when the thread runs out of it.
+        /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        private Variant CopyNestedValue()
+        {
+            if (!HasStackForNestedValue())
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadEncodingLimitsExceeded,
+                    "Insufficient stack to copy a nested value.");
+            }
+
+            object? value = m_value;
+            if (value is IMatrixOf)
+            {
+                switch (value)
+                {
+                    case MatrixOf<Variant> matrix:
+                        return new Variant(m_union, m_typeInfo, CoreUtils.Clone(matrix));
+                    case MatrixOf<DataValue> matrix:
+                        return new Variant(m_union, m_typeInfo, CoreUtils.Clone(matrix));
+                    case MatrixOf<ExtensionObject> matrix:
+                        return new Variant(m_union, m_typeInfo, CoreUtils.Clone(matrix));
+                }
+                return CopyValue();
+            }
+
+            TypeInfo typeInfo = m_typeInfo;
+            if (typeInfo.IsScalar)
+            {
+                switch (typeInfo.BuiltInType)
+                {
+                    case BuiltInType.ExtensionObject:
+                        return new Variant(m_union, m_typeInfo, CoreUtils.Clone(GetExtensionObject()));
+                    case BuiltInType.DataValue:
+                        return new Variant(m_union, m_typeInfo, CoreUtils.Clone(GetDataValue()));
+                    default:
+                        return this;
+                }
+            }
+
+            if (typeInfo.IsArray)
+            {
+                // an empty array has no element a caller could change: share it.
+                if (value is IElementContainer { IsEmpty: true })
+                {
+                    return this;
+                }
+
+                switch (typeInfo.BuiltInType)
+                {
+                    case BuiltInType.ExtensionObject:
+                        return new Variant(m_union, m_typeInfo, CoreUtils.Clone(GetExtensionObjectArray()));
+                    case BuiltInType.DataValue:
+                        return new Variant(m_union, m_typeInfo, CoreUtils.Clone(GetDataValueArray()));
+                    default:
+                        return new Variant(m_union, m_typeInfo, CoreUtils.Clone(GetVariantArray()));
+                }
+            }
+
+            return CopyValue();
+        }
+
+        /// <summary>
+        /// Copies a value of any type, see <see cref="Copy"/>.
+        /// </summary>
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        private Variant CopyValue()
         {
             if (m_value is IMatrixOf)
             {
@@ -1245,6 +1328,50 @@ namespace Opc.Ua
                         new Variant(m_union, m_typeInfo, CoreUtils.Clone(matrix)),
                     MatrixOf<Variant> matrix =>
                         new Variant(m_union, m_typeInfo, CoreUtils.Clone(matrix)),
+                    MatrixOf<bool> matrix =>
+                        new Variant(m_union, m_typeInfo, CopyMatrixStorage(matrix)),
+                    MatrixOf<sbyte> matrix =>
+                        new Variant(m_union, m_typeInfo, CopyMatrixStorage(matrix)),
+                    MatrixOf<byte> matrix =>
+                        new Variant(m_union, m_typeInfo, CopyMatrixStorage(matrix)),
+                    MatrixOf<short> matrix =>
+                        new Variant(m_union, m_typeInfo, CopyMatrixStorage(matrix)),
+                    MatrixOf<ushort> matrix =>
+                        new Variant(m_union, m_typeInfo, CopyMatrixStorage(matrix)),
+                    MatrixOf<int> matrix =>
+                        new Variant(m_union, m_typeInfo, CopyMatrixStorage(matrix)),
+                    MatrixOf<uint> matrix =>
+                        new Variant(m_union, m_typeInfo, CopyMatrixStorage(matrix)),
+                    MatrixOf<long> matrix =>
+                        new Variant(m_union, m_typeInfo, CopyMatrixStorage(matrix)),
+                    MatrixOf<ulong> matrix =>
+                        new Variant(m_union, m_typeInfo, CopyMatrixStorage(matrix)),
+                    MatrixOf<float> matrix =>
+                        new Variant(m_union, m_typeInfo, CopyMatrixStorage(matrix)),
+                    MatrixOf<double> matrix =>
+                        new Variant(m_union, m_typeInfo, CopyMatrixStorage(matrix)),
+                    MatrixOf<string> matrix =>
+                        new Variant(m_union, m_typeInfo, CopyMatrixStorage(matrix)),
+                    MatrixOf<DateTimeUtc> matrix =>
+                        new Variant(m_union, m_typeInfo, CopyMatrixStorage(matrix)),
+                    MatrixOf<Uuid> matrix =>
+                        new Variant(m_union, m_typeInfo, CopyMatrixStorage(matrix)),
+                    MatrixOf<ByteString> matrix =>
+                        new Variant(m_union, m_typeInfo, CopyByteStringMatrix(matrix)),
+                    MatrixOf<XmlElement> matrix =>
+                        new Variant(m_union, m_typeInfo, CopyMatrixStorage(matrix)),
+                    MatrixOf<NodeId> matrix =>
+                        new Variant(m_union, m_typeInfo, CopyMatrixStorage(matrix)),
+                    MatrixOf<ExpandedNodeId> matrix =>
+                        new Variant(m_union, m_typeInfo, CopyMatrixStorage(matrix)),
+                    MatrixOf<StatusCode> matrix =>
+                        new Variant(m_union, m_typeInfo, CopyMatrixStorage(matrix)),
+                    MatrixOf<QualifiedName> matrix =>
+                        new Variant(m_union, m_typeInfo, CopyMatrixStorage(matrix)),
+                    MatrixOf<LocalizedText> matrix =>
+                        new Variant(m_union, m_typeInfo, CopyMatrixStorage(matrix)),
+                    MatrixOf<EnumValue> matrix =>
+                        new Variant(m_union, m_typeInfo, CopyMatrixStorage(matrix)),
                     _ => this
                 };
             }
@@ -1270,6 +1397,48 @@ namespace Opc.Ua
 
                     switch (TypeInfo.BuiltInType)
                     {
+                        case BuiltInType.Boolean:
+                            return new Variant(m_union, m_typeInfo, CopyArrayStorage(GetBooleanArray()));
+                        case BuiltInType.SByte:
+                            return new Variant(m_union, m_typeInfo, CopyArrayStorage(GetSByteArray()));
+                        case BuiltInType.Byte:
+                            return new Variant(m_union, m_typeInfo, CopyArrayStorage(GetByteArray()));
+                        case BuiltInType.Int16:
+                            return new Variant(m_union, m_typeInfo, CopyArrayStorage(GetInt16Array()));
+                        case BuiltInType.UInt16:
+                            return new Variant(m_union, m_typeInfo, CopyArrayStorage(GetUInt16Array()));
+                        case BuiltInType.Int32:
+                            return new Variant(m_union, m_typeInfo, CopyArrayStorage(GetInt32Array()));
+                        case BuiltInType.UInt32:
+                            return new Variant(m_union, m_typeInfo, CopyArrayStorage(GetUInt32Array()));
+                        case BuiltInType.Int64:
+                            return new Variant(m_union, m_typeInfo, CopyArrayStorage(GetInt64Array()));
+                        case BuiltInType.UInt64:
+                            return new Variant(m_union, m_typeInfo, CopyArrayStorage(GetUInt64Array()));
+                        case BuiltInType.Float:
+                            return new Variant(m_union, m_typeInfo, CopyArrayStorage(GetFloatArray()));
+                        case BuiltInType.Double:
+                            return new Variant(m_union, m_typeInfo, CopyArrayStorage(GetDoubleArray()));
+                        case BuiltInType.String:
+                            return new Variant(m_union, m_typeInfo, CopyArrayStorage(GetStringArray()));
+                        case BuiltInType.DateTime:
+                            return new Variant(m_union, m_typeInfo, CopyArrayStorage(GetDateTimeArray()));
+                        case BuiltInType.Guid:
+                            return new Variant(m_union, m_typeInfo, CopyArrayStorage(GetGuidArray()));
+                        case BuiltInType.ByteString:
+                            return new Variant(m_union, m_typeInfo, CopyByteStringArray(GetByteStringArray()));
+                        case BuiltInType.XmlElement:
+                            return new Variant(m_union, m_typeInfo, CopyArrayStorage(GetXmlElementArray()));
+                        case BuiltInType.NodeId:
+                            return new Variant(m_union, m_typeInfo, CopyArrayStorage(GetNodeIdArray()));
+                        case BuiltInType.ExpandedNodeId:
+                            return new Variant(m_union, m_typeInfo, CopyArrayStorage(GetExpandedNodeIdArray()));
+                        case BuiltInType.StatusCode:
+                            return new Variant(m_union, m_typeInfo, CopyArrayStorage(GetStatusCodeArray()));
+                        case BuiltInType.QualifiedName:
+                            return new Variant(m_union, m_typeInfo, CopyArrayStorage(GetQualifiedNameArray()));
+                        case BuiltInType.LocalizedText:
+                            return new Variant(m_union, m_typeInfo, CopyArrayStorage(GetLocalizedTextArray()));
                         case BuiltInType.ExtensionObject:
                             return new Variant(m_union, m_typeInfo, CoreUtils.Clone(GetExtensionObjectArray()));
                         case BuiltInType.DataValue:
@@ -1279,12 +1448,56 @@ namespace Opc.Ua
                         case BuiltInType.UInteger:
                         case BuiltInType.Variant:
                             return new Variant(m_union, m_typeInfo, CoreUtils.Clone(GetVariantArray()));
+                        case BuiltInType.Enumeration:
+                            return new Variant(m_union, m_typeInfo, CopyArrayStorage(GetEnumerationArray()));
                     }
                 }
                 else
                 {
                     switch (TypeInfo.BuiltInType)
                     {
+                        case BuiltInType.Boolean:
+                            return new Variant(m_union, m_typeInfo, CopyMatrixStorage(GetBooleanMatrix()));
+                        case BuiltInType.SByte:
+                            return new Variant(m_union, m_typeInfo, CopyMatrixStorage(GetSByteMatrix()));
+                        case BuiltInType.Byte:
+                            return new Variant(m_union, m_typeInfo, CopyMatrixStorage(GetByteMatrix()));
+                        case BuiltInType.Int16:
+                            return new Variant(m_union, m_typeInfo, CopyMatrixStorage(GetInt16Matrix()));
+                        case BuiltInType.UInt16:
+                            return new Variant(m_union, m_typeInfo, CopyMatrixStorage(GetUInt16Matrix()));
+                        case BuiltInType.Int32:
+                            return new Variant(m_union, m_typeInfo, CopyMatrixStorage(GetInt32Matrix()));
+                        case BuiltInType.UInt32:
+                            return new Variant(m_union, m_typeInfo, CopyMatrixStorage(GetUInt32Matrix()));
+                        case BuiltInType.Int64:
+                            return new Variant(m_union, m_typeInfo, CopyMatrixStorage(GetInt64Matrix()));
+                        case BuiltInType.UInt64:
+                            return new Variant(m_union, m_typeInfo, CopyMatrixStorage(GetUInt64Matrix()));
+                        case BuiltInType.Float:
+                            return new Variant(m_union, m_typeInfo, CopyMatrixStorage(GetFloatMatrix()));
+                        case BuiltInType.Double:
+                            return new Variant(m_union, m_typeInfo, CopyMatrixStorage(GetDoubleMatrix()));
+                        case BuiltInType.String:
+                            return new Variant(m_union, m_typeInfo, CopyMatrixStorage(GetStringMatrix()));
+                        case BuiltInType.DateTime:
+                            return new Variant(m_union, m_typeInfo, CopyMatrixStorage(GetDateTimeMatrix()));
+                        case BuiltInType.Guid:
+                            return new Variant(m_union, m_typeInfo, CopyMatrixStorage(GetGuidMatrix()));
+                        case BuiltInType.ByteString:
+                            return new Variant(m_union, m_typeInfo, CopyByteStringMatrix(GetByteStringMatrix()));
+                        case BuiltInType.XmlElement:
+                            return new Variant(m_union, m_typeInfo, CopyMatrixStorage(GetXmlElementMatrix()));
+                        case BuiltInType.NodeId:
+                            return new Variant(m_union, m_typeInfo, CopyMatrixStorage(GetNodeIdMatrix()));
+                        case BuiltInType.ExpandedNodeId:
+                            return new Variant(m_union, m_typeInfo, CopyMatrixStorage(GetExpandedNodeIdMatrix()));
+                        case BuiltInType.StatusCode:
+                            return new Variant(m_union, m_typeInfo, CopyMatrixStorage(GetStatusCodeMatrix()));
+                        case BuiltInType.QualifiedName:
+                            return new Variant(m_union, m_typeInfo, CopyMatrixStorage(GetQualifiedNameMatrix()));
+                        case BuiltInType.LocalizedText:
+                            return new Variant(m_union, m_typeInfo, CopyMatrixStorage(GetLocalizedTextMatrix()));
                         case BuiltInType.ExtensionObject:
                             return new Variant(m_union, m_typeInfo, CoreUtils.Clone(GetExtensionObjectMatrix()));
                         case BuiltInType.DataValue:
@@ -1294,10 +1507,58 @@ namespace Opc.Ua
                         case BuiltInType.UInteger:
                         case BuiltInType.Variant:
                             return new Variant(m_union, m_typeInfo, CoreUtils.Clone(GetVariantMatrix()));
+                        case BuiltInType.Enumeration:
+                            return new Variant(m_union, m_typeInfo, CopyMatrixStorage(GetEnumerationMatrix()));
                     }
                 }
             }
             return this; // Just copy the value type as-is
+        }
+
+        /// <summary>
+        /// Copies the array storage while preserving the null-array value.
+        /// </summary>
+        /// <typeparam name="T">The array element type.</typeparam>
+        /// <param name="values">The array to copy.</param>
+        /// <returns>A detached array with the same contents, or a null array.</returns>
+        private static ArrayOf<T> CopyArrayStorage<T>(ArrayOf<T> values)
+        {
+            return values.IsNull ? default : values.Span.ToArray().ToArrayOf();
+        }
+
+        /// <summary>
+        /// Copies the matrix storage while preserving its dimensions and null value.
+        /// </summary>
+        /// <typeparam name="T">The matrix element type.</typeparam>
+        /// <param name="values">The matrix to copy.</param>
+        /// <returns>A detached matrix with the same contents and dimensions, or a null matrix.</returns>
+        private static MatrixOf<T> CopyMatrixStorage<T>(MatrixOf<T> values)
+        {
+            return values.IsNull ? default : values.ConvertAll(static value => value);
+        }
+
+        /// <summary>
+        /// Copies byte-string elements as well as their array storage.
+        /// </summary>
+        /// <param name="values">The array to copy.</param>
+        /// <returns>A detached array with the same null and byte contents.</returns>
+        private static ArrayOf<ByteString> CopyByteStringArray(ArrayOf<ByteString> values)
+        {
+            return values.IsNull
+                ? default
+                : values.ConvertAll(static value => value.IsNull ? default : ByteString.From(value.Span));
+        }
+
+        /// <summary>
+        /// Copies byte-string elements as well as their matrix storage.
+        /// </summary>
+        /// <param name="values">The matrix to copy.</param>
+        /// <returns>A detached matrix with the same null, shape and byte contents.</returns>
+        private static MatrixOf<ByteString> CopyByteStringMatrix(MatrixOf<ByteString> values)
+        {
+            return values.IsNull
+                ? default
+                : values.ConvertAll(static value => value.IsNull ? default : ByteString.From(value.Span));
         }
 
         /// <summary>
@@ -7892,6 +8153,108 @@ namespace Opc.Ua
             return value is null ? other.GetStoredValue() is null : value.Equals(other.GetStoredValue());
         }
 
+        /// <summary>
+        /// Hashes a payload that can hold nested variants.
+        /// </summary>
+        /// <remarks>
+        /// An array of variants hashes its elements without descending into the ones that
+        /// hold nested values: those contribute only their built-in type, which equal
+        /// elements share because these types never compare equal to other types. Other
+        /// payloads (DataValues, ExtensionObjects, matrices) are hashed in full for the
+        /// first <see cref="kMaxHashNesting"/> levels of nesting; deeper ones count as zero.
+        /// Equal values therefore still hash equally, and the recursion is bounded whatever
+        /// the depth of the value, independent of the stack left to the caller.
+        /// </remarks>
+        private int HashNestedValue()
+        {
+            if (m_value is null)
+            {
+                return 0;
+            }
+            if (m_value is ArrayOf<Variant> items)
+            {
+                var hash = new HashCode();
+                ReadOnlySpan<Variant> span = items.Span;
+                for (int ii = 0; ii < span.Length; ii++)
+                {
+                    ref readonly Variant item = ref span[ii];
+                    BuiltInType itemType = item.m_typeInfo.BuiltInType;
+                    hash.Add(MayNest(itemType) && !item.IsAbsent
+                        ? (int)itemType
+                        : item.GetHashCode());
+                }
+                return hash.ToHashCode();
+            }
+            int depth = t_hashNesting;
+            if (depth >= kMaxHashNesting)
+            {
+                return 0;
+            }
+            t_hashNesting = depth + 1;
+            try
+            {
+                return m_value.GetHashCode();
+            }
+            finally
+            {
+                t_hashNesting = depth;
+            }
+        }
+
+        /// <summary>
+        /// The levels of nested variants that contribute to a hash.
+        /// </summary>
+        private const int kMaxHashNesting = 32;
+
+        /// <summary>
+        /// The nesting level of the hash being computed on this thread.
+        /// </summary>
+        [ThreadStatic]
+        private static int t_hashNesting;
+
+        /// <summary>
+        /// Returns whether a value of the type can hold nested variants.
+        /// </summary>
+        private static bool MayNest(BuiltInType builtInType)
+        {
+            return builtInType is
+                BuiltInType.Variant or
+                BuiltInType.DataValue or
+                BuiltInType.ExtensionObject or
+                BuiltInType.Number or
+                BuiltInType.Integer or
+                BuiltInType.UInteger;
+        }
+
+        /// <summary>
+        /// Returns whether enough stack is left to compare or hash a value that holds
+        /// nested values.
+        /// </summary>
+        /// <remarks>
+        /// Equality recurses once per nesting level, and a level costs more stack than it
+        /// does in the decoders, which check the stack with
+        /// <see cref="EncodingLimits.EnsureSufficientStack"/>. Running out of stack ends
+        /// the process, so a comparison that would go deeper than the stack allows reports
+        /// the values as not equal. Hashing is bounded by <see cref="HashNestedValue"/>
+        /// instead, so a hash never depends on the stack of the caller.
+        /// </remarks>
+        private static bool HasStackForNestedValue()
+        {
+#if NET5_0_OR_GREATER
+            return RuntimeHelpers.TryEnsureSufficientExecutionStack();
+#else
+            try
+            {
+                RuntimeHelpers.EnsureSufficientExecutionStack();
+                return true;
+            }
+            catch (InsufficientExecutionStackException)
+            {
+                return false;
+            }
+#endif
+        }
+
         /// <inheritdoc/>
         public bool Equals(Variant other)
         {
@@ -7924,6 +8287,53 @@ namespace Opc.Ua
             TypeInfo ourTypeInfo = m_typeInfo;
             TypeInfo otherTypeInfo = other.m_typeInfo;
 
+            // Fast path for the most common comparison, two numeric scalars of
+            // the same type held in the union, without the call into the type
+            // switches of EqualsValue. Same results as the Equals(T) overloads.
+            if (ourTypeInfo.IsScalar &&
+                otherTypeInfo.IsScalar &&
+                ourTypeInfo.BuiltInType == otherTypeInfo.BuiltInType &&
+                m_value is null &&
+                other.m_value is null)
+            {
+                switch (ourTypeInfo.BuiltInType)
+                {
+                    case BuiltInType.Boolean:
+                        return m_union.Boolean == other.m_union.Boolean;
+                    case BuiltInType.SByte:
+                        return m_union.SByte == other.m_union.SByte;
+                    case BuiltInType.Byte:
+                        return m_union.Byte == other.m_union.Byte;
+                    case BuiltInType.Int16:
+                        return m_union.Int16 == other.m_union.Int16;
+                    case BuiltInType.UInt16:
+                        return m_union.UInt16 == other.m_union.UInt16;
+                    case BuiltInType.Int32:
+                        return m_union.Int32 == other.m_union.Int32;
+                    case BuiltInType.UInt32:
+                        return m_union.UInt32 == other.m_union.UInt32;
+                    case BuiltInType.Int64:
+                        return m_union.Int64 == other.m_union.Int64;
+                    case BuiltInType.UInt64:
+                        return m_union.UInt64 == other.m_union.UInt64;
+                    case BuiltInType.Float:
+                        return m_union.Float == other.m_union.Float ||
+                            (float.IsNaN(m_union.Float) && float.IsNaN(other.m_union.Float));
+                    case BuiltInType.Double:
+                        return m_union.Double == other.m_union.Double ||
+                            (double.IsNaN(m_union.Double) && double.IsNaN(other.m_union.Double));
+                }
+            }
+            else if (ourTypeInfo.IsScalar &&
+                otherTypeInfo.IsScalar &&
+                ourTypeInfo.BuiltInType == BuiltInType.String &&
+                otherTypeInfo.BuiltInType == BuiltInType.String &&
+                m_value is string ourString &&
+                other.m_value is string otherString)
+            {
+                return string.Equals(ourString, otherString, StringComparison.Ordinal);
+            }
+
             if ((ourTypeInfo.ValueRank != otherTypeInfo.ValueRank ||
                 ourTypeInfo.BuiltInType != otherTypeInfo.BuiltInType) &&
                 !IsConvertible(ourTypeInfo, otherTypeInfo))
@@ -7943,6 +8353,73 @@ namespace Opc.Ua
                         : m_value.Equals(other.m_value));
             }
 
+            // Comparing nested values recurses once per nesting level: keep
+            // that recursion out of the large type switches of EqualsValue,
+            // whose frames made values the decoders accept compare unequal
+            // to themselves for lack of stack (see CopyNestedValue).
+            if (MayNest(ourTypeInfo.BuiltInType))
+            {
+                return EqualsNestedValue(in other, ourTypeInfo);
+            }
+
+            return EqualsValue(in other, ourTypeInfo);
+        }
+
+        /// <summary>
+        /// Compares a value that may hold nested values with a small frame.
+        /// </summary>
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        private bool EqualsNestedValue(in Variant other, TypeInfo ourTypeInfo)
+        {
+            if (!HasStackForNestedValue())
+            {
+                return false;
+            }
+
+            if (ourTypeInfo.IsScalar)
+            {
+                switch (ourTypeInfo.BuiltInType)
+                {
+                    case BuiltInType.ExtensionObject:
+                        return Equals(other.GetExtensionObject());
+                    case BuiltInType.DataValue:
+                        return Equals(other.GetDataValue());
+                }
+            }
+            else if (ourTypeInfo.IsArray)
+            {
+                switch (ourTypeInfo.BuiltInType)
+                {
+                    case BuiltInType.ExtensionObject:
+                        return Equals(other.GetExtensionObjectArray());
+                    case BuiltInType.DataValue:
+                        return Equals(other.GetDataValueArray());
+                    default:
+                        return Equals(other.GetVariantArray());
+                }
+            }
+            else if (ourTypeInfo.IsMatrix)
+            {
+                switch (ourTypeInfo.BuiltInType)
+                {
+                    case BuiltInType.ExtensionObject:
+                        return Equals(other.GetExtensionObjectMatrix());
+                    case BuiltInType.DataValue:
+                        return Equals(other.GetDataValueMatrix());
+                    default:
+                        return Equals(other.GetVariantMatrix());
+                }
+            }
+
+            return EqualsValue(in other, ourTypeInfo);
+        }
+
+        /// <summary>
+        /// Compares a value of any type, see <see cref="Equals(Variant)"/>.
+        /// </summary>
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        private bool EqualsValue(in Variant other, TypeInfo ourTypeInfo)
+        {
             if (ourTypeInfo.IsScalar)
             {
                 switch (ourTypeInfo.BuiltInType)
@@ -7993,9 +8470,9 @@ namespace Opc.Ua
                     case BuiltInType.LocalizedText:
                         return Equals(other.GetLocalizedText());
                     case BuiltInType.ExtensionObject:
-                        return Equals(other.GetExtensionObject());
+                        return HasStackForNestedValue() && Equals(other.GetExtensionObject());
                     case BuiltInType.DataValue:
-                        return Equals(other.GetDataValue());
+                        return HasStackForNestedValue() && Equals(other.GetDataValue());
                     default:
                         Debug.Fail("Unexpected Built in type.");
                         return false;
@@ -8051,14 +8528,14 @@ namespace Opc.Ua
                     case BuiltInType.LocalizedText:
                         return Equals(other.GetLocalizedTextArray());
                     case BuiltInType.ExtensionObject:
-                        return Equals(other.GetExtensionObjectArray());
+                        return HasStackForNestedValue() && Equals(other.GetExtensionObjectArray());
                     case BuiltInType.DataValue:
-                        return Equals(other.GetDataValueArray());
+                        return HasStackForNestedValue() && Equals(other.GetDataValueArray());
                     case BuiltInType.Variant:
                     case BuiltInType.Number:
                     case BuiltInType.Integer:
                     case BuiltInType.UInteger:
-                        return Equals(other.GetVariantArray());
+                        return HasStackForNestedValue() && Equals(other.GetVariantArray());
                     default:
                         Debug.Fail("Unexpected Built in type.");
                         return false;
@@ -8114,14 +8591,14 @@ namespace Opc.Ua
                     case BuiltInType.LocalizedText:
                         return Equals(other.GetLocalizedTextMatrix());
                     case BuiltInType.ExtensionObject:
-                        return Equals(other.GetExtensionObjectMatrix());
+                        return HasStackForNestedValue() && Equals(other.GetExtensionObjectMatrix());
                     case BuiltInType.DataValue:
-                        return Equals(other.GetDataValueMatrix());
+                        return HasStackForNestedValue() && Equals(other.GetDataValueMatrix());
                     case BuiltInType.Variant:
                     case BuiltInType.Number:
                     case BuiltInType.Integer:
                     case BuiltInType.UInteger:
-                        return Equals(other.GetVariantMatrix());
+                        return HasStackForNestedValue() && Equals(other.GetVariantMatrix());
                     default:
                         Debug.Fail("Unexpected Built in type.");
                         return false;
@@ -8610,6 +9087,34 @@ namespace Opc.Ua
         }
 
         /// <summary>
+        /// Decodes a generated XML initializer using its source namespace table.
+        /// </summary>
+        /// <remarks>
+        /// This initialization API is used by generated code. Namespace indexes in the XML
+        /// are mapped to the runtime context before values are assigned to node states.
+        /// </remarks>
+        public static Variant FromXml(Stream istrm, ISystemContext context, NamespaceTable namespaceUris)
+        {
+            if (istrm == null)
+            {
+                throw new ArgumentNullException(nameof(istrm));
+            }
+            if (context == null)
+            {
+                throw new ArgumentNullException(nameof(context));
+            }
+            if (namespaceUris == null)
+            {
+                throw new ArgumentNullException(nameof(namespaceUris));
+            }
+            using var reader = XmlReader.Create(istrm, CoreUtils.DefaultXmlReaderSettings());
+            using var decoder = new XmlDecoder(reader, context.AsMessageContext());
+            _ = context.NamespaceUris.CreateMapping(namespaceUris, updateTable: true);
+            decoder.SetMappingTables(namespaceUris, null);
+            return decoder.ReadVariantValue();
+        }
+
+        /// <summary>
         /// Lifts all elements contained in this variant into individual variants
         /// with the same type info. If the variant is scalar returns only the
         /// variant.
@@ -8942,6 +9447,12 @@ namespace Opc.Ua
                         }
                         return m_union.Int32.ToString(provider);
                 }
+            }
+            if (MayNest(TypeInfo.BuiltInType) && !HasStackForNestedValue())
+            {
+                // Formatting nested values recurses once per level; elide
+                // the rest of the value instead of overflowing the stack.
+                return "...";
             }
             object? value = GetStoredValue();
             if (value is IFormattable f)

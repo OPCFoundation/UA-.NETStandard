@@ -1,31 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using Opc.Ua;
@@ -57,8 +31,11 @@ namespace LadsSample.Server
                     id.Manufacturer = new LocalizedText("OPC Foundation");
                     id.Model = new LocalizedText("Shaking incubator");
                     id.SerialNumber = "SN-0001";
+                    id.ProductInstanceUri = "urn:opcfoundation.org:LadsServer:Incubator:SN-0001";
                     id.SoftwareRevision = "1.0.0";
                 })
+                .AssetManagement(asset => asset.WithConfigurableAssetId("Incubator-1").WithDeviceHealth())
+                .Locking()
                 .Location("Lab 1", "Site/Building A/Lab 1")
                 .MaintenanceTask("Calibration", task =>
                 {
@@ -66,12 +43,14 @@ namespace LadsSample.Server
                     task.RecurrencePeriod = TimeSpan.FromDays(30);
                 })
                 .FunctionalUnit(UnitName, unit => unit
+                    .RunningOperations()
                     .AnalogControl("Temperature", options =>
                     {
                         options.EngineeringUnits = LadsUnits.Celsius;
                         options.Range = new Opc.Ua.Range(60, 4);
                         options.InitialTargetValue = AmbientTemperature;
                         options.InitialCurrentValue = AmbientTemperature;
+                        options.Pid = new LadsPidOptions { CtrlP = 1.5, CtrlTi = 10, CtrlTd = 0 };
                     })
                     .AnalogControl("ShakerSpeed", options =>
                     {
@@ -87,7 +66,7 @@ namespace LadsSample.Server
                     .Cover("Door")
                     .Timer("Timer")
                     .SupportedProperty("Volume")
-                    .Programs(programs => programs
+                    .Programs(LadsTemplateOperations.All, programs => programs
                         .Template("Incubation", template => template
                             .WithDescription(new LocalizedText("Warm up, shake and cool down a culture."))
                             .Step("WarmUp", Seconds(5), Setpoint("Temperature", 37), Setpoint("ShakerSpeed", 150))

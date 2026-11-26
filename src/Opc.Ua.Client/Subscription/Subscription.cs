@@ -1,31 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using System.Collections.Generic;
@@ -271,9 +245,7 @@ namespace Opc.Ua.Client.Subscriptions
                     items.Add(concrete.Snapshot());
                 }
             }
-            uint[] available = AvailableInRetransmissionQueue == null
-                ? []
-                : [.. AvailableInRetransmissionQueue];
+            uint[] available = [.. AvailableInRetransmissionQueue];
             return SubscriptionStateSnapshot.AsOptions(
                 Options,
                 Id,
@@ -952,6 +924,9 @@ namespace Opc.Ua.Client.Subscriptions
         protected override bool HandlesNotificationMessages => MessageHandler != null;
 
         /// <inheritdoc/>
+        protected override bool IsShuttingDown => m_cts.IsCancellationRequested;
+
+        /// <inheritdoc/>
         protected override async ValueTask OnNotificationMessageAsync(
             NotificationMessage message, PublishState publishStateMask,
             IReadOnlyList<string> stringTable, CancellationToken ct)
@@ -963,7 +938,8 @@ namespace Opc.Ua.Client.Subscriptions
                 SubscriptionNotificationMessage projected = NotificationMessageDispatch.Create(
                     message, handle, [.. stringTable],
                     data => m_monitoredItems.CreateNotification(data, handle),
-                    events => m_monitoredItems.CreateNotification(events, handle));
+                    events => m_monitoredItems.CreateNotification(events, handle),
+                    republished: (publishStateMask & PublishState.Republish) != 0);
                 for (int i = 0; i < message.NotificationData.Count; i++)
                 {
                     ExtensionObject payload = message.NotificationData[i];
@@ -1009,18 +985,23 @@ namespace Opc.Ua.Client.Subscriptions
             DateTime publishTime, DataChangeNotification notification,
             PublishState publishStateMask, IReadOnlyList<string> stringTable)
         {
+            // read once: the projection is rented only when the payload is recycled too.
+            bool pooled = PoolNotifications;
+            ReadOnlyMemory<DataValueChange> changes = default;
             try
             {
                 var acknowledgement = new AcknowledgementHandle(
                     GetAcknowledgementScope(MessageGeneration), sequenceNumber);
+                changes = m_monitoredItems.CreateNotification(notification, acknowledgement, pooled);
                 await m_handler.OnDataChangeNotificationAsync(this, sequenceNumber,
-                    publishTime, m_monitoredItems.CreateNotification(notification, acknowledgement),
+                    publishTime, changes,
                     publishStateMask, stringTable).ConfigureAwait(false);
             }
             finally
             {
-                if (PoolNotifications)
+                if (pooled)
                 {
+                    MonitoredItemManager.ReturnNotification(changes);
                     ReuseDataChangeNotification(notification);
                 }
             }
@@ -1031,43 +1012,36 @@ namespace Opc.Ua.Client.Subscriptions
             DateTime publishTime, EventNotificationList notification,
             PublishState publishStateMask, IReadOnlyList<string> stringTable)
         {
+            // read once: the projection is rented only when the payload is recycled too.
+            bool pooled = PoolNotifications;
+            ReadOnlyMemory<EventNotification> events = default;
             try
             {
                 var acknowledgement = new AcknowledgementHandle(
                     GetAcknowledgementScope(MessageGeneration), sequenceNumber);
+                events = m_monitoredItems.CreateNotification(notification, acknowledgement, pooled);
                 await m_handler.OnEventDataNotificationAsync(this, sequenceNumber,
-                    publishTime, m_monitoredItems.CreateNotification(notification, acknowledgement),
+                    publishTime, events,
                     publishStateMask, stringTable).ConfigureAwait(false);
             }
             finally
             {
-                if (PoolNotifications)
+                if (pooled)
                 {
+                    MonitoredItemManager.ReturnNotification(events);
                     ReuseEventNotificationList(notification);
                 }
             }
         }
 
         /// <summary>
-        /// Walk a dispatched <see cref="DataChangeNotification"/> after the
-        /// handler returns and release pooled payload instances back to
-        /// their activators. Items that do not implement
-        /// <see cref="IPooledEncodeable"/> are skipped silently — this
-        /// allows the walk to be safe before source-gen learns to emit
-        /// the interface for tagged types, and serves as the universal
-        /// dispatch path for any future pooled payload variant.
+        /// Release a dispatched <see cref="DataChangeNotification"/> back to
+        /// its activator after the handler returns. Its
+        /// <see cref="MonitoredItemNotification"/> entries are values held by
+        /// the notification's array and need no release of their own.
         /// </summary>
         private static void ReuseDataChangeNotification(DataChangeNotification notification)
         {
-            ReadOnlySpan<MonitoredItemNotification> items =
-                notification.MonitoredItems.Span;
-            for (int i = 0; i < items.Length; i++)
-            {
-                if (items[i] is IPooledEncodeable item)
-                {
-                    item.Reuse();
-                }
-            }
             if (notification is IPooledEncodeable container)
             {
                 container.Reuse();
@@ -1075,18 +1049,11 @@ namespace Opc.Ua.Client.Subscriptions
         }
 
         /// <summary>
-        /// Event-side companion to <see cref="ReuseDataChangeNotification"/>.
+        /// Event-side companion to <see cref="ReuseDataChangeNotification"/>. Its
+        /// <see cref="EventFieldList"/> entries are values held by the list's array.
         /// </summary>
         private static void ReuseEventNotificationList(EventNotificationList notification)
         {
-            ReadOnlySpan<EventFieldList> events = notification.Events.Span;
-            for (int i = 0; i < events.Length; i++)
-            {
-                if (events[i] is IPooledEncodeable evt)
-                {
-                    evt.Reuse();
-                }
-            }
             if (notification is IPooledEncodeable container)
             {
                 container.Reuse();

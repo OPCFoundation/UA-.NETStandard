@@ -1,31 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using System.Collections.Generic;
@@ -79,6 +53,9 @@ namespace Opc.Ua.PubSub.Application
         private readonly IPubSubScheduler m_scheduler;
         private readonly IPubSubActivationCoordinator m_activationCoordinator;
         private readonly IPubSubWriterCheckpointStore m_writerCheckpointStore;
+        private readonly IPubSubNonceRangeStore? m_nonceRangeStore;
+        private readonly IPubSubActivationFenceProvider? m_activationFenceProvider;
+        private readonly UnauthenticatedMetaDataLimits? m_unauthenticatedMetaDataLimits;
         private readonly TimeProvider m_timeProvider;
 
         private readonly IReadOnlyDictionary<string, IPublishedDataSetSource>?
@@ -131,7 +108,8 @@ namespace Opc.Ua.PubSub.Application
                 PubSubResponseAddressPolicy? ResponseAddressPolicy)>
             m_actionHandlers = [];
 
-        private readonly Dictionary<PubSubStateMachine, string> m_runtimeStateIds = [];
+        private readonly Dictionary<PubSubStateMachine, (string ComponentId, string? FenceScope)> m_runtimeStateIds =
+            [];
         private readonly IPubSubConfigurationStore m_configurationStore;
         private readonly IPubSubRuntimeStateStore m_runtimeStateStore;
 
@@ -288,6 +266,121 @@ namespace Opc.Ua.PubSub.Application
         {
         }
 
+        /// <summary>
+        /// Initializes a new <see cref="PubSubApplication"/> with runtime source and sink providers
+        /// and explicit limits for DataSetMetaData received without verified message security.
+        /// </summary>
+        /// <remarks>
+        /// The parameters have the meaning they have on the other constructors. All of them are
+        /// required here, so that this overload is never chosen for a call written against those.
+        /// </remarks>
+        /// <param name="snapshot">Validated configuration snapshot.</param>
+        /// <param name="transportFactories">Registered transport factories.</param>
+        /// <param name="encoders">Registered network-message encoders.</param>
+        /// <param name="decoders">Registered network-message decoders.</param>
+        /// <param name="securityPolicies">Registered security policies.</param>
+        /// <param name="scheduler">Publish scheduler.</param>
+        /// <param name="metaDataRegistry">Shared metadata registry.</param>
+        /// <param name="diagnostics">Diagnostics sink.</param>
+        /// <param name="telemetry">Telemetry context.</param>
+        /// <param name="timeProvider">Clock.</param>
+        /// <param name="publishedDataSetSources">Pre-registered sources keyed by PublishedDataSet name.</param>
+        /// <param name="subscribedDataSetSinks">Pre-registered sinks keyed by DataSetReader name.</param>
+        /// <param name="dataSetSourceProvider">Runtime source provider.</param>
+        /// <param name="dataSetSinkProvider">Runtime sink provider.</param>
+        /// <param name="securityWrapperResolver">Per-connection security wrapper resolver.</param>
+        /// <param name="maxNetworkMessageSizeResolver">Per-connection maximum message size resolver.</param>
+        /// <param name="configurationStore">External configuration store.</param>
+        /// <param name="runtimeStateStore">External runtime-state store.</param>
+        /// <param name="activationCoordinator">High-availability activation coordinator.</param>
+        /// <param name="writerCheckpointStore">Writer SequenceNumber checkpoint store.</param>
+        /// <param name="unauthenticatedMetaDataLimits">Limits every connection applies to DataSetMetaData
+        /// received without verified message security, whatever the registry implementation;
+        /// <see langword="null"/> applies the limits of the registry.</param>
+        public PubSubApplication(
+            PubSubConfigurationSnapshot snapshot,
+            IEnumerable<IPubSubTransportFactory> transportFactories,
+            IEnumerable<INetworkMessageEncoder> encoders,
+            IEnumerable<INetworkMessageDecoder> decoders,
+            IEnumerable<IPubSubSecurityPolicy> securityPolicies,
+            IPubSubScheduler scheduler,
+            IDataSetMetaDataRegistry metaDataRegistry,
+            IPubSubDiagnostics diagnostics,
+            ITelemetryContext telemetry,
+            TimeProvider timeProvider,
+            IReadOnlyDictionary<string, IPublishedDataSetSource>? publishedDataSetSources,
+            IReadOnlyDictionary<string, ISubscribedDataSetSink>? subscribedDataSetSinks,
+            IDataSetSourceProvider? dataSetSourceProvider,
+            IDataSetSinkProvider? dataSetSinkProvider,
+            IPubSubSecurityWrapperResolver? securityWrapperResolver,
+            Func<PubSubConnectionDataType, int>? maxNetworkMessageSizeResolver,
+            IPubSubConfigurationStore? configurationStore,
+            IPubSubRuntimeStateStore? runtimeStateStore,
+            IPubSubActivationCoordinator? activationCoordinator,
+            IPubSubWriterCheckpointStore? writerCheckpointStore,
+            UnauthenticatedMetaDataLimits? unauthenticatedMetaDataLimits)
+            : this(snapshot, transportFactories, encoders, decoders, securityPolicies, scheduler,
+                metaDataRegistry, diagnostics, telemetry, timeProvider, publishedDataSetSources, subscribedDataSetSinks,
+                dataSetSourceProvider, dataSetSinkProvider, securityWrapperResolver, maxNetworkMessageSizeResolver,
+                configurationStore, runtimeStateStore, activationCoordinator, writerCheckpointStore,
+                unauthenticatedMetaDataLimits, null, null)
+        {
+        }
+
+        /// <summary>
+        /// Creates an application with a shared nonce allocator and lease fence source for secured publishers.
+        /// </summary>
+        internal PubSubApplication(
+            PubSubConfigurationSnapshot snapshot,
+            IEnumerable<IPubSubTransportFactory> transportFactories,
+            IEnumerable<INetworkMessageEncoder> encoders,
+            IEnumerable<INetworkMessageDecoder> decoders,
+            IEnumerable<IPubSubSecurityPolicy> securityPolicies,
+            IPubSubScheduler scheduler,
+            IDataSetMetaDataRegistry metaDataRegistry,
+            IPubSubDiagnostics diagnostics,
+            ITelemetryContext telemetry,
+            TimeProvider timeProvider,
+            IReadOnlyDictionary<string, IPublishedDataSetSource>? publishedDataSetSources,
+            IReadOnlyDictionary<string, ISubscribedDataSetSink>? subscribedDataSetSinks,
+            IDataSetSourceProvider? dataSetSourceProvider,
+            IDataSetSinkProvider? dataSetSinkProvider,
+            IPubSubSecurityWrapperResolver? securityWrapperResolver,
+            Func<PubSubConnectionDataType, int>? maxNetworkMessageSizeResolver,
+            IPubSubConfigurationStore? configurationStore,
+            IPubSubRuntimeStateStore? runtimeStateStore,
+            IPubSubActivationCoordinator? activationCoordinator,
+            IPubSubWriterCheckpointStore? writerCheckpointStore,
+            UnauthenticatedMetaDataLimits? unauthenticatedMetaDataLimits,
+            IPubSubNonceRangeStore? nonceRangeStore,
+            IPubSubActivationFenceProvider? activationFenceProvider)
+            : this(
+                snapshot,
+                transportFactories,
+                encoders,
+                decoders,
+                securityPolicies,
+                scheduler,
+                metaDataRegistry,
+                diagnostics,
+                telemetry,
+                timeProvider,
+                publishedDataSetSources,
+                subscribedDataSetSinks,
+                securityWrapperResolver,
+                maxNetworkMessageSizeResolver,
+                configurationStore,
+                runtimeStateStore,
+                dataSetSourceProvider,
+                dataSetSinkProvider,
+                activationCoordinator,
+                writerCheckpointStore,
+                metaDataLimits: unauthenticatedMetaDataLimits,
+                nonceRangeStore: nonceRangeStore,
+                activationFenceProvider: activationFenceProvider)
+        {
+        }
+
         private PubSubApplication(
             PubSubConfigurationSnapshot snapshot,
             IEnumerable<IPubSubTransportFactory> transportFactories,
@@ -308,7 +401,10 @@ namespace Opc.Ua.PubSub.Application
             IDataSetSourceProvider? dataSetSourceProvider = null,
             IDataSetSinkProvider? dataSetSinkProvider = null,
             IPubSubActivationCoordinator? activationCoordinator = null,
-            IPubSubWriterCheckpointStore? writerCheckpointStore = null)
+            IPubSubWriterCheckpointStore? writerCheckpointStore = null,
+            UnauthenticatedMetaDataLimits? metaDataLimits = null,
+            IPubSubNonceRangeStore? nonceRangeStore = null,
+            IPubSubActivationFenceProvider? activationFenceProvider = null)
         {
             if (snapshot is null)
             {
@@ -357,6 +453,9 @@ namespace Opc.Ua.PubSub.Application
             m_scheduler = scheduler;
             m_activationCoordinator = activationCoordinator ?? AlwaysActiveCoordinator.Instance;
             m_writerCheckpointStore = writerCheckpointStore ?? NullPubSubWriterCheckpointStore.Instance;
+            m_nonceRangeStore = nonceRangeStore;
+            m_activationFenceProvider = activationFenceProvider;
+            m_unauthenticatedMetaDataLimits = metaDataLimits;
             m_timeProvider = timeProvider;
             m_publishedDataSetSources = publishedDataSetSources;
             m_subscribedDataSetSinks = subscribedDataSetSinks;
@@ -584,7 +683,10 @@ namespace Opc.Ua.PubSub.Application
                 requiredSecurityMode,
                 m_scheduler,
                 m_activationCoordinator,
-                m_writerCheckpointStore);
+                m_writerCheckpointStore,
+                m_unauthenticatedMetaDataLimits,
+                m_nonceRangeStore,
+                m_activationFenceProvider);
             lock (m_gate)
             {
                 for (int i = 0; i < m_actionHandlers.Count; i++)
@@ -1652,7 +1754,8 @@ namespace Opc.Ua.PubSub.Application
                     CreateWriterGroupNodeId(connectionName, writerGroupName);
                 m_groupRefs[writerGroupNodeId] =
                     (connectionName, writerGroupName);
-                TrackRuntimeState(writerGroupNodeId.IdentifierAsString, writerGroup.State);
+                TrackRuntimeState(writerGroupNodeId.IdentifierAsString, writerGroup.State,
+                    writerGroup.ActivationComponentId);
 
                 for (int writerIndex = 0;
                     writerIndex < writerGroup.DataSetWriters.Count;
@@ -1668,7 +1771,7 @@ namespace Opc.Ua.PubSub.Application
                         writer.Name);
                     m_writerRefs[writerNodeId] =
                         (connectionName, writerGroupName, writer.Name);
-                    TrackRuntimeState(writerNodeId.IdentifierAsString, writer.State);
+                    TrackRuntimeState(writerNodeId.IdentifierAsString, writer.State, writerGroup.ActivationComponentId);
                 }
             }
 
@@ -1685,7 +1788,8 @@ namespace Opc.Ua.PubSub.Application
                     CreateReaderGroupNodeId(connectionName, readerGroupName);
                 m_groupRefs[readerGroupNodeId] =
                     (connectionName, readerGroupName);
-                TrackRuntimeState(readerGroupNodeId.IdentifierAsString, readerGroup.State);
+                TrackRuntimeState(readerGroupNodeId.IdentifierAsString, readerGroup.State,
+                    readerGroup.ActivationComponentId);
 
                 for (int readerIndex = 0;
                     readerIndex < readerGroup.DataSetReaders.Count;
@@ -1701,19 +1805,22 @@ namespace Opc.Ua.PubSub.Application
                         reader.Name);
                     m_readerRefs[readerNodeId] =
                         (connectionName, readerGroupName, reader.Name);
-                    TrackRuntimeState(readerNodeId.IdentifierAsString, reader.State);
+                    TrackRuntimeState(readerNodeId.IdentifierAsString, reader.State, readerGroup.ActivationComponentId);
                 }
             }
         }
 
-        private void TrackRuntimeState(string componentId, PubSubStateMachine stateMachine)
+        private void TrackRuntimeState(
+            string componentId,
+            PubSubStateMachine stateMachine,
+            string? fenceScope = null)
         {
             if (string.IsNullOrEmpty(componentId))
             {
                 return;
             }
 
-            if (!m_runtimeStateIds.TryAdd(stateMachine, componentId))
+            if (!m_runtimeStateIds.TryAdd(stateMachine, (componentId, fenceScope)))
             {
                 return;
             }
@@ -1725,12 +1832,12 @@ namespace Opc.Ua.PubSub.Application
         private void OnRuntimeStateChanged(object? sender, StateMachine.PubSubStateChangedEventArgs e)
         {
             if (sender is not PubSubStateMachine stateMachine ||
-                !m_runtimeStateIds.TryGetValue(stateMachine, out string? componentId))
+                !m_runtimeStateIds.TryGetValue(stateMachine, out (string ComponentId, string? FenceScope) state))
             {
                 return;
             }
 
-            _ = PersistRuntimeStateAsync(componentId, e.NewState);
+            _ = PersistRuntimeStateAsync(state.ComponentId, state.FenceScope, e.NewState);
         }
 
         private void RestoreRuntimeState(string componentId, PubSubStateMachine stateMachine)
@@ -1776,12 +1883,22 @@ namespace Opc.Ua.PubSub.Application
             }
         }
 
-        private async Task PersistRuntimeStateAsync(string componentId, PubSubState state)
+        private async Task PersistRuntimeStateAsync(string componentId, string? fenceScope, PubSubState state)
         {
             try
             {
-                await m_runtimeStateStore.SetStateAsync(componentId, state, CancellationToken.None)
-                    .ConfigureAwait(false);
+                IPubSubActivationFenceProvider? fences =
+                    m_activationFenceProvider ?? m_activationCoordinator as IPubSubActivationFenceProvider;
+                if (fences is null || m_runtimeStateStore is InMemoryPubSubRuntimeStateStore)
+                {
+                    await m_runtimeStateStore.SetStateAsync(componentId, state, CancellationToken.None)
+                        .ConfigureAwait(false);
+                }
+                else if (fenceScope is not null && fences.TryGetActiveFence(fenceScope, out long fence) && fence > 0)
+                {
+                    await m_runtimeStateStore.SetStateAsync(componentId, state, fence, CancellationToken.None)
+                        .ConfigureAwait(false);
+                }
             }
             catch (Exception ex)
             {

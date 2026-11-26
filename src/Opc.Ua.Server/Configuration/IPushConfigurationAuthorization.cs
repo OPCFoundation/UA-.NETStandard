@@ -1,26 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person obtaining a copy
- * of this software and associated documentation files (the "Software"), to deal
- * in the Software without restriction, including without limitation the rights
- * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the Software is
- * furnished to do so, subject to the following conditions:
- *
- * The above copyright notice and this permission notice shall be included in
- * all copies or substantial portions of the Software.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
- * OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL
- * THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
- * IN THE SOFTWARE.
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System.Threading;
 using System.Threading.Tasks;
@@ -28,9 +7,18 @@ using System.Threading.Tasks;
 namespace Opc.Ua.Server
 {
     /// <summary>
-    /// Adds asynchronous host policy to standard certificate-push mutations without replacing channel,
-    /// SecurityAdmin or transaction-owner checks. Configure before the server creates its address space.
+    /// Adds asynchronous host policy to standard certificate-push and KeyCredential-push operations
+    /// without replacing channel, SecurityAdmin or transaction-owner checks. Configure before the
+    /// server creates its address space.
     /// </summary>
+    /// <remarks>
+    /// The hook runs after the server's <see cref="IServerAuthorizationPolicy"/> grants
+    /// <see cref="ServerAuthorizationDecision.CertificatePush"/>,
+    /// <see cref="ServerAuthorizationDecision.CertificatePushEncrypted"/> or
+    /// <see cref="ServerAuthorizationDecision.KeyCredentialPush"/>. Use it for a decision that is
+    /// specific to one push target (as the GDS does for each managed application); use an
+    /// <see cref="IServerAuthorizationPolicy"/> for server-wide rules.
+    /// </remarks>
     public interface IPushConfigurationAuthorization
     {
         /// <summary>

@@ -1,3 +1,8 @@
+<!--
+SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+SPDX-License-Identifier: MIT
+-->
+
 # OPC UA .NET Standard — GDS client
 
 `OPCFoundation.NetStandard.Opc.Ua.Gds.Client` is the
@@ -55,10 +60,41 @@ assignments before output is retained or installed. Persistence alone cannot
 recover an accepted response lost before local publication. The sample does not
 yet supply the request evidence needed for this recovery path.
 
+Signing installation requires a complete TrustList, including on journal resume.
+The credential installer must validate the issued certificate and issuer chain
+against the exact list it installs. Validation of a recovered assignment does
+not validate a later TrustList.
+
+New-key-pair provisioning requires both `IPullDcaNewKeyPairCredentialProvider`
+and `IPullDcaNewKeyPairRecoveryProvider`. The recovery provider must atomically
+and durably retain request identity and protected PFX material before trust
+retrieval or installation, and coordinate one active writer for its scope in
+the host process. The PFX is retired only after the installer verifies the
+installed key. A consumed key-pair `FinishRequest` response starts a fresh
+key-pair request; it does not use signing recovery. A plain `ISecretStore`
+registration does not by itself provide the required durability and
+coordination guarantees.
+
+For the built-in adapter, register your host's `IProtectedPullDcaRecoveryStore`,
+then call `.AddPullDcaKeyPairRecovery("device-commissioning").AddPullDcaWorkflow()`
+on the GDS client builder. The store must protect payloads (including backups
+and staging), commit each write and removal durably and atomically, and
+enforce one live writer for that slot. Use one workflow per stable device
+slot. Do not change slots to bypass a binding mismatch or reuse the signing
+checkpoint directory.
+
+The OnboardingClient sample selects this mode with
+`--pull --keyPairRecoverySlot <slot>` after the host adds its protected
+store to the sample's service collection. No backend is configured by
+default. An unknown Start outcome is not retried. After reconciling it with
+the registrar, an operator can reset that exact `Dispatching` binding via
+`ResetReconciledDispatchAsync` with the workflow stopped. This does not reset
+a `Started` or `Received` checkpoint.
+
 ## Target frameworks
 
-`net48`, `net8.0`, `net9.0`,
-`net10.0`.
+`net48`, `net10.0`,
+`net11.0`.
 
 ## Additional documentation
 

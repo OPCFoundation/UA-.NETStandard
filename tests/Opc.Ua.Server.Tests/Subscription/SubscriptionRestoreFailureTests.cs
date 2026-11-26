@@ -1,31 +1,7 @@
-/* ========================================================================
- * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
+
+#pragma warning disable CS0618, UA0031 // Covers the deprecated synchronous node manager API on purpose.
 
 using System;
 using System.Collections.Generic;
@@ -37,8 +13,6 @@ using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Time.Testing;
 using Moq;
 using NUnit.Framework;
-using Opc.Ua.Redundancy;
-using Opc.Ua.Redundancy.Server;
 using Opc.Ua.Server.Tests.NodeManager;
 using Opc.Ua.Tests;
 
@@ -325,10 +299,10 @@ namespace Opc.Ua.Server.Tests
         }
 
         [Test]
-        public async Task FailedRestoreKeepsTheMirroredQueuesOfTheRecreatedSubscriptionsAsync()
+        public async Task FailedRestoreKeepsThePersistedQueuesOfTheRecreatedSubscriptionsAsync()
         {
-            using var queues = new MirroredQueues();
-            await queues.PopulateDataChangeQueueAsync(1002).ConfigureAwait(false);
+            var queues = new PersistentQueues();
+            queues.SeedDataChangeQueue(1002);
             using var fixture = new Fixture(
                 store =>
                 {
@@ -345,7 +319,7 @@ namespace Opc.Ua.Server.Tests
                 async () => await fixture.Manager.RestoreSubscriptionsAsync().ConfigureAwait(false));
             AssertNothingRestored(fixture);
 
-            await queues.AssertDataChangeQueueKeptAsync(1002).ConfigureAwait(false);
+            queues.AssertDataChangeQueueKept(1002);
 
             fixture.Manager.FailingSubscriptionId = 0;
             await fixture.Manager.RestoreSubscriptionsAsync().ConfigureAwait(false);
@@ -354,10 +328,10 @@ namespace Opc.Ua.Server.Tests
         }
 
         [Test]
-        public async Task FailedRestoreKeepsTheOriginalValuesOfAFullMirroredQueueAsync()
+        public async Task FailedRestoreKeepsTheOriginalValuesOfAFullPersistedQueueAsync()
         {
-            using var queues = new MirroredQueues();
-            await queues.PopulateDataChangeQueueAsync(1002, queueSize: 2).ConfigureAwait(false);
+            var queues = new PersistentQueues();
+            queues.SeedDataChangeQueue(1002, queueSize: 2);
             using var fixture = new Fixture(
                 store =>
                 {
@@ -371,13 +345,11 @@ namespace Opc.Ua.Server.Tests
                 failingSubscriptionId: 43);
 
             // Restoring the unowned item of 42 queues Bad_NodeIdUnknown into its full
-            // queue, which discards the oldest stored value; then 43 fails, after every
-            // write the restore scheduled reached the storage.
-            fixture.Manager.BeforeFailure = queues.FlushAsync;
+            // queue, which discards the oldest in-memory value before 43 fails.
             await Assert.ThrowsAsync<AggregateException>(
                 async () => await fixture.Manager.RestoreSubscriptionsAsync().ConfigureAwait(false));
             AssertNothingRestored(fixture);
-            await queues.AssertDataChangeQueueKeptAsync(1002).ConfigureAwait(false);
+            queues.AssertDataChangeQueueKept(1002);
 
             fixture.Manager.FailingSubscriptionId = 0;
             await fixture.Manager.RestoreSubscriptionsAsync().ConfigureAwait(false);
@@ -390,17 +362,17 @@ namespace Opc.Ua.Server.Tests
                 "the retry restores every stored value, in order");
 
             // The completed restore writes the restored queue.
-            Variant[] stored = await queues.ReadStoredDataChangeValuesAsync(1002).ConfigureAwait(false);
+            Variant[] stored = queues.ReadStoredDataChangeValues(1002);
             Assert.That(stored, Has.Length.EqualTo(2));
             Assert.That(stored[0], Is.EqualTo(new Variant(2)));
         }
 
         [Test]
-        public async Task RestoreCancelledDuringItemRestorationKeepsTheMirroredQueuesAsync()
+        public async Task RestoreCancelledDuringItemRestorationKeepsThePersistedQueuesAsync()
         {
-            using var queues = new MirroredQueues();
-            await queues.PopulateDataChangeQueueAsync(1002).ConfigureAwait(false);
-            await queues.PopulateEventQueueAsync(1003).ConfigureAwait(false);
+            var queues = new PersistentQueues();
+            queues.SeedDataChangeQueue(1002);
+            queues.SeedEventQueue(1003);
             using var cancellation = new CancellationTokenSource();
             var source = new EventSourceNodeManager
             {
@@ -433,8 +405,8 @@ namespace Opc.Ua.Server.Tests
             AssertNothingRestored(fixture);
             Assert.That(fixture.Events.GetMonitoredItems(), Is.Empty);
 
-            await queues.AssertDataChangeQueueKeptAsync(1002).ConfigureAwait(false);
-            await queues.AssertEventQueueKeptAsync(1003).ConfigureAwait(false);
+            queues.AssertDataChangeQueueKept(1002);
+            queues.AssertEventQueueKept(1003);
 
             source.FailRestoreOf = 0;
             await fixture.Manager.RestoreSubscriptionsAsync().ConfigureAwait(false);
@@ -445,10 +417,10 @@ namespace Opc.Ua.Server.Tests
 
         [TestCase(true)]
         [TestCase(false)]
-        public async Task FailedCreationOfARestoredItemKeepsItsMirroredQueueAsync(bool asynchronous)
+        public async Task FailedCreationOfARestoredItemKeepsItsPersistedQueueAsync(bool asynchronous)
         {
-            using var queues = new MirroredQueues();
-            await queues.PopulateDataChangeQueueAsync(1002).ConfigureAwait(false);
+            var queues = new PersistentQueues();
+            queues.SeedDataChangeQueue(1002);
             ICreationFailingNodeManager? owner = null;
             using var fixture = new Fixture(
                 store =>
@@ -479,7 +451,7 @@ namespace Opc.Ua.Server.Tests
                 async () => await fixture.Manager.RestoreSubscriptionsAsync().ConfigureAwait(false));
             Assert.That(exception.InnerExceptions[0], Is.TypeOf<InvalidOperationException>());
             AssertNothingRestored(fixture);
-            await queues.AssertDataChangeQueueKeptAsync(1002).ConfigureAwait(false);
+            queues.AssertDataChangeQueueKept(1002);
 
             owner!.FailCreationOf = 0;
             await fixture.Manager.RestoreSubscriptionsAsync().ConfigureAwait(false);
@@ -616,8 +588,8 @@ namespace Opc.Ua.Server.Tests
         [Test]
         public async Task SubscriptionRestoredWithoutTheManagerWritesItsQueuesAtOnceAsync()
         {
-            using var queues = new MirroredQueues();
-            await queues.PopulateDataChangeQueueAsync(1002).ConfigureAwait(false);
+            var queues = new PersistentQueues();
+            queues.SeedDataChangeQueue(1002);
             using var fixture = new Fixture(store => queues.Serve(store));
 
             // Restoring the unowned item queues Bad_NodeIdUnknown into its queue, which a
@@ -627,14 +599,13 @@ namespace Opc.Ua.Server.Tests
                 CreateStored(42, CreateStoredDataItem(1002, 42, queueSize: 10)))
                 .ConfigureAwait(false);
 
-            Variant[] stored = await queues.ReadStoredDataChangeValuesAsync(1002).ConfigureAwait(false);
+            Variant[] stored = queues.ReadStoredDataChangeValues(1002);
             Assert.That(stored, Has.Length.EqualTo(3), "the restored queue writes its changes");
             Assert.That(stored.Take(2), Is.EqualTo(new[] { new Variant(1), new Variant(2) }));
 
             await subscription.DeleteAsync(null!).ConfigureAwait(false);
-            await queues.FlushAsync().ConfigureAwait(false);
             Assert.That(
-                await queues.IsDataChangeQueueStoredAsync(1002).ConfigureAwait(false),
+                queues.IsDataChangeQueueStored(1002),
                 Is.False,
                 "deleting the subscription removes the queue it owns");
         }
@@ -886,26 +857,16 @@ namespace Opc.Ua.Server.Tests
 
             public uint FailingSubscriptionId { get; set; }
 
-            /// <summary>
-            /// Runs before the restore of the failing subscription fails.
-            /// </summary>
-            public Func<Task>? BeforeFailure { get; set; }
-
-            protected override async ValueTask<ISubscription> RestoreSubscriptionAsync(
+            protected override ValueTask<ISubscription> RestoreSubscriptionAsync(
                 IStoredSubscription storedSubscription,
                 CancellationToken cancellationToken = default)
             {
                 if (storedSubscription.Id == FailingSubscriptionId)
                 {
-                    if (BeforeFailure != null)
-                    {
-                        await BeforeFailure().ConfigureAwait(false);
-                    }
                     throw new ServiceResultException(StatusCodes.BadSubscriptionIdInvalid);
                 }
 
-                return await base.RestoreSubscriptionAsync(storedSubscription, cancellationToken)
-                    .ConfigureAwait(false);
+                return base.RestoreSubscriptionAsync(storedSubscription, cancellationToken);
             }
         }
 
@@ -927,7 +888,7 @@ namespace Opc.Ua.Server.Tests
                 m_mock = new Mock<IAsyncNodeManager>();
                 m_mock.SetupGet(value => value.NamespaceUris).Returns([DeterministicServerMock.TestNamespaceUri]);
                 m_mock.Setup(value => value.GetManagerHandleAsync(SourceId, It.IsAny<CancellationToken>()))
-                    .Returns(new ValueTask<object>(source));
+                    .Returns(new ValueTask<object?>(source));
                 m_mock
                     .Setup(value => value.SubscribeToEventsAsync(
                         It.IsAny<OperationContext>(),
@@ -1070,50 +1031,24 @@ namespace Opc.Ua.Server.Tests
         }
 
         /// <summary>
-        /// Monitored item queues mirrored to a shared key/value store, served to the
-        /// restore by the subscription store.
+        /// A persistent queue test double for the subscription restore contract.
         /// </summary>
-        private sealed class MirroredQueues : IDisposable
+        private sealed class PersistentQueues
         {
-            public MirroredQueues()
-            {
-                ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-                m_store = new InMemorySharedKeyValueStore();
-                m_factory = new SharedKeyValueMonitoredItemQueueFactory(
-                    m_store,
-                    ServiceMessageContext.Create(telemetry),
-                    telemetry: telemetry);
-            }
-
             /// <summary>
             /// The values of every data change queue the restore read from storage, by
             /// monitored item, in the order the reads happened.
             /// </summary>
             public List<(uint MonitoredItemId, Variant[] Values)> DataChangeReads { get; } = [];
 
-            public async Task PopulateDataChangeQueueAsync(uint monitoredItemId, uint queueSize = 10)
+            public void SeedDataChangeQueue(uint monitoredItemId, uint queueSize = 10)
             {
-                IDataChangeMonitoredItemQueue queue = m_factory.CreateDataChangeQueue(false, monitoredItemId);
-                queue.ResetQueue(queueSize, false);
-                queue.Enqueue(new DataValue(new Variant(1)), ServiceResult.Good);
-                queue.Enqueue(new DataValue(new Variant(2)), ServiceResult.Good);
-                await m_factory.FlushAsync().ConfigureAwait(false);
+                m_data[monitoredItemId] = (queueSize, [new DataValue(1), new DataValue(2)]);
             }
 
-            public async Task PopulateEventQueueAsync(uint monitoredItemId)
+            public void SeedEventQueue(uint monitoredItemId)
             {
-                IEventMonitoredItemQueue queue = m_factory.CreateEventQueue(false, monitoredItemId);
-                queue.SetQueueSize(10, false);
-                queue.Enqueue(new EventFieldList { ClientHandle = 7 });
-                await m_factory.FlushAsync().ConfigureAwait(false);
-            }
-
-            /// <summary>
-            /// Waits until every scheduled write reached the storage.
-            /// </summary>
-            public Task FlushAsync()
-            {
-                return m_factory.FlushAsync().AsTask();
+                m_events[monitoredItemId] = s_seededEventHandles;
             }
 
             public void Serve(Mock<ISubscriptionStore> store)
@@ -1122,97 +1057,194 @@ namespace Opc.Ua.Server.Tests
                     .Setup(value => value.RestoreDataChangeMonitoredItemQueueAsync(
                         It.IsAny<uint>(),
                         It.IsAny<CancellationToken>()))
-                    .Returns((uint monitoredItemId, CancellationToken cancellationToken) =>
-                        ReadDataChangeQueueAsync(monitoredItemId, cancellationToken));
+                    .ReturnsAsync((uint monitoredItemId, CancellationToken _) => ReadDataChangeQueue(monitoredItemId));
                 store
                     .Setup(value => value.RestoreEventMonitoredItemQueueAsync(
                         It.IsAny<uint>(),
                         It.IsAny<CancellationToken>()))
-                    .Returns((uint monitoredItemId, CancellationToken cancellationToken) =>
-                        m_factory.RestoreEventQueueAsync(monitoredItemId, cancellationToken));
+                    .ReturnsAsync((uint monitoredItemId, CancellationToken _) => ReadEventQueue(monitoredItemId));
             }
 
             /// <summary>
             /// Returns the values stored for the data change queue, oldest first.
             /// </summary>
-            public async Task<Variant[]> ReadStoredDataChangeValuesAsync(uint monitoredItemId)
+            public Variant[] ReadStoredDataChangeValues(uint monitoredItemId)
             {
-                await m_factory.FlushAsync().ConfigureAwait(false);
-                IDataChangeMonitoredItemQueue? queue = await m_factory
-                    .RestoreDataChangeQueueAsync(monitoredItemId)
-                    .ConfigureAwait(false);
-                Assert.That(queue, Is.Not.Null, "the mirrored data change queue is stored");
-
-                // A queue read only to inspect the storage must not write to it.
-                ((IRestorableMonitoredItemQueue)queue!).AbortRestore();
-                return ValuesOf(queue);
+                return [.. m_data[monitoredItemId].Values.Select(value => value.WrappedValue)];
             }
 
-            public async Task<bool> IsDataChangeQueueStoredAsync(uint monitoredItemId)
+            public bool IsDataChangeQueueStored(uint monitoredItemId)
             {
-                IDataChangeMonitoredItemQueue? queue = await m_factory
-                    .RestoreDataChangeQueueAsync(monitoredItemId)
-                    .ConfigureAwait(false);
-                ((IRestorableMonitoredItemQueue?)queue)?.AbortRestore();
-                return queue != null;
+                return m_data.ContainsKey(monitoredItemId);
             }
 
-            public async Task AssertDataChangeQueueKeptAsync(uint monitoredItemId)
+            public void AssertDataChangeQueueKept(uint monitoredItemId)
             {
                 Assert.That(
-                    await ReadStoredDataChangeValuesAsync(monitoredItemId).ConfigureAwait(false),
-                    Is.EqualTo(s_storedValues),
+                    ReadStoredDataChangeValues(monitoredItemId),
+                    Is.EqualTo(new[] { new Variant(1), new Variant(2) }),
                     "the aborted restore leaves the stored values as they were");
             }
 
-            public async Task AssertEventQueueKeptAsync(uint monitoredItemId)
+            public void AssertEventQueueKept(uint monitoredItemId)
             {
-                await m_factory.FlushAsync().ConfigureAwait(false);
-                IEventMonitoredItemQueue? queue = await m_factory
-                    .RestoreEventQueueAsync(monitoredItemId)
-                    .ConfigureAwait(false);
-                Assert.That(queue, Is.Not.Null, "the mirrored event queue survives the aborted restore");
-                ((IRestorableMonitoredItemQueue)queue!).AbortRestore();
-                Assert.That(queue.ItemsInQueue, Is.EqualTo(1));
-                Assert.That(queue.Dequeue(out EventFieldList fields), Is.True);
-                Assert.That(fields.ClientHandle, Is.EqualTo(7u));
+                Assert.That(m_events.TryGetValue(monitoredItemId, out uint[]? handles), Is.True,
+                    "the persisted event queue survives the aborted restore");
+                Assert.That(handles, Is.EqualTo(s_seededEventHandles),
+                    "the aborted restore leaves the stored event intact");
             }
 
-            private async ValueTask<IDataChangeMonitoredItemQueue?> ReadDataChangeQueueAsync(
-                uint monitoredItemId,
-                CancellationToken cancellationToken)
+            private PersistentDataQueue? ReadDataChangeQueue(uint monitoredItemId)
             {
-                IDataChangeMonitoredItemQueue? queue = await m_factory
-                    .RestoreDataChangeQueueAsync(monitoredItemId, cancellationToken)
-                    .ConfigureAwait(false);
-                if (queue is MirroringDataChangeMonitoredItemQueue mirrored)
+                if (!m_data.TryGetValue(monitoredItemId, out var saved))
                 {
-                    DataChangeReads.Add((
-                        monitoredItemId,
-                        [.. mirrored.CaptureSnapshot().Values.Select(entry => entry.Value.WrappedValue)]));
+                    return null;
                 }
-                return queue;
+                DataChangeReads.Add((monitoredItemId, ReadStoredDataChangeValues(monitoredItemId)));
+                return new PersistentDataQueue(this, monitoredItemId, saved.Size, saved.Values);
             }
 
-            private static Variant[] ValuesOf(IDataChangeMonitoredItemQueue queue)
+            private PersistentEventQueue? ReadEventQueue(uint monitoredItemId)
             {
-                var values = new List<Variant>();
-                while (queue.Dequeue(out DataValue value, out _))
+                return m_events.TryGetValue(monitoredItemId, out uint[]? handles)
+                    ? new PersistentEventQueue(this, monitoredItemId, handles)
+                    : null;
+            }
+
+            private static readonly uint[] s_seededEventHandles = [7u];
+            private readonly Dictionary<uint, (uint Size, DataValue[] Values)> m_data = [];
+            private readonly Dictionary<uint, uint[]> m_events = [];
+            private readonly ITelemetryContext m_telemetry = NUnitTelemetryContext.Create();
+
+            private sealed class PersistentDataQueue : DataChangeMonitoredItemQueue, IRestorableMonitoredItemQueue
+            {
+                public PersistentDataQueue(PersistentQueues owner, uint id, uint size, DataValue[] values)
+                    : base(false, id, owner.m_telemetry)
                 {
-                    values.Add(value.WrappedValue);
+                    m_owner = owner;
+                    base.ResetQueue(size, false);
+                    foreach (DataValue value in values)
+                    {
+                        base.Enqueue(value, ServiceResult.Good);
+                    }
                 }
-                return [.. values];
+
+                public void BeginRestore() => m_suspendWrites = true;
+
+                public void AbortRestore() => m_suspendWrites = true;
+
+                public void CommitRestore()
+                {
+                    m_suspendWrites = false;
+                    Persist();
+                }
+
+                public override void Enqueue(in DataValue value, ServiceResult error)
+                {
+                    base.Enqueue(value, error);
+                    Persist();
+                }
+
+                public override void OverwriteLastValue(in DataValue value, ServiceResult error)
+                {
+                    base.OverwriteLastValue(value, error);
+                    Persist();
+                }
+
+                protected override void Dispose(bool disposing)
+                {
+                    if (disposing && !m_suspendWrites)
+                    {
+                        m_owner.m_data.Remove(MonitoredItemId);
+                    }
+                    base.Dispose(disposing);
+                }
+
+                private void Persist()
+                {
+                    if (m_suspendWrites)
+                    {
+                        return;
+                    }
+                    var values = new DataValue[ItemsInQueue];
+                    DataValue[] buffer = m_values!;
+                    for (int i = 0; i < values.Length; i++)
+                    {
+                        values[i] = buffer[(m_start + i) % buffer.Length];
+                    }
+                    m_owner.m_data[MonitoredItemId] = (QueueSize, values);
+                }
+
+                private readonly PersistentQueues m_owner;
+                private bool m_suspendWrites;
             }
 
-            private static readonly Variant[] s_storedValues = [new Variant(1), new Variant(2)];
-            public void Dispose()
+            private sealed class PersistentEventQueue : EventMonitoredItemQueue, IRestorableMonitoredItemQueue
             {
-                m_factory.Dispose();
-                m_store.Dispose();
-            }
+                public PersistentEventQueue(PersistentQueues owner, uint id, uint[] handles)
+                    : base(false, id, owner.m_telemetry)
+                {
+                    m_owner = owner;
+                    base.SetQueueSize(10, false);
+                    foreach (uint handle in handles)
+                    {
+                        base.Enqueue(new EventFieldList { ClientHandle = handle });
+                    }
+                }
 
-            private readonly InMemorySharedKeyValueStore m_store;
-            private readonly SharedKeyValueMonitoredItemQueueFactory m_factory;
+                public void BeginRestore() => m_suspendWrites = true;
+
+                public void AbortRestore() => m_suspendWrites = true;
+
+                public void CommitRestore()
+                {
+                    m_suspendWrites = false;
+                    Persist();
+                }
+
+                public override void Enqueue(QueuedEvent value)
+                {
+                    base.Enqueue(value);
+                    Persist();
+                }
+
+                public override bool Dequeue(out QueuedEvent value)
+                {
+                    if (!base.Dequeue(out value))
+                    {
+                        return false;
+                    }
+
+                    Persist();
+                    return true;
+                }
+
+                public override void SetQueueSize(uint queueSize, bool discardOldest)
+                {
+                    base.SetQueueSize(queueSize, discardOldest);
+                    Persist();
+                }
+
+                protected override void Dispose(bool disposing)
+                {
+                    if (disposing && !m_suspendWrites)
+                    {
+                        m_owner.m_events.Remove(MonitoredItemId);
+                    }
+                    base.Dispose(disposing);
+                }
+
+                private void Persist()
+                {
+                    if (!m_suspendWrites)
+                    {
+                        m_owner.m_events[MonitoredItemId] = [.. CopyQueuedEvents().Select(value => value.ClientHandle)];
+                    }
+                }
+
+                private readonly PersistentQueues m_owner;
+                private bool m_suspendWrites;
+            }
         }
 
         /// <summary>

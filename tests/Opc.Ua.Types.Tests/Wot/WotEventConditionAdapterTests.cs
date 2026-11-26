@@ -1,31 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using System.Collections.Generic;
@@ -238,7 +212,7 @@ namespace Opc.Ua.Types.Tests.Wot
         /// Verifies that counterfeit native event ID owner is rejected.
         /// </summary>
         [Test]
-        public void CounterfeitNativeEventIdOwnerIsRejected()
+        public async Task CounterfeitNativeEventIdOwnerIsRejectedAsync()
         {
             UANodeSet source = NativeGraph();
             source.Items.Required().Single(node => node.NodeId == "i=2041").References = [];
@@ -254,7 +228,16 @@ namespace Opc.Ua.Types.Tests.Wot
                     PreservationMode = WotNodeSetPreservationMode.Always
                 });
 
-            Assert.That(() => new WotDocumentNodeResolver([document]), Throws.TypeOf<FormatException>());
+            var context = new WotDocumentNodeResolver([document]);
+            using WotDocument consumer = Consumer("i=2782", selection: true);
+
+            WotConversionResult<UANodeSet> result = await WotNodeSetConverter.ToNodeSetResultAsync(
+                consumer, null, QueryResolver(QueryId), null, context).ConfigureAwait(false);
+
+            Assert.That(result.Success, Is.False);
+            Assert.That(result.Diagnostics.Any(diagnostic =>
+                diagnostic.Code == WotDiagnosticCode.ConditionEventIdMissing &&
+                diagnostic.Location?.JsonPointer == "/events/alarm/uav:eventSelectClauses"), Is.True, Errors(result));
         }
 
         /// <summary>
@@ -380,7 +363,14 @@ namespace Opc.Ua.Types.Tests.Wot
 
             Assert.That(document.TryGetNativeProjection(out _), Is.True);
             Assert.That(document.TryGetEnvelope(out _), Is.True);
-            Assert.That(() => new WotDocumentNodeResolver([document]), Throws.TypeOf<FormatException>());
+            JsonObject root = JsonNode.Parse(document.Utf8Json.Span).Required().AsObject();
+            JsonObject native = root["uav:nodes"].Required()["nodes"].Required().AsArray()
+                .Single(node => node.Required()["nodeId"].Required().GetValue<string>() == "ns=2;i=7001")
+                .Required().AsObject();
+            native.Remove("references");
+            using WotDocument conflicting = Parse(root);
+
+            Assert.That(() => new WotDocumentNodeResolver([conflicting]), Throws.TypeOf<FormatException>());
         }
 
         /// <summary>

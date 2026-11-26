@@ -1,32 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using System.Collections.Generic;
@@ -1091,16 +1064,9 @@ namespace Opc.Ua.WotCon.Tests.Samples
                 ByteString.From(JsonSerializer.SerializeToUtf8Bytes(root ?? [])));
         }
 
-        private static async Task<ArrayOf<SampleDocument>> ReadUnboundPumpDocumentsAsync()
+        private static Task<ArrayOf<SampleDocument>> ReadUnboundPumpDocumentsAsync()
         {
-            using var stream = new FileStream(
-                PumpSourcePath, FileMode.Open, FileAccess.Read, FileShare.Read, 81920, useAsync: true);
-            using var buffer = new MemoryStream();
-            await stream.CopyToAsync(buffer).ConfigureAwait(false);
-            buffer.Position = 0;
-            UANodeSet source = UANodeSet.Read(buffer)
-                ?? throw new InvalidOperationException("Could not read the pump source.");
-            return WotAggregationDocumentGenerator.GeneratePumpDeclarationDocuments(source);
+            return Task.FromResult(SampleInputCache.PumpDeclarationDocuments(PumpSourcePath));
         }
 
         private static ArrayOf<SampleDocument> RemoveDeclaration(
@@ -1193,31 +1159,8 @@ namespace Opc.Ua.WotCon.Tests.Samples
         }
 
         private static string PumpSourcePath => Path.Combine(
-            RepositoryRoot, "samples", "WotCon", "AggregationClient", "Documents", "SamplePump.NodeSet2.xml");
-
-        private static string RepositoryRoot
-        {
-            get
-            {
-                string? configuredRoot = Environment.GetEnvironmentVariable("OPCUA_TEST_REPOSITORY_ROOT");
-                if (!string.IsNullOrEmpty(configuredRoot))
-                {
-                    string root = Path.GetFullPath(configuredRoot);
-                    if (!File.Exists(Path.Combine(root, "UA.slnx")))
-                    {
-                        throw new DirectoryNotFoundException("The configured repository root has no UA.slnx.");
-                    }
-                    return root;
-                }
-                DirectoryInfo? directory = new(TestContext.CurrentContext.TestDirectory);
-                while (directory is not null && !File.Exists(Path.Combine(directory.FullName, "UA.slnx")))
-                {
-                    directory = directory.Parent;
-                }
-                return directory?.FullName
-                    ?? throw new DirectoryNotFoundException("Could not locate the repository root.");
-            }
-        }
+            WotAggregationDocumentGenerator.RepositoryRoot,
+            "samples", "WotCon", "AggregationClient", "Documents", "SamplePump.NodeSet2.xml");
 
         private static readonly string[] s_independentOrder = ["z-model", "a-view", "b-independent", "c-independent"];
         private static readonly string[] s_modelDependency = ["z-model"];

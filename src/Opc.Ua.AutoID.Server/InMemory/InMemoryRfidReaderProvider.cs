@@ -1,31 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using System.Collections.Generic;
@@ -51,7 +25,8 @@ namespace Opc.Ua.AutoID.Server
     /// </para>
     /// </remarks>
     public sealed class InMemoryRfidReaderProvider :
-        IAutoIdScanProvider, IAutoIdAsyncScanProvider, IAutoIdRfidProvider, IAutoIdRfidAccessEventPolicy, IDisposable
+        IAutoIdScanProvider, IAutoIdAsyncScanProvider, IAutoIdRfidProvider, IAutoIdRfidAccessEventPolicy,
+        IAutoIdRfidDiagnosticFormatter, IDisposable
     {
         /// <summary>
         /// Creates a reader without tags.
@@ -76,6 +51,60 @@ namespace Opc.Ua.AutoID.Server
 
         /// <inheritdoc/>
         public AutoIdRfidOperations SupportedOperations => AutoIdRfidOperations.All;
+
+        /// <inheritdoc/>
+        public ArrayOf<string> SupportedCodeTypes => ["EPC"];
+
+        /// <inheritdoc/>
+        public AutoIdReaderParameterCapabilities ReaderParameterCapabilities =>
+            new() { CodeTypesRWData = ["RAW:BYTES"] };
+
+        /// <inheritdoc/>
+        public ValueTask<AutoIdRfidDiagnosticData> FormatRWDataAsync(
+            ScanData data,
+            string sourceCodeType,
+            ArrayOf<string> selectedCodeTypes,
+            CancellationToken cancellationToken = default)
+        {
+            if (data is null)
+            {
+                throw new ArgumentNullException(nameof(data));
+            }
+            cancellationToken.ThrowIfCancellationRequested();
+            if (selectedCodeTypes.Count != 1 || selectedCodeTypes[0] != "RAW:BYTES" ||
+                data.SwitchField != ScanDataFields.ByteString)
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadNotSupported, "The simulated reader formats only raw byte data.");
+            }
+            return new ValueTask<AutoIdRfidDiagnosticData>(new AutoIdRfidDiagnosticData("RAW:BYTES",
+                new ScanData { SwitchField = ScanDataFields.ByteString, ByteString = data.ByteString }));
+        }
+
+        /// <inheritdoc/>
+        public ValueTask<AutoIdScanParameters> ReadParametersAsync(CancellationToken cancellationToken = default)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            lock (m_lock)
+            {
+                return new ValueTask<AutoIdScanParameters>(AutoIdReader.SnapshotParameters(m_parameters));
+            }
+        }
+
+        /// <inheritdoc/>
+        public ValueTask WriteParametersAsync(
+            AutoIdScanParameters parameters,
+            CancellationToken cancellationToken = default)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            AutoIdReader.ValidateParameters(parameters, SupportedCodeTypes);
+            AutoIdReader.ValidateReaderParameters(parameters, Kind, ReaderParameterCapabilities);
+            lock (m_lock)
+            {
+                m_parameters = AutoIdReader.SnapshotParameters(parameters);
+            }
+            return default;
+        }
 
         /// <summary>
         /// Gets the number of tags in range.
@@ -744,6 +773,7 @@ namespace Opc.Ua.AutoID.Server
         }
 
         private readonly Lock m_lock = new();
+        private AutoIdScanParameters m_parameters = new() { CodeType = "EPC", CodeTypes = [0], CodeTypesRWData = [0] };
         private readonly List<TagState> m_tags = [];
         private readonly InMemoryScanEngine m_engine;
     }

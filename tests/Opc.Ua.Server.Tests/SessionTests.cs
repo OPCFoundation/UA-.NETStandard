@@ -1,32 +1,8 @@
-/* ========================================================================
- * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
+using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using Opc.Ua.Server.TestFramework;
@@ -256,6 +232,127 @@ namespace Opc.Ua.Server.Tests
             }
             finally
             {
+                await CloseSessionAsync(server!, secureChannelContext!, requestHeader!).ConfigureAwait(false);
+                await fixture.StopAsync().ConfigureAwait(false);
+            }
+        }
+
+        /// <summary>
+        /// The identity state is read without the session lock while identity changes race with
+        /// it: every reader sees the generation only grow, a snapshot taken right after a change
+        /// is current, and the last refresh leaves the identity fresh.
+        /// </summary>
+        [Test]
+        public async Task IdentityRefreshStateReadsStayConsistentWhileIdentityChangesAsync()
+        {
+            var fixture = new ServerFixture<StandardServer>(t => new StandardServer(t));
+            await fixture.StartAsync().ConfigureAwait(false);
+            StandardServer? server = null;
+            SecureChannelContext? secureChannelContext = null;
+            RequestHeader? requestHeader = null;
+            try
+            {
+                server = fixture.Server;
+                (requestHeader, secureChannelContext) =
+                    await server.CreateAndActivateSessionAsync("IdentityRace").ConfigureAwait(false);
+                ISession session = server.CurrentInstance.SessionManager
+                    .GetSession(requestHeader.AuthenticationToken)!;
+
+                const int changes = 2000;
+                using var stop = new CancellationTokenSource();
+                Task<string?>[] readers = [.. Enumerable.Range(0, 4).Select(reader => Task.Run(() =>
+                {
+                    long last = session.CaptureIdentityRefreshSnapshot().Generation;
+                    while (!stop.IsCancellationRequested)
+                    {
+                        _ = session.IsIdentityStale;
+                        IdentityRefreshSnapshot snapshot = session.CaptureIdentityRefreshSnapshot();
+                        if (snapshot.Identity == null)
+                        {
+                            return "identity missing";
+                        }
+                        if (snapshot.Generation < last)
+                        {
+                            return $"generation went back from {last} to {snapshot.Generation}";
+                        }
+                        last = snapshot.Generation;
+                    }
+                    return (string?)null;
+                }))];
+
+                long before = session.CaptureIdentityRefreshSnapshot().Generation;
+                for (int ii = 0; ii < changes; ii++)
+                {
+                    session.MarkIdentityStale();
+                    Assert.That(session.IsIdentityStale, Is.True);
+                    IdentityRefreshSnapshot current = session.CaptureIdentityRefreshSnapshot();
+                    Assert.That(
+                        session.TryRefreshEffectiveIdentity(current.Identity, current.Generation, new UserIdentity()),
+                        Is.True,
+                        "A snapshot taken right after the change must be current.");
+                    Assert.That(session.IsIdentityStale, Is.False);
+                }
+                stop.Cancel();
+                string?[] failures = await Task.WhenAll(readers).ConfigureAwait(false);
+
+                Assert.That(failures.Where(f => f != null), Is.Empty);
+                Assert.That(session.CaptureIdentityRefreshSnapshot().Generation, Is.EqualTo(before + changes));
+            }
+            finally
+            {
+                await CloseSessionAsync(server!, secureChannelContext!, requestHeader!).ConfigureAwait(false);
+                await fixture.StopAsync().ConfigureAwait(false);
+            }
+        }
+
+        /// <summary>
+        /// The subscriptions of one session publish and acknowledge in parallel: a notification
+        /// operation does not wait for another one of the same session, but an identity commit
+        /// waits until the running operations have left.
+        /// </summary>
+        [Test]
+        public async Task NotificationOperationsRunConcurrentlyAndIdentityCommitExcludesThemAsync()
+        {
+            var fixture = new ServerFixture<StandardServer>(t => new StandardServer(t));
+            await fixture.StartAsync().ConfigureAwait(false);
+            StandardServer? server = null;
+            SecureChannelContext? secureChannelContext = null;
+            RequestHeader? requestHeader = null;
+            using var firstEntered = new ManualResetEventSlim();
+            using var releaseFirst = new ManualResetEventSlim();
+            try
+            {
+                server = fixture.Server;
+                (requestHeader, secureChannelContext) =
+                    await server.CreateAndActivateSessionAsync("NotificationGate").ConfigureAwait(false);
+                var session = (Opc.Ua.Server.Session)server.CurrentInstance.SessionManager
+                    .GetSession(requestHeader.AuthenticationToken)!;
+
+                Task<bool> first = Task.Run(() => session.ExecuteNotificationOperation(() =>
+                {
+                    firstEntered.Set();
+                    return releaseFirst.Wait(System.TimeSpan.FromSeconds(30));
+                }));
+                Assert.That(firstEntered.Wait(System.TimeSpan.FromSeconds(10)), Is.True);
+
+                Task<bool> second = Task.Run(() => session.ExecuteNotificationOperation(() => true));
+                Assert.That(
+                    second.Wait(System.TimeSpan.FromSeconds(10)),
+                    Is.True,
+                    "A notification operation must not wait for another one of the same session.");
+
+                Task commit = Task.Run(session.MarkIdentityStale);
+                await Task.Delay(200).ConfigureAwait(false);
+                Assert.That(commit.IsCompleted, Is.False, "An identity commit must wait for a running operation.");
+
+                releaseFirst.Set();
+                Assert.That(await first.ConfigureAwait(false), Is.True);
+                await commit.ConfigureAwait(false);
+                Assert.That(session.IsIdentityStale, Is.True);
+            }
+            finally
+            {
+                releaseFirst.Set();
                 await CloseSessionAsync(server!, secureChannelContext!, requestHeader!).ConfigureAwait(false);
                 await fixture.StopAsync().ConfigureAwait(false);
             }

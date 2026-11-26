@@ -1,32 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using System.Collections.Generic;
@@ -97,6 +70,7 @@ namespace Opc.Ua.WotCon.Tests.Samples
         /// </remarks>
         [Test]
         [Explicit("Rewrites the checked-in sample documents.")]
+        [NonParallelizable]
         public void WriteThingModels()
         {
             foreach (ModelDocument document in s_modelDocuments)
@@ -105,6 +79,7 @@ namespace Opc.Ua.WotCon.Tests.Samples
                     RepositoryPath(document.SourcePath),
                     document.Title);
                 File.WriteAllBytes(DocumentPath(document.FileName), regenerated);
+                SampleInputCache.Invalidate();
                 TestContext.Out.WriteLine(
                     $"{document.FileName}: {regenerated.Length} bytes");
             }
@@ -136,11 +111,13 @@ namespace Opc.Ua.WotCon.Tests.Samples
         /// </remarks>
         [Test]
         [Explicit("Rewrites the checked-in sample documents.")]
+        [NonParallelizable]
         public void WritePumpThingDescription()
         {
             byte[] regenerated = WotAggregationDocumentGenerator.GeneratePumpThingDescription(
                 DocumentPath("SamplePump.NodeSet2.xml"));
             File.WriteAllBytes(DocumentPath("SamplePump.td.json"), regenerated);
+            SampleInputCache.Invalidate();
             TestContext.Out.WriteLine($"SamplePump.td.json: {regenerated.Length} bytes");
         }
 
@@ -196,6 +173,7 @@ namespace Opc.Ua.WotCon.Tests.Samples
         /// </summary>
         [Test]
         [Explicit("Rewrites only the checked-in projection plans from the retained source documents.")]
+        [NonParallelizable]
         public async Task WriteAssetProjectionDocuments()
         {
             ArrayOf<SampleDocument> projections =
@@ -242,6 +220,7 @@ namespace Opc.Ua.WotCon.Tests.Samples
         /// </summary>
         [Test]
         [Explicit("Rewrites the complete sample manifest and its generated documents.")]
+        [NonParallelizable]
         public async Task WriteCompleteAggregationDocumentsAsync()
         {
             ArrayOf<SampleDocument> documents = await WotAggregationDocumentGenerator
@@ -285,6 +264,7 @@ namespace Opc.Ua.WotCon.Tests.Samples
         /// </remarks>
         [Test]
         [Explicit("Rewrites the checked-in sample documents.")]
+        [NonParallelizable]
         public void RewriteCheckedInJsonDocuments()
         {
             foreach (string path in SampleJsonDocuments())
@@ -299,6 +279,7 @@ namespace Opc.Ua.WotCon.Tests.Samples
                     continue;
                 }
                 File.WriteAllBytes(path, formatted);
+                SampleInputCache.Invalidate();
                 TestContext.Out.WriteLine($"{path}: {formatted.Length} bytes");
             }
         }
@@ -665,8 +646,27 @@ namespace Opc.Ua.WotCon.Tests.Samples
         {
             WotNodeSetConverterOptions options = WotAggregationDocumentGenerator.CreateLargeDocumentOptions();
             string directory = DocumentPath("opc-ua-di");
-            byte[] cpIdentifier = File.ReadAllBytes(Path.Combine(directory, "opc-ua-di-cpidentifier.json"));
-            string text = Encoding.UTF8.GetString(cpIdentifier);
+            UANodeSet source = WotAggregationDocumentGenerator.ReadNodeSet(RepositoryPath(
+                Path.Combine("tests", "Opc.Ua.SourceGeneration.Core.Tests", "Resources", "Opc.Ua.Di.NodeSet2.xml")));
+            source.Items = [source.Items!.Single(node => node.NodeId == "ns=1;i=6248")];
+            using WotDocument generated = WotNodeSetConverter.FromNodeSet(source, options: options);
+            Assert.That(generated.TryGetNativeProjection(out _), Is.True);
+            JsonObject root = JsonNode.Parse(generated.Utf8Json.Span)!.AsObject();
+            root["links"] = JsonNode.Parse("""
+                [
+                  {
+                    "href": "nsu=http://opcfoundation.org/UA/DI/;i=6308",
+                    "rel": "ua:HasTypeDefinition"
+                  },
+                  {
+                    "href": "nsu=http://opcfoundation.org/UA/DI/;i=6247",
+                    "rel": "ns1:ConnectsTo",
+                    "uav:refId": "nsu=http://opcfoundation.org/UA/DI/;i=6030"
+                  }
+                ]
+                """);
+            string text = root.ToJsonString();
+            byte[] cpIdentifier = Encoding.UTF8.GetBytes(text);
             const string target = "\"nsu=http://opcfoundation.org/UA/DI/;i=6247\"";
             Assert.That(text, Does.Contain(target));
             byte[] conflicting = Encoding.UTF8.GetBytes(text.Replace(
@@ -762,7 +762,7 @@ namespace Opc.Ua.WotCon.Tests.Samples
             WotNodeSetConverterOptions options = WotAggregationDocumentGenerator.CreateLargeDocumentOptions();
             (Opc.Ua.WotCon.Server.Registry.WotRegistrySnapshot snapshot,
                 Dictionary<string, ByteString> contents) = await StoreDiPartitionsAsync().ConfigureAwait(false);
-            Opc.Ua.WotCon.Server.Registry.WotResource resource = FindResource(snapshot, "opc-ua-di-cpidentifier");
+            Opc.Ua.WotCon.Server.Registry.WotResource resource = FindResource(snapshot, "opc-ua-di-connectionpointtype");
             int selectedLength = contents[resource.DefaultVersion!.DigestHex].Length;
             long aggregate = contents.Values.Sum(c => (long)c.Length);
             Assert.That(contents, Has.Count.GreaterThan(2));
@@ -815,7 +815,7 @@ namespace Opc.Ua.WotCon.Tests.Samples
                 Dictionary<string, ByteString> contents) = await StoreDiPartitionsAsync().ConfigureAwait(false);
             Opc.Ua.WotCon.Server.Registry.WotResource broken = FindResource(snapshot, "opc-ua-di-networktype");
             contents[broken.DefaultVersion!.DigestHex] = ByteString.From(Encoding.UTF8.GetBytes("{not json"));
-            Opc.Ua.WotCon.Server.Registry.WotResource resource = FindResource(snapshot, "opc-ua-di-cpidentifier");
+            Opc.Ua.WotCon.Server.Registry.WotResource resource = FindResource(snapshot, "opc-ua-di-connectionpointtype");
             var converter = new Opc.Ua.WotCon.Server.Materialization.WotNodeSetDocumentConverter(options);
 
             Opc.Ua.WotCon.Server.Materialization.WotConversionOutput selected = await converter.ConvertAsync(
@@ -1035,16 +1035,15 @@ namespace Opc.Ua.WotCon.Tests.Samples
         public async Task NativePumpsPartitionsRestoreTheSourceNodeSetWithoutChangeAsync()
         {
             const int expectedNodeCount = 9624;
-            const int expectedPartitionCount = 339;
+            const int expectedPartitionCount = 91;
             string root = RepositoryPath(string.Empty);
             UANodeSet source = WotAggregationDocumentGenerator.ReadNodeSet(RepositoryPath(
                 Path.Combine("samples", "Di", "PumpDeviceIntegrationServer", "Model", "Opc.Ua.Pumps.NodeSet2.xml")));
-            SampleDocument[] partitions = [.. WotAggregationDocumentGenerator
-                .ReadManifestDocuments(DocumentPath(string.Empty).TrimEnd('\\', '/'))
+            SampleDocument[] partitions = [.. ReadManifestDocuments()
                 .ToList()
                 .Where(document => document.Path.StartsWith("opc-ua-pumps/", StringComparison.Ordinal))];
             WotNodeSetConverterOptions options = WotAggregationDocumentGenerator.CreateLargeDocumentOptions();
-            IWotNodeResolver resolver = WotAggregationDocumentGenerator.CreateCompanionNodeResolver(root);
+            IWotNodeResolver resolver = SampleInputCache.CompanionNodeResolver(root);
             var entries = new List<WotDocumentSetEntry>();
             try
             {
@@ -1445,7 +1444,7 @@ namespace Opc.Ua.WotCon.Tests.Samples
                 {
                     string localId = LocalNodeId(pumpName, binding.LocalPath);
                     Affordance property = FindAffordance(documents, "properties", localId);
-                    int separator = binding.LocalPath.LastIndexOf('.');
+                    int separator = binding.LocalPath.LastIndexOf('.', StringComparison.Ordinal);
                     string ownerPath = separator < 0 ? string.Empty : binding.LocalPath[..separator];
                     Assert.That(property.Root.GetProperty("uav:id").GetString(),
                         Is.EqualTo(LocalNodeId(pumpName, ownerPath)), binding.Name);
@@ -1511,10 +1510,10 @@ namespace Opc.Ua.WotCon.Tests.Samples
             {
                 Affordance property = FindAffordance(
                     documents, "properties", LocalNodeId(pumpName, "Identification." + name));
+                Assert.That(property.Value.GetProperty("type").GetString(), Is.EqualTo("string"), name);
+                Assert.That(property.Value.TryGetProperty("const", out _), Is.False, name);
                 if (dataType == "i=21")
                 {
-                    Assert.That(property.Value.TryGetProperty("type", out _), Is.False,
-                        "LocalizedText must not be constrained to a plain string that cannot retain its locale.");
                     UAVariable variable = FindNode<UAVariable>(
                         ReadPumpNodeSet(), $"ns=1;s={pumpName}.Identification.{name}");
                     var value = XElement.Parse(variable.Value!.OuterXml);
@@ -1524,8 +1523,7 @@ namespace Opc.Ua.WotCon.Tests.Samples
                 }
                 else
                 {
-                    Assert.That(property.Value.GetProperty("type").GetString(), Is.EqualTo("string"), name);
-                    Assert.That(property.Value.GetProperty("const").GetString(), Is.EqualTo(expected), name);
+                    Assert.That(property.Value.GetProperty("default").GetString(), Is.EqualTo(expected), name);
                 }
                 Assert.That(property.Value.GetProperty("uav:mapToType").GetString(), Is.EqualTo(dataType), name);
                 Assert.That(
@@ -1869,7 +1867,7 @@ namespace Opc.Ua.WotCon.Tests.Samples
 
         private static ArrayOf<SampleDocument> ReadManifestDocuments()
         {
-            return WotAggregationDocumentGenerator.ReadManifestDocuments(DocumentPath(string.Empty));
+            return SampleInputCache.ManifestDocuments(DocumentPath(string.Empty));
         }
 
         private static ArrayOf<SampleDocument> ReadSubstitutedManifestDocuments()
@@ -1991,9 +1989,12 @@ namespace Opc.Ua.WotCon.Tests.Samples
                     Is.EqualTo(supportDeclaration.Value.GetProperty("type").GetString()),
                     support.Name);
                 AssertJsonEquivalent(
-                    support.Value.GetProperty("uav:componentOf"),
-                    supportDeclaration.Value.GetProperty("uav:componentOf"),
-                    support.Name + " uav:componentOf");
+                    support.Value.GetProperty("links").EnumerateArray()
+                        .Single(link => link.GetProperty("rel").GetString() == "ua:PropertyOf"),
+                    supportDeclaration.Value.GetProperty("links").EnumerateArray()
+                        .Single(link => link.GetProperty("rel").GetString() == "ua:PropertyOf"),
+                    support.Name + " ua:PropertyOf");
+                Assert.That(support.Value.TryGetProperty("uav:componentOf", out _), Is.False, support.Name);
             }
             foreach (JsonProperty member in map.EnumerateObject().Where(entry => expectedMembers.Contains(entry.Name)))
             {
@@ -2371,8 +2372,7 @@ namespace Opc.Ua.WotCon.Tests.Samples
             Assert.That(eventId.GetProperty("uav:mapToType").GetString(), Is.EqualTo("i=15"), origin);
             Assert.That(eventId.GetProperty("uav:valueRank").GetInt32(), Is.EqualTo(-1), origin);
             JsonElement comment = properties.GetProperty("Comment");
-            Assert.That(comment.TryGetProperty("type", out _), Is.False,
-                "The definitive LocalizedText binding retains the locale as well as its text.");
+            Assert.That(comment.GetProperty("type").GetString(), Is.EqualTo("string"), origin);
             Assert.That(comment.GetProperty("uav:mapToType").GetString(), Is.EqualTo("i=21"), origin);
             Assert.That(comment.GetProperty("uav:valueRank").GetInt32(), Is.EqualTo(-1), origin);
         }

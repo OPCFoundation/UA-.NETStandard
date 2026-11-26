@@ -6,6 +6,7 @@
       "ns2": "http://opcfoundation.org/UA/Pumps/",
       "ns3": "http://opcfoundation.org/UA/Machinery/",
       "ns4": "http://opcfoundation.org/UA/DI/",
+      "qudt": "http://qudt.org/schema/qudt/",
       "ua": "http://opcfoundation.org/UA/",
       "uav": "http://opcfoundation.org/UA/WoT-Binding/"
     },
@@ -28,16 +29,6 @@
   "description": "Sample-owned PumpType subtype declaring the alarms Pump1 raises.",
   "events": {
     "CavitationAlarm": {
-      "@context": {
-        "description": {
-          "@id": "https://www.w3.org/2019/wot/td#description",
-          "@language": null
-        },
-        "title": {
-          "@id": "https://www.w3.org/2019/wot/td#title",
-          "@language": null
-        }
-      },
       "@type": "uav:eventType",
       "data": {
         "properties": {
@@ -227,16 +218,6 @@
       "uav:id": "nsu=urn:opcfoundation.org:UA:WotAggregation:PumpInstance;s=Pump1.CavitationAlarm"
     },
     "MotorOverheatAlarm": {
-      "@context": {
-        "description": {
-          "@id": "https://www.w3.org/2019/wot/td#description",
-          "@language": null
-        },
-        "title": {
-          "@id": "https://www.w3.org/2019/wot/td#title",
-          "@language": null
-        }
-      },
       "@type": "uav:eventType",
       "data": {
         "properties": {
@@ -533,11 +514,13 @@
         "browseName": "1:Pump_1Type",
         "description": [
           {
+            "locale": "",
             "value": "Sample-owned PumpType subtype declaring the alarms Pump1 raises."
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "Pump_1Type"
           }
         ],

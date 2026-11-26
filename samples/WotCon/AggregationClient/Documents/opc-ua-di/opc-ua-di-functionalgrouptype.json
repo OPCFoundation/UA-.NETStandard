@@ -3,6 +3,7 @@
     "https://www.w3.org/2022/wot/td/v1.1",
     {
       "ns1": "http://opcfoundation.org/UA/DI/",
+      "qudt": "http://qudt.org/schema/qudt/",
       "ua": "http://opcfoundation.org/UA/",
       "uav": "http://opcfoundation.org/UA/WoT-Binding/"
     },
@@ -60,6 +61,9 @@
     }
   },
   "title": "FunctionalGroupType",
+  "tm:optional": [
+    "/properties/UIElement"
+  ],
   "uav:bindingVersion": "1.1",
   "uav:browseName": "ns1:FunctionalGroupType",
   "uav:id": "nsu=http://opcfoundation.org/UA/DI/;i=1005",
@@ -305,6 +309,7 @@
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "FunctionalGroupType"
           }
         ],
@@ -329,10 +334,77 @@
         "superType": "i=61"
       },
       {
+        "browseName": "1:<GroupIdentifier>",
+        "displayName": [
+          {
+            "locale": "",
+            "value": "<GroupIdentifier>"
+          }
+        ],
+        "modellingRule": "OptionalPlaceholder",
+        "nodeClass": "Object",
+        "nodeId": "ns=1;i=6027",
+        "parentNodeId": "ns=1;i=1005",
+        "references": [
+          {
+            "referenceType": "HasComponent",
+            "target": "ns=1;i=6242"
+          },
+          {
+            "referenceType": "HasTypeDefinition",
+            "target": "ns=1;i=1005"
+          },
+          {
+            "referenceType": "HasModellingRule",
+            "target": "i=11508"
+          },
+          {
+            "isForward": false,
+            "referenceType": "HasComponent",
+            "target": "ns=1;i=1005"
+          }
+        ],
+        "symbolicName": "GroupIdentifier",
+        "typeDefinition": "ns=1;i=1005"
+      },
+      {
+        "arrayDimensions": "",
         "browseName": "1:UIElement",
         "dataType": "i=24",
         "displayName": [
           {
+            "locale": "",
+            "value": "UIElement"
+          }
+        ],
+        "modellingRule": "Optional",
+        "nodeClass": "Variable",
+        "nodeId": "ns=1;i=6242",
+        "parentNodeId": "ns=1;i=6027",
+        "references": [
+          {
+            "referenceType": "HasTypeDefinition",
+            "target": "ns=1;i=6246"
+          },
+          {
+            "referenceType": "HasModellingRule",
+            "target": "i=80"
+          },
+          {
+            "isForward": false,
+            "referenceType": "HasComponent",
+            "target": "ns=1;i=6027"
+          }
+        ],
+        "typeDefinition": "ns=1;i=6246"
+      },
+      {
+        "arrayDimensions": "",
+        "browseName": "1:UIElement",
+        "dataType": "i=24",
+        "displayName": [
+          {
+            "locale": "",
             "value": "UIElement"
           }
         ],

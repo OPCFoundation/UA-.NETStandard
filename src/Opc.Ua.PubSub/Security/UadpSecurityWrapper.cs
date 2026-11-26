@@ -1,31 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using System.Buffers;
@@ -181,11 +155,24 @@ namespace Opc.Ua.PubSub.Security
         /// <exception cref="ServiceResultException">
         /// The provider returned no current key or an invalid zero token identifier.
         /// </exception>
-        public async ValueTask<ReadOnlyMemory<byte>> WrapAsync(
+        public ValueTask<ReadOnlyMemory<byte>> WrapAsync(
             ReadOnlyMemory<byte> outerPrefix,
             ReadOnlyMemory<byte> innerPayload,
             UadpSecurityWrapOptions options = UadpSecurityWrapOptions.SignAndEncrypt,
             CancellationToken cancellationToken = default)
+        {
+            return WrapWithNonceSequenceAsync(outerPrefix, innerPayload, options, null, cancellationToken);
+        }
+
+        /// <summary>
+        /// Uses a committed nonce sequence for the exact key selected by this wrapping operation.
+        /// </summary>
+        internal async ValueTask<ReadOnlyMemory<byte>> WrapWithNonceSequenceAsync(
+            ReadOnlyMemory<byte> outerPrefix,
+            ReadOnlyMemory<byte> innerPayload,
+            UadpSecurityWrapOptions options,
+            Func<uint, CancellationToken, ValueTask<uint>>? reserveSequence,
+            CancellationToken cancellationToken)
         {
             using PubSubSecurityKey? ownedKey = (m_keyProvider as Sks.PushSecurityKeyProvider)
                 ?.GetSnapshot(null, cancellationToken);
@@ -211,7 +198,31 @@ namespace Opc.Ua.PubSub.Security
             byte[] nonceBytes = Policy.NonceLength == 0
                 ? []
                 : new byte[Policy.NonceLength];
-            if (Policy.NonceLength != 0)
+            if (reserveSequence is not null)
+            {
+                if (nonceBytes.Length != AesCtrNonceLayout.NonceLength)
+                {
+                    throw new ServiceResultException(
+                        StatusCodes.BadSecurityChecksFailed, "The security policy cannot use reserved AES-CTR nonces.");
+                }
+                uint tokenId = key.TokenId;
+                ValueTask<uint> pending = reserveSequence(tokenId, cancellationToken);
+                bool refreshKey = ownedKey is null && !pending.IsCompletedSuccessfully;
+                uint sequence = await pending.ConfigureAwait(false);
+                if (refreshKey)
+                {
+                    // A borrowed key may have been retired while committing the reservation.
+                    key = await m_keyProvider.GetCurrentKeyAsync(cancellationToken).ConfigureAwait(false);
+                    if (key is null || key.TokenId != tokenId)
+                    {
+                        throw new ServiceResultException(
+                            StatusCodes.BadSecurityChecksFailed,
+                            "The publication key changed during nonce reservation.");
+                    }
+                }
+                RandomNonceProvider.WriteReservedNonce(sequence, key.KeyNonce.Span, nonceBytes);
+            }
+            else if (Policy.NonceLength != 0)
             {
                 m_nonceProvider.GetNext(key.TokenId, key.KeyNonce.Span, nonceBytes);
             }
@@ -542,9 +553,10 @@ namespace Opc.Ua.PubSub.Security
                         "Replay or nonce reuse detected");
                 }
 
-                return UnwrapResult.Success(
+                return UnwrapResult.Unwrapped(
                     plaintext.AsMemory(0, payloadAndFooterLength - footerSize),
-                    header);
+                    header,
+                    signatureVerified: signed && signatureLength > 0);
             }
             finally
             {
@@ -601,8 +613,10 @@ namespace Opc.Ua.PubSub.Security
                 ReadOnlyMemory<byte>? innerPayload,
                 UadpSecurityHeader? header,
                 StatusCode status,
-                string? reason)
+                string? reason,
+                bool signatureVerified = false)
             {
+                SignatureVerified = signatureVerified;
                 InnerPayload = innerPayload;
                 Header = header;
                 Status = status;
@@ -635,6 +649,14 @@ namespace Opc.Ua.PubSub.Security
             public bool IsSuccess => StatusCode.IsGood(Status);
 
             /// <summary>
+            /// True when the frame carried a signature and it was verified
+            /// with the key of its SecurityTokenId. A frame can unwrap
+            /// successfully without one when no SecurityMode is required, so
+            /// only this flag establishes that the sender held the key.
+            /// </summary>
+            public bool SignatureVerified { get; }
+
+            /// <summary>
             /// Builds a success result.
             /// </summary>
             public static UnwrapResult Success(
@@ -642,6 +664,18 @@ namespace Opc.Ua.PubSub.Security
                 UadpSecurityHeader header)
             {
                 return new UnwrapResult(innerPayload, header, StatusCodes.Good, null);
+            }
+
+            /// <summary>
+            /// Builds a success result that records whether the signature of
+            /// the frame was verified.
+            /// </summary>
+            internal static UnwrapResult Unwrapped(
+                ReadOnlyMemory<byte> innerPayload,
+                UadpSecurityHeader header,
+                bool signatureVerified)
+            {
+                return new UnwrapResult(innerPayload, header, StatusCodes.Good, null, signatureVerified);
             }
 
             /// <summary>

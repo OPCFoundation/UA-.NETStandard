@@ -1,31 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using System.Collections.Generic;
@@ -248,6 +222,46 @@ namespace Opc.Ua.Client.Subscriptions.Fakes
         /// <inheritdoc/>
         public int SessionSubscriptionCount => SessionOwnedSubscriptionIds.Count;
 
+        /// <inheritdoc/>
+        public int OperationTimeout { get; set; }
+
+        /// <summary>
+        /// Whether unresolved subscription identifiers may be deleted on the
+        /// server. Defaults to <c>true</c>.
+        /// </summary>
+        public Func<uint, bool> MayDeleteUnknownSubscriptionHandler { get; set; } = _ => true;
+
+        /// <inheritdoc/>
+        public bool MayDeleteUnknownSubscription(uint subscriptionId)
+        {
+            return MayDeleteUnknownSubscriptionHandler(subscriptionId);
+        }
+
+        /// <summary>
+        /// The acknowledgement scope of a session-owned subscription. Defaults to
+        /// one stable lifetime per session-owned identifier and <c>null</c> for
+        /// any other identifier.
+        /// </summary>
+        public Func<uint, AcknowledgementScope?> SessionSubscriptionScopeHandler { get; set; }
+
+        /// <summary>
+        /// Creates the fake.
+        /// </summary>
+        public FakeSubscriptionManagerContext()
+        {
+            SessionSubscriptionScopeHandler = id => SessionOwnedSubscriptionIds.Contains(id)
+                ? new AcknowledgementScope(m_sessionScopeOwner, 1, id)
+                : null;
+        }
+
+        private readonly object m_sessionScopeOwner = new();
+
+        /// <inheritdoc/>
+        public AcknowledgementScope? GetSessionSubscriptionScope(uint subscriptionId)
+        {
+            return SessionSubscriptionScopeHandler(subscriptionId);
+        }
+
         /// <summary>Recorded dispatches to session-owned subscriptions.</summary>
         public int SessionDispatchCount => Volatile.Read(ref m_sessionDispatchCount);
 
@@ -264,6 +278,21 @@ namespace Opc.Ua.Client.Subscriptions.Fakes
             }
             Interlocked.Increment(ref m_sessionDispatchCount);
             return true;
+        }
+
+        /// <summary>
+        /// Optional override of <see cref="WaitForSessionSubscriptionRoomAsync"/>.
+        /// </summary>
+        public Func<uint, IIngressWaitPolicy, CancellationToken, ValueTask<bool>>?
+            SessionSubscriptionRoomHandler { get; set; }
+
+        public ValueTask<bool> WaitForSessionSubscriptionRoomAsync(
+            uint subscriptionId,
+            IIngressWaitPolicy waitPolicy,
+            CancellationToken ct)
+        {
+            return SessionSubscriptionRoomHandler?.Invoke(subscriptionId, waitPolicy, ct) ??
+                new ValueTask<bool>(true);
         }
 
         private int m_sessionDispatchCount;

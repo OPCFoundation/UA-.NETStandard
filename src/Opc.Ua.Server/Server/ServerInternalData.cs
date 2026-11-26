@@ -1,31 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using System.Collections.Generic;
@@ -69,12 +43,16 @@ namespace Opc.Ua.Server
         IHistoryContinuationPointStoreProvider,
         ITransportListenerRegistryProvider,
         IServerEndpointRegistryProvider,
+        IServerNamespaceDefaultPermissionsProvider,
+        IConformanceUnitsManagerProvider,
         IAsyncDisposable,
         ITimeProviderProvider,
         ISecurityPolicyRegistryProvider,
         ICertificateValidatorProvider,
         INodeIdFactoryProvider,
-        IServerServiceLevelControl
+        IServerServiceLevelControl,
+        IServerServiceLevelControlRevocation,
+        IServerAuthorizationPolicyProvider
     {
         /// <summary>
         /// Initializes the datastore with the server configuration.
@@ -157,6 +135,27 @@ namespace Opc.Ua.Server
 
             // create the default system context.
             DefaultSystemContext = new ServerSystemContext(this);
+        }
+
+        /// <summary>
+        /// Initializes server internals with a preconstructed status owner, without starting runtime workers.
+        /// </summary>
+        /// <param name="serverDescription">The server description.</param>
+        /// <param name="configuration">The application configuration.</param>
+        /// <param name="messageContext">The message context.</param>
+        /// <param name="timeProvider">The server time provider, or null for the system clock.</param>
+        /// <param name="securityPolicies">The security policies, or null for the default registry.</param>
+        /// <param name="status">The status owned by these internals.</param>
+        internal ServerInternalData(
+            ServerProperties serverDescription,
+            ApplicationConfiguration configuration,
+            IServiceMessageContext messageContext,
+            TimeProvider? timeProvider,
+            ISecurityPolicyRegistry? securityPolicies,
+            ServerStatusValue status)
+            : this(serverDescription, configuration, messageContext, timeProvider, securityPolicies)
+        {
+            NonThreadSafeStatus = status ?? throw new ArgumentNullException(nameof(status));
         }
 
         /// <summary>
@@ -314,13 +313,29 @@ namespace Opc.Ua.Server
             {
                 throw new ArgumentNullException(nameof(builder));
             }
-            if (Volatile.Read(ref m_disposed) != 0)
+            lock (m_historianBuildersLock)
             {
-                throw new ObjectDisposedException(nameof(ServerInternalData));
+                if (Volatile.Read(ref m_disposed) != 0)
+                {
+                    throw new ObjectDisposedException(nameof(ServerInternalData));
+                }
+                if (!m_historianBuilders.Contains(builder))
+                {
+                    m_historianBuilders.Add(builder);
+                }
+            }
+        }
+
+        void Historian.IHistorianBuilderRegistry.UnregisterHistorianBuilder(
+            Historian.HistorianBuilder builder)
+        {
+            if (builder == null)
+            {
+                throw new ArgumentNullException(nameof(builder));
             }
             lock (m_historianBuildersLock)
             {
-                m_historianBuilders.Add(builder);
+                m_historianBuilders.Remove(builder);
             }
         }
 
@@ -400,6 +415,14 @@ namespace Opc.Ua.Server
         {
             m_serverEndpoints = endpoints;
         }
+
+        /// <summary>
+        /// The role permissions of the nodes without <c>RolePermissions</c> in
+        /// a namespace without <c>DefaultRolePermissions</c>, set by
+        /// <see cref="StandardServer"/> before the node managers start. Empty
+        /// when the server applies no default.
+        /// </summary>
+        public ArrayOf<RolePermissionType> NamespaceDefaultRolePermissions { get; init; }
 
         /// <summary>
         /// The server-wide registry of Part 11 historian providers.
@@ -623,6 +646,48 @@ namespace Opc.Ua.Server
         }
 
         /// <inheritdoc/>
+        public IServerAuthorizationPolicy AuthorizationPolicy { get; private set; } = ServerAuthorizationPolicy.Default;
+
+        /// <summary>
+        /// Sets the authorization policy that every administrator check of the server consults.
+        /// </summary>
+        /// <param name="authorizationPolicy">The policy.</param>
+        /// <exception cref="ArgumentNullException"><paramref name="authorizationPolicy"/> is <c>null</c>.</exception>
+        public void SetAuthorizationPolicy(IServerAuthorizationPolicy authorizationPolicy)
+        {
+            ThrowIfBindPhaseComplete();
+            AuthorizationPolicy = authorizationPolicy ?? throw new ArgumentNullException(nameof(authorizationPolicy));
+        }
+
+        /// <summary>
+        /// The sink that receives every audit event the server reports while
+        /// <see cref="Auditing"/> is enabled. The default publishes the event in the address space.
+        /// </summary>
+        public IAuditEventSink AuditEventSink => m_auditEventSink ??= new AddressSpaceAuditEventSink(this);
+
+        /// <summary>
+        /// Sets the sink that receives the audit events of the server.
+        /// </summary>
+        /// <param name="auditEventSink">The sink.</param>
+        /// <exception cref="ArgumentNullException"><paramref name="auditEventSink"/> is <c>null</c>.</exception>
+        public void SetAuditEventSink(IAuditEventSink auditEventSink)
+        {
+            ThrowIfBindPhaseComplete();
+            m_auditEventSink = auditEventSink ?? throw new ArgumentNullException(nameof(auditEventSink));
+        }
+
+        /// <summary>
+        /// Publishes an audit event in the address space of the server, through the Server object
+        /// and its notifiers. This is the default <see cref="AuditEventSink"/>.
+        /// </summary>
+        /// <param name="context">The context.</param>
+        /// <param name="e">The audit event.</param>
+        public void PublishAuditEvent(ISystemContext context, AuditEventState e)
+        {
+            ReportEvent(context, e);
+        }
+
+        /// <inheritdoc/>
         public IRebasableNodeIdFactory? NodeIdFactory { get; private set; }
 
         /// <summary>
@@ -766,7 +831,9 @@ namespace Opc.Ua.Server
             List<T> asyncManagers = [.. nodeManager.AsyncNodeManagers.OfType<T>()];
 
             return asyncManagers.Concat(
+#pragma warning disable CS0618, UA0031 // Legacy managers registered only through the sync list still count.
                 nodeManager.NodeManagers
+#pragma warning restore CS0618, UA0031
                     .OfType<T>()
                     .Where(manager => !asyncManagers.Exists(known => ReferenceEquals(known, manager))));
         }
@@ -1288,7 +1355,19 @@ namespace Opc.Ua.Server
                 return;
             }
 
-            ReportEvent(context, e);
+            AuditEventSink.ReportAuditEvent(context, e);
+        }
+
+        /// <summary>
+        /// Sets the startup level before the Server object is created and listeners are opened.
+        /// </summary>
+        internal void SetInitialServiceLevel(byte level)
+        {
+            if (ServerObject != null)
+            {
+                throw new InvalidOperationException("Set the initial level before creating the Server object.");
+            }
+            m_initialServiceLevel = level;
         }
 
         /// <inheritdoc/>
@@ -1296,7 +1375,7 @@ namespace Opc.Ua.Server
         {
             lock (m_serviceLevelLock)
             {
-                if (m_hasServiceLevelOwner)
+                if (m_serviceLevelOwner is not null)
                 {
                     throw new InvalidOperationException("Server.ServiceLevel already has an explicit provider.");
                 }
@@ -1304,15 +1383,40 @@ namespace Opc.Ua.Server
                 {
                     throw new InvalidOperationException("Server.ServiceLevel is not available.");
                 }
-                m_hasServiceLevelOwner = true;
-                return PublishServiceLevel;
+                var owner = new ServiceLevelWriter(this);
+                m_serviceLevelOwner = owner;
+                return owner.Publish;
             }
         }
 
-        private void PublishServiceLevel(byte level)
+        void IServerServiceLevelControlRevocation.ReleaseServiceLevelControl(Action<byte> writer)
+        {
+            if (writer is null)
+            {
+                throw new ArgumentNullException(nameof(writer));
+            }
+            if (writer.Target is not ServiceLevelWriter owner)
+            {
+                throw new ArgumentException("The writer was not issued by this server.", nameof(writer));
+            }
+            lock (m_serviceLevelLock)
+            {
+                if (ReferenceEquals(m_serviceLevelOwner, owner))
+                {
+                    m_serviceLevelOwner = null;
+                }
+            }
+        }
+
+        private void PublishServiceLevel(ServiceLevelWriter owner, byte level)
         {
             lock (m_serviceLevelLock)
             {
+                if (!ReferenceEquals(m_serviceLevelOwner, owner))
+                {
+                    throw new InvalidOperationException(
+                        "The service-level writer no longer owns publication.");
+                }
                 ServerObject.ServiceLevel!.Value = level;
                 ServerObject.ServiceLevel.Timestamp = TimeProvider.GetUtcNow().UtcDateTime;
                 ServerObject.ServiceLevel.ClearChangeMasks(DefaultSystemContext, false);
@@ -1345,7 +1449,7 @@ namespace Opc.Ua.Server
 
             lock (m_serviceLevelLock)
             {
-                if (m_hasServiceLevelOwner)
+                if (m_serviceLevelOwner is not null)
                 {
                     return;
                 }
@@ -1382,7 +1486,7 @@ namespace Opc.Ua.Server
 
             // update server capabilities.
             ServerCapabilitiesState serverCapabilities = serverObject.ServerCapabilities!;
-            serverObject.ServiceLevel!.Value = 255;
+            serverObject.ServiceLevel!.Value = m_initialServiceLevel;
             serverCapabilities.LocaleIdArray!.Value = ResourceManager
                 .GetAvailableLocales();
             serverCapabilities.ServerProfileArray!.Value =
@@ -1429,6 +1533,12 @@ namespace Opc.Ua.Server
                 m_configuration.ServerConfiguration.MaxMonitoredItemCount);
             serverCapabilities.MaxMonitoredItemsPerSubscription?.Value = (uint)Math.Max(0,
                 m_configuration.ServerConfiguration.MaxMonitoredItemsPerSubscription);
+            // EventFilter limits enforced when an event item is created or modified (zero
+            // means no limit): the select clauses by configuration, the where clause
+            // elements by ContentFilter.MaxElementCount.
+            serverCapabilities.MaxSelectClauseParameters?.Value = (uint)Math.Max(0,
+                m_configuration.ServerConfiguration.MaxSelectClauseParameters);
+            serverCapabilities.MaxWhereClauseParameters?.Value = ContentFilter.MaxElementCount;
             serverCapabilities.MaxMonitoredItemsQueueSize?.Value = (uint)Math.Max(0,
                 m_configuration.ServerConfiguration.DurableSubscriptionsEnabled
                     ? Math.Max(
@@ -1502,6 +1612,17 @@ namespace Opc.Ua.Server
 
             serverObject.ServerArray!.OnSimpleReadValue = OnReadServerArray;
             serverObject.ServerArray.MinimumSamplingInterval = 1000;
+
+            // UrisVersion starts at the startup time (Part 5 §6.3.1, Part 4 §7.43) and is raised
+            // on every change of the tables; a read catches up with a change no caller reported.
+            // Like NamespaceArray and ServerArray it is sampled, so monitored items see a table
+            // change no caller reported as well.
+            if (serverObject.UrisVersion is { } urisVersion)
+            {
+                urisVersion.OnSimpleReadValue = OnReadUrisVersion;
+                urisVersion.MinimumSamplingInterval = 1000;
+                ServerUrisVersion.Update(this);
+            }
 
             // the diagnostics collection can be enabled and disabled by an administrator
             // (Part 5 §6.3.3); the user access level grants the write access.
@@ -1585,9 +1706,13 @@ namespace Opc.Ua.Server
                 cancellationToken).ConfigureAwait(false);
 
             var configurationNodeManager = DiagnosticsNodeManager as ConfigurationNodeManager;
-            configurationNodeManager?.CreateServerConfiguration(
+            if (configurationNodeManager != null)
+            {
+                await configurationNodeManager.CreateServerConfigurationAsync(
                     DefaultSystemContext,
-                m_configuration);
+                    m_configuration,
+                    cancellationToken).ConfigureAwait(false);
+            }
             if (configurationNodeManager != null)
             {
                 await configurationNodeManager.RecoverConfigurationFileUpdateAsync(cancellationToken)
@@ -1702,6 +1827,19 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
+        /// Returns the UrisVersion, raised first when a table changed since the last update.
+        /// </summary>
+        private ServiceResult OnReadUrisVersion(
+            ISystemContext context,
+            NodeState node,
+            ref Variant value)
+        {
+            ServerUrisVersion.Update(this);
+            value = ((PropertyState<uint>)node).Value;
+            return ServiceResult.Good;
+        }
+
+        /// <summary>
         /// Returns Diagnostics.EnabledFlag
         /// </summary>
         private ServiceResult OnReadDiagnosticsEnabledFlag(
@@ -1757,15 +1895,8 @@ namespace Opc.Ua.Server
         /// </summary>
         private static bool HasDiagnosticsAdminAccess(ISystemContext context)
         {
-            if (context is not SessionSystemContext { OperationContext: OperationContext operationContext } session ||
-                operationContext.ChannelContext?.EndpointDescription?.SecurityMode != MessageSecurityMode.SignAndEncrypt)
-            {
-                return false;
-            }
-
-            ArrayOf<NodeId> roles = session.UserIdentity?.GrantedRoleIds ?? default;
-            return roles.Contains(ObjectIds.WellKnownRole_SecurityAdmin) ||
-                roles.Contains(ObjectIds.WellKnownRole_ConfigureAdmin);
+            return ServiceResult.IsGood(
+                RoleAuthorizationGate.Check(context, ServerAuthorizationDecision.DiagnosticsConfiguration));
         }
 
         /// <summary>
@@ -1831,7 +1962,24 @@ namespace Opc.Ua.Server
         private readonly List<Historian.HistorianBuilder> m_historianBuilders = [];
         private readonly Lock m_historianBuildersLock = new();
         private readonly Lock m_serviceLevelLock = new();
-        private bool m_hasServiceLevelOwner;
+        private byte m_initialServiceLevel = ServiceLevels.Maximum;
+        private ServiceLevelWriter? m_serviceLevelOwner;
+        private IAuditEventSink? m_auditEventSink;
+
+        /// <summary>
+        /// Provides a revocable service-level writer tied to the current explicit owner.
+        /// </summary>
+        private sealed class ServiceLevelWriter(ServerInternalData owner)
+        {
+            /// <summary>
+            /// Publishes one service-level value while this writer still owns the claim.
+            /// </summary>
+            /// <param name="level">The service level to publish.</param>
+            public void Publish(byte level)
+            {
+                owner.PublishServiceLevel(this, level);
+            }
+        }
         private RoleStateBinding? m_roleStateBinding;
         private volatile IReadOnlyList<ITransportListener>? m_transportListeners;
         private ArrayOf<EndpointDescription> m_serverEndpoints;

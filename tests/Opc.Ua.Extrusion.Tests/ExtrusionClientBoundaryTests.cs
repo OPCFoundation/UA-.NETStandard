@@ -1,7 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
- * Licensed under the MIT License. See LICENSE.txt in the project root.
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using System.Collections.Generic;
@@ -50,6 +48,7 @@ namespace Opc.Ua.Extrusion.Tests
         [TestCase("Unique")]
         [TestCase("Repeated")]
         [TestCase("Distinct")]
+        [TestCase("SameNodeDifferentReferenceTypes")]
         [TestCase("NullThenUnique")]
         [TestCase("MissingNamespace")]
         public async Task ExtrusionVariablesRequireUniqueQualifiedBrowseNamesAsync(string shape)
@@ -70,6 +69,18 @@ namespace Opc.Ua.Extrusion.Tests
                     "Unique" => [foreign, correct],
                     "Repeated" => [correct, correct],
                     "Distinct" => [correct, ExtrusionClientPeer.Variable(peer.NextNode(), peer.General("IsPresent"))],
+                    "SameNodeDifferentReferenceTypes" =>
+                    [
+                        correct,
+                        new ReferenceDescription
+                        {
+                            NodeId = variable,
+                            BrowseName = peer.General("IsPresent"),
+                            NodeClass = NodeClass.Variable,
+                            ReferenceTypeId = Opc.Ua.ReferenceTypeIds.HasComponent,
+                            IsForward = true
+                        }
+                    ],
                     "NullThenUnique" => [ExtrusionClientPeer.Variable(NodeId.Null, peer.General("IsPresent")), correct],
                     _ => throw new ArgumentOutOfRangeException(nameof(shape))
                 };
@@ -85,7 +96,11 @@ namespace Opc.Ua.Extrusion.Tests
             else
             {
                 NodeId resolved = await member.ResolveAsync(cancellation.Token).ConfigureAwait(false);
-                Assert.That(resolved, Is.EqualTo(shape is "Unique" or "NullThenUnique" ? variable : NodeId.Null));
+                Assert.That(
+                    resolved,
+                    Is.EqualTo(shape is "Unique" or "SameNodeDifferentReferenceTypes" or "NullThenUnique"
+                        ? variable
+                        : NodeId.Null));
             }
             Assert.That(member.Writable, Is.False);
             if (shape == "MissingNamespace")

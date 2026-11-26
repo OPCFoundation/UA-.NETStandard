@@ -1,31 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using System.Collections.Generic;
@@ -596,6 +570,132 @@ namespace Opc.Ua.Schema.Model.Tests
                 model!.Items.Select(x => x.SymbolicName?.Name),
                 Does.Contain("Orphan"));
         }
+
+        /// <summary>
+        /// A ParentNodeId chain that loops back used to recurse until the
+        /// compiler's stack overflowed, which killed the build host. It is now
+        /// reported as invalid input.
+        /// </summary>
+        [TestCase("<UAObject NodeId=\"ns=1;i=1\" BrowseName=\"1:A\" ParentNodeId=\"ns=1;i=1\">" +
+            "<DisplayName>A</DisplayName>" + TypeDefinitionReference + "</UAObject>")]
+        [TestCase("<UAObject NodeId=\"ns=1;i=1\" BrowseName=\"1:A\" ParentNodeId=\"ns=1;i=2\">" +
+            "<DisplayName>A</DisplayName>" + TypeDefinitionReference + "</UAObject>" +
+            "<UAObject NodeId=\"ns=1;i=2\" BrowseName=\"1:B\" ParentNodeId=\"ns=1;i=1\">" +
+            "<DisplayName>B</DisplayName>" + TypeDefinitionReference + "</UAObject>")]
+        public void ImportParentNodeIdCycleReportsTheCycle(string nodes)
+        {
+            NodeSetToModelDesign importer = CreateImporter("ParentCycle", nodes);
+
+            InvalidDataException ex = Assert.Throws<InvalidDataException>(
+                () => importer.Import("ParentCycle", "ParentCycle"));
+
+            Assert.That(ex.Message, Does.Contain("cycle"));
+        }
+
+        /// <summary>
+        /// A ParentNodeId chain deeper than the limit is rejected instead of
+        /// recursing once per level.
+        /// </summary>
+        [Test]
+        public void ImportParentNodeIdChainAboveLimitIsRejected()
+        {
+            var nodes = new StringBuilder();
+            nodes.Append("<UAObject NodeId=\"ns=1;i=1\" BrowseName=\"1:o1\"><DisplayName>o1</DisplayName>")
+                .Append(TypeDefinitionReference).Append("</UAObject>");
+            for (int ii = 2; ii <= NodeSetToModelDesign.MaxParentDepth + 2; ii++)
+            {
+                nodes.Append(CoreUtils.Format(
+                    "<UAObject NodeId=\"ns=1;i={0}\" BrowseName=\"1:o{0}\" ParentNodeId=\"ns=1;i={1}\">" +
+                    "<DisplayName>o{0}</DisplayName>{2}</UAObject>",
+                    ii,
+                    ii - 1,
+                    TypeDefinitionReference));
+            }
+            NodeSetToModelDesign importer = CreateImporter("DeepParents", nodes.ToString());
+
+            InvalidDataException ex = Assert.Throws<InvalidDataException>(
+                () => importer.Import("DeepParents", "DeepParents"));
+
+            Assert.That(ex.Message, Does.Contain(
+                NodeSetToModelDesign.MaxParentDepth.ToString(System.Globalization.CultureInfo.InvariantCulture)));
+        }
+
+        /// <summary>
+        /// A ValueRank without ArrayDimensions sizes the imported dimension
+        /// list; a huge value from the file used to allocate gigabytes. Ranks
+        /// above the stack's matrix rank limit are rejected.
+        /// </summary>
+        [TestCase(400000000)]
+        [TestCase(int.MaxValue)]
+        [TestCase(NodeSetToModelDesign.MaxValueRank + 1)]
+        public void ImportValueRankAboveLimitIsRejected(int valueRank)
+        {
+            NodeSetToModelDesign importer = CreateImporter(
+                "HugeRank",
+                CoreUtils.Format(
+                    "<UAVariable NodeId=\"ns=1;i=1\" BrowseName=\"1:V\" DataType=\"i=11\" ValueRank=\"{0}\">" +
+                    "<DisplayName>V</DisplayName><References>" +
+                    "<Reference ReferenceType=\"HasTypeDefinition\">i=63</Reference>" +
+                    "</References></UAVariable>" + VariableTypeNodes,
+                    valueRank));
+
+            InvalidDataException ex = Assert.Throws<InvalidDataException>(
+                () => importer.Import("HugeRank", "HugeRank"));
+
+            Assert.That(ex.Message, Does.Contain("ValueRank"));
+        }
+
+        /// <summary>
+        /// The largest supported rank still imports with one unknown-length
+        /// dimension per rank.
+        /// </summary>
+        [Test]
+        public void ImportValueRankAtLimitImportsDimensions()
+        {
+            NodeSetToModelDesign importer = CreateImporter(
+                "MaxRank",
+                CoreUtils.Format(
+                    "<UAVariable NodeId=\"ns=1;i=1\" BrowseName=\"1:V\" DataType=\"i=11\" ValueRank=\"{0}\">" +
+                    "<DisplayName>V</DisplayName><References>" +
+                    "<Reference ReferenceType=\"HasTypeDefinition\">i=63</Reference>" +
+                    "</References></UAVariable>" + VariableTypeNodes,
+                    NodeSetToModelDesign.MaxValueRank));
+
+            ModelDesign model = importer.Import("MaxRank", "MaxRank");
+
+            var variable = (VariableDesign)model.Items.Single(x => x.SymbolicName?.Name == "V");
+            Assert.That(
+                variable.ArrayDimensions.Split(','),
+                Has.Length.EqualTo(NodeSetToModelDesign.MaxValueRank));
+        }
+
+        private NodeSetToModelDesign CreateImporter(string name, string nodes)
+        {
+            string path = "memory://" + name + ".NodeSet2.xml";
+            string nodeSet =
+                "<?xml version=\"1.0\" encoding=\"utf-8\"?>" +
+                "<UANodeSet xmlns=\"http://opcfoundation.org/UA/2011/03/UANodeSet.xsd\">" +
+                "<NamespaceUris><Uri>http://test.org/UA/" + name + "/</Uri></NamespaceUris>" +
+                "<Models><Model ModelUri=\"http://test.org/UA/" + name + "/\" " +
+                "PublicationDate=\"2026-08-12T00:00:00Z\" Version=\"1.0.0\" /></Models>" +
+                "<Aliases><Alias Alias=\"HasSubtype\">i=45</Alias>" +
+                "<Alias Alias=\"HasTypeDefinition\">i=40</Alias></Aliases>" +
+                nodes +
+                "</UANodeSet>";
+            m_fileSystem.Add(path, Encoding.UTF8.GetBytes(nodeSet));
+            return new NodeSetToModelDesign(
+                m_fileSystem, path, new NodeSetReaderSettings(), CreateTelemetry());
+        }
+
+        private const string VariableTypeNodes =
+            "<UADataType NodeId=\"i=11\" BrowseName=\"Double\"><DisplayName>Double</DisplayName><References>" +
+            "<Reference ReferenceType=\"HasSubtype\" IsForward=\"false\">i=11</Reference></References></UADataType>" +
+            "<UAVariableType NodeId=\"i=63\" BrowseName=\"BaseDataVariableType\" DataType=\"i=11\" ValueRank=\"-2\">" +
+            "<DisplayName>BaseDataVariableType</DisplayName><References>" +
+            "<Reference ReferenceType=\"HasSubtype\" IsForward=\"false\">i=63</Reference>" +
+            "</References></UAVariableType>";
+        private const string TypeDefinitionReference =
+            "<References><Reference ReferenceType=\"HasTypeDefinition\">i=58</Reference></References>";
 
         /// <summary>
         /// Regression: <c>AccessRestrictions="0"</c> means "no restrictions", but

@@ -1,31 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using System.Diagnostics.Contracts;
@@ -161,8 +135,7 @@ namespace Opc.Ua
         {
             m_inner.NamespaceIdx = namespaceIndex;
             m_inner.Type = (byte)IdType.String;
-            m_inner.Numeric = string.IsNullOrEmpty(value) ? 0u :
-                (uint)value.GetHashCode(StringComparison.Ordinal);
+            m_inner.Numeric = HashStringIdentifier(value);
             m_identifier = value;
         }
 
@@ -174,8 +147,7 @@ namespace Opc.Ua
         {
             m_inner.NamespaceIdx = 0;
             m_inner.Type = (byte)IdType.Guid;
-            m_inner.Numeric =
-                value == Guid.Empty ? 0u : (uint)value.GetHashCode();
+            m_inner.Numeric = HashGuidIdentifier(value);
             m_identifier = value;
         }
 
@@ -189,8 +161,7 @@ namespace Opc.Ua
         {
             m_inner.NamespaceIdx = namespaceIndex;
             m_inner.Type = (byte)IdType.Guid;
-            m_inner.Numeric =
-                value == Guid.Empty ? 0u : (uint)value.GetHashCode();
+            m_inner.Numeric = HashGuidIdentifier(value);
             m_identifier = value;
         }
 
@@ -270,6 +241,53 @@ namespace Opc.Ua
         {
             m_identifier = identifier;
             m_inner = inner;
+        }
+
+        /// <summary>
+        /// Hashes a String identifier with a per-process random seed.
+        /// </summary>
+        /// <remarks>
+        /// Dictionaries keyed by NodeId bucket on this hash, and String
+        /// identifiers are chosen by clients. On .NET the ordinal string hash
+        /// is already randomized per process; on .NET Framework it is not, so
+        /// the seeded Marvin hash used for ByteStrings replaces it there.
+        /// </remarks>
+        private static uint HashStringIdentifier(string? value)
+        {
+            if (string.IsNullOrEmpty(value))
+            {
+                return 0u;
+            }
+#if NET
+            return (uint)value.GetHashCode(StringComparison.Ordinal);
+#else
+            return (uint)ReadOnlySpan.ComputeHash32(
+                System.Runtime.InteropServices.MemoryMarshal.AsBytes(value.AsSpan()));
+#endif
+        }
+
+        /// <summary>
+        /// Hashes a Guid identifier with a per-process random seed.
+        /// </summary>
+        /// <remarks>
+        /// <see cref="Guid.GetHashCode"/> is an unseeded XOR of the Guid's
+        /// words, so a client can choose any number of distinct Guid NodeIds
+        /// with one hash code and turn every dictionary keyed by them into a
+        /// linear list. The seeded Marvin hash cannot be targeted that way.
+        /// </remarks>
+        private static uint HashGuidIdentifier(Guid value)
+        {
+            if (value == Guid.Empty)
+            {
+                return 0u;
+            }
+            Span<byte> bytes = stackalloc byte[16];
+#if NET8_0_OR_GREATER
+            System.Runtime.InteropServices.MemoryMarshal.Write(bytes, in value);
+#else
+            System.Runtime.InteropServices.MemoryMarshal.Write(bytes, ref value);
+#endif
+            return (uint)ReadOnlySpan.ComputeHash32(bytes);
         }
 
         /// <summary>
@@ -373,7 +391,7 @@ namespace Opc.Ua
 
             if (text.StartsWith("nsu=", StringComparison.Ordinal))
             {
-                int index = text.IndexOf(';', 4);
+                int index = text.IndexOf(';', 4, StringComparison.Ordinal);
 
                 if (index < 0)
                 {
@@ -407,7 +425,7 @@ namespace Opc.Ua
 
             if (text.StartsWith("ns=", StringComparison.Ordinal))
             {
-                int index = text.IndexOf(';', 3);
+                int index = text.IndexOf(';', 3, StringComparison.Ordinal);
 
                 if (index < 0)
                 {

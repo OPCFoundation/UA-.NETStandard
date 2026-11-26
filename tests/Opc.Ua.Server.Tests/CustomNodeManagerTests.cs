@@ -1,3 +1,8 @@
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
+
+#pragma warning disable CS0618, UA0031 // Covers the deprecated synchronous node manager API on purpose.
+
 using System;
 using System.Threading;
 using System.Threading.Tasks;
@@ -328,7 +333,7 @@ namespace Opc.Ua.Server.Tests
             return base.LookupNodeInComponentCache(context, handle)!;
         }
 
-        public new NodeIdDictionary<NodeState> PredefinedNodes => base.PredefinedNodes;
+        public new PredefinedNodeDictionary PredefinedNodes => base.PredefinedNodes;
 
         public new virtual void AddPredefinedNode(ISystemContext context, NodeState node)
         {

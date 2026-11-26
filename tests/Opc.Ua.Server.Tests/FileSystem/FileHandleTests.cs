@@ -1,31 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using System.Collections.Generic;
@@ -34,6 +8,7 @@ using System.Runtime.CompilerServices;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using Moq;
 using NUnit.Framework;
 using Opc.Ua.Server.FileSystem;
 
@@ -112,13 +87,14 @@ namespace Opc.Ua.Server.Tests.FileSystem
         }
 
         /// <summary>
-        /// Spec gap Read|Write: Read and Write are independent valid mode bits (Part 20 4.2.2),
-        /// so an unsupported combined open is Bad_NotSupported, not an invalid mode.
+        /// A provider without combined stream support rejects Read|Write with BadNotSupported (Part 20 4.2.2).
         /// </summary>
         [Test]
         public void OpenWithReadAndWriteReturnsBadNotSupported()
         {
-            using var handle = new FileHandle(CreateProvider(), "f.txt");
+            var provider = new Mock<IFileSystemProvider>();
+            provider.SetupGet(value => value.IsWritable).Returns(true);
+            using var handle = new FileHandle(provider.Object, "f.txt");
 
             ServiceResult result = handle.Open(s_sessionId, ModeRead | ModeWrite, out uint fileHandle);
 
@@ -174,8 +150,11 @@ namespace Opc.Ua.Server.Tests.FileSystem
             Assert.That(handle.OpenCount, Is.EqualTo(2));
         }
 
+        /// <summary>
+        /// An existing reader rejects a synchronous write-open with the Part 20 already-open status.
+        /// </summary>
         [Test]
-        public void OpenWriteWhileReadingReturnsBadInvalidState()
+        public void OpenWriteWhileReadingReturnsBadNotWritable()
         {
             WriteFile("f.txt", "hello");
             using var handle = new FileHandle(CreateProvider(), "f.txt");
@@ -183,7 +162,7 @@ namespace Opc.Ua.Server.Tests.FileSystem
 
             ServiceResult result = handle.Open(s_sessionId, ModeWrite, out _);
 
-            Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadInvalidState));
+            Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadNotWritable));
         }
 
         [Test]
@@ -216,21 +195,22 @@ namespace Opc.Ua.Server.Tests.FileSystem
             Assert.That(handle.GetStream(s_sessionId, writeHandle), Is.Not.Null);
         }
 
-        [Test]
-        public void OpenWriteWhileAnyHandleAlreadyOpenInternallyReturnsBadInvalidState()
+        /// <summary>
+        /// An existing reader or writer rejects a synchronous write-open before invoking the provider again.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public void OpenWriteWhileAnyHandleAlreadyOpenInternallyReturnsBadNotWritable(bool existingWriter)
         {
-            // Same rationale as above, but for the write-open guard that
-            // rejects opening for write while any reader or writer holds
-            // the file.
             using var handle = new FileHandle(new NonExclusiveStreamProvider(), "f.txt");
-            handle.Open(s_sessionId, ModeRead, out uint readHandle);
+            handle.Open(s_sessionId, existingWriter ? ModeWrite : ModeRead, out uint originalHandle);
 
             ServiceResult result = handle.Open(s_sessionId, ModeWrite, out uint writeHandle);
 
-            Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadInvalidState));
+            Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadNotWritable));
             Assert.That(writeHandle, Is.Zero);
             Assert.That(handle.OpenCount, Is.EqualTo(1));
-            Assert.That(handle.GetStream(s_sessionId, readHandle), Is.Not.Null);
+            Assert.That(handle.GetStream(s_sessionId, originalHandle), Is.Not.Null);
         }
 
         [Test]
@@ -247,7 +227,7 @@ namespace Opc.Ua.Server.Tests.FileSystem
         }
 
         [Test]
-        public void OpenWriteWithEraseExistingTruncates()
+        public async Task OpenWriteWithEraseExistingTruncates()
         {
             WriteFile("f.txt", "existing-content");
             using var handle = new FileHandle(CreateProvider(), "f.txt");
@@ -256,13 +236,13 @@ namespace Opc.Ua.Server.Tests.FileSystem
             Stream stream = handle.GetStream(s_sessionId, fileHandle)!;
             byte[] payload = Encoding.UTF8.GetBytes("new");
             stream.Write(payload, 0, payload.Length);
-            handle.Close(s_sessionId, fileHandle);
+            await handle.CloseAsync(s_sessionId, fileHandle).ConfigureAwait(false);
 
             Assert.That(File.ReadAllText(Path.Combine(m_root, "f.txt")), Is.EqualTo("new"));
         }
 
         [Test]
-        public void OpenWriteWithAppendKeepsExistingContent()
+        public async Task OpenWriteWithAppendKeepsExistingContent()
         {
             WriteFile("f.txt", "a");
             using var handle = new FileHandle(CreateProvider(), "f.txt");
@@ -271,7 +251,7 @@ namespace Opc.Ua.Server.Tests.FileSystem
             Stream stream = handle.GetStream(s_sessionId, fileHandle)!;
             byte[] payload = Encoding.UTF8.GetBytes("b");
             stream.Write(payload, 0, payload.Length);
-            handle.Close(s_sessionId, fileHandle);
+            await handle.CloseAsync(s_sessionId, fileHandle).ConfigureAwait(false);
 
             Assert.That(File.ReadAllText(Path.Combine(m_root, "f.txt")), Is.EqualTo("ab"));
         }

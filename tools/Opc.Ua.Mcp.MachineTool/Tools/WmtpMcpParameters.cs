@@ -1,31 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using System.Collections.Generic;
@@ -90,7 +64,9 @@ namespace Opc.Ua.Mcp.Tools
                     ArgumentOutOfRangeException.ThrowIfGreaterThan(from, to);
                     return new WmtpRecordQuery
                     {
-                        Selection = WmtpRecordSelection.Index, FromIndex = from, ToIndex = to
+                        Selection = WmtpRecordSelection.Index,
+                        FromIndex = from,
+                        ToIndex = to
                     };
                 case "time":
                     Shape(value, ["selection", "fromTime", "toTime"]);
@@ -102,7 +78,9 @@ namespace Opc.Ua.Mcp.Tools
                     }
                     return new WmtpRecordQuery
                     {
-                        Selection = WmtpRecordSelection.Time, FromTime = start, ToTime = end
+                        Selection = WmtpRecordSelection.Time,
+                        FromTime = start,
+                        ToTime = end
                     };
                 default:
                     throw new ArgumentException("The selection is not supported by this operation.", nameof(value));
@@ -277,7 +255,7 @@ namespace Opc.Ua.Mcp.Tools
         private static DateTimeUtc Utc(JsonElement value)
         {
             string text = Text(value, 32);
-            if (!text.EndsWith('Z') || !value.TryGetDateTimeOffset(out DateTimeOffset time))
+            if (!text.EndsWith('Z', StringComparison.Ordinal) || !value.TryGetDateTimeOffset(out DateTimeOffset time))
             {
                 throw new ArgumentException("An ISO 8601 UTC timestamp ending in Z is required.");
             }

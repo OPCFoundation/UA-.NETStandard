@@ -19,6 +19,14 @@ on:
         description: 'Include macOS runners in the test / AoT matrix'
         type: boolean
         default: true
+      pkcs11_native_loader_diagnostics:
+        description: 'Run only paired macOS PKCS#11 control and loader-trace tests'
+        type: boolean
+        default: false
+      pkcs11_full_shard_diagnostics:
+        description: 'Run only the macOS net10.0 shard 11 batch with coverage, paired control and loader-trace'
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -76,6 +84,7 @@ jobs:
       aot_matrix: ${{ steps.list.outputs.aot_matrix }}
       relevant_changes: ${{ steps.list.outputs.relevant_changes }}
       include_macos: ${{ steps.list.outputs.include_macos }}
+      include_macos_tests: ${{ steps.list.outputs.include_macos_tests }}
     steps:
     - uses: actions/checkout@v7
       with:
@@ -90,7 +99,10 @@ jobs:
       shell: pwsh
       env:
         EVENT_NAME: ${{ github.event_name }}
+        REF: ${{ github.ref }}
         INCLUDE_MACOS: ${{ github.event.inputs.include_macos }}
+        PKCS11_NATIVE_LOADER_DIAGNOSTICS: ${{ github.event.inputs.pkcs11_native_loader_diagnostics }}
+        PKCS11_FULL_SHARD_DIAGNOSTICS: ${{ github.event.inputs.pkcs11_full_shard_diagnostics }}
         BASE_SHA: ${{ github.event.pull_request.base.sha }}
       run: |
         # macOS is included by default on pull_request, push, and schedule events
@@ -100,6 +112,16 @@ jobs:
             'workflow_dispatch' { $env:INCLUDE_MACOS -eq 'true' }
             default { $true }
         }
+
+        # The macOS test shards are the slowest and scarcest runners, so they
+        # only run for the protected lines (master, main, master378, release/*).
+        # Pull requests and every other branch keep the macOS NativeAOT legs as
+        # their macOS coverage and skip the macOS test shards; the nightly
+        # full-scope workflow still runs every macOS profile.
+        $protectedRef = $env:EVENT_NAME -ne 'pull_request' -and (
+            $env:REF -in @('refs/heads/master', 'refs/heads/main', 'refs/heads/master378') -or
+            $env:REF -like 'refs/heads/release/*')
+        $includeMacTests = $includeMac -and $protectedRef
 
         # Path relevance. This replaces the `paths:` filter that used to sit on
         # the pull_request trigger: filtering the whole workflow out would stop
@@ -112,13 +134,24 @@ jobs:
         # can be tested: getting it wrong in the "irrelevant" direction skips
         # the build, test and AOT jobs while the required summary still reports
         # success. See CiPathRelevanceTests.
-        $relevantChanges = $true
-        if ($env:EVENT_NAME -eq 'pull_request' -and -not [string]::IsNullOrWhiteSpace($env:BASE_SHA)) {
+        $diagnosticMode = $env:EVENT_NAME -eq 'workflow_dispatch' -and
+            ($env:PKCS11_NATIVE_LOADER_DIAGNOSTICS -eq 'true' -or
+             $env:PKCS11_FULL_SHARD_DIAGNOSTICS -eq 'true')
+        if ($env:PKCS11_NATIVE_LOADER_DIAGNOSTICS -eq 'true' -and
+            $env:PKCS11_FULL_SHARD_DIAGNOSTICS -eq 'true') {
+            throw 'Select one PKCS#11 diagnostic: the isolated and full-shard runs are separate experiments.'
+        }
+        $relevantChanges = -not $diagnosticMode
+        if ($diagnosticMode) {
+            Write-Host 'Native-loader diagnostic selected; skipping the general test/build matrices.'
+        }
+        elseif ($env:EVENT_NAME -eq 'pull_request' -and -not [string]::IsNullOrWhiteSpace($env:BASE_SHA)) {
             # Triple-dot: diff from the merge base, not from the current base
             # branch head. A two-dot diff would also report commits that landed
             # on the base branch after this one was cut, which would make an
             # unrelated base-branch change look like a build-relevant change here.
-            $changed = @(& git diff --name-only "$($env:BASE_SHA)...HEAD")
+            # Include both paths when a build input is moved into the docs tree.
+            $changed = @(& git diff --name-only --no-renames "$($env:BASE_SHA)...HEAD")
             if ($LASTEXITCODE -ne 0) {
                 throw (
                     "Could not diff pull-request base '$($env:BASE_SHA)' against HEAD " +
@@ -136,9 +169,17 @@ jobs:
             $aotMatrix += @{ os = 'macos-15-intel'; rid = 'osx-x64'  }
             $aotMatrix += @{ os = 'macos-latest'; rid = 'osx-arm64' }
         }
-        Write-Host "Event=$($env:EVENT_NAME); include_macos=$includeMac"
+        # Every RID publishes and runs the NativeAOT tests for the LTS and the
+        # newest target framework.
+        $aotMatrix = @(foreach ($entry in $aotMatrix) {
+            foreach ($tfm in @('net10.0', 'net11.0')) {
+                @{ os = $entry.os; rid = $entry.rid; tfm = $tfm }
+            }
+        })
+        Write-Host "Event=$($env:EVENT_NAME); Ref=$($env:REF); include_macos=$includeMac; include_macos_tests=$includeMacTests"
         "relevant_changes=$($relevantChanges.ToString().ToLowerInvariant())" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
         "include_macos=$($includeMac.ToString().ToLowerInvariant())"         | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+        "include_macos_tests=$($includeMacTests.ToString().ToLowerInvariant())" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
         "aot_matrix=$(ConvertTo-Json -InputObject @($aotMatrix) -Compress)"  | Out-File -FilePath $env:GITHUB_OUTPUT -Append
 
     # The pull-request scope of the same expander the manual full-scope workflow
@@ -150,7 +191,7 @@ jobs:
       shell: pwsh
       env:
         RELEVANT_CHANGES: ${{ steps.list.outputs.relevant_changes }}
-        INCLUDE_MACOS: ${{ steps.list.outputs.include_macos }}
+        INCLUDE_MACOS_TESTS: ${{ steps.list.outputs.include_macos_tests }}
       run: |
         if ($env:RELEVANT_CHANGES -ne 'true') {
             Write-Host 'Nothing to expand: the pull request changed no build-relevant file.'
@@ -159,7 +200,7 @@ jobs:
             'batch_target_minutes=0' | Out-File -FilePath $env:GITHUB_OUTPUT -Append
             exit 0
         }
-        ./.github/scripts/get-ci-matrix.ps1 -Scope pr -ExcludeMacOS:($env:INCLUDE_MACOS -ne 'true')
+        ./.github/scripts/get-ci-matrix.ps1 -Scope pr -ExcludeMacOS:($env:INCLUDE_MACOS_TESTS -ne 'true')
 
   build-and-test:
     needs: discover
@@ -200,6 +241,74 @@ jobs:
         # code-coverage below collects every artifact matching dotnet-results-*.
         artifact-name: dotnet-results-${{ matrix.entry.id }}
 
+  macos-pkcs11-native-loader-diagnostics:
+    needs: discover
+    name: ${{ matrix.mode }} PKCS#11 run
+    if: >-
+      ${{ github.event_name == 'workflow_dispatch' &&
+          github.event.inputs.pkcs11_native_loader_diagnostics == 'true' }}
+    runs-on: macos-latest
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        mode: [control, trace]
+    steps:
+    - uses: actions/checkout@v7
+      with:
+        fetch-depth: 0
+
+    - uses: ./.github/actions/run-dotnet-tests
+      with:
+        projects: ./tests/Opc.Ua.Security.Pkcs11.Tests/Opc.Ua.Security.Pkcs11.Tests.csproj
+        custom-test-target: net11.0
+        framework: net11.0
+        configuration: Release
+        dotnet: '11.0.100'
+        filter: ''
+        hang-timeout: 10m
+        per-project-timeout: '30'
+        coverage: 'false'
+        artifact-name: macos-pkcs11-native-loader-${{ matrix.mode }}
+        macos-native-loader-diagnostics: ${{ matrix.mode }}
+
+  # The isolated run above does not reproduce the shard-11 host crash. This one
+  # keeps the conditions that differ: the projects, order, category filter and
+  # coverage collection of the macos-net11.0 (11/19) entry from get-ci-matrix.ps1.
+  # Each project still runs in its own test host; only PKCS#11 is traced.
+  macos-pkcs11-full-shard-diagnostics:
+    needs: discover
+    name: ${{ matrix.mode }} shard-11 run ${{ matrix.attempt }}
+    if: >-
+      ${{ github.event_name == 'workflow_dispatch' &&
+          github.event.inputs.pkcs11_full_shard_diagnostics == 'true' }}
+    runs-on: macos-latest
+    timeout-minutes: 200
+    strategy:
+      fail-fast: false
+      matrix:
+        mode: [control, trace]
+        attempt: [1, 2]
+    steps:
+    - uses: actions/checkout@v7
+      with:
+        fetch-depth: 0
+
+    - uses: ./.github/actions/run-dotnet-tests
+      with:
+        projects: >-
+          tests/Opc.Ua.Robotics.Tests/Opc.Ua.Robotics.Tests.csproj;tests/Opc.Ua.Scales.Tests/Opc.Ua.Scales.Tests.csproj;tests/Opc.Ua.Security.Certificates.Tests/Opc.Ua.Security.Certificates.Tests.csproj;tests/Opc.Ua.Security.Pkcs11.Tests/Opc.Ua.Security.Pkcs11.Tests.csproj
+        custom-test-target: net11.0
+        framework: net11.0
+        configuration: Release
+        dotnet: '11.0.100'
+        filter: 'TestCategory!=LongRunning&TestCategory!=Stress'
+        hang-timeout: 10m
+        per-project-timeout: '45'
+        coverage: 'true'
+        artifact-name: macos-pkcs11-full-shard-${{ matrix.mode }}-${{ matrix.attempt }}
+        macos-native-loader-diagnostics: ${{ matrix.mode }}
+
   code-coverage:
     name: code coverage
     needs: [discover, build-and-test]
@@ -229,9 +338,7 @@ jobs:
         fetch-depth: 0
 
     - name: Setup .NET
-      uses: actions/setup-dotnet@v6
-      with:
-        dotnet-version: '10.0.402'
+      uses: ./.github/actions/setup-repository-dotnet
 
     - name: Download test results
       uses: actions/download-artifact@v8
@@ -269,9 +376,17 @@ jobs:
       shell: pwsh
       run: |
         $ErrorActionPreference = 'Stop'
-        dotnet tool install --tool-path tools dotnet-reportgenerator-globaltool
+        ./.github/scripts/normalize-coverage.ps1 `
+            -InputDirectory coverage-artifacts `
+            -OutputDirectory normalized-coverage
+        ./.github/scripts/prepare-coverage-class-identities.ps1 `
+            -InputDirectory normalized-coverage
+        dotnet tool install --tool-path tools dotnet-reportgenerator-globaltool --version 5.5.11
+        if ($LASTEXITCODE -ne 0) {
+            throw "ReportGenerator 5.5.11 installation failed with exit code $LASTEXITCODE."
+        }
         ./tools/reportgenerator `
-            '-reports:coverage-artifacts/**/*.cobertura.xml' `
+            '-reports:normalized-coverage/**/*.cobertura.xml' `
             '-targetdir:CodeCoverage' `
             '-reporttypes:Cobertura;HtmlSummary' `
             '-title:UA .Net Standard Test Coverage' `
@@ -280,6 +395,9 @@ jobs:
             Write-Host "::error title=Code coverage::ReportGenerator failed with exit code $LASTEXITCODE."
             exit $LASTEXITCODE
         }
+        ./.github/scripts/prepare-coverage-class-identities.ps1 `
+            -InputDirectory normalized-coverage `
+            -RestoreReport CodeCoverage/Cobertura.xml
 
     - name: Upload merged coverage report
       if: ${{ steps.probe.outputs.has_reports == 'true' }}
@@ -376,14 +494,15 @@ jobs:
 
   aot-test:
     needs: discover
-    name: aot-${{ matrix.os }}
+    name: aot-${{ matrix.os }}-${{ matrix.tfm }}
     runs-on: ${{ matrix.os }}
     if: ${{ needs.discover.outputs.aot_matrix != '[]' }}
     strategy:
       fail-fast: false
       matrix:
-        # OS + RID pairs computed by `discover`. Windows AoT is covered by the
-        # full-scope workflow, which publishes and runs all four RIDs.
+        # OS + RID + target framework entries computed by `discover`. Windows
+        # AoT is covered by the full-scope workflow, which publishes and runs all
+        # four RIDs.
         include: ${{ fromJSON(needs.discover.outputs.aot_matrix) }}
 
     env:
@@ -394,7 +513,6 @@ jobs:
       # binary is published and run on every AOT platform.
       AOTPROJECT_HISTORIAN: './tests/Opc.Ua.Aot.Tests.Historian/Opc.Ua.Aot.Tests.Historian.csproj'
       AOTPROJECT_MCP: './tests/Opc.Ua.Aot.Tests.Mcp/Opc.Ua.Aot.Tests.Mcp.csproj'
-      DOTNET_VERSION: '10.0.402'
       CONFIGURATION: 'Release'
 
     steps:
@@ -402,50 +520,48 @@ jobs:
       with:
         fetch-depth: 0
 
-    - name: Setup .NET ${{ env.DOTNET_VERSION }}
-      uses: actions/setup-dotnet@v6
-      with:
-        dotnet-version: ${{ env.DOTNET_VERSION }}
+    - name: Setup .NET from global.json
+      uses: ./.github/actions/setup-repository-dotnet
 
     - name: Set Cloud Version
       shell: pwsh
       run: ./.azurepipelines/set-version.ps1
 
     - name: Publish NativeAOT
-      run: dotnet publish ${{ env.AOTPROJECT }} --configuration ${{ env.CONFIGURATION }}
+      run: dotnet publish ${{ env.AOTPROJECT }} --configuration ${{ env.CONFIGURATION }} --framework ${{ matrix.tfm }} -p:CustomTestTarget=${{ matrix.tfm }}
 
     - name: Run NativeAOT Tests
       run: >-
-        ./tests/Opc.Ua.Aot.Tests/bin/${{ env.CONFIGURATION }}/net10.0/${{ matrix.rid }}/publish/Opc.Ua.Aot.Tests
+        ./tests/Opc.Ua.Aot.Tests/bin/${{ env.CONFIGURATION }}/${{ matrix.tfm }}/${{ matrix.rid }}/publish/Opc.Ua.Aot.Tests
         --results-directory ./TestResults/aot-main
 
     - name: Publish NativeAOT (Historian)
-      run: dotnet publish ${{ env.AOTPROJECT_HISTORIAN }} --configuration ${{ env.CONFIGURATION }}
+      run: dotnet publish ${{ env.AOTPROJECT_HISTORIAN }} --configuration ${{ env.CONFIGURATION }} --framework ${{ matrix.tfm }} -p:CustomTestTarget=${{ matrix.tfm }}
 
     - name: Run NativeAOT Tests (Historian)
       run: >-
-        ./tests/Opc.Ua.Aot.Tests.Historian/bin/${{ env.CONFIGURATION }}/net10.0/${{ matrix.rid }}/publish/Opc.Ua.Aot.Tests.Historian
+        ./tests/Opc.Ua.Aot.Tests.Historian/bin/${{ env.CONFIGURATION }}/${{ matrix.tfm }}/${{ matrix.rid }}/publish/Opc.Ua.Aot.Tests.Historian
         --results-directory ./TestResults/aot-historian
 
     - name: Publish NativeAOT (MCP)
-      run: dotnet publish ${{ env.AOTPROJECT_MCP }} --configuration ${{ env.CONFIGURATION }}
+      run: dotnet publish ${{ env.AOTPROJECT_MCP }} --configuration ${{ env.CONFIGURATION }} --framework ${{ matrix.tfm }} -p:CustomTestTarget=${{ matrix.tfm }}
 
     - name: Run NativeAOT Tests (MCP)
       run: >-
-        ./tests/Opc.Ua.Aot.Tests.Mcp/bin/${{ env.CONFIGURATION }}/net10.0/${{ matrix.rid }}/publish/Opc.Ua.Aot.Tests.Mcp
+        ./tests/Opc.Ua.Aot.Tests.Mcp/bin/${{ env.CONFIGURATION }}/${{ matrix.tfm }}/${{ matrix.rid }}/publish/Opc.Ua.Aot.Tests.Mcp
         --results-directory ./TestResults/aot-mcp
 
     - name: Upload test results
       uses: actions/upload-artifact@v7
       with:
-        name: aot-results-${{ matrix.os }}
+        name: aot-results-${{ matrix.os }}-${{ matrix.tfm }}
         path: '**/TestResults/**'
       if: ${{ always() }}
 
     - name: Upload HTML Test Report
       uses: actions/upload-artifact@v7
       with:
-        name: TestReport-aot-${{ matrix.os }}
+        name: TestReport-aot-${{ matrix.os }}-${{ matrix.tfm }}
         path: '**/*-report.html'
       if: ${{ always() }}
 
@@ -473,14 +589,24 @@ jobs:
         # a shallow clone.
         fetch-depth: 0
 
-    - name: Setup .NET
-      uses: actions/setup-dotnet@v6
+    - name: Setup repository .NET SDK
+      uses: ./.github/actions/setup-repository-dotnet
       with:
         dotnet-version: ${{ matrix.entry.dotnet }}
 
     - name: Set cloud version
       shell: pwsh
       run: ./.azurepipelines/set-version.ps1
+
+    # Only UA.slnx contains the Aspire AppHost, which imports the Aspire SDK
+    # when CustomTestTarget is empty, net10.0 or net11.0.
+    - name: Install the Aspire CLI bundle
+      if: >-
+        ${{ matrix.entry.solution == 'UA.slnx' &&
+            (matrix.entry.customTestTarget == 'net10.0' || matrix.entry.customTestTarget == 'net11.0' ||
+             matrix.entry.customTestTarget == '') }}
+      shell: pwsh
+      run: ./.github/scripts/install-aspire-bundle.ps1
 
     - name: Build ${{ matrix.entry.solution }} (${{ matrix.entry.customTestTarget }})
       shell: pwsh
@@ -510,9 +636,9 @@ jobs:
         # Full history: Nerdbank.GitVersioning refuses to compute a version from
         # a shallow clone, which fails the build before any test runs.
         fetch-depth: 0
-    - uses: actions/setup-dotnet@v6
+    - uses: ./.github/actions/setup-repository-dotnet
       with:
-        dotnet-version: 10.0.402
+        dotnet-version: 10.0.x
     - name: Validate manifest and negative controls
       shell: pwsh
       run: ./fuzzing/Scripts/validate-fuzz-manifest.ps1 -SelfTest
@@ -552,9 +678,7 @@ jobs:
         - os: ubuntu-latest
           framework: net10.0
         - os: ubuntu-latest
-          framework: net8.0
-        - os: ubuntu-latest
-          framework: net9.0
+          framework: net11.0
         - os: windows-latest
           framework: net48
     steps:
@@ -563,12 +687,11 @@ jobs:
         # Full history: Nerdbank.GitVersioning refuses to compute a version from
         # a shallow clone, which fails the build before any test runs.
         fetch-depth: 0
-    - uses: actions/setup-dotnet@v6
+    - name: Setup repository .NET SDK with .NET 10 runtime
+      uses: ./.github/actions/setup-repository-dotnet
       with:
         dotnet-version: |
-          8.0.x
-          9.0.x
-          10.0.402
+          10.0.x
     - name: Run fuzz regressions
       shell: pwsh
       run: ./fuzzing/Scripts/test-fuzzing.ps1 -Framework '${{ matrix.framework }}' -ResultsDirectory '${{ runner.temp }}/fuzz-results'

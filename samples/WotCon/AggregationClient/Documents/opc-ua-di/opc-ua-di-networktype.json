@@ -3,6 +3,7 @@
     "https://www.w3.org/2022/wot/td/v1.1",
     {
       "ns1": "http://opcfoundation.org/UA/DI/",
+      "qudt": "http://qudt.org/schema/qudt/",
       "ua": "http://opcfoundation.org/UA/",
       "uav": "http://opcfoundation.org/UA/WoT-Binding/"
     },
@@ -297,6 +298,7 @@
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "NetworkType"
           }
         ],
@@ -323,6 +325,573 @@
           }
         ],
         "superType": "i=58"
+      },
+      {
+        "browseName": "1:<ProfileIdentifier>",
+        "displayName": [
+          {
+            "locale": "",
+            "value": "<ProfileIdentifier>"
+          }
+        ],
+        "modellingRule": "MandatoryPlaceholder",
+        "nodeClass": "Object",
+        "nodeId": "ns=1;i=6596",
+        "parentNodeId": "ns=1;i=6247",
+        "references": [
+          {
+            "referenceType": "HasTypeDefinition",
+            "target": "ns=1;i=1006"
+          },
+          {
+            "referenceType": "HasModellingRule",
+            "target": "i=11510"
+          },
+          {
+            "isForward": false,
+            "referenceType": "HasComponent",
+            "target": "ns=1;i=6247"
+          }
+        ],
+        "symbolicName": "ProfileIdentifier",
+        "typeDefinition": "ns=1;i=1006"
+      },
+      {
+        "browseName": "1:<CPIdentifier>",
+        "displayName": [
+          {
+            "locale": "",
+            "value": "<CPIdentifier>"
+          }
+        ],
+        "modellingRule": "OptionalPlaceholder",
+        "nodeClass": "Object",
+        "nodeId": "ns=1;i=6248",
+        "parentNodeId": "ns=1;i=6247",
+        "references": [
+          {
+            "referenceType": "HasComponent",
+            "target": "ns=1;i=6292"
+          },
+          {
+            "referenceType": "HasComponent",
+            "target": "ns=1;i=6499"
+          },
+          {
+            "referenceType": "HasTypeDefinition",
+            "target": "ns=1;i=6308"
+          },
+          {
+            "referenceType": "HasModellingRule",
+            "target": "i=11508"
+          },
+          {
+            "isForward": false,
+            "referenceType": "ns=1;i=6030",
+            "target": "ns=1;i=6247"
+          }
+        ],
+        "symbolicName": "CPIdentifier",
+        "typeDefinition": "ns=1;i=6308"
+      },
+      {
+        "browseName": "1:NetworkAddress",
+        "displayName": [
+          {
+            "locale": "",
+            "value": "NetworkAddress"
+          }
+        ],
+        "modellingRule": "Mandatory",
+        "nodeClass": "Object",
+        "nodeId": "ns=1;i=6292",
+        "parentNodeId": "ns=1;i=6248",
+        "references": [
+          {
+            "referenceType": "HasTypeDefinition",
+            "target": "ns=1;i=1005"
+          },
+          {
+            "referenceType": "HasModellingRule",
+            "target": "i=78"
+          },
+          {
+            "isForward": false,
+            "referenceType": "HasComponent",
+            "target": "ns=1;i=6248"
+          }
+        ],
+        "typeDefinition": "ns=1;i=1005"
+      },
+      {
+        "browseName": "1:Lock",
+        "displayName": [
+          {
+            "locale": "",
+            "value": "Lock"
+          }
+        ],
+        "modellingRule": "Optional",
+        "nodeClass": "Object",
+        "nodeId": "ns=1;i=6294",
+        "parentNodeId": "ns=1;i=6247",
+        "references": [
+          {
+            "referenceType": "HasProperty",
+            "target": "ns=1;i=6497"
+          },
+          {
+            "referenceType": "HasProperty",
+            "target": "ns=1;i=6296"
+          },
+          {
+            "referenceType": "HasProperty",
+            "target": "ns=1;i=6297"
+          },
+          {
+            "referenceType": "HasProperty",
+            "target": "ns=1;i=6298"
+          },
+          {
+            "referenceType": "HasComponent",
+            "target": "ns=1;i=6299"
+          },
+          {
+            "referenceType": "HasComponent",
+            "target": "ns=1;i=6302"
+          },
+          {
+            "referenceType": "HasComponent",
+            "target": "ns=1;i=6304"
+          },
+          {
+            "referenceType": "HasComponent",
+            "target": "ns=1;i=6306"
+          },
+          {
+            "referenceType": "HasTypeDefinition",
+            "target": "ns=1;i=6388"
+          },
+          {
+            "referenceType": "HasModellingRule",
+            "target": "i=80"
+          },
+          {
+            "isForward": false,
+            "referenceType": "HasComponent",
+            "target": "ns=1;i=6247"
+          }
+        ],
+        "typeDefinition": "ns=1;i=6388"
+      },
+      {
+        "arrayDimensions": "",
+        "browseName": "1:Locked",
+        "dataType": "Boolean",
+        "displayName": [
+          {
+            "locale": "",
+            "value": "Locked"
+          }
+        ],
+        "modellingRule": "Mandatory",
+        "nodeClass": "Variable",
+        "nodeId": "ns=1;i=6497",
+        "parentNodeId": "ns=1;i=6294",
+        "references": [
+          {
+            "referenceType": "HasTypeDefinition",
+            "target": "i=68"
+          },
+          {
+            "referenceType": "HasModellingRule",
+            "target": "i=78"
+          },
+          {
+            "isForward": false,
+            "referenceType": "HasProperty",
+            "target": "ns=1;i=6294"
+          }
+        ],
+        "typeDefinition": "i=68"
+      },
+      {
+        "arrayDimensions": "",
+        "browseName": "1:LockingClient",
+        "dataType": "String",
+        "displayName": [
+          {
+            "locale": "",
+            "value": "LockingClient"
+          }
+        ],
+        "modellingRule": "Mandatory",
+        "nodeClass": "Variable",
+        "nodeId": "ns=1;i=6296",
+        "parentNodeId": "ns=1;i=6294",
+        "references": [
+          {
+            "referenceType": "HasTypeDefinition",
+            "target": "i=68"
+          },
+          {
+            "referenceType": "HasModellingRule",
+            "target": "i=78"
+          },
+          {
+            "isForward": false,
+            "referenceType": "HasProperty",
+            "target": "ns=1;i=6294"
+          }
+        ],
+        "typeDefinition": "i=68"
+      },
+      {
+        "arrayDimensions": "",
+        "browseName": "1:LockingUser",
+        "dataType": "String",
+        "displayName": [
+          {
+            "locale": "",
+            "value": "LockingUser"
+          }
+        ],
+        "modellingRule": "Mandatory",
+        "nodeClass": "Variable",
+        "nodeId": "ns=1;i=6297",
+        "parentNodeId": "ns=1;i=6294",
+        "references": [
+          {
+            "referenceType": "HasTypeDefinition",
+            "target": "i=68"
+          },
+          {
+            "referenceType": "HasModellingRule",
+            "target": "i=78"
+          },
+          {
+            "isForward": false,
+            "referenceType": "HasProperty",
+            "target": "ns=1;i=6294"
+          }
+        ],
+        "typeDefinition": "i=68"
+      },
+      {
+        "arrayDimensions": "",
+        "browseName": "1:RemainingLockTime",
+        "dataType": "i=290",
+        "displayName": [
+          {
+            "locale": "",
+            "value": "RemainingLockTime"
+          }
+        ],
+        "modellingRule": "Mandatory",
+        "nodeClass": "Variable",
+        "nodeId": "ns=1;i=6298",
+        "parentNodeId": "ns=1;i=6294",
+        "references": [
+          {
+            "referenceType": "HasTypeDefinition",
+            "target": "i=68"
+          },
+          {
+            "referenceType": "HasModellingRule",
+            "target": "i=78"
+          },
+          {
+            "isForward": false,
+            "referenceType": "HasProperty",
+            "target": "ns=1;i=6294"
+          }
+        ],
+        "typeDefinition": "i=68"
+      },
+      {
+        "browseName": "1:InitLock",
+        "displayName": [
+          {
+            "locale": "",
+            "value": "InitLock"
+          }
+        ],
+        "methodDeclarationId": "ns=1;i=6393",
+        "modellingRule": "Mandatory",
+        "nodeClass": "Method",
+        "nodeId": "ns=1;i=6299",
+        "parentNodeId": "ns=1;i=6294",
+        "references": [
+          {
+            "referenceType": "HasProperty",
+            "target": "ns=1;i=6300"
+          },
+          {
+            "referenceType": "HasProperty",
+            "target": "ns=1;i=6301"
+          },
+          {
+            "referenceType": "HasModellingRule",
+            "target": "i=78"
+          },
+          {
+            "isForward": false,
+            "referenceType": "HasComponent",
+            "target": "ns=1;i=6294"
+          }
+        ]
+      },
+      {
+        "arrayDimensions": "1",
+        "browseName": "InputArguments",
+        "dataType": "i=296",
+        "displayName": [
+          {
+            "locale": "",
+            "value": "InputArguments"
+          }
+        ],
+        "modellingRule": "Mandatory",
+        "nodeClass": "Variable",
+        "nodeId": "ns=1;i=6300",
+        "parentNodeId": "ns=1;i=6299",
+        "references": [
+          {
+            "referenceType": "HasTypeDefinition",
+            "target": "i=68"
+          },
+          {
+            "referenceType": "HasModellingRule",
+            "target": "i=78"
+          },
+          {
+            "isForward": false,
+            "referenceType": "HasProperty",
+            "target": "ns=1;i=6299"
+          }
+        ],
+        "typeDefinition": "i=68",
+        "valueRank": 1,
+        "valueXml": "<ListOfExtensionObject xmlns=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">\n        <ExtensionObject>\n          <TypeId>\n            <Identifier>i=297</Identifier>\n          </TypeId>\n          <Body>\n            <Argument>\n              <Name>Context</Name>\n              <DataType>\n                <Identifier>i=12</Identifier>\n              </DataType>\n              <ValueRank>-1</ValueRank>\n              <ArrayDimensions />\n            </Argument>\n          </Body>\n        </ExtensionObject>\n      </ListOfExtensionObject>"
+      },
+      {
+        "arrayDimensions": "1",
+        "browseName": "OutputArguments",
+        "dataType": "i=296",
+        "displayName": [
+          {
+            "locale": "",
+            "value": "OutputArguments"
+          }
+        ],
+        "modellingRule": "Mandatory",
+        "nodeClass": "Variable",
+        "nodeId": "ns=1;i=6301",
+        "parentNodeId": "ns=1;i=6299",
+        "references": [
+          {
+            "referenceType": "HasTypeDefinition",
+            "target": "i=68"
+          },
+          {
+            "referenceType": "HasModellingRule",
+            "target": "i=78"
+          },
+          {
+            "isForward": false,
+            "referenceType": "HasProperty",
+            "target": "ns=1;i=6299"
+          }
+        ],
+        "typeDefinition": "i=68",
+        "valueRank": 1,
+        "valueXml": "<ListOfExtensionObject xmlns=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">\n        <ExtensionObject>\n          <TypeId>\n            <Identifier>i=297</Identifier>\n          </TypeId>\n          <Body>\n            <Argument>\n              <Name>InitLockStatus</Name>\n              <DataType>\n                <Identifier>i=6</Identifier>\n              </DataType>\n              <ValueRank>-1</ValueRank>\n              <ArrayDimensions />\n            </Argument>\n          </Body>\n        </ExtensionObject>\n      </ListOfExtensionObject>"
+      },
+      {
+        "browseName": "1:RenewLock",
+        "displayName": [
+          {
+            "locale": "",
+            "value": "RenewLock"
+          }
+        ],
+        "methodDeclarationId": "ns=1;i=6396",
+        "modellingRule": "Mandatory",
+        "nodeClass": "Method",
+        "nodeId": "ns=1;i=6302",
+        "parentNodeId": "ns=1;i=6294",
+        "references": [
+          {
+            "referenceType": "HasProperty",
+            "target": "ns=1;i=6303"
+          },
+          {
+            "referenceType": "HasModellingRule",
+            "target": "i=78"
+          },
+          {
+            "isForward": false,
+            "referenceType": "HasComponent",
+            "target": "ns=1;i=6294"
+          }
+        ]
+      },
+      {
+        "arrayDimensions": "1",
+        "browseName": "OutputArguments",
+        "dataType": "i=296",
+        "displayName": [
+          {
+            "locale": "",
+            "value": "OutputArguments"
+          }
+        ],
+        "modellingRule": "Mandatory",
+        "nodeClass": "Variable",
+        "nodeId": "ns=1;i=6303",
+        "parentNodeId": "ns=1;i=6302",
+        "references": [
+          {
+            "referenceType": "HasTypeDefinition",
+            "target": "i=68"
+          },
+          {
+            "referenceType": "HasModellingRule",
+            "target": "i=78"
+          },
+          {
+            "isForward": false,
+            "referenceType": "HasProperty",
+            "target": "ns=1;i=6302"
+          }
+        ],
+        "typeDefinition": "i=68",
+        "valueRank": 1,
+        "valueXml": "<ListOfExtensionObject xmlns=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">\n        <ExtensionObject>\n          <TypeId>\n            <Identifier>i=297</Identifier>\n          </TypeId>\n          <Body>\n            <Argument>\n              <Name>RenewLockStatus</Name>\n              <DataType>\n                <Identifier>i=6</Identifier>\n              </DataType>\n              <ValueRank>-1</ValueRank>\n              <ArrayDimensions />\n            </Argument>\n          </Body>\n        </ExtensionObject>\n      </ListOfExtensionObject>"
+      },
+      {
+        "browseName": "1:ExitLock",
+        "displayName": [
+          {
+            "locale": "",
+            "value": "ExitLock"
+          }
+        ],
+        "methodDeclarationId": "ns=1;i=6398",
+        "modellingRule": "Mandatory",
+        "nodeClass": "Method",
+        "nodeId": "ns=1;i=6304",
+        "parentNodeId": "ns=1;i=6294",
+        "references": [
+          {
+            "referenceType": "HasProperty",
+            "target": "ns=1;i=6305"
+          },
+          {
+            "referenceType": "HasModellingRule",
+            "target": "i=78"
+          },
+          {
+            "isForward": false,
+            "referenceType": "HasComponent",
+            "target": "ns=1;i=6294"
+          }
+        ]
+      },
+      {
+        "arrayDimensions": "1",
+        "browseName": "OutputArguments",
+        "dataType": "i=296",
+        "displayName": [
+          {
+            "locale": "",
+            "value": "OutputArguments"
+          }
+        ],
+        "modellingRule": "Mandatory",
+        "nodeClass": "Variable",
+        "nodeId": "ns=1;i=6305",
+        "parentNodeId": "ns=1;i=6304",
+        "references": [
+          {
+            "referenceType": "HasTypeDefinition",
+            "target": "i=68"
+          },
+          {
+            "referenceType": "HasModellingRule",
+            "target": "i=78"
+          },
+          {
+            "isForward": false,
+            "referenceType": "HasProperty",
+            "target": "ns=1;i=6304"
+          }
+        ],
+        "typeDefinition": "i=68",
+        "valueRank": 1,
+        "valueXml": "<ListOfExtensionObject xmlns=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">\n        <ExtensionObject>\n          <TypeId>\n            <Identifier>i=297</Identifier>\n          </TypeId>\n          <Body>\n            <Argument>\n              <Name>ExitLockStatus</Name>\n              <DataType>\n                <Identifier>i=6</Identifier>\n              </DataType>\n              <ValueRank>-1</ValueRank>\n              <ArrayDimensions />\n            </Argument>\n          </Body>\n        </ExtensionObject>\n      </ListOfExtensionObject>"
+      },
+      {
+        "browseName": "1:BreakLock",
+        "displayName": [
+          {
+            "locale": "",
+            "value": "BreakLock"
+          }
+        ],
+        "methodDeclarationId": "ns=1;i=6400",
+        "modellingRule": "Mandatory",
+        "nodeClass": "Method",
+        "nodeId": "ns=1;i=6306",
+        "parentNodeId": "ns=1;i=6294",
+        "references": [
+          {
+            "referenceType": "HasProperty",
+            "target": "ns=1;i=6307"
+          },
+          {
+            "referenceType": "HasModellingRule",
+            "target": "i=78"
+          },
+          {
+            "isForward": false,
+            "referenceType": "HasComponent",
+            "target": "ns=1;i=6294"
+          }
+        ]
+      },
+      {
+        "arrayDimensions": "1",
+        "browseName": "OutputArguments",
+        "dataType": "i=296",
+        "displayName": [
+          {
+            "locale": "",
+            "value": "OutputArguments"
+          }
+        ],
+        "modellingRule": "Mandatory",
+        "nodeClass": "Variable",
+        "nodeId": "ns=1;i=6307",
+        "parentNodeId": "ns=1;i=6306",
+        "references": [
+          {
+            "referenceType": "HasTypeDefinition",
+            "target": "i=68"
+          },
+          {
+            "referenceType": "HasModellingRule",
+            "target": "i=78"
+          },
+          {
+            "isForward": false,
+            "referenceType": "HasProperty",
+            "target": "ns=1;i=6306"
+          }
+        ],
+        "typeDefinition": "i=68",
+        "valueRank": 1,
+        "valueXml": "<ListOfExtensionObject xmlns=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">\n        <ExtensionObject>\n          <TypeId>\n            <Identifier>i=297</Identifier>\n          </TypeId>\n          <Body>\n            <Argument>\n              <Name>BreakLockStatus</Name>\n              <DataType>\n                <Identifier>i=6</Identifier>\n              </DataType>\n              <ValueRank>-1</ValueRank>\n              <ArrayDimensions />\n            </Argument>\n          </Body>\n        </ExtensionObject>\n      </ListOfExtensionObject>"
       }
     ],
     "profileVersion": "1.0"

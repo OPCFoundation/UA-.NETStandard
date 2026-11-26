@@ -1,31 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using System.Collections.Generic;
@@ -151,6 +125,124 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
             m_mockFileSystem.Verify(
                 fs => fs.OpenWrite(It.IsAny<string>()),
                 Times.Never);
+        }
+
+        [Test]
+        public void EmitStatusVariantsAreDisabledByDefault()
+        {
+            ObjectTypeDesign objectType = CreateObjectType("FooType", CreateMethod("Reset"));
+            m_mockModelDesign.Setup(m => m.GetNodeDesigns()).Returns([objectType]);
+            using var stream = new MemoryStream();
+            m_mockFileSystem.Setup(fs => fs.OpenWrite(It.IsAny<string>())).Returns(stream);
+
+            new ObjectTypeProxyGenerator(CreateContext()).Emit();
+            string content = Encoding.UTF8.GetString(stream.ToArray());
+
+            Assert.That(content, Does.Contain("ValueTask ResetAsync("));
+            Assert.That(content, Does.Not.Contain("WithStatusAsync"));
+            Assert.That(content, Does.Not.Contain("CallMethodWithStatusAsync"));
+        }
+
+        [TestCase(0)]
+        [TestCase(1)]
+        [TestCase(2)]
+        public void EmitStatusVariantsPreserveTypedOutputsAndOriginalMethods(int outputCount)
+        {
+            Parameter[] outputs = outputCount switch
+            {
+                0 => [],
+                1 => [CreateParameter("returnCode", BasicDataType.UInt32)],
+                _ => [
+                    CreateParameter("returnCode", BasicDataType.UInt32),
+                    CreateParameter("message", BasicDataType.String)
+                ]
+            };
+            MethodDesign method = CreateMethod(
+                "Execute", inputs: [CreateParameter("request", BasicDataType.Int32)], outputs: outputs);
+            ObjectTypeDesign objectType = CreateObjectType("FooType", method);
+            m_mockModelDesign.Setup(m => m.GetNodeDesigns()).Returns([objectType]);
+            using var stream = new MemoryStream();
+            m_mockFileSystem.Setup(fs => fs.OpenWrite(It.IsAny<string>())).Returns(stream);
+
+            new ObjectTypeProxyGenerator(CreateContext(new GeneratorOptions
+            {
+                ObjectTypeProxyMethodsWithStatus = true
+            })).Emit();
+            string content = Encoding.UTF8.GetString(stream.ToArray());
+            string statusType = outputCount switch
+            {
+                0 => "<global::Opc.Ua.StatusCode>",
+                1 => "<(global::Opc.Ua.StatusCode CallStatus, uint returnCode)>",
+                _ => "<(global::Opc.Ua.StatusCode CallStatus, uint returnCode, string message)>"
+            };
+
+            Assert.That(content, Does.Contain($"ValueTask{statusType} ExecuteWithStatusAsync("));
+            Assert.That(content, Does.Contain(" ExecuteAsync("));
+            Assert.That(content, Does.Contain("int request,"));
+            Assert.That(content, Does.Contain("Variant.From(request)"));
+            Assert.That(content, Does.Contain("await CallMethodWithStatusAsync("));
+            Assert.That(content, Does.Contain("await CallMethodAsync("));
+            Assert.That(content, Does.Contain($"global::{kTestNamespacePrefix}.MethodIds.FooType_Execute"));
+            Assert.That(content, Does.Contain($"\"{kTestNamespaceUri}\","));
+            Assert.That(content, Does.Contain("\"Execute\","));
+            Assert.That(content, Does.Contain(outputCount switch
+            {
+                0 => "return _callStatus;",
+                1 => "return (_callStatus, _returnCode);",
+                _ => "return (_callStatus, _returnCode, _message);"
+            }));
+            if (outputCount > 0)
+            {
+                Assert.That(content, Does.Contain("_outputArguments[0].TryGetValue(out _returnCode"));
+            }
+        }
+
+        [Test]
+        public void EmitStatusVariantsAvoidStatusNameCollisionsWithoutRenamingLegacyArguments()
+        {
+            MethodDesign method = CreateMethod("Execute",
+                inputs: [CreateParameter("_callStatus", BasicDataType.Int32)],
+                outputs: [CreateParameter("CallStatus", BasicDataType.UInt32)]);
+            ObjectTypeDesign objectType = CreateObjectType("FooType", method);
+            m_mockModelDesign.Setup(m => m.GetNodeDesigns()).Returns([objectType]);
+            using var stream = new MemoryStream();
+            m_mockFileSystem.Setup(fs => fs.OpenWrite(It.IsAny<string>())).Returns(stream);
+
+            new ObjectTypeProxyGenerator(CreateContext(new GeneratorOptions
+            {
+                ObjectTypeProxyMethodsWithStatus = true
+            })).Emit();
+            string content = Encoding.UTF8.GetString(stream.ToArray());
+
+            Assert.That(content, Does.Contain("ValueTask<uint> ExecuteAsync("));
+            Assert.That(content, Does.Contain("StatusCode CallStatus, uint callStatusOut)> ExecuteWithStatusAsync("));
+            Assert.That(content, Does.Contain("int _callStatus,"));
+            Assert.That(content, Does.Contain("var (_callStatus_, _outputArguments)"));
+            Assert.That(content, Does.Contain("return (_callStatus_, _callStatusOut);"));
+        }
+
+        [Test]
+        public void EmitStatusVariantsRejectNullRequiredPrimitiveOutputsWithoutChangingLegacyNullBehavior()
+        {
+            ObjectTypeDesign objectType = CreateObjectType("FooType",
+                CreateMethod("Execute", outputs: [CreateParameter("returnCode", BasicDataType.Byte)]));
+            m_mockModelDesign.Setup(m => m.GetNodeDesigns()).Returns([objectType]);
+            using var stream = new MemoryStream();
+            m_mockFileSystem.Setup(fs => fs.OpenWrite(It.IsAny<string>())).Returns(stream);
+
+            new ObjectTypeProxyGenerator(CreateContext(new GeneratorOptions
+            {
+                ObjectTypeProxyMethodsWithStatus = true
+            })).Emit();
+            string content = Encoding.UTF8.GetString(stream.ToArray());
+            int statusStart = content.IndexOf(" ExecuteWithStatusAsync(", StringComparison.Ordinal);
+            string legacy = content[..statusStart];
+            string withStatus = content[statusStart..];
+
+            Assert.That(legacy, Does.Contain("_returnCode = default!;"));
+            Assert.That(withStatus, Does.Match(
+                @"if \(_outputArguments\[0\]\.IsNull\)\s*\{\s*" +
+                @"throw new global::Opc\.Ua\.ServiceResultException\("));
         }
 
         [Test]

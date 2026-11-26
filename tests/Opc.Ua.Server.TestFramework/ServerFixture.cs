@@ -1,36 +1,9 @@
-/* ========================================================================
- * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using System.Diagnostics;
 using System.IO;
-using System.Net.Sockets;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
@@ -67,6 +40,16 @@ namespace Opc.Ua.Server.TestFramework
         /// exercises the check whatever configuration the stack was built in.
         /// </summary>
         public bool DetectNodeIdCollisions { get; set; } = true;
+
+        /// <summary>
+        /// Whether an empty PKI folder is seeded with the application
+        /// certificates an identical server fixture created earlier in this
+        /// process (see <see cref="TestCertificateCache"/>). Off by default:
+        /// fixtures that build several applications of one identity may rely
+        /// on distinct key pairs. Harnesses that own one server and one client
+        /// per private PKI folder (ClientTestFramework, TestFixture) turn it on.
+        /// </summary>
+        public bool ReuseCachedCertificates { get; set; }
 
         public int TraceMasks { get; set; } =
             Utils.TraceMasks.Error |
@@ -347,7 +330,7 @@ namespace Opc.Ua.Server.TestFramework
         public async Task<T> StartAsync(string pkiRoot, int port = 0)
         {
             int testPort = port;
-            int serverStartRetries = 1;
+            int serverStartRetries = 25;
 
             if (Application == null)
             {
@@ -357,7 +340,6 @@ namespace Opc.Ua.Server.TestFramework
             if (port <= 0)
             {
                 testPort = ServerFixtureUtils.GetNextFreeIPPort();
-                serverStartRetries = 25;
             }
 
             bool retryStartServer;
@@ -372,23 +354,8 @@ namespace Opc.Ua.Server.TestFramework
                     when (serverStartRetries > 0 && ServerFixtureUtils.IsPortUnavailable(ex))
                 {
                     serverStartRetries--;
-                    testPort = UnsecureRandom.Shared.Next(
-                        ServerFixtureUtils.MinTestPort,
-                        ServerFixtureUtils.MaxTestPort);
-                    retryStartServer = true;
-                }
-                catch (Exception ex)
-                    when (serverStartRetries > 0 && IsAddressAlreadyInUse(ex))
-                {
-                    // The TCP listener reports a taken port as BadNoCommunication,
-                    // which the clause above retries. The HTTPS listener does not: it
-                    // lets Kestrel's IOException out verbatim, so without this the
-                    // retry designed for exactly this case never runs and the whole
-                    // fixture fails on a port race it was built to survive.
-                    serverStartRetries--;
-                    testPort = UnsecureRandom.Shared.Next(
-                        ServerFixtureUtils.MinTestPort,
-                        ServerFixtureUtils.MaxTestPort);
+                    // A fallback port can race too, including after an explicit initial port.
+                    testPort = ServerFixtureUtils.GetNextFreeIPPort();
                     retryStartServer = true;
                 }
 
@@ -411,8 +378,12 @@ namespace Opc.Ua.Server.TestFramework
                 = [$"{UriScheme}://localhost:{port}/{typeof(T).Name}"];
 
             // check the application certificate.
-            bool haveAppCertificate = await Application
-                .CheckApplicationInstanceCertificatesAsync(true, CertificateFactory.DefaultLifeTime)
+            bool haveAppCertificate = await TestCertificateCache
+                .CheckApplicationInstanceCertificatesAsync(
+                    Application,
+                    CertificateFactory.DefaultLifeTime,
+                    ReuseCachedCertificates,
+                    m_telemetry)
                 .ConfigureAwait(false);
             if (!haveAppCertificate)
             {
@@ -542,22 +513,11 @@ namespace Opc.Ua.Server.TestFramework
             // SubscriptionManager.ShutdownAsync and
             // NodeManager.ShutdownAsync).
             //
-            // GLOBAL FAST-PATH: once any fixture's teardown exceeds the
-            // watchdog in this test process, set a static "give up
-            // teardown" flag and short-circuit subsequent fixtures'
-            // teardowns to a no-op. This converts the worst case from
-            // (27 fixtures x N watchdog operations x 5s) into a single
-            // ~10s teardown stall: only the first hung fixture pays the
-            // watchdog cost; the rest skip directly to the next test
-            // host shutdown step. We accept the resource leak as the
-            // test process is about to exit.
-            if (s_skipRemainingTeardowns)
+            // A timed-out fixture may bound its own repeated teardown, but
+            // independent fixtures still need to release their live servers.
+            if (m_skipRemainingTeardown)
             {
-                m_logger.LogWarning(
-                    "ServerFixture.StopAsync: a prior fixture teardown timed out; " +
-                    "skipping the remaining server / application disposal in this process to " +
-                    "avoid pinning the dotnet test host past --blame-hang-timeout. " +
-                    "References will be released to the runtime for finalization.");
+                m_logger.FixtureTeardownSkipped();
                 DisposeCertificateManagers();
                 Server = null!;
                 Application = null!;
@@ -596,7 +556,6 @@ namespace Opc.Ua.Server.TestFramework
             Config = null!;
             ActivityListener?.Dispose();
             ActivityListener = null!;
-            await Task.Delay(100).ConfigureAwait(false);
         }
 
         private void DisposeCertificateManagers()
@@ -620,58 +579,10 @@ namespace Opc.Ua.Server.TestFramework
         }
 
         /// <summary>
-        /// Gets whether a start failure was a taken port, anywhere in its chain.
-        /// </summary>
-        /// <remarks>
-        /// The listener that failed decides the shape: TCP raises a
-        /// <see cref="ServiceResultException"/>, while Kestrel wraps a
-        /// <see cref="SocketException"/> in an <c>AddressInUseException</c> inside an
-        /// <see cref="IOException"/>. Only the socket error at the bottom is common to
-        /// both, so that is what this looks for.
-        /// </remarks>
-        private static bool IsAddressAlreadyInUse(Exception exception)
-        {
-            for (Exception current = exception;
-                current is not null;
-                current = current.InnerException!)
-            {
-                if (current is SocketException socket &&
-                    socket.SocketErrorCode == SocketError.AddressAlreadyInUse)
-                {
-                    return true;
-                }
-
-                if (current is AggregateException aggregate)
-                {
-                    foreach (Exception inner in aggregate.InnerExceptions)
-                    {
-                        if (IsAddressAlreadyInUse(inner))
-                        {
-                            return true;
-                        }
-                    }
-                }
-            }
-
-            return false;
-        }
-
-        private static readonly TimeSpan s_teardownTimeout = TimeSpan.FromSeconds(5);
-
-        /// <summary>
-        /// Set by the first <see cref="RunWithTeardownWatchdogAsync"/> or
-        /// <see cref="RunSyncWithTeardownWatchdog"/> invocation that
-        /// exceeds the watchdog. Subsequent fixtures' <see cref="StopAsync"/>
-        /// calls short-circuit to a no-op so we do not stack N x watchdog
-        /// timeouts during a known-bad teardown chain.
-        /// </summary>
-        private static volatile bool s_skipRemainingTeardowns;
-
-        /// <summary>
         /// Runs <paramref name="taskFactory"/> bounded by
         /// <see cref="s_teardownTimeout"/>. If the task does not complete
-        /// in time, logs a warning, sets <see cref="s_skipRemainingTeardowns"/>
-        /// so subsequent fixtures short-circuit, and returns; the
+        /// in time, logs a warning, sets <see cref="m_skipRemainingTeardown"/>
+        /// so this fixture's repeated teardown short-circuits, and returns; the
         /// underlying task is abandoned (it is a background continuation
         /// in the runtime thread pool, so it does not block process
         /// exit). Cross-TFM compatible: avoids
@@ -701,12 +612,8 @@ namespace Opc.Ua.Server.TestFramework
                 .ConfigureAwait(false);
             if (winner != work)
             {
-                s_skipRemainingTeardowns = true;
-                m_logger.LogWarning(
-                    "ServerFixture.StopAsync: {Operation} exceeded the {TimeoutSeconds}s teardown watchdog. " +
-                    "Continuing with the rest of the fixture teardown; subsequent fixtures will short-circuit.",
-                    operationName,
-                    s_teardownTimeout.TotalSeconds);
+                m_skipRemainingTeardown = true;
+                m_logger.FixtureAsyncTeardownTimedOut(operationName, s_teardownTimeout.TotalSeconds);
                 return;
             }
 
@@ -758,12 +665,8 @@ namespace Opc.Ua.Server.TestFramework
 
             if (!done.Wait(s_teardownTimeout))
             {
-                s_skipRemainingTeardowns = true;
-                m_logger.LogWarning(
-                    "ServerFixture.StopAsync: {Operation} exceeded the {TimeoutSeconds}s teardown watchdog (sync). " +
-                    "Continuing with the rest of the fixture teardown; subsequent fixtures will short-circuit.",
-                    operationName,
-                    s_teardownTimeout.TotalSeconds);
+                m_skipRemainingTeardown = true;
+                m_logger.FixtureSyncTeardownTimedOut(operationName, s_teardownTimeout.TotalSeconds);
                 return;
             }
 
@@ -791,5 +694,51 @@ namespace Opc.Ua.Server.TestFramework
         private readonly Func<ITelemetryContext, T> m_factory;
         private readonly ITelemetryContext m_telemetry;
         private readonly ILogger m_logger;
+        private static readonly TimeSpan s_teardownTimeout = TimeSpan.FromSeconds(5);
+
+        /// <summary>Whether this fixture already exhausted its bounded teardown attempt.</summary>
+        private volatile bool m_skipRemainingTeardown;
+    }
+
+    /// <summary>
+    /// Reports bounded teardown outcomes without changing other fixtures' ownership.
+    /// </summary>
+    internal static partial class ServerFixtureLog
+    {
+        /// <summary>
+        /// Reports that this fixture already exhausted its teardown budget.
+        /// </summary>
+        [LoggerMessage(
+            EventId = ServerTestFrameworkEventIds.ServerFixture + 0,
+            Level = LogLevel.Warning,
+            Message = "ServerFixture.StopAsync: this fixture's prior teardown timed out; " +
+                "skipping its repeated server / application disposal. Other fixtures still run their cleanup.")]
+        public static partial void FixtureTeardownSkipped(this ILogger logger);
+
+        /// <summary>
+        /// Reports an asynchronous operation that exceeded this fixture's teardown budget.
+        /// </summary>
+        [LoggerMessage(
+            EventId = ServerTestFrameworkEventIds.ServerFixture + 1,
+            Level = LogLevel.Warning,
+            Message = "ServerFixture.StopAsync: {Operation} exceeded the {TimeoutSeconds}s teardown watchdog. " +
+                "Continuing this fixture's teardown without disabling cleanup of other fixtures.")]
+        public static partial void FixtureAsyncTeardownTimedOut(
+            this ILogger logger,
+            string operation,
+            double timeoutSeconds);
+
+        /// <summary>
+        /// Reports a synchronous operation that exceeded this fixture's teardown budget.
+        /// </summary>
+        [LoggerMessage(
+            EventId = ServerTestFrameworkEventIds.ServerFixture + 2,
+            Level = LogLevel.Warning,
+            Message = "ServerFixture.StopAsync: {Operation} exceeded the {TimeoutSeconds}s teardown watchdog (sync). " +
+                "Continuing this fixture's teardown without disabling cleanup of other fixtures.")]
+        public static partial void FixtureSyncTeardownTimedOut(
+            this ILogger logger,
+            string operation,
+            double timeoutSeconds);
     }
 }

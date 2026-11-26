@@ -1,29 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person obtaining a
- * copy of this software and associated documentation files (the "Software"),
- * to deal in the Software without restriction, including without limitation
- * the rights to use, copy, modify, merge, publish, distribute, sublicense,
- * and/or sell copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following conditions:
- *
- * The above copyright notice and this permission notice shall be included
- * in all copies or substantial portions of the Software.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
- * OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
- * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
- * IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using System.Collections.Generic;
@@ -1987,7 +1963,7 @@ namespace Opc.Ua.Gds.Tests.Onboarding
 
             Assert.That(error!.StatusCode, Is.EqualTo(StatusCodes.BadSecurityChecksFailed));
             Assert.That(harness.CsrCalls, Is.Zero);
-            Assert.That(harness.CallMethods, Has.Count.EqualTo(1));
+            Assert.That(harness.CallMethods, Is.Empty);
             DeviceRegistrarDevice? state = await harness.Lifecycle.FindDeviceAsync(Harness.Product)
                 .ConfigureAwait(false);
             Assert.That(state!.DcaCertificate.IsEmpty, Is.True);
@@ -2205,6 +2181,7 @@ namespace Opc.Ua.Gds.Tests.Onboarding
             services.AddSingleton(new Mock<IApplicationsDatabase>().Object);
             services.AddSingleton(new Mock<IOnboardingIdentitySelector>().Object);
             services.AddSingleton(NUnitTelemetryContext.Create());
+            services.AddSingleton(new Mock<IDeviceRegistrarPushWorkStore>().Object);
 
             Assert.That(services.AddDeviceRegistrarPush(3), Is.SameAs(services));
             using ServiceProvider provider = services.BuildServiceProvider();
@@ -2508,6 +2485,7 @@ namespace Opc.Ua.Gds.Tests.Onboarding
                     }
                     services.AddSingleton(Initial.Telemetry);
                     services.AddSingleton<TimeProvider>(CleanupTime);
+                    services.AddSingleton(new Mock<IDeviceRegistrarPushWorkStore>().Object);
                     services.AddDeviceRegistrarPush();
                     m_services = services.BuildServiceProvider();
                     Processor = (DeviceRegistrarPushProcessor)m_services

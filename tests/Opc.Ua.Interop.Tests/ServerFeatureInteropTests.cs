@@ -1,31 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using System.Collections.Generic;
@@ -126,10 +100,11 @@ namespace Opc.Ua.Interop.Tests
                 CallMethodResult result = await CallAsync(new NodeId("Interop", m_ns), new NodeId("RaiseEvent", m_ns), ct)
                     .ConfigureAwait(false);
                 Assert.That(StatusCode.IsGood(result.StatusCode), Is.True, "RaiseEvent returned " + result.StatusCode);
-                EventFieldList received = await WaitForAsync(events,
+                EventFieldList? found = await WaitForAsync(events,
                     e => e.EventFields[2].TryGetValue(out LocalizedText message) && message.Text == "interop event", ct)
                     .ConfigureAwait(false);
-                Assert.That(received, Is.Not.Null, $"no event in {s_wait.TotalSeconds} s; received {events.Count}");
+                Assert.That(found, Is.Not.Null, $"no event in {s_wait.TotalSeconds} s; received {events.Count}");
+                EventFieldList received = found!.Value;
                 Assert.That(received.EventFields[0].TryGetValue(out ByteString id) && !id.IsEmpty, Is.True, "no EventId");
                 Assert.That(received.EventFields[3].TryGetValue(out ushort severity), Is.True, "no Severity");
                 Assert.That(severity, Is.EqualTo(500));
@@ -155,7 +130,7 @@ namespace Opc.Ua.Interop.Tests
                 CallMethodResult result = await CallAsync(ObjectTypeIds.ConditionType,
                     MethodIds.ConditionType_ConditionRefresh, ct, new Variant(subscription.Id)).ConfigureAwait(false);
                 Assert.That(StatusCode.IsGood(result.StatusCode), Is.True, "ConditionRefresh returned " + result.StatusCode);
-                EventFieldList end = await WaitForAsync(events,
+                EventFieldList? end = await WaitForAsync(events,
                     e => e.EventFields[1].TryGetValue(out NodeId type) && type == ObjectTypeIds.RefreshEndEventType, ct)
                     .ConfigureAwait(false);
                 Assert.That(end, Is.Not.Null, "no RefreshEndEvent");
@@ -649,7 +624,7 @@ namespace Opc.Ua.Interop.Tests
             }
         }
 
-        private static async Task<EventFieldList> WaitForAsync(
+        private static async Task<EventFieldList?> WaitForAsync(
             List<EventFieldList> events,
             Func<EventFieldList, bool> match,
             CancellationToken ct)
@@ -659,15 +634,17 @@ namespace Opc.Ua.Interop.Tests
             {
                 lock (events)
                 {
-                    EventFieldList found = events.FirstOrDefault(match)!;
-                    if (found != null)
+                    foreach (EventFieldList found in events)
                     {
-                        return found;
+                        if (match(found))
+                        {
+                            return found;
+                        }
                     }
                 }
                 await Task.Delay(100, ct).ConfigureAwait(false);
             }
-            return null!;
+            return null;
         }
 
         private async Task DeleteAsync(Subscription subscription, CancellationToken ct)

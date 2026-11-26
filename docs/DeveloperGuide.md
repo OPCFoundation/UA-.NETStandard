@@ -10,6 +10,7 @@ If you are new here, read the sections in order: [Prerequisites](#prerequisites)
 - [Repository layout](#repository-layout)
 - [Building](#building)
 - [Running tests](#running-tests)
+  - [Testing NodeManager lifecycle components](#testing-nodemanager-lifecycle-components)
   - [Testing UaLens](#testing-ualens)
 - [Coding standards (dos and don'ts)](#coding-standards-dos-and-donts)
 - [How-to guides](#how-to-guides)
@@ -33,14 +34,14 @@ If you are new here, read the sections in order: [Prerequisites](#prerequisites)
 
 ## Prerequisites
 
-- **.NET SDK 10.0.400 or later** — `global.json` sets this minimum and selects the highest installed stable SDK through `rollForward: latestMajor`; prerelease SDKs are excluded. CI selects its SDK version explicitly. The class libraries still *target* older frameworks (see [Packages, platform support, and versioning](#packages-platform-support-and-versioning)); those target frameworks do not determine the SDK used to build the repository.
+- **.NET SDK 11.0.100 or later (11.0 feature bands)** — `global.json` sets this minimum and selects the highest installed stable 11.0 SDK through `rollForward: latestFeature`; prerelease SDKs are excluded. (`actions/setup-dotnet` reads `latestMajor` as "the current LTS", which would install a .NET 10 SDK in CI.) CI installs the exact `global.json` SDK into a job-private directory through `.github/actions/setup-repository-dotnet`, so newer SDKs preinstalled on the runner image are not selected. The class libraries still *target* older frameworks (see [Packages, platform support, and versioning](#packages-platform-support-and-versioning)); those target frameworks do not determine the SDK used to build the repository.
 - **An IDE (optional but recommended)** — Visual Studio 2026, Visual Studio Code with the C# Dev Kit, or JetBrains Rider. Everything can also be done from the command line with `dotnet`.
 - **git** — to clone and to create feature branches.
 - **Docker Desktop (optional)** — only needed to run the containerized reference server; see [ContainerReferenceServer.md](ContainerReferenceServer.md).
 
 The C# language version is pinned (`LangVersion` 14) and analyzer/style rules are enforced by the build.
-A newer SDK can introduce diagnostics that CI's pinned SDK does not report.
-To reproduce CI diagnostics, use the SDK version selected by the relevant CI workflow.
+A newer .NET 11 SDK can introduce diagnostics that CI's SDK does not report.
+To reproduce CI diagnostics, use the SDK version selected in the relevant CI job.
 
 ## Repository layout
 
@@ -49,7 +50,7 @@ To reproduce CI diagnostics, use the SDK version selected by the relevant CI wor
 | `src/` | The core stack and higher-level libraries: `Opc.Ua.Types`, `Opc.Ua.Core*`, `Opc.Ua.Client`, `Opc.Ua.Server`, `Opc.Ua.Configuration`, `Opc.Ua.PubSub` (+ transports), the GDS / DI / LDS / WoT libraries, and the `Opc.Ua.Redundancy*` family. |
 | `samples/` | Reference and sample apps: `ConsoleReferenceServer`, `ConsoleReferenceClient`, `Quickstarts.Servers`, the `Minimal*` / `PumpDeviceIntegrationServer` NativeAOT samples, `Redundant*`, etc. |
 | `tests/` | Unit and integration test projects, mirroring the library structure, plus shared test frameworks. |
-| `tools/` | Source generators, migration analyzers, and the installable `Opc.Ua.Mcp` tool. Each analyzer and generator has a build project and — for the source generators — a `*.Pack` project that packages it under a Roslyn-versioned analyzer folder. |
+| `tools/` | Source generators, migration analyzers, the installable `Opc.Ua.Mcp` tool, and the [NodeSet2 to WoT export tool](WotExportTool.md). Each analyzer and generator has a build project and — for the source generators — a `*.Pack` project that packages it under a Roslyn-versioned analyzer folder. |
 | `docs/` | This documentation set (indexed by [docs/README.md](README.md)). |
 | `fuzzing/` | SharpFuzz / libFuzzer fuzz targets (see [Fuzzing.md](../fuzzing/Fuzzing.md)). |
 
@@ -81,6 +82,7 @@ Notes:
   ```
 
 - **Offline / restricted networks.** `NuGetAudit` is enabled and fails the build with `NU1900` when it cannot reach the audit service. If you build offline, pass `-p:NuGetAudit=false`.
+- **Native runtime output.** RID-less builds keep only native package assets compatible with the build host's SDK RID fallback chain and omit native `.pdb` files. This is enabled locally and in CI to avoid copying every platform's OpenUSD, SkiaSharp, and other native libraries into each output directory. RID-specific managed assemblies and builds/publishes with an explicit `RuntimeIdentifier` are unchanged. For portable multi-RID output (including native symbols), pass `-p:KeepAllNativeRuntimes=true`. Clean existing output directories once to remove foreign native assets left by earlier builds. The OpenUSD packages still copy host libraries flat into the output root and materialize aliases; this filtering does not remove that package-owned duplication.
 - **Source generators are consumed as project references.** Projects that use the in-repo generators reference `tools/Opc.Ua.SourceGeneration[.Stack]` with `OutputItemType=Analyzer`. MSBuild only hands the compiler the generator assembly itself, so `Directory.Build.targets` adds the generator's runtime closure (its output directory, minus the Roslyn host assemblies) as `Analyzer` items — the same payload the generator NuGet packages ship under `analyzers/dotnet/<roslyn>/cs`. Without it the generators cannot resolve their dependencies and fail to initialise with `CS8784`.
 - **Client member extensions are opt-in.** A client library can set `ModelSourceGeneratorClientAccessorsOnly` to generate typed variable accessors and placeholder enumerators over a referenced model, without checking in generated C# or duplicating model types. See [optional client member accessors](../tools/Opc.Ua.SourceGeneration/readme.md#optional-client-member-accessors) for the inputs and configuration.
 - **Analyzers and generators are shipped under a Roslyn-versioned analyzer folder.** `roslyn.props` pins the Roslyn API version, and each generator has a `*.Pack` project that ships it under `analyzers/dotnet/roslyn<major>.<minor>/cs`. See [Repository layout](#repository-layout) and the [support matrix](#supported-analyzer-and-source-generator-hosts). Because the repository's own projects consume that same build, **building this repository requires a Roslyn 5.x host** (the .NET 10 SDK or Visual Studio 2026).
@@ -99,15 +101,43 @@ application-desktop tests. See [Testing UaLens](#testing-ualens) for their comma
 Conventions and requirements:
 
 - **Frameworks.** Test projects use either **NUnit** (with `Assert.That` assertions and **Moq** for mocking) or **TUnit** (with its own assertions and mock helpers). Do not mix the two in one project, and do not use the classic NUnit asserts (`Assert.AreEqual`, …).
-- **Out-of-tree sample-test output.** When `--artifacts-path` places the WoT
-  aggregation tests outside the checkout, set `OPCUA_TEST_REPOSITORY_ROOT` to
-  the checkout containing `UA.slnx`. The sample fixtures read their original
+- **Out-of-tree source inputs.** When `--artifacts-path` places source-backed
+  fixtures outside the checkout, including repository policy,
+  HTTPS listener, WoT, NodeSet comparer and model/generator tests, set
+  `OPCUA_TEST_REPOSITORY_ROOT` to the checkout containing `UA.slnx`. These fixtures read their original
   repository assets there; no asset or assembly copying is needed. An invalid
   configured root fails explicitly instead of falling back to another checkout.
+  Source-generator runtime probes use Server and Client outputs from the same
+  artifacts directory and output pivot; build both projects with the same options.
+  Reflective MCP probes likewise select the MCP server output beside the current
+  test project's artifacts pivot, not another configuration or target framework.
 - **NUnit 5 async assertions.** Always await `Assert.ThrowsAsync`, `Assert.CatchAsync`, and `Assert.DoesNotThrowAsync`; these methods return tasks and no longer block until the assertion completes. The enclosing test or helper must return `Task`.
+- **WoT registry test storage.** File-backed registry and certificate fixtures
+  create unique directories under `Path.GetTempPath()` and delete their own
+  directories during cleanup. On Windows, select a short writable temporary
+  root before starting the runner (for example, set `TEMP` and `TMP` to
+  `D:\temp`). Registry staging keys and certificate names can otherwise exceed
+  the .NET Framework path limit when appended to a long checkout directory.
+  Keep repository assets in their existing locations; only writable test
+  storage belongs under the temporary root.
 - **Ordered NUnit fixtures.** Use `DependsOnTest` rather than the obsolete `Order` attribute. Existing sequencing-only dependencies use `AllowFailure = true` so one failed test does not suppress later tests. Filtering a dependent test also runs its prerequisites; dependency chains must not use fixture-level `Parallelizable`.
 - **Coverage.** Coverage is measured with **Coverlet** and must not regress; every non-application, non-test project should stay at or above **80 %**. Two gates enforce this in CI — see [Continuous integration](#continuous-integration).
 - **Integration tests.** Client/server and pub/sub features need integration tests as well as unit tests. A feature library's integration tests normally live with its unit tests in `<Component>.Tests`, for example `Opc.Ua.Robotics.Tests`, and every test project name ends in `.Tests`. Split integration tests into a separate project only when they run long, destabilise the unit tests, or the suite needs further division. Keep them deterministic: allocate a free port per fixture rather than hard-coding one, wait on the actual signal instead of using `Thread.Sleep` as a synchronisation primitive, and dispose every session, subscription and server in teardown including on failure. A flaky integration test is worse than none.
+- **Hosted-server fixtures.** Keep per-test PKI roots in short, unique temporary
+  directories and delete them after disposing the host. Certificate filenames
+  include the application name, algorithm and thumbprint; nesting the PKI under
+  a deep output path can exceed the .NET Framework path limit. When waiting for
+  readiness, also observe the hosted service's execution task so startup failures
+  surface immediately instead of becoming repeated readiness timeouts. Port
+  retries should probe a new free port rather than choose an unchecked number.
+  A fixture teardown watchdog bounds that fixture only; it must not disable
+  cleanup of independent fixtures later in the same test process.
+- **Allocation assertions.** Use `GC.GetAllocatedBytesForCurrentThread()` on
+  every test target, including net48, and verify that the measured operations
+  stay on that thread. AppDomain-wide counters include unrelated server activity
+  and cannot establish the allocation cost of one operation.
+- **OPC UA null values.** Assert `.IsNull` for structs implementing `INullable`,
+  rather than relying on NUnit's generic `Is.Default` constraint.
 - **Test output.** Keep successful-test output compact. NUnit and the test runner retain captured output and create additional copies when forwarding and serializing it to TRX; repeated exhaustive dumps can consume gigabytes of memory, inflate results artifacts, and stall the runner's shared socket (issue #4213). For small failure-only diagnostics, buffer the dump and emit it only when the test does not pass; see `EncoderCommon.TestOutput` in [`tests/Opc.Ua.Core.TestFramework/EncoderCommon.cs`](../tests/Opc.Ua.Core.TestFramework/EncoderCommon.cs). Stream large dumps to files and register them with `TestContext.AddTestAttachment` instead of building a large string or writing every line to `TestContext.Out`. `CommonTestWorkers.BrowseFullAddressSpaceWorkerAsync(..., outputResult: true)` follows this pattern: the full listing is a test-result attachment, while inline output contains only the reference count. Keep attachment files until the runner has collected them.
 - **Certificate leak diagnostics.** Set `OPCUA_CERTIFICATE_LEAK_TRACKING=1` before starting a
   test process to capture allocation stacks for `Certificate` handles that are not explicitly
@@ -126,8 +156,8 @@ Conventions and requirements:
       -p:CustomTestTarget=net10.0
   ```
 - **Before a pull request that changes C# source files**, the `UA.slnx` suite must pass on at least **.NET Framework 4.8** and **.NET 10.0**. Pull requests changing only non-C# files do not require these .NET test runs before opening.
-- **Testing a specific target framework.** The libraries multi-target, but the test executables run on one framework at a time. To run the suite against a non-default framework, set `CustomTestTarget` (supported values: `net48`, `net8.0`, `net9.0`, `net10.0`). The batch file [`tests/customtest.bat`](../tests/customtest.bat) cleans, restores, and runs the tests for a chosen target; in Visual Studio, uncomment and set the `CustomTestTarget` property in [`targets.props`](../targets.props). A clean build for the target is recommended when switching.
-- **CI matrix.** The pull-request gate runs the test suite on **net48** and **net10.0**, and compiles the solution for *every* supported target framework; the remaining test matrices (Debug, .NET 9/8) run in scheduled or manual CI. Fix all failing, flaky, and CodeQL findings in the pipelines. See [Continuous integration](#continuous-integration).
+- **Testing a specific target framework.** The libraries multi-target, but the test executables run on one framework at a time. To run the suite against a non-default framework, set `CustomTestTarget` (supported values: `net48`, `net10.0`, `net11.0`). The batch file [`tests/customtest.bat`](../tests/customtest.bat) cleans, restores, and runs the tests for a chosen target; in Visual Studio, uncomment and set the `CustomTestTarget` property in [`targets.props`](../targets.props). A clean build for the target is recommended when switching.
+- **CI matrix.** The pull-request gate runs the test suite on **net48** and **net11.0**, and compiles the solution for *every* supported target framework; the remaining test matrices (net10.0 and Debug) run in scheduled or manual CI. Fix all failing, flaky, and CodeQL findings in the pipelines. See [Continuous integration](#continuous-integration).
 
 Wire compatibility with the released 1.5 stack is covered by
 [`tests/Opc.Ua.Interop.Tests`](../tests/Opc.Ua.Interop.Tests), in both
@@ -207,6 +237,124 @@ sleeps. Keep every phase wait bounded. When checking the recreate/drain wiring,
 disable the managed-session channel deadline so outer takeover cannot mask a
 broken drain, and verify the parked Publish attempt has unwound before allowing
 replacement-session creation to finish.
+
+### Testing NodeManager lifecycle components
+
+Lifecycle tests are in `tests\Opc.Ua.Server.Tests\NodeManager`, under the
+`Opc.Ua.Server.Tests.NodeManager` namespace. Choose a fixture by the behavior
+you need to exercise:
+
+| Fixture | Scope |
+| --- | --- |
+| `ChangePreparerTests` | Private metadata and candidate ownership |
+| `PreparedNodeManagerTests` | Candidate identity, disposal and retained snapshots |
+| `LifecycleWriterTests` | Mutation ownership, publication sessions and shutdown drain |
+| `NodeManagerRoutingTableTests` | Routing images, reservations and candidate publication |
+| `ConformanceRoutingTests` | Visible conformance contributions and routed facade identity |
+| `NodeManagerGenerationTests` | Slot identity, ownership, admission, quiescence and deferred-event delivery |
+| `StripedCounterTests` | Entries across all stripes and cross-thread exits |
+| `GenerationGateTests` | Generation admission, retirement drain and view-epoch lifetimes |
+| `NodeManagerRegistrationTests` | Registration metadata and namespace copying |
+| `NodeManagerLifecycleCompatibilityTests` | Primary-contract preparation, argument guards, prepared-owner cleanup, and retirement status |
+| `NodeManagerCleanupAuthorityTests` | Cleanup-recovery authority binding and adapter identity |
+| `NodeManagerCleanupRecoveryTests` | Participant snapshots and sanitized failure descriptions |
+| `NodeManagerCleanupResourceTests` | Exact synchronous and asynchronous verification resources |
+| `NodeManagerHistoryReadScopeTests` | Captured history-read scope and continuation ownership |
+| `HistoryReadContinuationDispatchTests` | History continuation dispatch and generation admission |
+| `GenerationReclaimerTests` | Physical retirement, cleanup retries and generation ownership |
+| `GenerationReconcilerTests` | Session binding, reconciliation retries and result ownership |
+| `NodeManagerCallbackPermitTests` | Callback capabilities, execution-context revocation and borrowed-admission drain |
+| `NodeManagerReadinessScopeTests` | Initializer authority and captured-context revocation |
+| `NodeLookupReadinessRegressionTests` | Readiness-scoped lookup and pinned request routes |
+| `NodeManagerLegacyLookupScopeTests` | Pinned and expired routing views in legacy lookups |
+| `NodeManagerModelChangeScopeTests` | Nested NodeVersion bumps, reentrant writes and scope restoration |
+| `NodeManagerLifecycleBatchConflictTests` | Shared type-image conflicts and candidate historian binding cleanup |
+| `NodeManagerLifecycleChangeSetCleanupTests` | Failed and stale commits, candidate disposal and actual writer drain |
+| `NodeManagerLifecycleTests` | Hosted publication, concurrent candidate claims and startup behavior |
+
+Every listed fixture except `NodeManagerLifecycleTests` runs without starting a
+server. The conflict and cleanup fixtures use the real lifecycle and master
+routing publisher over constructed server internals. Use `NodeManagerLifecycleTests`
+when the behavior needs hosted requests, runtime consumers or server startup.
+
+The macOS and net48 CI profiles keep this hosted fixture nonparallel and split
+its methods into disjoint workloads: `Prepared*` first, remaining names starting
+with `A` through `N`, then all remaining names. The matrix generator owns these
+filters; update `CiMatrixScriptTests` and verify the discovered case multiset
+when changing them. Sharding does not relax the per-project timeout or remove
+cases from coverage collection.
+
+To run the component selection:
+
+```powershell
+$fixtures = @(
+    'ChangePreparerTests'
+    'PreparedNodeManagerTests'
+    'LifecycleWriterTests'
+    'NodeManagerRoutingTableTests'
+    'ConformanceRoutingTests'
+    'NodeManagerGenerationTests'
+    'StripedCounterTests'
+    'GenerationGateTests'
+    'NodeManagerRegistrationTests'
+    'NodeManagerLifecycleCompatibilityTests'
+    'NodeManagerCleanupAuthorityTests'
+    'NodeManagerCleanupRecoveryTests'
+    'NodeManagerCleanupResourceTests'
+    'NodeManagerHistoryReadScopeTests'
+    'HistoryReadContinuationDispatchTests'
+    'GenerationReclaimerTests'
+    'GenerationReconcilerTests'
+    'NodeManagerCallbackPermitTests'
+    'NodeManagerReadinessScopeTests'
+    'NodeLookupReadinessRegressionTests'
+    'NodeManagerLegacyLookupScopeTests'
+    'NodeManagerModelChangeScopeTests'
+    'NodeManagerLifecycleBatchConflictTests'
+    'NodeManagerLifecycleChangeSetCleanupTests'
+)
+$filter = ($fixtures | ForEach-Object { "FullyQualifiedName~Opc.Ua.Server.Tests.NodeManager.$_" }) -join '|'
+dotnet test tests\Opc.Ua.Server.Tests\Opc.Ua.Server.Tests.csproj -f net10.0 -p:CustomTestTarget=net10.0 --filter $filter
+dotnet test tests\Opc.Ua.Server.Tests\Opc.Ua.Server.Tests.csproj -f net48 -p:CustomTestTarget=net48 --filter $filter
+```
+
+Use fully qualified fixture or method names to select a narrower regression.
+The `Server` and `NodeManagerLifecycle` categories select some component and
+hosted tests, but not every component fixture has those categories. Use the
+fixture selection above when all listed components are needed. Check the
+selected and executed case names before accepting a filtered run.
+
+`NodeManagerLifecycleTests` creates a unique fixture PKI below the process
+temporary directory and deletes it during fixture teardown. For `net48` on
+Windows, use a short temporary root so certificate filenames remain within
+the legacy path limit:
+
+```powershell
+$env:TEMP = 'D:\temp'
+$env:TMP = $env:TEMP
+dotnet test tests\Opc.Ua.Server.Tests\Opc.Ua.Server.Tests.csproj -f net48 `
+    -p:CustomTestTarget=net48 `
+    --filter 'FullyQualifiedName~Opc.Ua.Server.Tests.NodeManager.NodeManagerLifecycleTests'
+```
+
+Keep NUnit's default work directory when running the full solution; other
+fixtures load copied test assets relative to that directory. The lifecycle
+PKI root does not depend on it.
+
+`NodeManagerLifecycleChangeSetCleanupTests` binds the lifecycle's server
+dependencies at construction and captures its actual writer through the
+internal constructor factory. It does not set private fields or rebind a live host.
+The factory must pass the lifecycle's cleanup-completion policy to the writer.
+Keep the exact active-operation counts and inspect the writer's shutdown-drain
+signal before disposing the caller's prepared unit; caller disposal could
+otherwise conceal an admission leak. Do not inspect private writer fields or
+replace the running server's master manager.
+
+Queued-notification retention controls hold a source-validation callback through
+the ownership assertion. Once that callback is released, the consumer may finish
+and allow retirement before the test resumes. Observe the next queued callback
+and release it after the assertion; an earlier release signal does not establish
+that queued work remains pending.
 
 ### Testing UaLens
 
@@ -301,7 +449,7 @@ backends that otherwise return a one-shot presentation result.
 Required backend probe exceptions are also reported to the viewport owner
 immediately; cancellation remains cancellation rather than a device failure.
 Linux native artifact checks explicitly pass `--x11-vulkan` to select Avalonia's
-Vulkan compositor. OpenUSD 0.16.6-alpha prefers shared GPU surfaces, but can present
+Vulkan compositor. OpenUSD 0.17.0-alpha prefers shared GPU surfaces, but can present
 completed Vulkan frames through host-memory readback when the compositor lacks
 external-image or semaphore import support. Ordinary application defaults remain
 unchanged. The separate `--allow-software-gl` opt-in permits Mesa llvmpipe for
@@ -322,7 +470,7 @@ All rules apply to new code and to existing code you touch. The `.editorconfig` 
 
 **Formatting and style**
 
-- Add the OPC Foundation MIT license header to every new source file.
+- Add the SPDX license header (`SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL` and `SPDX-License-Identifier: MIT`, as `//` comments) to every new source file.
 - 4-space indentation, max line length 120, CRLF line endings, UTF-8, final newline, no trailing whitespace.
 - Allman braces; always specify access modifiers explicitly; member order is constructors → properties/events → methods → fields, each `public` → `protected` → `internal` → `private`.
 - Do **not** use `#region`/`#endregion` or comment-only section dividers. Nullable reference types are enabled for every project in `common.props`: do **not** add `<Nullable>` to a project or `#nullable enable` to a file (only `<auto-generated>` files need the directive).
@@ -481,11 +629,10 @@ The class libraries currently target:
 
 1. .NET Standard 2.0 (`Opc.Ua.Types` and `Opc.Ua.SourceGeneration.Core` only, because the source generators load them)
 2. .NET Framework 4.8
-3. .NET 8.0
-4. .NET 9.0
-5. .NET 10.0
+3. .NET 10.0
+4. .NET 11.0
 
-The pull-request gate *compiles* every one of these targets, but only runs the test suite on (2) and (5) to keep the feedback loop short; the remaining test matrices are covered by scheduled or manual CI. See [Running tests](#running-tests) for how to build and test a specific framework locally with `CustomTestTarget` / `tests/customtest.bat`, and [Continuous integration](#continuous-integration) for how the matrices are split.
+The pull-request gate *compiles* every one of these targets, but only runs the test suite on (2) and (4) to keep the feedback loop short; the remaining test matrices are covered by scheduled or manual CI. See [Running tests](#running-tests) for how to build and test a specific framework locally with `CustomTestTarget` / `tests/customtest.bat`, and [Continuous integration](#continuous-integration) for how the matrices are split.
 
 ### Supported analyzer and source generator hosts
 
@@ -534,6 +681,13 @@ the signed release workflow can promote an intentional mixed-version set.
 
 **GitHub Actions runs all CI for `master`.** [`.github/workflows/buildandtest.yml`](../.github/workflows/buildandtest.yml) runs the complete build and test workload on GitHub-hosted runners for every triggering branch, and [`.github/workflows/nightly.yml`](../.github/workflows/nightly.yml) runs the full-scope workload on the weekly schedule and on demand. [`.github/workflows/nuget-publish.yml`](../.github/workflows/nuget-publish.yml) builds, signs and publishes the packages. The other workflows in [`.github/workflows/`](../.github/workflows) cover CodeQL, container images and the opt-in stress, stability and long-haul suites.
 
+[`CodeQL`](../.github/workflows/codeql-analysis.yml) scans the default branch daily at 06:30 UTC.
+This version of the workflow does not run on pull requests or pushes. Other branches retain their own
+workflow files and may still start CodeQL on those events until they are updated. To scan another
+branch, select that branch when running the CodeQL workflow from the Actions tab, or use
+`gh workflow run codeql-analysis.yml --ref <branch>`. This starts only CodeQL, independently of CI
+and the weekly full-validation workflow.
+
 The only Azure Pipelines definition left on `master` is the manually queued, opt-in [`.azurepipelines/onefuzz.yml`](../.azurepipelines/onefuzz.yml), kept because submission to the internal OneFuzz service requires the Azure DevOps-only `onefuzz-task`; it has no push, PR or schedule trigger. The other PowerShell helpers that remain under [`.azurepipelines/`](../.azurepipelines) are used by the GitHub Actions workflows; the directory keeps its historical name so those paths stay stable. Branches that still carry their own `azure-pipelines.yml` (`master378`, the 1.x `release/*` lines and the frozen `release/2.0.0`) keep their Azure validation; see [Azure Pipelines on other branches](#azure-pipelines-on-other-branches).
 
 ### What runs where
@@ -542,9 +696,9 @@ One table describes the entire migrated workload: `$Profiles` and `$BuildProfile
 
 | | Pull request (`buildandtest.yml`) | Full scope (`nightly.yml`) |
 | --- | --- | --- |
-| Test profiles | Windows net48, Windows/Linux/macOS net10.0 | the above plus net9.0, net8.0, the Debug legs, and the tiers that lift the category filter |
-| Solution builds | every `.slnx` on Windows for net48/net10.0 × Debug/Release, `UA.slnx` on Linux for net8.0/net9.0/net10.0 | every `.slnx` on Windows for all four TFMs × Debug/Release, plus the Linux legs |
-| Native AoT | linux-x64, osx-x64, osx-arm64 | the above plus win-x64 |
+| Test profiles | Windows net48, Windows/Linux net11.0; macOS net11.0 only on pushes to `master`, `main`, `master378` and `release/*` (pull requests and other branches cover macOS through the Native AoT legs alone) | Windows net48, Windows/macOS net10.0, the net10.0 Debug legs, and the tiers that lift the category filter (on net10.0) |
+| Solution builds | every `.slnx` on Windows for net48/net10.0/net11.0 × Debug/Release, `UA.slnx` on Linux for net10.0/net11.0 | every `.slnx` on Windows for net48/net10.0/net11.0 in Release and net48/net11.0 in Debug, plus the Linux legs (net10.0 and net11.0) |
+| Native AoT | linux-x64, osx-x64, osx-arm64, each on net10.0 and net11.0 | the above plus win-x64 |
 | Coverage | project floors and the graduated patch gate | project floors only |
 | Trigger | every push and pull request | weekly schedule and `workflow_dispatch` |
 
@@ -564,10 +718,26 @@ GitHub refuses to start a run whose matrices expand past 256 jobs, and the limit
 The executor fails a project when its build fails, when the TRX counters report any failure, when a test fixture's setup or teardown fails, when it produces **no** TRX at all, when nothing in it actually ran, or when it outlives its per-project ceiling. A "no tests ran" outcome is a failure, not a pass — and that includes a suite whose tests were *all* skipped, which records a non-zero total while verifying nothing.
 
 Each project or filtered shard has a **45-minute test-execution budget**.
+Server.Tests runs the native NodeManager lifecycle fixture separately from the
+remaining tests on net10.0 and net11.0; net48 uses finer-grained shards.
 Long-running WoT/sample suites use exhaustive, non-overlapping filters instead
 of larger project-specific timeouts. For example, the modern WoT sample suite
 separates ordinary cases, full generation replacement, and native comparisons.
 The matrix records each shard and its filter; no test is dropped to fit a budget.
+
+NUnit projects use `tests/nunit.runsettings.xml` when `dotnet test` runs without
+an explicit settings file. That file and the coverage settings both set
+`AssemblySelectLimit` to `2147483647`. CI also passes the setting on the
+command line. It does not apply to TUnit or NativeAOT test runs.
+
+With the adapter's default command-line settings, an unfiltered `dotnet test`
+run does not hit the 2,000-case limit just because the assembly contains more
+tests. For a non-category filter, the adapter can drop the selection if
+discovery loads more cases than the limit. The adapter also checks the list
+length when it builds a filter from individual test cases. The engine can
+then run tests outside the shard even if VSTest omits them from the TRX.
+For a large filtered run with another settings file, set the limit in that
+file or append `-- NUnit.AssemblySelectLimit=2147483647` to `dotnet test`.
 
 The executor measures build and test time separately. Builds do not consume the
 test-execution budget, but remain bounded by the overall job timeout. The matrix
@@ -614,6 +784,7 @@ The opt-in workflows run on their schedule, on demand from the Actions tab, and 
 | `stress` | Stress Tests | ChaosTCP with a random seed (in `chaos-seed.txt` of the results artifact) |
 | `soak` | Connection Stability Test, Sample HA Long-Haul Test | 30 minutes stability; 15 minutes per HA scenario (the schedules run 90 and 60) |
 | `interop` | Foreign stack interop | Every peer, as nightly |
+| `performance` | Server Load Floors | The [`perf/regression`](../perf/regression/README.md) load floors, 3 rounds, as nightly |
 
 Each opt-in workflow fails when its filter matched no test, so a moved or renamed test cannot leave it green while testing nothing.
 
@@ -659,9 +830,22 @@ The coverage check reports a clean failure when the thresholds are missed, so a 
 
 Every test matrix entry collects coverage while it runs and publishes its raw Cobertura fragment as an artifact. The coverage job then downloads every fragment the run produced, merges them **once** with ReportGenerator, and evaluates the merged report. It never re-runs the tests — doing so serialises a suite that was deliberately fanned out across matrix jobs and blows the job timeout.
 
+Before merging, [`.github/scripts/normalize-coverage.ps1`](../.github/scripts/normalize-coverage.ps1) copies the fragments to a separate empty directory and converts each valid line hit count to zero or one. Negative, missing or malformed counts reject the input. Raw artifacts retain their original execution counts; source paths and branch evidence are unchanged. The pinned ReportGenerator 5.5.11 merges the presence copies to avoid Int32 overflow when large positive counters are added. Merged hit counts represent fragment presence, not execution frequency; use the raw artifacts for frequency analysis. Coverage floors are unchanged.
+
+The copied reports also pass through
+[class-identity preparation](../.github/scripts/prepare-coverage-class-identities.ps1).
+ReportGenerator identifies a partial type's files by basename, so two distinct
+`ApplicationConfiguration.cs` files would otherwise share coverage incorrectly.
+Temporary file-qualified class names keep those files separate across shards.
+The merged Cobertura and HTML reports restore the original class names before
+publication and gate evaluation. Source paths, method data and branch evidence
+are not rewritten.
+
 Coverage is collected only on .NET 8.0 and newer hosts. `coverlet.collector` 10.x ships build assets for net8.0+ only, so a .NET Framework test host cannot load the `XPlat Code Coverage` collector at all — VSTest merely warns and writes nothing. The expander therefore never requests coverage on a `net4*` profile, and `CiMatrixScriptTests` asserts that. The long-running and durable tiers also opt out: they re-run projects the filtered legs already covered, so folding their numbers in would double-count them.
 
 The evaluation is [`.azurepipelines/check-coverage.ps1`](../.azurepipelines/check-coverage.ps1), driven by [`coverage-thresholds.json`](../coverage-thresholds.json):
+
+Every measured line must supply a non-negative integer hit count. Missing, negative or malformed counts reject the report, even when the configured coverage floor is zero. Large counts are not narrowed to 32-bit or 64-bit integers. When several classes report the same source line, the gate retains its maximum hit count rather than adding the counts.
 
 | Check | Behaviour |
 | --- | --- |
@@ -675,7 +859,8 @@ Ratchet `minimumLineRate`, `minimumBranchRate` and `baselineLineRate` **upward**
 
 Two things about the `ignore` globs regularly catch people out. `samples/**` is ignored, so a sample can carry
 tests for its own sake — a wrong kinematics solver would make a sample lie — without those lines counting
-toward the patch gate. `tools/**` is **not** ignored, so anything you change under `tools/` is measured like
+toward the patch gate. `fuzzing/**` is ignored too: the fuzz harnesses are never collected, so without the glob a
+patch that touches only `fuzzing/` and `tests/` would fail as a diff/report path mismatch. `tools/**` is **not** ignored, so anything you change under `tools/` is measured like
 product code, and an assembly no test project references contributes changed lines that are counted as
 **uncovered** because no report mentions them. If you add code there, make sure a test project loads the
 assembly, or the patch gate will read far lower than the per-file numbers suggest.
@@ -710,7 +895,17 @@ The script renders a markdown summary, so you never have to open a raw log to se
 
 > A full-scope `nightly.yml` run reports different numbers from a pull-request run, and that is expected: it merges a different set of profiles.
 
-To reproduce a coverage failure locally, generate the same report with [`tests/codecoverage.cmd`](../tests/codecoverage.cmd) (or [`tests/codecoverage.sh`](../tests/codecoverage.sh)) and run the script against it:
+To reproduce a CI coverage failure, use the same test fragments and checkout as
+the failing run. Download the `dotnet-results-*` artifacts into
+`coverage-artifacts`, then run the **Merge coverage report** step from
+[`buildandtest.yml`](../.github/workflows/buildandtest.yml) (or
+[`nightly.yml`](../.github/workflows/nightly.yml) for a nightly run) locally.
+That step normalizes hit counts, prepares file identities, merges with
+ReportGenerator 5.5.11, and restores the original file identities. The
+standalone scripts in `tests` produce a local report, not this CI report.
+
+Run the gate against the resulting report. Replace `master` with the run's
+base ref if it compared against a different branch:
 
 ```powershell
 ./.azurepipelines/check-coverage.ps1 -CoberturaPath ./CodeCoverage/Cobertura.xml -BaseRef master -SummaryPath ./coverage-summary.md
@@ -753,7 +948,7 @@ GitHub Actions applies its "Approve and run workflows" gate to outside contribut
 
 - Fork the repository (or, if you have write access, push a branch prefixed with your username) and open a pull request. You must agree to the [Contributor License Agreement](https://opcfoundation.org/license/cla/ContributorLicenseAgreementv1.0.pdf); the "I AGREE" prompt appears automatically on your first PR. See [CONTRIBUTING.md](../CONTRIBUTING.md).
 - Before submitting: relevant tests pass, code analysis is clean (no new warnings), the change keeps backward compatibility, and security implications are reviewed.
-- The pull-request template asks you to confirm the CLA, added tests/coverage, documentation, a warning-free build, and green CI and CodeQL. For a pull request that changes C# source files, it also asks you to run the `UA.slnx` suite on **.NET Framework 4.8** and **.NET 10.0** before opening the pull request.
+- The pull-request template asks you to confirm the CLA, added tests/coverage, documentation, a warning-free build, green CI, and that all applicable CodeQL findings are fixed. On `master`, CodeQL scans run on their daily schedule or by manual dispatch, not as PR checks. For a pull request that changes C# source files, the template also asks you to run the `UA.slnx` suite on **.NET Framework 4.8** and **.NET 10.0** before opening the pull request.
 - You can run the `opc-ua-codestyle-enforcer` agent to drive analyzer warnings to zero before opening the PR.
 
 ## Related documentation

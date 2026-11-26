@@ -1,33 +1,7 @@
-/* ========================================================================
- * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
-#if NET10_0
+#if NET10_0_OR_GREATER
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -280,7 +254,8 @@ namespace Opc.Ua.Tools.Tests
         }
 
         /// <summary>
-        /// Industrial, WoT, xRegistry and Vision MCP modules follow a stable root; Robotics remains preview.
+        /// Industrial and Vision MCP modules follow a stable root; Robotics, Positioning,
+        /// WoT and xRegistry MCP modules remain preview because their dependencies are preview-only.
         /// </summary>
         [TestCase("")]
         [TestCase(".Debug")]
@@ -290,11 +265,15 @@ namespace Opc.Ua.Tools.Tests
             fixture.AddPackage("OPCFoundation.NetStandard.Opc.Ua.Core" + suffix, "2.0.0");
             fixture.AddPackage("OPCFoundation.NetStandard.Opc.Ua.Mcp.Robotics" + suffix, PreviewFamilyVersion);
             fixture.AddPackage("OPCFoundation.NetStandard.Opc.Ua.Mcp.Vision" + suffix, "2.0.0");
-            string[] families =
-                ["AMB", "Machinery", "Scales", "Pumps", "Di", "ISA95", "Positioning", "WotCon", "XRegistry"];
+            string[] families = ["AMB", "Machinery", "Scales", "Pumps", "Di", "ISA95"];
             foreach (string family in families)
             {
                 fixture.AddPackage($"OPCFoundation.NetStandard.Opc.Ua.Mcp.{family}{suffix}", "2.0.0");
+            }
+            string[] previewFamilies = ["Positioning", "WotCon", "XRegistry"];
+            foreach (string family in previewFamilies)
+            {
+                fixture.AddPackage($"OPCFoundation.NetStandard.Opc.Ua.Mcp.{family}{suffix}", PreviewFamilyVersion);
             }
 
             ValidationResult result = await fixture.ValidateAsync(expectedVersion: "2.0.0").ConfigureAwait(false);
@@ -674,7 +653,7 @@ namespace Opc.Ua.Tools.Tests
                 if (File.Exists(manifestPath))
                 {
                     string manifestJson = await File.ReadAllTextAsync(manifestPath).ConfigureAwait(false);
-                    manifest = JsonDocument.Parse(manifestJson).RootElement;
+                    manifest = JsonElement.Parse(manifestJson);
                 }
 
                 return new ValidationResult(process.ExitCode, combined, manifest);
@@ -689,19 +668,12 @@ namespace Opc.Ua.Tools.Tests
             }
         }
 
+        /// <summary>
+        /// Resolves the checkout containing the package-set validator.
+        /// </summary>
         private static string FindRepositoryRoot()
         {
-            string? current = TestContext.CurrentContext.TestDirectory;
-            while (!string.IsNullOrWhiteSpace(current))
-            {
-                if (File.Exists(Path.Combine(current, ".azurepipelines", "validate-nuget-package-set.ps1")))
-                {
-                    return current;
-                }
-                current = Directory.GetParent(current)?.FullName;
-            }
-
-            throw new InvalidOperationException("Could not find the repository root.");
+            return RepositoryTestRoot.Find(Path.Combine(".azurepipelines", "validate-nuget-package-set.ps1"));
         }
 
         [Test]

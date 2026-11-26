@@ -1,31 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using System.Collections.Generic;
@@ -78,9 +52,9 @@ namespace Opc.Ua.Server
         public int ItemsInQueue => m_events.Count - m_head;
 
         /// <inheritdoc/>
-        public virtual bool Dequeue(out EventFieldList value)
+        public virtual bool Dequeue(out QueuedEvent value)
         {
-            value = null!;
+            value = default;
             if (m_head < m_events.Count)
             {
                 // advance the head instead of shifting the list: removing the first entry
@@ -90,7 +64,7 @@ namespace Opc.Ua.Server
                 {
                     RemoveRecentHandle(value);
                 }
-                m_events[m_head++] = null!;
+                m_events[m_head++] = default;
                 if (m_head == m_events.Count)
                 {
                     m_events.Clear();
@@ -121,7 +95,7 @@ namespace Opc.Ua.Server
         }
 
         /// <inheritdoc/>
-        public virtual void Enqueue(EventFieldList value)
+        public virtual void Enqueue(QueuedEvent value)
         {
             if (QueueSize == 0)
             {
@@ -133,7 +107,7 @@ namespace Opc.Ua.Server
             //Discard oldest
             if (ItemsInQueue == QueueSize)
             {
-                Dequeue(out EventFieldList _);
+                Dequeue(out QueuedEvent _);
             }
 
             m_events.Add(value);
@@ -193,13 +167,8 @@ namespace Opc.Ua.Server
         /// </summary>
         /// <param name="queuedEvent">The queued event.</param>
         /// <param name="instance">The event instance being queued.</param>
-        public static bool IsEventRaisedFor(EventFieldList queuedEvent, IFilterTarget instance)
+        public static bool IsEventRaisedFor(QueuedEvent queuedEvent, IFilterTarget instance)
         {
-            if (queuedEvent == null)
-            {
-                return false;
-            }
-
             object? handle = queuedEvent.Handle;
             return ReferenceEquals(instance, handle) ||
                 (handle is FilteredRetainTarget wrapper && ReferenceEquals(instance, wrapper.Target));
@@ -230,12 +199,15 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
-        /// Copies the queued events, ordered oldest to newest.
+        /// Copies the fields of the queued events, ordered oldest to newest.
         /// </summary>
         internal EventFieldList[] CopyQueuedEvents()
         {
             var events = new EventFieldList[ItemsInQueue];
-            m_events.CopyTo(m_head, events, 0, events.Length);
+            for (int ii = 0; ii < events.Length; ii++)
+            {
+                events[ii] = m_events[m_head + ii].Fields;
+            }
             return events;
         }
 
@@ -269,7 +241,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Counts the event instance that <paramref name="queuedEvent"/> was raised for.
         /// </summary>
-        private void AddRecentHandle(EventFieldList queuedEvent)
+        private void AddRecentHandle(QueuedEvent queuedEvent)
         {
             object? key = GetRaisedFor(queuedEvent);
             if (key != null)
@@ -283,7 +255,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Uncounts the event instance that <paramref name="queuedEvent"/> was raised for.
         /// </summary>
-        private void RemoveRecentHandle(EventFieldList queuedEvent)
+        private void RemoveRecentHandle(QueuedEvent queuedEvent)
         {
             object? key = GetRaisedFor(queuedEvent);
             if (key != null && m_recentHandles != null && m_recentHandles.TryGetValue(key, out int count))
@@ -302,9 +274,9 @@ namespace Opc.Ua.Server
         /// <summary>
         /// The event instance a queued event was raised for, see <see cref="IsEventRaisedFor"/>.
         /// </summary>
-        private static object? GetRaisedFor(EventFieldList queuedEvent)
+        private static object? GetRaisedFor(QueuedEvent queuedEvent)
         {
-            object? handle = queuedEvent?.Handle;
+            object? handle = queuedEvent.Handle;
             return handle is FilteredRetainTarget wrapper ? wrapper.Target : handle;
         }
 
@@ -327,11 +299,11 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
-        /// The events in the queue, oldest first. A dequeued event leaves a null slot at the
+        /// The events in the queue, oldest first. A dequeued event leaves a default slot at the
         /// front of the list until the list is compacted, so the queued events are the last
         /// <see cref="ItemsInQueue"/> entries.
         /// </summary>
-        protected List<EventFieldList> m_events;
+        protected List<QueuedEvent> m_events;
 
         /// <summary>
         /// The index of the oldest queued event in <see cref="m_events"/>.

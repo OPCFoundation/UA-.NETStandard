@@ -276,7 +276,7 @@ On macOS, run the NUnit command from a logged-in desktop.
 CI selects these cases for both the NativeAOT artifact and installed managed tool.
 The ordinary startup check remains separate and does not activate OpenUSD.
 
-OpenUSD 0.16.6-alpha prefers shared GPU surfaces for Linux Vulkan presentation. When
+OpenUSD 0.17.0-alpha prefers shared GPU surfaces for Linux Vulkan presentation. When
 Avalonia cannot import external images or semaphores, it reads completed Vulkan
 frames into host memory and presents them through an Avalonia bitmap. This path
 adds a frame copy but retains the same scene renderer and acceptance checks.
@@ -307,7 +307,7 @@ enabled and build each supported desktop TFM; the normal warning-as-error
 settings make new obsolete calls visible:
 
 ```powershell
-foreach ($tfm in @('net8.0', 'net9.0', 'net10.0')) {
+foreach ($tfm in @('net10.0', 'net11.0')) {
     dotnet build tools/Opc.Ua.Lens/Opc.Ua.Lens.csproj -c Release -f $tfm -p:CustomTestTarget=$tfm -m:2 --nologo
     if ($LASTEXITCODE -ne 0) { throw "Desktop build failed: $tfm" }
 }

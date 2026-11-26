@@ -66,6 +66,7 @@ the manual constructors when you need finer control.
   - [Fluent shortcuts](#fluent-shortcuts)
   - [Identity (client)](#identity-client)
 - [Complex types](#complex-types)
+- [Base Network Model](#base-network-model)
 - [Programs](#programs)
 - [Alarms and conditions](#alarms-and-conditions)
 - [Client-side reverse connect](#client-side-reverse-connect)
@@ -441,22 +442,37 @@ at most one regular server may be registered per service collection.
 The regular hosted server also registers `INodeManagerLifecycle` as a singleton forwarding provider. After the server reaches `Running`, application services can inject it to add, reload, or remove lifecycle-owned NodeManagers. Calls made before startup or after shutdown fail explicitly.
 
 ```csharp
+using System.Threading;
+using System.Threading.Tasks;
+using Opc.Ua.Server;
+using Opc.Ua.Server.RuntimeNodeSet;
+
 public sealed class RuntimeModelService(INodeManagerLifecycle lifecycle)
 {
-    public ValueTask<NodeManagerRegistration> AddAsync(CancellationToken ct)
+    public ValueTask<LifecycleResult> AddAsync(CancellationToken ct)
     {
-        return lifecycle.AddRuntimeNodeSetAsync(
-            new RuntimeNodeSetOptions
-            {
-                Sources = [RuntimeNodeSetSource.FromFile("Models/Line.NodeSet2.xml")]
-            },
-            callerContext: null,
+        return lifecycle.ApplyAsync(
+            [
+                LifecycleChange.Add(
+                    new RuntimeNodeSetNodeManagerFactory(
+                        new RuntimeNodeSetOptions
+                        {
+                            Sources = [RuntimeNodeSetSource.FromFile("Models/Line.NodeSet2.xml")]
+                        }))
+            ],
             ct);
     }
 }
 ```
 
-Applications that construct `StandardServer` directly use `server.NodeManagerLifecycle` instead. Both paths use the same lifecycle implementation and generation-aware registration handles.
+The returned `LifecycleResult` identifies the committed publication even when reconciliation reports
+issues. Inspect `Issues` and retry unfinished callbacks with `RetryReconciliationAsync`; do not
+repeat the addition. Retain `result.Registrations[0].Slot` for later replacement or removal.
+Use [explicit preparation](NodeManagers.md#preparation-decision-and-abort) when publication must
+follow a durable application decision.
+
+Applications that construct `StandardServer` directly use `server.NodeManagerLifecycle` instead.
+Both paths use the same lifecycle implementation and stable registration slots.
 
 Advanced server services can be supplied through the same fluent builder:
 
@@ -587,6 +603,12 @@ server cleanup; subsequent tasks do not run.
 `StopAsync` waits for execution cleanup even after a host shutdown timeout,
 so the host does not dispose dependencies that the server is still using.
 Slow cleanup can therefore outlast that timeout.
+
+Hosted server disposal detaches the injected lifecycle even if server disposal
+throws. The hosted service retains the failed server for a later disposal
+attempt; retaining its resources does not make it available through the hosted
+lifecycle. A successful retry releases the server reference, and later hosted
+disposal calls do not dispose it again.
 
 Use injected services for application dependencies and the existing typed
 node-manager lookup for server subsystems. For example, inside a task:
@@ -1006,6 +1028,42 @@ identity defaults disable anonymous access (`EnableAnonymous = false`),
 that implicit `Anonymous` policy is not advertised; the endpoints list
 one policy per token type of the registered authenticators instead
 (OPC 10000-4 §7.14: the user identity tokens the server accepts).
+
+An entry is either the token type itself (`"UserTokenPolicies": ["UserName"]`)
+or an object with a `TokenType`. A missing or unknown token type, and any
+other server option whose value cannot be parsed (for example `"0"` for a
+boolean), fails the startup with an `ArgumentException` instead of keeping
+the default.
+
+### Anonymous access
+
+A node without `RolePermissions`, in a namespace without
+`DefaultRolePermissions`, has no restriction of its own. The hosted server
+therefore applies a server-wide default to every namespace except namespace 0:
+the `Anonymous` role may browse, read and receive events, and the
+`AuthenticatedUser` role and the other well-known user roles keep every
+permission. An anonymous session cannot write values, call methods, update
+history or add and delete nodes unless a node or its namespace grants that.
+
+```csharp
+builder.Services.AddOpcUa().AddServer(o =>
+{
+    // default: AnonymousAccess.ReadOnly
+    // demos and closed test networks only:
+    o.AnonymousAccess = AnonymousAccess.Unrestricted;
+});
+```
+
+Bindable from `OpcUa:Server:AnonymousAccess`. To let anonymous sessions use
+selected nodes, keep the default and set `RolePermissions` on those nodes
+(for example with `OnReadRolePermissions` on the fluent builder) or
+`DefaultRolePermissions` on the namespace metadata Object; both override the
+server default. A server that is not hosted through `AddServer` sets
+`StandardServer.NamespaceDefaultRolePermissions`, for example to
+`ServerDefaultRolePermissions.AnonymousReadOnly`; its default is empty, which
+keeps such nodes unrestricted. This setting restricts anonymous sessions
+only: to separate authenticated users, assign roles and role permissions as
+described in [Role-based user management](RoleBasedUserManagement.md).
 
 ### Identity (server)
 
@@ -1535,6 +1593,16 @@ var cts = new ComplexTypeSystem(session, telemetry);
 await cts.LoadAsync(ct: ct);
 ```
 
+## Base Network Model
+
+For Part 22 network state, register
+`AddServer(...).AddNetworkModel(provider, authorizeMappingEdits)` and
+`AddClient(...).AddNetworkModelClient()`. The application owns the provider;
+mapping edits are denied when no authorization policy is supplied. Direct
+construction uses `NetworkModelNodeManagerFactory` and `NetworkModelClient`.
+See [Base Network Model](BaseNetworkModel.md) for provider composition, standard
+entry points and typed client operations.
+
 ## Programs
 
 Register the managed Part 10 server host with
@@ -1649,7 +1717,7 @@ manager into every new `ManagedSession` it creates, so multiple
 `ManagedSession` instances resolved from the same DI container will
 share underlying transport channels per
 `ConfiguredEndpoint`. Reconnect is coalesced and notified to attached
-sessions transparently. On .NET 8 and later, HTTPS transport channels
+sessions transparently. On .NET 10 and later, HTTPS transport channels
 also get the named `IHttpClientFactory` client (`Opc.Ua.Client`) and its
 standard resilience handler through `AddClient(...)`. See
 [Sessions and reconnect § 4](Sessions.md#4-iclientchannelmanager--centralised-channel-sharing-and-reconnect)

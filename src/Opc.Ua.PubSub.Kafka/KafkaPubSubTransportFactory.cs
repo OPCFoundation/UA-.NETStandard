@@ -1,34 +1,8 @@
-/* ========================================================================
- * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
+using System.Collections.Generic;
 using Microsoft.Extensions.Options;
 using Opc.Ua.PubSub.Diagnostics;
 using Opc.Ua.PubSub.Kafka.Internal;
@@ -176,6 +150,7 @@ namespace Opc.Ua.PubSub.Kafka
             }
 
             KafkaEndpoint endpoint = KafkaEndpointParser.Parse(url);
+            EnsureCredentialsBoundToEndpoint(m_defaultOptions, endpoint, connection.Name);
             KafkaConnectionOptions options = CloneOptionsWithEndpoint(m_defaultOptions, url, endpoint);
             ApplyAuthenticationSettings(connection, options);
             ApplyDeliveryGuarantee(connection, options);
@@ -191,6 +166,73 @@ namespace Opc.Ua.PubSub.Kafka
                 telemetry,
                 timeProvider,
                 m_diagnostics);
+        }
+
+        /// <summary>
+        /// The broker URL of a connection comes from the PubSub configuration,
+        /// which a configuration client can change remotely, while the SASL user
+        /// name and password come from the host options. Host credentials are
+        /// only sent to brokers the host named:
+        /// <see cref="KafkaConnectionOptions.Endpoint"/>,
+        /// <see cref="KafkaConnectionOptions.BootstrapServers"/> or
+        /// <see cref="KafkaConnectionOptions.CredentialEndpoints"/>.
+        /// </summary>
+        /// <exception cref="InvalidOperationException">
+        /// The host options carry credentials and a bootstrap server of the
+        /// connection is not named by the host.
+        /// </exception>
+        internal static void EnsureCredentialsBoundToEndpoint(
+            KafkaConnectionOptions source,
+            KafkaEndpoint endpoint,
+            string? connectionName)
+        {
+            if (string.IsNullOrEmpty(source.UserName) && string.IsNullOrEmpty(source.PasswordSecretId))
+            {
+                return;
+            }
+            var allowed = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            AddBrokers(allowed, source.Endpoint);
+            AddBrokers(allowed, source.BootstrapServers);
+            foreach (string credentialEndpoint in source.CredentialEndpoints)
+            {
+                AddBrokers(allowed, credentialEndpoint);
+            }
+            foreach (string server in endpoint.BootstrapServers.Split(','))
+            {
+                if (!allowed.Contains(server))
+                {
+                    throw new InvalidOperationException(
+                        $"Kafka connection '{connectionName}' names a bootstrap server that is not " +
+                        "named by KafkaConnectionOptions.Endpoint, BootstrapServers or CredentialEndpoints. " +
+                        "The configured Kafka credentials are only sent to those brokers.");
+                }
+            }
+        }
+
+        private static void AddBrokers(HashSet<string> allowed, string? value)
+        {
+            if (string.IsNullOrWhiteSpace(value))
+            {
+                return;
+            }
+            string candidate = value!.Trim();
+            if (!candidate.Contains("://", StringComparison.Ordinal))
+            {
+                candidate = KafkaEndpointParser.KafkaScheme + "://" + candidate;
+            }
+            KafkaEndpoint parsed;
+            try
+            {
+                parsed = KafkaEndpointParser.Parse(candidate);
+            }
+            catch (FormatException)
+            {
+                return;
+            }
+            foreach (string server in parsed.BootstrapServers.Split(','))
+            {
+                allowed.Add(server);
+            }
         }
 
         private static KafkaConnectionOptions CloneOptionsWithEndpoint(
@@ -220,6 +262,10 @@ namespace Opc.Ua.PubSub.Kafka
                 MessageTimeout = source.MessageTimeout,
                 MaxMessageSize = source.MaxMessageSize
             };
+            foreach (string credentialEndpoint in source.CredentialEndpoints)
+            {
+                clone.CredentialEndpoints.Add(credentialEndpoint);
+            }
             if (endpoint.UseTls)
             {
                 ApplyTlsUpgrade(clone);

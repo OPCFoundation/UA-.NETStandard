@@ -1,31 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System.Collections.Generic;
 using System.Threading;
@@ -91,65 +65,6 @@ namespace Opc.Ua.Server
                 }
             }
         }
-
-        /// <summary>
-        /// Validates and applies a modify request to a monitored item whose source node is detached from the address
-        /// space, using the metadata retained by the item.
-        /// </summary>
-        /// <param name="context">The operation context of the request.</param>
-        /// <param name="timestampsToReturn">The timestamps to be returned for the item.</param>
-        /// <param name="monitoredItem">The detached monitored item to modify.</param>
-        /// <param name="request">The modify request.</param>
-        /// <param name="cancellationToken">The token used to cancel the operation.</param>
-        /// <returns>The modification error and the revised filter result, if any.</returns>
-        internal async ValueTask<DetachedModifyResult>
-            ModifyDetachedMonitoredItemAsync(
-                OperationContext context,
-                TimestampsToReturn timestampsToReturn,
-                MonitoredItem monitoredItem,
-                MonitoredItemModifyRequest request,
-                CancellationToken cancellationToken)
-        {
-            MonitoringParameters parameters = request.RequestedParameters;
-            NodeState? metadata = monitoredItem.SourceMetadata;
-            if (metadata is null && !parameters.Filter.IsNull)
-            {
-                return new DetachedModifyResult(StatusCodes.BadMonitoredItemFilterUnsupported, null);
-            }
-            double defaultSamplingInterval = monitoredItem.SamplingInterval;
-            if (monitoredItem.SubscriptionCallback is ISubscription subscription)
-            {
-                defaultSamplingInterval = subscription.PublishingInterval;
-            }
-            double samplingInterval = SubscriptionManager.CalculateRevisedSamplingInterval(
-                parameters.SamplingInterval, defaultSamplingInterval, metadata,
-                monitoredItem.AttributeId, MinSupportedSamplingInterval);
-            uint queueSize = SubscriptionManager.CalculateRevisedQueueSize(
-                monitoredItem.IsDurable, parameters.QueueSize, MaxQueueSize, MaxDurableQueueSize);
-            ValidateMonitoringFilterResult validated = await ValidateMonitoringFilterAsync(
-                SystemContext.Copy(context),
-                new NodeHandle { NodeId = monitoredItem.NodeId, Node = metadata! },
-                monitoredItem.AttributeId, samplingInterval, queueSize, parameters.Filter, cancellationToken)
-                .ConfigureAwait(false);
-            if (ServiceResult.IsBad(validated.StatusCode))
-            {
-                return new DetachedModifyResult(validated.StatusCode, validated.FilterResult);
-            }
-            ServiceResult? error = monitoredItem.ModifyAttributes(
-                context.DiagnosticsMask, timestampsToReturn, parameters.ClientHandle,
-                validated.FilterToUse, validated.FilterToUse, validated.Range, samplingInterval,
-                queueSize, parameters.DiscardOldest);
-            return new DetachedModifyResult(error, validated.FilterResult);
-        }
-
-        /// <summary>
-        /// The outcome of modifying a detached monitored item.
-        /// </summary>
-        /// <param name="Error">The modification error, if any.</param>
-        /// <param name="FilterResult">The revised filter result, if any.</param>
-        internal readonly record struct DetachedModifyResult(
-            ServiceResult? Error,
-            MonitoringFilterResult? FilterResult);
 
         /// <summary>
         /// Updates the diagnostics node manager with the nodes that were imported.

@@ -3,6 +3,7 @@
     "https://www.w3.org/2022/wot/td/v1.1",
     {
       "ns1": "http://opcfoundation.org/UA/DI/",
+      "qudt": "http://qudt.org/schema/qudt/",
       "ua": "http://opcfoundation.org/UA/",
       "uav": "http://opcfoundation.org/UA/WoT-Binding/"
     },
@@ -20,12 +21,6 @@
   ],
   "actions": {
     "Clear": {
-      "@context": {
-        "title": {
-          "@id": "https://www.w3.org/2019/wot/td#title",
-          "@language": null
-        }
-      },
       "@type": "uav:method",
       "title": "Clear",
       "uav:browseName": "ns1:Clear",
@@ -120,6 +115,7 @@
       "observable": true,
       "readOnly": true,
       "title": "Manufacturer",
+      "type": "string",
       "uav:browseName": "ns1:Manufacturer",
       "uav:id": "nsu=http://opcfoundation.org/UA/DI/;i=380",
       "uav:mapToType": "i=21",
@@ -247,6 +243,13 @@
     }
   },
   "title": "SoftwareVersionType",
+  "tm:optional": [
+    "/properties/PatchIdentifiers",
+    "/properties/ReleaseDate",
+    "/properties/ChangeLogReference",
+    "/properties/Hash",
+    "/actions/Clear"
+  ],
   "uav:bindingVersion": "1.1",
   "uav:browseName": "ns1:SoftwareVersionType",
   "uav:id": "nsu=http://opcfoundation.org/UA/DI/;i=212",
@@ -492,6 +495,7 @@
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "SoftwareVersionType"
           }
         ],
@@ -540,10 +544,12 @@
         "superType": "i=58"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:Manufacturer",
         "dataType": "LocalizedText",
         "displayName": [
           {
+            "locale": "",
             "value": "Manufacturer"
           }
         ],
@@ -569,10 +575,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:ManufacturerUri",
         "dataType": "String",
         "displayName": [
           {
+            "locale": "",
             "value": "ManufacturerUri"
           }
         ],
@@ -598,10 +606,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:SoftwareRevision",
         "dataType": "String",
         "displayName": [
           {
+            "locale": "",
             "value": "SoftwareRevision"
           }
         ],
@@ -632,6 +642,7 @@
         "dataType": "String",
         "displayName": [
           {
+            "locale": "",
             "value": "PatchIdentifiers"
           }
         ],
@@ -658,10 +669,12 @@
         "valueRank": 1
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:ReleaseDate",
         "dataType": "DateTime",
         "displayName": [
           {
+            "locale": "",
             "value": "ReleaseDate"
           }
         ],
@@ -687,10 +700,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:ChangeLogReference",
         "dataType": "String",
         "displayName": [
           {
+            "locale": "",
             "value": "ChangeLogReference"
           }
         ],
@@ -716,10 +731,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:Hash",
         "dataType": "ByteString",
         "displayName": [
           {
+            "locale": "",
             "value": "Hash"
           }
         ],
@@ -748,6 +765,7 @@
         "browseName": "1:Clear",
         "displayName": [
           {
+            "locale": "",
             "value": "Clear"
           }
         ],

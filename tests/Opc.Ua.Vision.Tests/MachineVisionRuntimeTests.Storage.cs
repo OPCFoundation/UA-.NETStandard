@@ -1,31 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using System.Collections.Generic;
@@ -305,6 +279,14 @@ namespace Opc.Ua.Vision.Tests
             await using var fixture = new VisionServerFixture();
             await fixture.StartAsync().ConfigureAwait(false);
             var sessions = new Mock<ISessionManager>();
+            NodeId owner = new(1u);
+            NodeId other = new(2u);
+            var closedSession = new Mock<Opc.Ua.Server.ISession>();
+            closedSession.SetupGet(session => session.Id).Returns(owner);
+            var otherSession = new Mock<Opc.Ua.Server.ISession>();
+            otherSession.SetupGet(session => session.Id).Returns(other);
+            var liveSessions = new List<Opc.Ua.Server.ISession> { closedSession.Object, otherSession.Object };
+            sessions.Setup(manager => manager.GetSessions()).Returns(() => liveSessions);
             ServerSystemContext context = CreateFileBindingContext(fixture, sessions.Object);
             var file = new FileState(null);
             file.Create(context, new NodeId("session-file", fixture.Manager.NamespaceIndex),
@@ -319,8 +301,6 @@ namespace Opc.Ua.Vision.Tests
                     return default;
                 },
                 commitOnClose: true);
-            NodeId owner = new(1u);
-            NodeId other = new(2u);
             uint first = await binding.OpenAsync(owner, writer ? (byte)6 : (byte)1).ConfigureAwait(false);
             uint second = 0;
             if (writer)
@@ -333,8 +313,7 @@ namespace Opc.Ua.Vision.Tests
                 second = await binding.OpenAsync(other, 1).ConfigureAwait(false);
             }
 
-            var closedSession = new Mock<Opc.Ua.Server.ISession>();
-            closedSession.SetupGet(session => session.Id).Returns(owner);
+            liveSessions.Remove(closedSession.Object);
             sessions.Raise(manager => manager.SessionClosing += null!,
                 closedSession.Object, SessionEventReason.Closing);
 

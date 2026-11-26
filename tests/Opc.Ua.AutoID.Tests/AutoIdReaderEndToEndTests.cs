@@ -1,31 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using System.Collections.Generic;
@@ -46,7 +20,7 @@ namespace Opc.Ua.AutoID.Tests
     [TestFixture]
     [Category("AutoID")]
     [NonParallelizable]
-    public sealed class AutoIdReaderEndToEndTests
+    public sealed partial class AutoIdReaderEndToEndTests
     {
         [OneTimeSetUp]
         public async Task OneTimeSetUpAsync()
@@ -551,7 +525,7 @@ namespace Opc.Ua.AutoID.Tests
         }
 
         [Test]
-        public async Task AVerifierReportsThroughEventsAndItsSynchronousScanIsNotOfferedAsync()
+        public async Task AVerifierReturnsTypedSynchronousResultsAndRetainsScanEventsAsync()
         {
             AutoIdReaderEntry verifier = await ReaderAsync(AutoIdHostFixture.VerifierName).ConfigureAwait(false);
             m_host!.Verifier.Present(new OpticalVerifierScanResult
@@ -563,9 +537,11 @@ namespace Opc.Ua.AutoID.Tests
             });
             try
             {
-                NotSupportedException unsupported = (await Assert.ThrowsAsync<NotSupportedException>(
-                    async () => await m_client!.ScanAsync(verifier, AutoIdTestData.Settings(cycles: 1))
+                ServiceResultException invalid = (await Assert.ThrowsAsync<ServiceResultException>(
+                    async () => await m_client!.ScanAsync(verifier, new ScanSettings())
                         .ConfigureAwait(false)))!;
+                AutoIdScanResponse response = await m_client!.ScanAsync(
+                    verifier, AutoIdTestData.Settings(cycles: 1)).ConfigureAwait(false);
                 await m_client!.ScanStartAsync(verifier, AutoIdTestData.Settings()).ConfigureAwait(false);
                 AutoIdScanEventTypeRecord record = await FirstEventAsync(
                     ct => m_client.ObserveScanEventsAsync(m_session!.DefaultStreaming, verifier, ct),
@@ -576,7 +552,12 @@ namespace Opc.Ua.AutoID.Tests
 
                 Assert.Multiple(() =>
                 {
-                    Assert.That(unsupported.Message, Does.Contain("WGS84Coordinate"));
+                    Assert.That(invalid.StatusCode, Is.EqualTo((uint)StatusCodes.BadInvalidArgument));
+                    Assert.That(response.Status, Is.EqualTo(AutoIdOperationStatusEnumeration.SUCCESS));
+                    Assert.That(response.Results, Has.Count.EqualTo(1));
+                    Assert.That(response.Results[0], Is.TypeOf<OpticalVerifierScanResult>());
+                    Assert.That(((OpticalVerifierScanResult)response.Results[0]).IsoGrade, Is.EqualTo("B"));
+                    Assert.That(response.Results[0].ScanData.String, Is.EqualTo("V-1"));
                     Assert.That(record.DeviceName, Is.EqualTo(AutoIdHostFixture.VerifierName));
                 });
             }

@@ -5,6 +5,7 @@
       "ns1": "http://opcfoundation.org/UA/Pumps/",
       "ns2": "http://opcfoundation.org/UA/Machinery/",
       "ns3": "http://opcfoundation.org/UA/DI/",
+      "qudt": "http://qudt.org/schema/qudt/",
       "ua": "http://opcfoundation.org/UA/",
       "uav": "http://opcfoundation.org/UA/WoT-Binding/"
     },
@@ -59,9 +60,6 @@
       "title": "Definition",
       "type": "string",
       "uav:browseName": "Definition",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=8781"
-      ],
       "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=8819",
       "uav:mapToType": "i=12",
       "uav:modellingRule": "Optional"
@@ -90,9 +88,6 @@
       "title": "Definition",
       "type": "string",
       "uav:browseName": "Definition",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=8784"
-      ],
       "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=8818",
       "uav:mapToType": "i=12",
       "uav:modellingRule": "Optional"
@@ -121,9 +116,6 @@
       "title": "Definition",
       "type": "string",
       "uav:browseName": "Definition",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=8787"
-      ],
       "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=8817",
       "uav:mapToType": "i=12",
       "uav:modellingRule": "Optional"
@@ -177,10 +169,8 @@
       "observable": true,
       "readOnly": true,
       "title": "FalseState",
+      "type": "string",
       "uav:browseName": "FalseState",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=8781"
-      ],
       "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=8782",
       "uav:mapToType": "i=21",
       "uav:modellingRule": "Mandatory"
@@ -207,10 +197,8 @@
       "observable": true,
       "readOnly": true,
       "title": "FalseState",
+      "type": "string",
       "uav:browseName": "FalseState",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=8784"
-      ],
       "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=8785",
       "uav:mapToType": "i=21",
       "uav:modellingRule": "Mandatory"
@@ -237,10 +225,8 @@
       "observable": true,
       "readOnly": true,
       "title": "FalseState",
+      "type": "string",
       "uav:browseName": "FalseState",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=8787"
-      ],
       "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=8788",
       "uav:mapToType": "i=21",
       "uav:modellingRule": "Mandatory"
@@ -321,10 +307,8 @@
       "observable": true,
       "readOnly": true,
       "title": "TrueState",
+      "type": "string",
       "uav:browseName": "TrueState",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=8781"
-      ],
       "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=8783",
       "uav:mapToType": "i=21",
       "uav:modellingRule": "Mandatory"
@@ -351,10 +335,8 @@
       "observable": true,
       "readOnly": true,
       "title": "TrueState",
+      "type": "string",
       "uav:browseName": "TrueState",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=8784"
-      ],
       "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=8786",
       "uav:mapToType": "i=21",
       "uav:modellingRule": "Mandatory"
@@ -381,16 +363,21 @@
       "observable": true,
       "readOnly": true,
       "title": "TrueState",
+      "type": "string",
       "uav:browseName": "TrueState",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=8787"
-      ],
       "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=8789",
       "uav:mapToType": "i=21",
       "uav:modellingRule": "Mandatory"
     }
   },
   "title": "DiscreteOutputObjectType",
+  "tm:optional": [
+    "/properties/FaultAction",
+    "/properties/FaultValue",
+    "/properties/Definition",
+    "/properties/Definition_2",
+    "/properties/Definition_3"
+  ],
   "uav:bindingVersion": "1.1",
   "uav:browseName": "ns1:DiscreteOutputObjectType",
   "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=1031",
@@ -612,6 +599,7 @@
         "browseName": "1:DiscreteOutputObjectType",
         "displayName": [
           {
+            "locale": "",
             "value": "DiscreteOutputObjectType"
           }
         ],
@@ -641,15 +629,18 @@
       },
       {
         "accessLevel": 3,
+        "arrayDimensions": "",
         "browseName": "1:DiscreteOutputValue",
         "dataType": "Boolean",
         "description": [
           {
+            "locale": "",
             "value": "This property contains the actual value of the discrete output unit."
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "DiscreteOutputValue"
           }
         ],
@@ -687,10 +678,12 @@
         "typeDefinition": "i=2373"
       },
       {
+        "arrayDimensions": "",
         "browseName": "Definition",
         "dataType": "String",
         "displayName": [
           {
+            "locale": "",
             "value": "Definition"
           }
         ],
@@ -716,10 +709,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "FalseState",
         "dataType": "LocalizedText",
         "displayName": [
           {
+            "locale": "",
             "value": "FalseState"
           }
         ],
@@ -745,10 +740,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "TrueState",
         "dataType": "LocalizedText",
         "displayName": [
           {
+            "locale": "",
             "value": "TrueState"
           }
         ],
@@ -775,15 +772,18 @@
       },
       {
         "accessLevel": 3,
+        "arrayDimensions": "",
         "browseName": "1:FaultAction",
         "dataType": "Boolean",
         "description": [
           {
+            "locale": "",
             "value": "This property determines the action taken on variables in fault state."
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "FaultAction"
           }
         ],
@@ -821,10 +821,12 @@
         "typeDefinition": "i=2373"
       },
       {
+        "arrayDimensions": "",
         "browseName": "Definition",
         "dataType": "String",
         "displayName": [
           {
+            "locale": "",
             "value": "Definition"
           }
         ],
@@ -850,10 +852,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "FalseState",
         "dataType": "LocalizedText",
         "displayName": [
           {
+            "locale": "",
             "value": "FalseState"
           }
         ],
@@ -879,10 +883,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "TrueState",
         "dataType": "LocalizedText",
         "displayName": [
           {
+            "locale": "",
             "value": "TrueState"
           }
         ],
@@ -909,15 +915,18 @@
       },
       {
         "accessLevel": 3,
+        "arrayDimensions": "",
         "browseName": "1:FaultValue",
         "dataType": "Boolean",
         "description": [
           {
+            "locale": "",
             "value": "This property specifies a user-defined value for use with Fault action property."
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "FaultValue"
           }
         ],
@@ -955,10 +964,12 @@
         "typeDefinition": "i=2373"
       },
       {
+        "arrayDimensions": "",
         "browseName": "Definition",
         "dataType": "String",
         "displayName": [
           {
+            "locale": "",
             "value": "Definition"
           }
         ],
@@ -984,10 +995,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "FalseState",
         "dataType": "LocalizedText",
         "displayName": [
           {
+            "locale": "",
             "value": "FalseState"
           }
         ],
@@ -1013,10 +1026,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "TrueState",
         "dataType": "LocalizedText",
         "displayName": [
           {
+            "locale": "",
             "value": "TrueState"
           }
         ],

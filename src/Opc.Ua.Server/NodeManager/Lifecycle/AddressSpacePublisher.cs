@@ -1,0 +1,158 @@
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
+
+using System;
+using System.Collections.Generic;
+
+namespace Opc.Ua.Server
+{
+    /// <summary>
+    /// Installs a fully prepared address-space publication without running asynchronous or application code.
+    /// </summary>
+    internal sealed class AddressSpacePublisher
+    {
+        /// <summary>
+        /// Captures reserved publication inputs and resolves candidate handles before the durable decision.
+        /// </summary>
+        internal AddressSpacePublisher(
+            NodeManagerRoutingTable.PreparedRoutes routes,
+            StringTable.Publication namespaces,
+            StringTable.Publication serverUris,
+            TypeTable.Publication types,
+            EncodeableFactory.Publication registrations,
+            TypeTable typeTree,
+            EncodeableFactory factory,
+            ArrayOf<PreparedNodeManager> candidates,
+            IReadOnlyDictionary<NodeState.ReferenceUpdate, NodeManagerGeneration> referenceOwners,
+            Action<bool> viewPublished,
+            PublicationProgress? progress = null)
+        {
+            m_routes = routes;
+            m_namespaces = namespaces;
+            m_serverUris = serverUris;
+            m_types = types;
+            m_registrations = registrations;
+            m_typeTree = typeTree;
+            m_factory = factory;
+            m_viewPublished = viewPublished;
+            m_progress = progress;
+            m_stagingServers = new ChangePreparer.StagingServer?[candidates.Count];
+            for (int index = 0; index < candidates.Count; index++)
+            {
+                m_stagingServers[index] = ChangePreparer.GetServer(candidates[index].NodeManager);
+            }
+            m_referenceUpdates = new NodeState.ReferenceUpdate[referenceOwners.Count];
+            var snapshots = new Dictionary<
+                NodeManagerRoutingTable.RoutingSnapshot,
+                Dictionary<NodeState, ArrayOf<IReference>>>();
+            var nextImages = new Dictionary<NodeState, ArrayOf<IReference>>(RefEqualityComparer.Default);
+            int updateIndex = 0;
+            foreach (KeyValuePair<NodeState.ReferenceUpdate, NodeManagerGeneration> entry in referenceOwners)
+            {
+                NodeState.ReferenceUpdate update = entry.Key;
+                m_referenceUpdates[updateIndex++] = update;
+                nextImages.Add(update.Owner, update.After);
+                foreach (AddressSpaceEpoch epoch in entry.Value.GetViewEpochs())
+                {
+                    if (epoch.IsDrained ||
+                        !epoch.TryGetSnapshot(out NodeManagerRoutingTable.RoutingSnapshot? snapshot) ||
+                        snapshot is null || snapshot.Revision == 0)
+                    {
+                        continue;
+                    }
+                    if (!snapshots.TryGetValue(snapshot, out Dictionary<NodeState, ArrayOf<IReference>>? images))
+                    {
+                        images = snapshot.CopyReferenceImages();
+                        snapshots.Add(snapshot, images);
+                    }
+                    images.TryAdd(update.Owner, update.Before);
+                }
+            }
+            m_referenceImages = [.. snapshots];
+            m_nextReferenceImages = nextImages;
+        }
+
+        /// <summary>
+        /// Installs captured storage and ordered references around the sole routing-view commit point.
+        /// This operation performs no candidate lookup, allocation, or application callback before the swap.
+        /// </summary>
+        internal void Publish()
+        {
+            m_progress?.BeginCorePublication();
+            m_namespaces.Complete();
+            m_serverUris.Complete();
+            m_types.Complete(m_typeTree);
+            m_registrations.Complete(m_factory);
+            foreach (ChangePreparer.StagingServer? server in m_stagingServers)
+            {
+                server?.Bind();
+            }
+            foreach (KeyValuePair<
+                NodeManagerRoutingTable.RoutingSnapshot,
+                Dictionary<NodeState, ArrayOf<IReference>>> image in m_referenceImages)
+            {
+                image.Key.InstallReferenceImages(image.Value);
+            }
+            m_routes.Next.InstallReferenceImages(m_nextReferenceImages);
+            foreach (NodeState.ReferenceUpdate update in m_referenceUpdates)
+            {
+                update.Remove();
+            }
+
+            bool historianRegistrationsChanged = m_routes.Publish();
+            try
+            {
+                m_viewPublished(historianRegistrationsChanged);
+            }
+            finally
+            {
+                foreach (NodeState.ReferenceUpdate update in m_referenceUpdates)
+                {
+                    update.Complete();
+                }
+                m_routes.Next.InstallReferenceImages(m_emptyReferenceImages);
+            }
+        }
+
+        /// <summary>Reserved inputs with sole ownership retained by the lifecycle transaction.</summary>
+        private readonly NodeManagerRoutingTable.PreparedRoutes m_routes;
+        private readonly StringTable.Publication m_namespaces;
+        private readonly StringTable.Publication m_serverUris;
+        private readonly TypeTable.Publication m_types;
+        private readonly EncodeableFactory.Publication m_registrations;
+        private readonly TypeTable m_typeTree;
+        private readonly EncodeableFactory m_factory;
+        private readonly ChangePreparer.StagingServer?[] m_stagingServers;
+        private readonly NodeState.ReferenceUpdate[] m_referenceUpdates;
+        private readonly KeyValuePair<
+            NodeManagerRoutingTable.RoutingSnapshot,
+            Dictionary<NodeState, ArrayOf<IReference>>>[] m_referenceImages;
+        private readonly Dictionary<NodeState, ArrayOf<IReference>> m_nextReferenceImages;
+        private readonly Dictionary<NodeState, ArrayOf<IReference>> m_emptyReferenceImages =
+            new(RefEqualityComparer.Default);
+        private readonly Action<bool> m_viewPublished;
+
+        /// <summary>The transaction recording whether core publication has started.</summary>
+        private readonly PublicationProgress? m_progress;
+
+        /// <summary>
+        /// Tracks whether a transaction can still prove that it has not mutated the serving address space.
+        /// A started publication is not proof that the new routing image is visible.
+        /// </summary>
+        internal sealed class PublicationProgress
+        {
+            /// <summary>
+            /// Gets whether the publisher reached its first irreversible step.
+            /// </summary>
+            internal bool CorePublicationStarted { get; private set; }
+
+            /// <summary>
+            /// Marks the transaction immediately before the publisher starts mutating live state.
+            /// </summary>
+            internal void BeginCorePublication()
+            {
+                CorePublicationStarted = true;
+            }
+        }
+    }
+}

@@ -5,6 +5,7 @@
       "ns1": "http://opcfoundation.org/UA/Pumps/",
       "ns2": "http://opcfoundation.org/UA/Machinery/",
       "ns3": "http://opcfoundation.org/UA/DI/",
+      "qudt": "http://qudt.org/schema/qudt/",
       "ua": "http://opcfoundation.org/UA/",
       "uav": "http://opcfoundation.org/UA/WoT-Binding/"
     },
@@ -372,11 +373,14 @@
       {
         "browseName": "1:PhysicalAddressDataType",
         "definition": {
+          "baseType": "",
           "fields": [
             {
+              "arrayDimensions": "",
               "dataType": "LocalizedText",
               "description": [
                 {
+                  "locale": "",
                   "value": "Street name where the manufacturer is located."
                 }
               ],
@@ -384,9 +388,11 @@
               "name": "Street"
             },
             {
+              "arrayDimensions": "",
               "dataType": "LocalizedText",
               "description": [
                 {
+                  "locale": "",
                   "value": "Street number where the manufacturer is located."
                 }
               ],
@@ -394,9 +400,11 @@
               "name": "Number"
             },
             {
+              "arrayDimensions": "",
               "dataType": "LocalizedText",
               "description": [
                 {
+                  "locale": "",
                   "value": "City where the manufacturer is located."
                 }
               ],
@@ -404,9 +412,11 @@
               "name": "City"
             },
             {
+              "arrayDimensions": "",
               "dataType": "LocalizedText",
               "description": [
                 {
+                  "locale": "",
                   "value": "Postal code where the manufacturer is located."
                 }
               ],
@@ -414,9 +424,11 @@
               "name": "PostalCode"
             },
             {
+              "arrayDimensions": "",
               "dataType": "LocalizedText",
               "description": [
                 {
+                  "locale": "",
                   "value": "State where the manufacturer is located."
                 }
               ],
@@ -424,9 +436,11 @@
               "name": "State"
             },
             {
+              "arrayDimensions": "",
               "dataType": "LocalizedText",
               "description": [
                 {
+                  "locale": "",
                   "value": "Country where the manufacturer is located."
                 }
               ],
@@ -438,11 +452,13 @@
         },
         "description": [
           {
+            "locale": "",
             "value": "Physical address of the manufacturer."
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "PhysicalAddressDataType"
           }
         ],

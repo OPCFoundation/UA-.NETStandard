@@ -1,31 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using Opc.Ua.Schema.Model;
 
@@ -116,8 +90,8 @@ namespace Opc.Ua.SourceGeneration.Dependency
             node.WriteAccess = WriteAccess;
             node.UserWriteAccess = UserWriteAccess.GetValueOrDefault();
             node.UserWriteAccessSpecified = UserWriteAccess.HasValue;
-            node.RolePermissions = RolePermissions!;
-            node.DefaultRolePermissions = DefaultRolePermissions!;
+            node.RolePermissions = CopyPermissions(RolePermissions)!;
+            node.DefaultRolePermissions = CopyPermissions(DefaultRolePermissions)!;
             node.AccessRestrictions = AccessRestrictions.GetValueOrDefault();
             node.AccessRestrictionsSpecified = AccessRestrictions.HasValue;
             node.DefaultAccessRestrictions = DefaultAccessRestrictions.GetValueOrDefault();
@@ -129,6 +103,38 @@ namespace Opc.Ua.SourceGeneration.Dependency
                 method.UserExecutable = UserExecutable.GetValueOrDefault();
                 method.UserExecutableSpecified = UserExecutable.HasValue;
             }
+        }
+
+        /// <summary>
+        /// Detaches mutable ACLs before a shared dependency is materialized into a model.
+        /// </summary>
+        private static RolePermissionSet? CopyPermissions(RolePermissionSet? input)
+        {
+            if (input == null)
+            {
+                return null;
+            }
+            RolePermission[]? permissions = null;
+            if (input.RolePermission != null)
+            {
+                permissions = new RolePermission[input.RolePermission.Length];
+                for (int index = 0; index < permissions.Length; index++)
+                {
+                    RolePermission permission = input.RolePermission[index];
+                    permissions[index] = new RolePermission
+                    {
+                        Role = permission.Role,
+                        RoleId = permission.RoleId,
+                        Permission = permission.Permission == null ? null! : [.. permission.Permission]
+                    };
+                }
+            }
+            return new RolePermissionSet
+            {
+                Name = input.Name,
+                DoNotInheirit = input.DoNotInheirit,
+                RolePermission = permissions!
+            };
         }
 
         /// <summary>

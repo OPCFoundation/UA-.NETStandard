@@ -1,31 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using System.Collections.Generic;
@@ -205,6 +179,36 @@ namespace Opc.Ua.AutoID.Tests
             var copy = (RfidScanEventState)rfidScan.Clone();
             Assert.That(copy.ScanResult, Is.Not.Null.And.Not.SameAs(rfidScan.ScanResult));
             Assert.That(copy.ScanResult!.Value[0].IsEqual(rfidScan.ScanResult.Value[0]), Is.True);
+        }
+
+        /// <summary>
+        /// Generated verifier metadata follows the published method table without changing standard identities.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public void VerifierScanMetadataUsesPublishedResultType(bool reverseNamespaces)
+        {
+            SystemContext context = AutoIdTestContext.CreateSystemContext(reverseNamespaces: reverseNamespaces);
+            var roots = new NodeStateCollection();
+            roots.AddAutoIdTypeSystem(context);
+            Dictionary<NodeId, NodeState> nodes = AutoIdTestContext.IndexNodes(context, roots);
+            var methodId = NodeId.Create(7054u, AutoIdModel.NamespaceUri, context.NamespaceUris);
+            var argumentsId = NodeId.Create(6076u, AutoIdModel.NamespaceUri, context.NamespaceUris);
+            var arguments = (PropertyState<ArrayOf<Argument>>)nodes[argumentsId];
+            Assert.Multiple(() =>
+            {
+                Assert.That(nodes[methodId], Is.InstanceOf<MethodState>());
+                Assert.That(((MethodState)nodes[methodId]).OutputArguments, Is.SameAs(arguments));
+                Assert.That(arguments.Value, Has.Count.EqualTo(2));
+                Assert.That(arguments.Value[0].Name, Is.EqualTo("Results"));
+                Assert.That(arguments.Value[0].DataType,
+                    Is.EqualTo(NodeId.Create(3030u, AutoIdModel.NamespaceUri, context.NamespaceUris)));
+                Assert.That(arguments.Value[0].ValueRank, Is.EqualTo(ValueRanks.OneDimension));
+                Assert.That(arguments.Value[1].Name, Is.EqualTo("Status"));
+                Assert.That(arguments.Value[1].DataType,
+                    Is.EqualTo(NodeId.Create(3013u, AutoIdModel.NamespaceUri, context.NamespaceUris)));
+                Assert.That(arguments.Value[1].ValueRank, Is.EqualTo(ValueRanks.Scalar));
+            });
         }
 
         private static void AssertSingleResultChild(

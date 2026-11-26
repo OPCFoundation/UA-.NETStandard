@@ -1,31 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using System.Collections.Concurrent;
@@ -87,7 +61,16 @@ namespace Opc.Ua
             // Share the same CertificateManager instance with the template so that
             // both configurations see the same trust list, rejected store, and
             // cached validators.
-            CertificateManager = template.CertificateManager;
+            ICertificateManager certificateManager = template.CertificateManager;
+            if (certificateManager is CertificateManager manager &&
+                template.IsCertificateManagerBorrowed(manager))
+            {
+                SetBorrowedCertificateManager(manager);
+            }
+            else
+            {
+                CertificateManager = certificateManager;
+            }
             TransportQuotas = template.TransportQuotas;
             TraceConfiguration = template.TraceConfiguration;
             m_extensions = template.m_extensions;
@@ -1452,6 +1435,77 @@ namespace Opc.Ua
         [DataTypeField(Order = 42)]
         public int MaxMonitoredItemsPerSubscription { get; set; }
 
+        /// <summary>
+        /// The maximum number of select clauses of an EventFilter. CreateMonitoredItems and
+        /// ModifyMonitoredItems return Bad_EventFilterInvalid for an event item whose filter
+        /// has more. Every queued event keeps one field per select clause, so the limit
+        /// bounds the memory a queued event can hold. The value is published in
+        /// <c>Server.ServerCapabilities.MaxSelectClauseParameters</c>.
+        /// A value of zero or less means the server does not impose a limit.
+        /// </summary>
+        /// <value>The maximum number of select clauses of an event filter.</value>
+        [DataTypeField(Order = 43)]
+        public int MaxSelectClauseParameters { get; set; } = DefaultMaxSelectClauseParameters;
+
+        /// <summary>
+        /// The default of <see cref="MaxSelectClauseParameters"/>.
+        /// </summary>
+        public const int DefaultMaxSelectClauseParameters = 256;
+
+        /// <summary>
+        /// The maximum number of raw values that the aggregate calculator of a monitored item
+        /// with an AggregateFilter keeps for its current processing interval. When an interval
+        /// receives more values, the newest kept value is replaced by each later one and the
+        /// processed value of the interval is reported as Uncertain_DataSubNormal instead of Good.
+        /// Values of completed intervals are not counted, so the limit only applies to intervals
+        /// with an unusually high number of samples.
+        /// A value of zero or less means the server does not impose a limit.
+        /// </summary>
+        /// <value>The maximum number of raw values kept per aggregate monitored item.</value>
+        [DataTypeField(Order = 44)]
+        public int MaxMonitoredItemAggregateRawValues { get; set; } =
+            DefaultMaxMonitoredItemAggregateRawValues;
+
+        /// <summary>
+        /// The default of <see cref="MaxMonitoredItemAggregateRawValues"/>.
+        /// </summary>
+        public const int DefaultMaxMonitoredItemAggregateRawValues = 10_000;
+
+        /// <summary>
+        /// The maximum number of raw values that the server keeps for one processing interval
+        /// when it calculates a HistoryRead ReadProcessedDetails operation from raw history
+        /// (a historian without native processed reads). An operation that needs more returns
+        /// Bad_TooManyOperations.
+        /// A value of zero or less means the server does not impose a limit.
+        /// </summary>
+        /// <value>The maximum number of raw values per processed history interval.</value>
+        [DataTypeField(Order = 45)]
+        public int MaxProcessedHistoryRawValues { get; set; } =
+            DefaultMaxProcessedHistoryRawValues;
+
+        /// <summary>
+        /// The default of <see cref="MaxProcessedHistoryRawValues"/>.
+        /// </summary>
+        public const int DefaultMaxProcessedHistoryRawValues = 100_000;
+
+        /// <summary>
+        /// The maximum total number of values that the HistoryRead continuation points of one
+        /// session may hold (values buffered for processed reads that the server calculates).
+        /// Saving a continuation point that does not fit releases the oldest continuation points
+        /// of earlier requests; if that is not enough the operation returns
+        /// Bad_NoContinuationPoints.
+        /// A value of zero or less means the server does not impose a limit.
+        /// </summary>
+        /// <value>The maximum number of values held by the history continuation points of a session.</value>
+        [DataTypeField(Order = 46)]
+        public int MaxHistoryContinuationPointValues { get; set; } =
+            DefaultMaxHistoryContinuationPointValues;
+
+        /// <summary>
+        /// The default of <see cref="MaxHistoryContinuationPointValues"/>.
+        /// </summary>
+        public const int DefaultMaxHistoryContinuationPointValues = 100_000;
+
         private ArrayOf<UserTokenPolicy> m_userTokenPolicies;
         private ArrayOf<string> m_serverProfileArray;
         private ArrayOf<string> m_serverCapabilities;
@@ -1708,6 +1762,23 @@ namespace Opc.Ua
         /// </remarks>
         [DataTypeField(Order = 6, StructureHandling = StructureHandling.Inline)]
         public OperationLimits OperationLimits { get; set; } = new();
+
+        /// <summary>
+        /// Whether a session verifies the ServerEndpoints returned by CreateSession
+        /// against the endpoints returned by the DiscoveryEndpoint its endpoint was
+        /// selected from. Default <c>true</c>.
+        /// </summary>
+        /// <remarks>
+        /// OPC 10000-4 §5.7.2.2 requires the Client to verify the list when it used a
+        /// DiscoveryEndpoint to select the security options, comparing only the
+        /// EndpointDescriptions that match the transportProfileUri of the current
+        /// SecureChannel. The same clause lets a Client that has the security options
+        /// configured for the connection use that configuration and ignore the list.
+        /// Set this to <c>false</c> only for such a configured connection: the check
+        /// is what detects a discovery reply from which stronger endpoints were removed.
+        /// </remarks>
+        [DataTypeField(Order = 7, DefaultValueHandling = DefaultValueHandling.Emit)]
+        public bool VerifyServerEndpointsWithDiscovery { get; set; } = true;
 
         private ArrayOf<string> m_wellKnownDiscoveryUrls;
         private ArrayOf<EndpointDescription> m_discoveryServers;

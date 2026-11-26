@@ -1,31 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using System.Collections.Generic;
@@ -773,6 +747,7 @@ namespace Opc.Ua.Server.Tests
             Assert.That(stored.TriggeringLinks[1], Is.EqualTo(new uint[] { 2 }));
 
             var restoredTriggering = new Mock<IMonitoredItem>();
+            restoredTriggering.SetupGet(i => i.NodeManager).Returns(new Mock<IAsyncNodeManager>().Object);
             restoredTriggering.SetupGet(i => i.MonitoringMode).Returns(MonitoringMode.Reporting);
             restoredTriggering.SetupGet(i => i.Id).Returns(1);
             (Mock<IDataChangeMonitoredItem> restoredLinked, _) = CreateTriggeredItem(2);
@@ -824,6 +799,7 @@ namespace Opc.Ua.Server.Tests
                 TriggeringLinks = new Dictionary<uint, IReadOnlyList<uint>> { [1] = [2u] }
             };
             var restoredTriggering = new Mock<IMonitoredItem>();
+            restoredTriggering.SetupGet(i => i.NodeManager).Returns(new Mock<IAsyncNodeManager>().Object);
             restoredTriggering.SetupGet(i => i.MonitoringMode).Returns(MonitoringMode.Reporting);
             restoredTriggering.SetupGet(i => i.Id).Returns(1);
             m_nodeManagerMock
@@ -898,6 +874,7 @@ namespace Opc.Ua.Server.Tests
             CreateTriggeredItem(uint id)
         {
             var item = new Mock<IDataChangeMonitoredItem>();
+            item.SetupGet(i => i.NodeManager).Returns(new Mock<IAsyncNodeManager>().Object);
             item.SetupGet(i => i.MonitoringMode).Returns(MonitoringMode.Reporting);
             item.SetupGet(i => i.Id).Returns(id);
             item.SetupGet(i => i.IsReadyToPublish).Returns(false);
@@ -915,8 +892,10 @@ namespace Opc.Ua.Server.Tests
                 .SetValue(subscription, 0u);
         }
 
-        private static void AddMonitoredItem(Subscription subscription, IMonitoredItem item)
+        private static void AddMonitoredItem<T>(Subscription subscription, T item)
+            where T : class, IMonitoredItem
         {
+            Mock.Get(item).SetupGet(value => value.NodeManager).Returns(new Mock<IAsyncNodeManager>().Object);
             var monitoredItems = (System.Collections.IDictionary)typeof(Subscription)
                 .GetField("m_monitoredItems", BindingFlags.NonPublic | BindingFlags.Instance)!
                 .GetValue(subscription)!;
@@ -924,6 +903,9 @@ namespace Opc.Ua.Server.Tests
                 .GetField("m_itemsToCheck", BindingFlags.NonPublic | BindingFlags.Instance)!
                 .GetValue(subscription)!;
             monitoredItems!.Add(item.Id, itemsToCheck!.AddLast(item));
+            typeof(Subscription)
+                .GetMethod("OnMonitoredItemAdded", BindingFlags.NonPublic | BindingFlags.Instance)!
+                .Invoke(subscription, [item]);
         }
 
         private static void AddTriggerLink(

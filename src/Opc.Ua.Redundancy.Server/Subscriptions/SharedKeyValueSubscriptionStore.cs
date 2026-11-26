@@ -1,31 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using System.Collections.Generic;
@@ -49,10 +23,7 @@ namespace Opc.Ua.Redundancy.Server
     /// mirroring is envelope-only: the opaque continuation token, owner SessionId, kind, and expiry metadata are
     /// persisted so a backup can reject, release, or correlate the token, but Browse/Query/History continuation
     /// enumerator internals owned by a local node manager remain process-local runtime state and are not resumed by
-    /// this store.
-    /// When paired with a <see cref="SharedKeyValueMonitoredItemQueueFactory"/>, the per-monitored-item data/event
-    /// queues are also restored on promotion: the asynchronous restore members re-hydrate the mirrored queue values
-    /// so queued-but-unpublished notifications survive a failover.
+    /// this store. It does not persist queued-but-unpublished notifications.
     /// </remarks>
     public sealed class SharedKeyValueSubscriptionStore :
         ISubscriptionStore,
@@ -70,22 +41,16 @@ namespace Opc.Ua.Redundancy.Server
         /// Optional record protector applied to every encoded subscription entry; defaults to pass-through.
         /// </param>
         /// <param name="logger">Optional logger for asynchronous mirror failures.</param>
-        /// <param name="queueFactory">
-        /// Optional shared-store monitored-item queue factory. When supplied, the asynchronous queue-restore
-        /// members re-hydrate mirrored data/event queues on promotion; otherwise they return <c>null</c>.
-        /// </param>
         public SharedKeyValueSubscriptionStore(
             ISharedKeyValueStore store,
             IServiceMessageContext context,
             IRecordProtector? protector = null,
-            ILogger<SharedKeyValueSubscriptionStore>? logger = null,
-            SharedKeyValueMonitoredItemQueueFactory? queueFactory = null)
+            ILogger<SharedKeyValueSubscriptionStore>? logger = null)
         {
             m_store = store ?? throw new ArgumentNullException(nameof(store));
             m_context = context ?? throw new ArgumentNullException(nameof(context));
             m_protector = protector ?? NullRecordProtector.Instance;
             m_logger = logger;
-            m_queueFactory = queueFactory;
             m_definitionCache = s_definitionCaches.GetValue(store, static _ => new SharedDefinitionCache());
             m_channel = Channel.CreateBounded<MirrorCommand>(new BoundedChannelOptions(ChannelCapacity)
             {
@@ -200,41 +165,31 @@ namespace Opc.Ua.Redundancy.Server
         }
 
         /// <inheritdoc/>
-        public IDataChangeMonitoredItemQueue RestoreDataChangeMonitoredItemQueue(uint monitoredItemId)
+        IDataChangeMonitoredItemQueue ISubscriptionStore.RestoreDataChangeMonitoredItemQueue(uint monitoredItemId)
         {
             return null!;
         }
 
         /// <inheritdoc/>
-        public IEventMonitoredItemQueue RestoreEventMonitoredItemQueue(uint monitoredItemId)
+        IEventMonitoredItemQueue ISubscriptionStore.RestoreEventMonitoredItemQueue(uint monitoredItemId)
         {
             return null!;
         }
 
         /// <inheritdoc/>
-        public ValueTask<IDataChangeMonitoredItemQueue?> RestoreDataChangeMonitoredItemQueueAsync(
+        ValueTask<IDataChangeMonitoredItemQueue?> ISubscriptionStore.RestoreDataChangeMonitoredItemQueueAsync(
             uint monitoredItemId,
-            CancellationToken cancellationToken = default)
+            CancellationToken cancellationToken)
         {
-            if (m_queueFactory == null)
-            {
-                return new ValueTask<IDataChangeMonitoredItemQueue?>((IDataChangeMonitoredItemQueue?)null);
-            }
-
-            return m_queueFactory.RestoreDataChangeQueueAsync(monitoredItemId, cancellationToken);
+            return default;
         }
 
         /// <inheritdoc/>
-        public ValueTask<IEventMonitoredItemQueue?> RestoreEventMonitoredItemQueueAsync(
+        ValueTask<IEventMonitoredItemQueue?> ISubscriptionStore.RestoreEventMonitoredItemQueueAsync(
             uint monitoredItemId,
-            CancellationToken cancellationToken = default)
+            CancellationToken cancellationToken)
         {
-            if (m_queueFactory == null)
-            {
-                return new ValueTask<IEventMonitoredItemQueue?>((IEventMonitoredItemQueue?)null);
-            }
-
-            return m_queueFactory.RestoreEventQueueAsync(monitoredItemId, cancellationToken);
+            return default;
         }
 
         /// <inheritdoc/>
@@ -250,14 +205,6 @@ namespace Opc.Ua.Redundancy.Server
             List<StoredSubscription> restoredSubscriptions = m_definitionCache
                 .CloneWhere([.. createdSubscriptions.Keys]);
             await StoreSubscriptionsAsync(restoredSubscriptions, cancellationToken).ConfigureAwait(false);
-
-            if (m_queueFactory != null)
-            {
-                HashSet<uint> liveMonitoredItemIds = [.. createdSubscriptions.SelectMany(pair => pair.Value.Memory.ToArray())];
-                await m_queueFactory
-                    .CleanupAsync(liveMonitoredItemIds, cancellationToken)
-                    .ConfigureAwait(false);
-            }
         }
 
         /// <inheritdoc/>
@@ -1056,6 +1003,7 @@ namespace Opc.Ua.Redundancy.Server
                 IsRestored = item.IsRestored,
                 IsDeleted = item.IsDeleted,
                 IsDetached = item.IsDetached,
+                IsTerminal = item is IStoredMonitoredItemInvalidation { IsTerminal: true },
                 AlwaysReportUpdates = item.AlwaysReportUpdates,
                 AttributeId = item.AttributeId,
                 ClientHandle = item.ClientHandle,
@@ -1095,12 +1043,14 @@ namespace Opc.Ua.Redundancy.Server
 
         private ByteString Encode(StoredSubscription subscription)
         {
-            // Only subscriptions with triggering links need the newer format; writing the
-            // previous one otherwise keeps snapshots readable by replicas that predate it
-            // during a rolling upgrade.
+            // Use the oldest capable format so unaffected subscriptions remain readable by older replicas.
             int version = subscription.TriggeringLinks is { Count: > 0 }
                 ? TriggeringLinksDefinitionFormatVersion
                 : OwnerStateDefinitionFormatVersion;
+            if (subscription.MonitoredItems.Any(item => item is IStoredMonitoredItemInvalidation { IsTerminal: true }))
+            {
+                version = TerminalItemsDefinitionFormatVersion;
+            }
             using var encoder = new BinaryEncoder(m_context);
             encoder.WriteInt32(null, version);
             encoder.WriteStringArray(null, m_context.NamespaceUris.ToArrayOf());
@@ -1417,6 +1367,10 @@ namespace Opc.Ua.Redundancy.Server
             {
                 encoder.WriteStringArray(null, item.FilteredRetainConditionIds);
             }
+            if (version >= TerminalItemsDefinitionFormatVersion)
+            {
+                encoder.WriteBoolean(null, item.IsTerminal);
+            }
         }
 
         private static StoredMonitoredItem DecodeMonitoredItem(BinaryDecoder decoder, int version)
@@ -1462,6 +1416,10 @@ namespace Opc.Ua.Redundancy.Server
             {
                 // the keys are written by the monitored item and never null.
                 item.FilteredRetainConditionIds = decoder.ReadStringArray(null)!;
+            }
+            if (version >= TerminalItemsDefinitionFormatVersion)
+            {
+                item.IsTerminal = decoder.ReadBoolean(null);
             }
             return item;
         }
@@ -1542,7 +1500,8 @@ namespace Opc.Ua.Redundancy.Server
                 LifecycleStateDefinitionFormatVersion or
                 FilteredRetainDefinitionFormatVersion or
                 OwnerStateDefinitionFormatVersion or
-                TriggeringLinksDefinitionFormatVersion;
+                TriggeringLinksDefinitionFormatVersion or
+                TerminalItemsDefinitionFormatVersion;
         }
 
         private static string ContinuationPointPrefixFor(NodeId ownerSessionId)
@@ -1557,6 +1516,9 @@ namespace Opc.Ua.Redundancy.Server
         private const int FilteredRetainDefinitionFormatVersion = 3;
         private const int OwnerStateDefinitionFormatVersion = 5;
         private const int TriggeringLinksDefinitionFormatVersion = 6;
+
+        /// <summary>Persists items that must not recover after terminal invalidation.</summary>
+        private const int TerminalItemsDefinitionFormatVersion = 7;
 
         private const int DefinitionSnapshotManifestFormatVersion = 1;
         private const int ContinuationPointFormatVersion = 1;
@@ -1578,7 +1540,6 @@ namespace Opc.Ua.Redundancy.Server
         private readonly IServiceMessageContext m_context;
         private readonly IRecordProtector m_protector;
         private readonly ILogger<SharedKeyValueSubscriptionStore>? m_logger;
-        private readonly SharedKeyValueMonitoredItemQueueFactory? m_queueFactory;
         private readonly SharedDefinitionCache m_definitionCache;
         private readonly Channel<MirrorCommand> m_channel;
         private readonly CancellationTokenSource m_drainCts = new();

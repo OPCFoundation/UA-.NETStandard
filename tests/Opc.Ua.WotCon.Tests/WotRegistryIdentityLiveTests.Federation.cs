@@ -1,31 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using System.Collections.Generic;
@@ -36,6 +10,7 @@ using System.Threading.Tasks;
 using NUnit.Framework;
 using Opc.Ua.Client;
 using Opc.Ua.Client.TestFramework;
+using Opc.Ua.Server;
 using Opc.Ua.Server.TestFramework;
 using Opc.Ua.WotCon.Client;
 using Opc.Ua.WotCon.Server;
@@ -47,6 +22,8 @@ using Opc.Ua.XRegistry;
 using Opc.Ua.XRegistry.Client;
 using Opc.Ua.XRegistry.Server;
 using Quickstarts.ReferenceServer;
+
+using ISession = Opc.Ua.Client.ISession;
 
 namespace Opc.Ua.WotCon.Tests
 {
@@ -62,7 +39,7 @@ namespace Opc.Ua.WotCon.Tests
         public async Task FederationFollowsLogicalResourceAndPinsDefaultVersionHandles()
         {
             const string source = "urn:federation:thing";
-            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(120));
             CancellationToken ct = timeout.Token;
             WotRegistryGroupClient group = await m_client.CreateDocumentGroupAsync(
                 WoTDocumentKindEnum.ThingDescription, "urn:federation:catalogue", ct).ConfigureAwait(false);
@@ -77,6 +54,7 @@ namespace Opc.Ua.WotCon.Tests
             await WaitForFederationDefaultAsync(first.LogicalResource.ResourceNodeId, "v1", ct).ConfigureAwait(false);
 
             await using var remoteConnection = new ClientFixture(m_telemetry);
+            await WotTestPki.SeedAsync(Path.Combine(m_root, "fr"), "FederationRemoteClient").ConfigureAwait(false);
             await remoteConnection.LoadClientConfigurationAsync(
                 Path.Combine(m_root, "fr"), "FederationRemoteClient").ConfigureAwait(false);
             using ISession remoteSession = await remoteConnection.ConnectAsync(
@@ -88,8 +66,10 @@ namespace Opc.Ua.WotCon.Tests
                 WotRegistryClient remote = await WotRegistryClient.ForServerAsync(remoteSession, m_telemetry, ct)
                     .ConfigureAwait(false);
                 XRegistryFederationTarget target = CreateNativeFederationTarget(group, first);
-                lookupRegistration = await m_server.NodeManagerLifecycle.AddAsync(
-                    new FederationContentLookupFactory(firstBytes), null, ct).ConfigureAwait(false);
+                LifecycleResult lookupAdded = await m_server.NodeManagerLifecycle.ApplyAsync(
+                    [LifecycleChange.Add(new FederationContentLookupFactory(firstBytes))], ct).ConfigureAwait(false);
+                Assert.That(lookupAdded.CleanupFailure, Is.Null);
+                Assert.That(lookupAdded.Registrations[0].TryGetRegistration(out lookupRegistration), Is.True);
                 await remoteSession.FetchNamespaceTablesAsync(ct).ConfigureAwait(false);
                 var contentClient = new GenericXRegistryClient(remoteSession, kFederationContentNamespace, m_telemetry);
                 Assert.That(await contentClient.ResolveResourceAsync(firstBytes, ct: ct).ConfigureAwait(false),
@@ -114,6 +94,7 @@ namespace Opc.Ua.WotCon.Tests
                 {
                     localServer = await localFixture.StartAsync(Path.Combine(m_root, "fl")).ConfigureAwait(false);
                     await using var localConnection = new ClientFixture(m_telemetry);
+                    await WotTestPki.SeedAsync(Path.Combine(m_root, "fc"), "FederationLocalClient").ConfigureAwait(false);
                     await localConnection.LoadClientConfigurationAsync(
                         Path.Combine(m_root, "fc"), "FederationLocalClient").ConfigureAwait(false);
                     using ISession localSession = await localConnection.ConnectAsync(
@@ -162,16 +143,29 @@ namespace Opc.Ua.WotCon.Tests
                         ISessionClient? currentBinding = null;
                         try
                         {
-                            await m_server.NodeManagerLifecycle.RemoveAsync(lookupRegistration, null, ct)
+                            ILifecycleCapture removalCapture = m_server.NodeManagerLifecycle.CaptureChanges();
+                            await using ILifecycleWriter removalWriter =
+                                await removalCapture.BeginAsync(ct).ConfigureAwait(false);
+                            Assert.That(m_server.NodeManagerLifecycle.Registrations.Contains(
+                                current => ReferenceEquals(current, lookupRegistration)), Is.True);
+                            await using IPreparedChanges removal = await removalWriter.PrepareAsync(
+                                [LifecycleChange.Remove(lookupRegistration!.Slot)], ct).ConfigureAwait(false);
+                            LifecycleResult removed = await removal.CommitAsync(cancellationToken: ct)
                                 .ConfigureAwait(false);
+                            Assert.That(removed.CleanupFailure, Is.Null);
+                            await removed.Retired.ConfigureAwait(false);
                             lookupRegistration = null;
                             Assert.That((await contentClient.ResolveResourceAsync(firstBytes, ct: ct)
                                 .ConfigureAwait(false)).IsNull, Is.True, "The independent fast path has been retired.");
                             await second.Version.SetDefaultVersionAsync("v2", expectedEpoch: 0, ct: ct)
                                 .ConfigureAwait(false);
                             await WaitForFederationDefaultAsync(resource.ObjectId, "v2", ct).ConfigureAwait(false);
-                            lookupRegistration = await m_server.NodeManagerLifecycle.AddAsync(
-                                new FederationContentLookupFactory(secondBytes), null, ct).ConfigureAwait(false);
+                            lookupAdded = await m_server.NodeManagerLifecycle.ApplyAsync(
+                                [LifecycleChange.Add(new FederationContentLookupFactory(secondBytes))], ct)
+                                .ConfigureAwait(false);
+                            Assert.That(lookupAdded.CleanupFailure, Is.Null);
+                            Assert.That(lookupAdded.Registrations[0].TryGetRegistration(out lookupRegistration),
+                                Is.True);
                             Assert.That(await contentClient.ResolveResourceAsync(secondBytes, ct: ct)
                                     .ConfigureAwait(false),
                                 Is.EqualTo(secondBytes));
@@ -219,6 +213,7 @@ namespace Opc.Ua.WotCon.Tests
                         }
 
                         await using var alternateConnection = new ClientFixture(m_telemetry);
+                        await WotTestPki.SeedAsync(Path.Combine(m_root, "fa"), "FederationAlternateClient").ConfigureAwait(false);
                         await alternateConnection.LoadClientConfigurationAsync(
                             Path.Combine(m_root, "fa"), "FederationAlternateClient").ConfigureAwait(false);
                         EndpointDescription originalEndpoint = remoteSession.Endpoint;
@@ -281,8 +276,16 @@ namespace Opc.Ua.WotCon.Tests
             {
                 if (lookupRegistration is not null)
                 {
-                    await m_server.NodeManagerLifecycle.RemoveAsync(lookupRegistration, null, CancellationToken.None)
+                    ILifecycleCapture removalCapture = m_server.NodeManagerLifecycle.CaptureChanges();
+                    await using ILifecycleWriter removalWriter = await removalCapture.BeginAsync()
                         .ConfigureAwait(false);
+                    Assert.That(m_server.NodeManagerLifecycle.Registrations.Contains(
+                        current => ReferenceEquals(current, lookupRegistration)), Is.True);
+                    await using IPreparedChanges removal = await removalWriter.PrepareAsync(
+                        [LifecycleChange.Remove(lookupRegistration.Slot)]).ConfigureAwait(false);
+                    LifecycleResult removed = await removal.CommitAsync().ConfigureAwait(false);
+                    Assert.That(removed.CleanupFailure, Is.Null);
+                    await removed.Retired.ConfigureAwait(false);
                 }
                 await remoteSession.CloseAsync(CancellationToken.None).ConfigureAwait(false);
             }
@@ -312,7 +315,7 @@ namespace Opc.Ua.WotCon.Tests
                 "unsupported-read" => StatusCodes.BadNotSupported,
                 _ => StatusCodes.BadSecurityChecksFailed
             };
-            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(120));
             CancellationToken ct = timeout.Token;
             WotRegistryGroupClient group = await m_client.CreateDocumentGroupAsync(
                 WoTDocumentKindEnum.ThingDescription, "urn:federation:rejection-catalogue", ct).ConfigureAwait(false);
@@ -435,7 +438,7 @@ namespace Opc.Ua.WotCon.Tests
         [Test]
         public async Task FederationUsesAuthenticatedChannelInsteadOfMutableEndpointLabels()
         {
-            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(120));
             CancellationToken ct = timeout.Token;
             WotRegistryGroupClient group = await m_client.CreateDocumentGroupAsync(
                 WoTDocumentKindEnum.ThingDescription, "urn:federation:channel-catalogue", ct).ConfigureAwait(false);
@@ -507,7 +510,7 @@ namespace Opc.Ua.WotCon.Tests
         public async Task FederationKeepsEqualContentInDistinctRemoteEntities()
         {
             const string source = "urn:federation:shared-description";
-            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(120));
             CancellationToken ct = timeout.Token;
             WotRegistryGroupClient firstGroup = await m_client.CreateDocumentGroupAsync(
                 WoTDocumentKindEnum.ThingDescription, "urn:federation:first-catalogue", ct).ConfigureAwait(false);
@@ -554,7 +557,7 @@ namespace Opc.Ua.WotCon.Tests
         public async Task FederationRebasesCurrentNativeNamespaceAndServerTables()
         {
             const string source = "urn:federation:reordered-thing";
-            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(120));
             CancellationToken ct = timeout.Token;
             WotRegistryGroupClient group = await m_client.CreateDocumentGroupAsync(
                 WoTDocumentKindEnum.ThingDescription, "urn:federation:reordered-catalogue", ct).ConfigureAwait(false);
@@ -639,7 +642,7 @@ namespace Opc.Ua.WotCon.Tests
         [Test]
         public async Task FederationProxyMetadataCannotReplaceTrustedOriginOrEntity()
         {
-            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(120));
             CancellationToken ct = timeout.Token;
             WotRegistryGroupClient group = await m_client.CreateDocumentGroupAsync(
                 WoTDocumentKindEnum.ThingDescription, "urn:federation:metadata-catalogue", ct).ConfigureAwait(false);
@@ -806,6 +809,7 @@ namespace Opc.Ua.WotCon.Tests
             {
                 server = await fixture.StartAsync(Path.Combine(m_root, "fp")).ConfigureAwait(false);
                 await using var connection = new ClientFixture(m_telemetry);
+                await WotTestPki.SeedAsync(Path.Combine(m_root, "fpc"), "FederationProxyClient").ConfigureAwait(false);
                 await connection.LoadClientConfigurationAsync(Path.Combine(m_root, "fpc"), "FederationProxyClient")
                     .ConfigureAwait(false);
                 using ISession session = await connection.ConnectAsync(
@@ -832,6 +836,7 @@ namespace Opc.Ua.WotCon.Tests
         private async Task WithNativeFederationClientAsync(Func<ISession, WotRegistryClient, Task> action)
         {
             await using var connection = new ClientFixture(m_telemetry);
+            await WotTestPki.SeedAsync(Path.Combine(m_root, "fv"), "FederationVerifier").ConfigureAwait(false);
             await connection.LoadClientConfigurationAsync(
                 Path.Combine(m_root, "fv"), "FederationVerifier").ConfigureAwait(false);
             using ISession session = await connection.ConnectAsync(
@@ -899,11 +904,13 @@ namespace Opc.Ua.WotCon.Tests
                 coordinator = new WotMaterializationCoordinator(
                     restoredRegistry, projectionHost,
                     documentConverter: new FakeWotDocumentConverter());
-                await server.NodeManagerLifecycle.AddAsync(
-                    new WotRegistryNodeManagerFactory(m_options, restoredRegistry, coordinator), null, ct)
+                await server.NodeManagerLifecycle.ApplyAsync(
+                    [LifecycleChange.Add(new WotRegistryNodeManagerFactory(m_options, restoredRegistry, coordinator))],
+                    ct)
                     .ConfigureAwait(false);
                 Assert.That(projectionHost.Documents, Has.Count.EqualTo(1));
                 await using var connection = new ClientFixture(m_telemetry);
+                await WotTestPki.SeedAsync(Path.Combine(m_root, "fbc"), "FederationRebasedClient").ConfigureAwait(false);
                 await connection.LoadClientConfigurationAsync(Path.Combine(m_root, "fbc"), "FederationRebasedClient")
                     .ConfigureAwait(false);
                 using ISession session = await connection.ConnectAsync(

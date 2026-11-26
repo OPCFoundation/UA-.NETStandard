@@ -1,33 +1,9 @@
-/* ========================================================================
- * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
+using System.Collections.Generic;
+using System.Linq;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using Opc.Ua.Client;
@@ -107,6 +83,53 @@ namespace Opc.Ua.GMS.Tests
             NodeId nodeId = handle.NodeId;
             await handle.DisposeAsync().ConfigureAwait(false);
             Assert.That(fixture.Manager.FindPredefinedNode(nodeId), Is.Null);
+        }
+
+        /// <summary>
+        /// Basic and BasicSecure follow the endpoints the running server actually publishes.
+        /// </summary>
+        [TestCase(false, false, false)]
+        [TestCase(true, true, false)]
+        [TestCase(true, true, true)]
+        public async Task SecureProfilesFollowPublishedEndpointsAsync(bool basic256, bool basic, bool basicSecure)
+        {
+            var policies = new List<ServerSecurityPolicy>
+            {
+                new() { SecurityMode = MessageSecurityMode.None, SecurityPolicyUri = SecurityPolicies.None }
+            };
+            var tokens = new List<UserTokenPolicy> { new(UserTokenType.Anonymous) };
+            if (basic256)
+            {
+                policies.Add(new ServerSecurityPolicy
+                {
+                    SecurityMode = MessageSecurityMode.SignAndEncrypt,
+                    SecurityPolicyUri = SecurityPolicies.Basic256Sha256
+                });
+            }
+            if (basicSecure)
+            {
+                policies.Add(new ServerSecurityPolicy
+                {
+                    SecurityMode = MessageSecurityMode.SignAndEncrypt,
+                    SecurityPolicyUri = SecurityPolicies.Aes128_Sha256_RsaOaep
+                });
+                tokens.Add(new UserTokenPolicy(UserTokenType.Certificate));
+            }
+            await using var fixture = new GmsResultServerFixture
+            {
+                ServerSecurityPolicies = policies.ToArrayOf(),
+                UserTokenPolicies = tokens.ToArrayOf()
+            };
+            await fixture.StartAsync().ConfigureAwait(false);
+            IMachineryBuildContext context = Context(fixture);
+            var store = new InMemoryGmsResultStore(ModelTestContext.CreateMessageContext());
+            await using GmsHandle handle = await Builder(
+                context, "SecureProfiles", new InMemoryGmsProvider(new GmsSystemSnapshot()))
+                .WithResults(store).BuildAsync().ConfigureAwait(false);
+            string[] profiles = handle.ServerProfiles.ToArray()!;
+            const string prefix = "http://opcfoundation.org/UA-Profile/GMS/Server/";
+            Assert.That(profiles.Contains(prefix + "Basic"), Is.EqualTo(basic));
+            Assert.That(profiles.Contains(prefix + "BasicSecure"), Is.EqualTo(basicSecure));
         }
 
         /// <summary>

@@ -1,31 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using System.Collections.Generic;
@@ -174,6 +148,57 @@ namespace Opc.Ua.Scales.Client
                 Variant.From(productId),
                 Variant.From(productType)).ConfigureAwait(false);
             return outputs.Count > 0 && outputs[0].TryGetValue(out NodeId id) ? id : NodeId.Null;
+        }
+
+        /// <summary>
+        /// Adds a zone to a catchweigher product.
+        /// </summary>
+        /// <param name="product">The catchweigher product node.</param>
+        /// <param name="zoneName">The user-readable zone name.</param>
+        /// <param name="lowerLimit">The lower weight limit.</param>
+        /// <param name="upperLimit">The upper weight limit.</param>
+        /// <param name="engineeringUnits">The unit shared by both limits.</param>
+        /// <param name="cancellationToken">Cancels the operation.</param>
+        /// <returns>The NodeId of the created zone.</returns>
+        public async ValueTask<NodeId> AddZoneAsync(
+            NodeId product,
+            LocalizedText zoneName,
+            double lowerLimit,
+            double upperLimit,
+            EUInformation engineeringUnits,
+            CancellationToken cancellationToken = default)
+        {
+            if (zoneName.IsNull)
+            {
+                throw new ArgumentException("The localized zone name must not be null.", nameof(zoneName));
+            }
+            engineeringUnits.ThrowIfNull(nameof(engineeringUnits));
+
+            var proxy = new CatchweigherProductTypeClient(Session, product, Telemetry);
+            NodeId zoneNodeId = await proxy.AddZoneAsync(
+                zoneName, lowerLimit, upperLimit, engineeringUnits, cancellationToken).ConfigureAwait(false);
+            if (zoneNodeId.IsNull)
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadUnexpectedError,
+                    "AddZone returned a null ZoneNodeId.");
+            }
+            return zoneNodeId;
+        }
+
+        /// <summary>
+        /// Removes a zone from a catchweigher product.
+        /// </summary>
+        /// <param name="product">The catchweigher product node.</param>
+        /// <param name="zoneNodeId">The NodeId of the zone to remove.</param>
+        /// <param name="cancellationToken">Cancels the operation.</param>
+        public async ValueTask RemoveZoneAsync(
+            NodeId product,
+            NodeId zoneNodeId,
+            CancellationToken cancellationToken = default)
+        {
+            var proxy = new CatchweigherProductTypeClient(Session, product, Telemetry);
+            await proxy.RemoveZoneAsync(zoneNodeId, cancellationToken).ConfigureAwait(false);
         }
 
         private async ValueTask CallPresetAsync(NodeId owner, string method, string productId, CancellationToken ct)
@@ -470,6 +495,39 @@ namespace Opc.Ua.Scales.Client
         }
 
         /// <summary>
+        /// Removes a recipe from a recipe scale.
+        /// </summary>
+        /// <param name="scale">The recipe scale.</param>
+        /// <param name="recipeId">The unique recipe id.</param>
+        /// <param name="cancellationToken">Cancels the operation.</param>
+        public async ValueTask RemoveRecipeAsync(
+            NodeId scale,
+            string recipeId,
+            CancellationToken cancellationToken = default)
+        {
+            recipeId.ThrowIfNull(nameof(recipeId));
+            NodeId recipes = await ResolveChildAsync(scale, ScalesName(BrowseNames.Recipes), cancellationToken)
+                .ConfigureAwait(false);
+            var proxy = new RecipeManagementTypeClient(Session, recipes, Telemetry);
+            await proxy.RemoveRecipeAsync(recipeId, cancellationToken).ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// Removes a recipe element and its related references.
+        /// </summary>
+        /// <param name="recipe">The recipe.</param>
+        /// <param name="recipeElement">The recipe element node to remove.</param>
+        /// <param name="cancellationToken">Cancels the operation.</param>
+        public async ValueTask RemoveRecipeElementAsync(
+            NodeId recipe,
+            NodeId recipeElement,
+            CancellationToken cancellationToken = default)
+        {
+            var proxy = new RecipeTypeClient(Session, recipe, Telemetry);
+            await proxy.RemoveRecipeElementAsync(recipeElement, cancellationToken).ConfigureAwait(false);
+        }
+
+        /// <summary>
         /// Builds the event filter that selects OPC 40200 scale events and
         /// alarms with the fields <see cref="Decode"/> reads.
         /// </summary>
@@ -497,7 +555,8 @@ namespace Opc.Ua.Scales.Client
                     Field(ScalesName(BrowseNames.VendorNotificationId)),
                     Field(ScalesName(BrowseNames.AuxParameters)),
                     Field(new QualifiedName(Opc.Ua.BrowseNames.EventType)),
-                    Field(new QualifiedName(Opc.Ua.BrowseNames.ActiveState), new QualifiedName(Opc.Ua.BrowseNames.Id))
+                    Field(new QualifiedName(Opc.Ua.BrowseNames.ActiveState), new QualifiedName(Opc.Ua.BrowseNames.Id)),
+                    Field(ScalesName(BrowseNames.HelpSource))
                 }.ToArrayOf()
             };
             // Push inserts at the front and renumbers the element operands, so
@@ -536,6 +595,7 @@ namespace Opc.Ua.Scales.Client
                 NotificationId = Get(6).TryGetValue(out uint id) ? id : 0,
                 VendorNotificationId = AsString(Get(7)),
                 AuxParameters = Get(8).TryGetValue(out ArrayOf<string> aux) && !aux.IsNull ? aux : [],
+                HelpSource = AsString(Get(11)),
                 IsAlarm = isAlarm,
                 Active = isAlarm ? Get(10).TryGetValue(out bool active) && active : null
             };

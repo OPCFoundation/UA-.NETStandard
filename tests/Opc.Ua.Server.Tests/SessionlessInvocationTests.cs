@@ -1,31 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using System.Linq;
@@ -187,6 +161,24 @@ namespace Opc.Ua.Server.Tests
 
             Assert.That(context.UserIdentity.TokenType, Is.EqualTo(UserTokenType.Anonymous));
             Assert.That(context.Session, Is.Null);
+        }
+
+        /// <summary>
+        /// Part 4 7.14: an endpoint accepts only the token types it lists, so an
+        /// empty list admits no anonymous Session-less request.
+        /// </summary>
+        [Test]
+        public async Task AnAnonymousRequestOnAnEndpointWithoutTokenPoliciesIsRejectedAsync()
+        {
+            using var manager = new SessionManager(m_serverMock.Object, m_config)
+            {
+                SessionlessInvocation = new SessionlessInvocationOptions { AllowAnonymous = true }
+            };
+
+            ServiceResultException? error = await Assert.ThrowsAsync<ServiceResultException>(
+                async () => await ValidateAsync(manager, CreateHttpsChannel(userTokenTypes: []), NodeId.Null)
+                    .ConfigureAwait(false));
+            Assert.That(error!.StatusCode, Is.EqualTo(StatusCodes.BadIdentityTokenRejected));
         }
 
         [Test]
@@ -692,10 +684,9 @@ namespace Opc.Ua.Server.Tests
                 EndpointUrl = "https://localhost:4843/",
                 SecurityMode = secureEndpoint ? MessageSecurityMode.SignAndEncrypt : MessageSecurityMode.None,
                 SecurityPolicyUri = secureEndpoint ? SecurityPolicies.Basic256Sha256 : SecurityPolicies.None,
-                UserIdentityTokens = userTokenTypes == null
-                    ? default
-                    : new ArrayOf<UserTokenPolicy>(
-                        userTokenTypes.Select(t => new UserTokenPolicy(t)).ToArray().AsMemory())
+                UserIdentityTokens = new ArrayOf<UserTokenPolicy>(
+                    (userTokenTypes ?? [UserTokenType.Anonymous])
+                        .Select(t => new UserTokenPolicy(t)).ToArray().AsMemory())
             };
             return new SecureChannelContext(
                 "rest",
@@ -714,7 +705,8 @@ namespace Opc.Ua.Server.Tests
                 SecurityMode = securityMode,
                 SecurityPolicyUri = securityMode == MessageSecurityMode.None
                     ? SecurityPolicies.None
-                    : SecurityPolicies.Basic256Sha256
+                    : SecurityPolicies.Basic256Sha256,
+                UserIdentityTokens = [new UserTokenPolicy(UserTokenType.Anonymous)]
             };
             return new SecureChannelContext(
                 "tcp",

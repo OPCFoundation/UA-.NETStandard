@@ -1,31 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using System.Collections.Generic;
@@ -137,6 +111,20 @@ namespace Opc.Ua.Server.Tests
                 await m_server.CloseSessionAsync(m_secureChannelContext, m_requestHeader, CancellationToken.None).ConfigureAwait(false);
                 m_requestHeader = null!;
             }
+        }
+
+        /// <summary>
+        /// The configured reference model retains its historical startup namespace index.
+        /// </summary>
+        [Test]
+        public void ReferenceNamespaceRetainsConfiguredStartupIndex()
+        {
+            NamespaceTable namespaces = m_server.CurrentInstance.NamespaceUris;
+            Assert.That(namespaces.GetIndex(Quickstarts.ReferenceServer.Namespaces.ReferenceServer), Is.EqualTo(2),
+                string.Join(" | ", namespaces.GetSnapshot(out _).ToArray()!));
+            ReferenceNodeManager manager = m_server.CurrentInstance.NodeManager.AsyncNodeManagers
+                .ToList().OfType<ReferenceNodeManager>().Single();
+            Assert.That(manager.NamespaceIndex, Is.EqualTo(2));
         }
 
         /// <summary>
@@ -1418,6 +1406,139 @@ namespace Opc.Ua.Server.Tests
         }
 
         /// <summary>
+        /// A binary encoded Browse whose references cannot fit the message size limit of
+        /// the server fails with BadResponseTooLarge, and a smaller one of the same node
+        /// succeeds. A JSON encoded request, whose encoding the binary lower bound does
+        /// not bound, has no response byte budget.
+        /// </summary>
+        [Test]
+        public async Task BrowseWhoseReferencesExceedTheMessageSizeLimitFailsAsync()
+        {
+            var services = new ServerTestServices(m_server, m_secureChannelContext);
+            if (m_operationLimits == null)
+            {
+                await GetOperationLimitsAsync().ConfigureAwait(false);
+            }
+            var description = new BrowseDescription
+            {
+                NodeId = VariableIds.OpcUa_BinarySchema,
+                BrowseDirection = BrowseDirection.Forward,
+                ReferenceTypeId = ReferenceTypeIds.References,
+                IncludeSubtypes = true,
+                NodeClassMask = 0,
+                ResultMask = (uint)BrowseResultMask.All
+            };
+
+            // the smallest encoded size of the references of the node.
+            m_requestHeader.Timestamp = DateTimeUtc.Now;
+            BrowseResponse single = await services.BrowseAsync(
+                m_requestHeader, null!, 0, [description]).ConfigureAwait(false);
+            Assert.That(single.Results.Count, Is.EqualTo(1));
+            Assert.That(single.Results[0].ContinuationPoint.IsEmpty, Is.True);
+            long perNode = 12;
+            foreach (ReferenceDescription reference in single.Results[0].References)
+            {
+                perNode += 18 + (reference.BrowseName.Name?.Length ?? 0) +
+                    (reference.DisplayName.Text?.Length ?? 0);
+            }
+            int maxMessageSize = m_server.MessageContext.MaxMessageSize;
+            Assert.That(maxMessageSize, Is.GreaterThan(0));
+            long count = (maxMessageSize / perNode) + 1;
+            if (m_operationLimits!.MaxNodesPerBrowse > 0 && count > m_operationLimits.MaxNodesPerBrowse)
+            {
+                Assert.Ignore("MaxNodesPerBrowse is below the node count that exceeds the message size limit.");
+            }
+            var nodes = new BrowseDescription[count];
+            for (int ii = 0; ii < nodes.Length; ii++)
+            {
+                nodes[ii] = description;
+            }
+
+            m_requestHeader.Timestamp = DateTimeUtc.Now;
+            ServiceResultException error = await Assert.ThrowsAsync<ServiceResultException>(
+                async () => await services.BrowseAsync(m_requestHeader, null!, 0, nodes).ConfigureAwait(false));
+
+            Assert.That(error.StatusCode, Is.EqualTo(StatusCodes.BadResponseTooLarge));
+
+            var jsonChannel = new SecureChannelContext(
+                m_secureChannelContext.SecureChannelId,
+                m_secureChannelContext.EndpointDescription,
+                RequestEncoding.Json,
+                m_secureChannelContext.ClientChannelCertificate.ToArray(),
+                m_secureChannelContext.ServerChannelCertificate.ToArray(),
+                m_secureChannelContext.ChannelThumbprint.ToArray(),
+                m_secureChannelContext.PeerAddress);
+            var jsonServices = new ServerTestServices(m_server, jsonChannel);
+            m_requestHeader.Timestamp = DateTimeUtc.Now;
+            BrowseResponse json = await jsonServices.BrowseAsync(
+                m_requestHeader, null!, 0, nodes).ConfigureAwait(false);
+            Assert.That(json.Results.Count, Is.EqualTo(nodes.Length));
+        }
+
+        /// <summary>
+        /// A binary encoded Read whose values cannot fit the message size limit of the
+        /// server fails with BadResponseTooLarge. A JSON encoded request has no response
+        /// byte budget.
+        /// </summary>
+        [Test]
+        public async Task ReadWhoseValuesExceedTheMessageSizeLimitFailsAsync()
+        {
+            if (m_operationLimits == null)
+            {
+                await GetOperationLimitsAsync().ConfigureAwait(false);
+            }
+            var nodeToRead = new ReadValueId
+            {
+                NodeId = VariableIds.OpcUa_BinarySchema,
+                AttributeId = Attributes.Value
+            };
+
+            // the smallest encoded size of the value of the node.
+            m_requestHeader.Timestamp = DateTimeUtc.Now;
+            ReadResponse single = await m_server.ReadAsync(
+                m_secureChannelContext, m_requestHeader, 0, TimestampsToReturn.Neither,
+                [nodeToRead], RequestLifetime.None).ConfigureAwait(false);
+            Assert.That(single.Results.Count, Is.EqualTo(1));
+            Assert.That(single.Results[0].WrappedValue.TryGetValue(out ByteString schema), Is.True);
+            long perNode = 1 + 1 + 4 + schema.Length;
+            int maxMessageSize = m_server.MessageContext.MaxMessageSize;
+            Assert.That(maxMessageSize, Is.GreaterThan(0));
+            long count = (maxMessageSize / perNode) + 1;
+            if (m_operationLimits!.MaxNodesPerRead > 0 && count > m_operationLimits.MaxNodesPerRead)
+            {
+                Assert.Ignore("MaxNodesPerRead is below the node count that exceeds the message size limit.");
+            }
+            // one ReadValueId per operation: the server marks each one it processed.
+            var nodes = new ReadValueId[count];
+            for (int ii = 0; ii < nodes.Length; ii++)
+            {
+                nodes[ii] = new ReadValueId { NodeId = nodeToRead.NodeId, AttributeId = Attributes.Value };
+            }
+
+            m_requestHeader.Timestamp = DateTimeUtc.Now;
+            ServiceResultException error = await Assert.ThrowsAsync<ServiceResultException>(
+                async () => await m_server.ReadAsync(
+                    m_secureChannelContext, m_requestHeader, 0, TimestampsToReturn.Neither,
+                    nodes, RequestLifetime.None).ConfigureAwait(false));
+
+            Assert.That(error.StatusCode, Is.EqualTo(StatusCodes.BadResponseTooLarge));
+
+            var jsonChannel = new SecureChannelContext(
+                m_secureChannelContext.SecureChannelId,
+                m_secureChannelContext.EndpointDescription,
+                RequestEncoding.Json,
+                m_secureChannelContext.ClientChannelCertificate.ToArray(),
+                m_secureChannelContext.ServerChannelCertificate.ToArray(),
+                m_secureChannelContext.ChannelThumbprint.ToArray(),
+                m_secureChannelContext.PeerAddress);
+            m_requestHeader.Timestamp = DateTimeUtc.Now;
+            ReadResponse json = await m_server.ReadAsync(
+                jsonChannel, m_requestHeader, 0, TimestampsToReturn.Neither,
+                nodes, RequestLifetime.None).ConfigureAwait(false);
+            Assert.That(json.Results.Count, Is.EqualTo(nodes.Length));
+        }
+
+        /// <summary>
         /// Translate references.
         /// </summary>
         [Test]
@@ -2300,23 +2421,64 @@ namespace Opc.Ua.Server.Tests
             ServerFixtureUtils.ValidateResponse(writeResponse.ResponseHeader, writeResponse.Results, writeValues);
             Assert.IsTrue(StatusCode.IsGood(writeResponse.Results[0]));
 
-            // Wait for subscription to deliver the event and data change notification
-            await Task.Delay(200).ConfigureAwait(false);
-
-            // Step 3: Issue publish to receive DataChangeNotification and SemanticChangeEvent
-            publishResponse = await services.PublishAsync(
-                requestHeader,
-                acknowledgements).ConfigureAwait(false);
-
-            Assert.IsNotNull(publishResponse.NotificationMessage);
-            Assert.IsNotNull(publishResponse.NotificationMessage.NotificationData);
-            Assert.IsTrue(publishResponse.NotificationMessage.NotificationData.Count == 2, "One Event and One DataChangeNotification expected.");
-
+            // Step 3: Publish until the DataChangeNotification and the SemanticChangeEvent arrived.
+            // The event and the resampled value reach the subscription on separate threads, so a
+            // publishing cycle can fall between them and they arrive in separate messages.
             bool dataChangeReceived = false;
             bool semanticsChangedBitSet = false;
             bool eventReceived = false;
 
-            foreach (ExtensionObject data in publishResponse.NotificationMessage.NotificationData)
+            var deadline = DateTime.UtcNow.AddSeconds(10);
+            while (!(semanticsChangedBitSet && eventReceived) && DateTime.UtcNow < deadline)
+            {
+                requestHeader.Timestamp = DateTime.UtcNow;
+                publishResponse = await services.PublishAsync(
+                    requestHeader,
+                    acknowledgements).ConfigureAwait(false);
+
+                Assert.IsNotNull(publishResponse.NotificationMessage);
+                acknowledgements = [];
+                if (publishResponse.NotificationMessage.NotificationData.IsNull ||
+                    publishResponse.NotificationMessage.NotificationData.Count == 0)
+                {
+                    continue;
+                }
+
+                acknowledgements =
+                [
+                    new SubscriptionAcknowledgement
+                    {
+                        SubscriptionId = subscriptionId,
+                        SequenceNumber = publishResponse.NotificationMessage.SequenceNumber
+                    }
+                ];
+
+                CollectSemanticChangeNotifications(
+                    publishResponse.NotificationMessage,
+                    nodeId,
+                    ref dataChangeReceived,
+                    ref semanticsChangedBitSet,
+                    ref eventReceived);
+            }
+
+            Assert.IsTrue(dataChangeReceived, "Did not receive DataChangeNotification.");
+            Assert.IsTrue(semanticsChangedBitSet, "SemanticsChanged bit is not set.");
+            Assert.IsTrue(eventReceived, "Did not receive SemanticChangeEvent.");
+
+            // Delete subscription
+            await services.DeleteSubscriptionsAsync(
+                requestHeader,
+                [subscriptionId]).ConfigureAwait(false);
+        }
+
+        private static void CollectSemanticChangeNotifications(
+            NotificationMessage message,
+            NodeId nodeId,
+            ref bool dataChangeReceived,
+            ref bool semanticsChangedBitSet,
+            ref bool eventReceived)
+        {
+            foreach (ExtensionObject data in message.NotificationData)
             {
                 if (data.TryGetValue(out DataChangeNotification? dcn))
                 {
@@ -2356,15 +2518,6 @@ namespace Opc.Ua.Server.Tests
                     }
                 }
             }
-
-            Assert.IsTrue(dataChangeReceived, "Did not receive DataChangeNotification.");
-            Assert.IsTrue(semanticsChangedBitSet, "SemanticsChanged bit is not set.");
-            Assert.IsTrue(eventReceived, "Did not receive SemanticChangeEvent.");
-
-            // Delete subscription
-            await services.DeleteSubscriptionsAsync(
-                requestHeader,
-                [subscriptionId]).ConfigureAwait(false);
         }
 
         /// <summary>
@@ -2966,6 +3119,50 @@ namespace Opc.Ua.Server.Tests
                 captured,
                 Is.True,
                 "Writing a trigger node must publish and archive the event on the CTT notifier.");
+        }
+
+        /// <summary>
+        /// A HistoryRead event filter with more select clauses than MaxSelectClauseParameters
+        /// is rejected with Bad_EventFilterInvalid; a filter within the limit is accepted.
+        /// </summary>
+        [Test]
+        public async Task HistoryReadEventFilterSelectClauseLimitAsync()
+        {
+            async Task<StatusCode> ReadEventsAsync(int selectClauses)
+            {
+                var filter = new EventFilter();
+                for (int ii = 0; ii < selectClauses; ii++)
+                {
+                    filter.AddSelectClause(
+                        ObjectTypeIds.BaseEventType,
+                        BrowseNames.Message,
+                        Attributes.Value);
+                }
+                m_requestHeader.Timestamp = DateTimeUtc.Now;
+                HistoryReadResponse response = await m_server.HistoryReadAsync(
+                    m_secureChannelContext,
+                    m_requestHeader,
+                    new ExtensionObject(new ReadEventDetails
+                    {
+                        StartTime = DateTime.UtcNow.AddMinutes(-1),
+                        EndTime = DateTime.UtcNow.AddSeconds(1),
+                        NumValuesPerNode = 0,
+                        Filter = filter
+                    }),
+                    TimestampsToReturn.Neither,
+                    false,
+                    [new HistoryReadValueId { NodeId = new NodeId("CTT", 2) }],
+                    RequestLifetime.None).ConfigureAwait(false);
+                Assert.That(response.Results.Count, Is.EqualTo(1));
+                return response.Results[0].StatusCode;
+            }
+
+            Assert.That(
+                await ReadEventsAsync(ServerConfiguration.DefaultMaxSelectClauseParameters + 1).ConfigureAwait(false),
+                Is.EqualTo(StatusCodes.BadEventFilterInvalid));
+            Assert.That(
+                await ReadEventsAsync(ServerConfiguration.DefaultMaxSelectClauseParameters).ConfigureAwait(false),
+                Is.Not.EqualTo(StatusCodes.BadEventFilterInvalid));
         }
 
         /// <summary>

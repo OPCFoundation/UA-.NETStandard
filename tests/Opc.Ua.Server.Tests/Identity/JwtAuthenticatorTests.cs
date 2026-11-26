@@ -1,32 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using System.Collections.Generic;
@@ -109,6 +82,44 @@ namespace Opc.Ua.Server.Tests.Identity
             Assert.That(claims.Subject, Is.EqualTo("subject-1"));
             Assert.That(claims.Groups, Does.Contain("engineering"));
             Assert.That(claims.Roles, Does.Contain("operator"));
+        }
+
+        /// <summary>
+        /// The identity carries the token expiration plus the clock skew tolerance,
+        /// so the session can invalidate the credentials when the token expires.
+        /// </summary>
+        [TestCase(0)]
+        [TestCase(30)]
+        public async Task AuthenticateAsyncIdentityCarriesTokenExpiration(int clockSkewSeconds)
+        {
+            using var rsa = RSA.Create(2048);
+            using IssuerVerificationKey key = CreateRsaVerificationKey(rsa, "kid-rsa");
+            long expectedExpiry = DateTimeOffset.UtcNow.ToUnixTimeSeconds() + 3600;
+            string jwt = CreateJwt(
+                "RS256",
+                "kid-rsa",
+                Issuer,
+                Quote(Audience),
+                expiresInSeconds: 3600,
+                signingInput => rsa.SignData(signingInput, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1));
+            var authenticator = new JwtAuthenticator(
+                new StaticKeyResolver(Issuer, key),
+                Audience,
+                TimeSpan.FromSeconds(clockSkewSeconds));
+
+            AuthenticationResult result = await authenticator.AuthenticateAsync(
+                CreateContext(new IssuedIdentityTokenHandler(
+                    Profiles.JwtUserToken,
+                    Encoding.UTF8.GetBytes(jwt))))
+                .ConfigureAwait(false);
+
+            Assert.That(result.Outcome, Is.EqualTo(AuthenticationOutcome.Accepted));
+            var expiration = result.Identity as IIdentityExpiration;
+            Assert.That(expiration, Is.Not.Null);
+            Assert.That(expiration!.ExpiresAt, Is.Not.Null);
+            DateTime expected = DateTimeOffset.FromUnixTimeSeconds(expectedExpiry).UtcDateTime
+                .AddSeconds(clockSkewSeconds);
+            Assert.That(expiration.ExpiresAt!.Value, Is.EqualTo(expected).Within(TimeSpan.FromSeconds(2)));
         }
 
         [Test]

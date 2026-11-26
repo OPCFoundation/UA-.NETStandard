@@ -1,32 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using System.Collections.Generic;
@@ -54,6 +27,46 @@ namespace Opc.Ua.WotCon.Tests.Materialization
     /// </summary>
     public sealed partial class WotAtomicPublicationNativeTests
     {
+        /// <summary>
+        /// Teardown removes canonical and source owners together, joins retirement, and preserves durable intent.
+        /// </summary>
+        [Test]
+        [Platform("Win")]
+        public async Task RemoveAllRetiresCanonicalAndSourceOwnersWithoutChangingDurableIntentAsync()
+        {
+            using var views = new LifecycleWotViewProjectionHost(m_server.NodeManagerLifecycle);
+            HandoffProbe probe = await ConfigureStockViewsAsync(views).ConfigureAwait(false);
+            ArrayOf<NodeManagerRegistration> baseline = m_server.NodeManagerLifecycle.Registrations;
+            WotResource source = await UpsertStockSourceAsync(false).ConfigureAwait(false);
+            await AddStockViewAsync("child", false).ConfigureAwait(false);
+            WotRefreshResult activated = await m_coordinator.RefreshAsync(HandoffRequest("terminal-canonical-owner"))
+                .ConfigureAwait(false);
+            Assert.That(activated.Results.All(row => row.LoadState == WoTLoadStateEnum.Active), Is.True);
+            NodeId root = Root(m_registry.Current.FindResourceByXid(source.Xid)!);
+            NodeId view = StockView("child");
+            WotRegistrySnapshot durable = m_registry.Current;
+            int created = probe.RuntimeCreatedCount;
+            int publications = probe.PublicationCount;
+            long revision = m_server.NodeManagerLifecycle.Revision;
+
+            await m_coordinator.RemoveAllAsync().ConfigureAwait(false);
+
+            Assert.That(m_server.NodeManagerLifecycle.Revision, Is.EqualTo(revision + 1));
+            Assert.That(probe.PublicationCount, Is.EqualTo(publications + 1));
+            Assert.That(probe.RuntimeDisposedCount, Is.EqualTo(created));
+            Assert.That(m_server.NodeManagerLifecycle.Registrations.ToList(), Is.EquivalentTo(baseline.ToList()));
+            Assert.That(m_registry.Current, Is.SameAs(durable));
+            Assert.That((await ReadNodeClassAsync(root).ConfigureAwait(false)).StatusCode,
+                Is.EqualTo(StatusCodes.BadNodeIdUnknown));
+            Assert.That((await ReadNodeClassAsync(view).ConfigureAwait(false)).StatusCode,
+                Is.EqualTo(StatusCodes.BadNodeIdUnknown));
+
+            await m_coordinator.RemoveAllAsync().ConfigureAwait(false);
+            Assert.That(m_server.NodeManagerLifecycle.Revision, Is.EqualTo(revision + 1));
+            Assert.That(probe.RuntimeCreatedCount, Is.EqualTo(created));
+            Assert.That(probe.RuntimeDisposedCount, Is.EqualTo(created));
+        }
+
         /// <summary>
         /// Verifies that prepared view di uses the registered owner and rejects immediate only aliases.
         /// </summary>
@@ -296,6 +309,12 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             Assert.That(retry.NewGeneration, Is.EqualTo(2u));
             Assert.That(await ReadStockValueAsync("Reading").ConfigureAwait(false), Is.EqualTo(84));
             await AssertStockMembershipAsync("child", 2, ["Reading", "Other"]).ConfigureAwait(false);
+            // The replaced generation disposes its runtime when its retirement completes, which can
+            // finish after RefreshAsync returns on a loaded runner (seen on net48 CI).
+            for (int attempt = 0; attempt < 200 && probe.RuntimeCreatedCount - probe.RuntimeDisposedCount > 1; attempt++)
+            {
+                await Task.Delay(TimeSpan.FromMilliseconds(25)).ConfigureAwait(false);
+            }
             Assert.That(probe.RuntimeCreatedCount - probe.RuntimeDisposedCount, Is.EqualTo(1));
         }
 
@@ -594,8 +613,8 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                     RequiredRoleId = Ua.ObjectIds.WellKnownRole_Anonymous
                 };
             }
-            await m_server.NodeManagerLifecycle.AddAsync(new WotRegistryNodeManagerFactory(
-                options, m_registry, m_coordinator), callerContext: null)
+            await m_server.NodeManagerLifecycle.ApplyAsync([LifecycleChange.Add(new WotRegistryNodeManagerFactory(
+                options, m_registry, m_coordinator))])
                 .ConfigureAwait(false);
             m_server.CurrentInstance.NamespaceUris.GetIndexOrAppend(kStockViewNamespace);
             return probe;

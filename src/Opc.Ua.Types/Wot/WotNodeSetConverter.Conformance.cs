@@ -1,31 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using System.Collections.Generic;
@@ -730,7 +704,7 @@ namespace Opc.Ua.Wot
             {
                 return;
             }
-            int separator = key.IndexOf(':', 0);
+            int separator = key.IndexOf(':', 0, StringComparison.Ordinal);
             string? prefix = separator > 0 && separator + 1 < key.Length
                 ? key.Substring(0, separator)
                 : null;
@@ -1014,12 +988,12 @@ namespace Opc.Ua.Wot
         /// </summary>
         private static bool EndsWithMapMemberToken(string pointer, string map)
         {
-            int lastSeparator = pointer.LastIndexOf('/');
+            int lastSeparator = pointer.LastIndexOf('/', StringComparison.Ordinal);
             if (lastSeparator <= 0)
             {
                 return false;
             }
-            int previousSeparator = pointer.LastIndexOf('/', lastSeparator - 1);
+            int previousSeparator = pointer.LastIndexOf('/', lastSeparator - 1, StringComparison.Ordinal);
             int start = previousSeparator + 1;
             // A member name containing '/' is escaped as '~1' by the walker, so
             // a separator is always a pointer-token boundary.
@@ -1047,7 +1021,7 @@ namespace Opc.Ua.Wot
             }
             // A member name containing '/' is escaped as '~1' by the walker, so
             // a further separator can only be a further pointer token.
-            return pointer.IndexOf('/', first.Length + 2) < 0;
+            return pointer.IndexOf('/', first.Length + 2, StringComparison.Ordinal) < 0;
         }
 
         private static bool IsContextPrefix(string prefix)

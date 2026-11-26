@@ -1,31 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using System.Threading;
@@ -309,8 +283,12 @@ namespace Microsoft.Extensions.DependencyInjection
 
         /// <summary>
         /// Registers the bounded pull-DCA workflow. Hosts register <see cref="IPullDcaIdentityProvider"/> and
-        /// <see cref="IPullDcaCredentialProvider"/> for real certificate selection and installation, and optionally
-        /// discovery and software-update providers. The existing managed-session accessor owns every session.
+        /// <see cref="IPullDcaCredentialProvider"/> for real certificate selection and installation.
+        /// A separate <see cref="IPullDcaNewKeyPairCredentialProvider"/> or the credential provider handles
+        /// requested private-key output. New key-pair mode also requires a host-owned
+        /// <see cref="IPullDcaNewKeyPairRecoveryProvider"/> with atomic durable state transitions.
+        /// Discovery, software-update and signing-journal providers are optional.
+        /// The existing managed-session accessor owns every session.
         /// A multi-endpoint host may register a registrar-aware session accessor before resolving the workflow.
         /// </summary>
         public static IGdsClientBuilder AddPullDcaWorkflow(
@@ -342,7 +320,32 @@ namespace Microsoft.Extensions.DependencyInjection
                 sp.GetService<IPullDcaSoftwareUpdateProvider>(),
                 sp.GetService<IPullDcaRegistrarDiscovery>(),
                 sp.GetService<IPullDcaCertificateReceiptStore>(),
-                sp.GetService<IPullDcaSigningRecoveryProvider>()));
+                sp.GetService<IPullDcaSigningRecoveryProvider>(),
+                sp.GetService<IPullDcaSigningJournal>(),
+                sp.GetService<IPullDcaNewKeyPairCredentialProvider>(),
+                sp.GetService<IPullDcaNewKeyPairRecoveryProvider>()));
+            return builder;
+        }
+
+        /// <summary>
+        /// Registers request-bound recovery in one stable slot of the host's protected secret store.
+        /// The host must register an <see cref="IProtectedPullDcaRecoveryStore"/> before resolving the workflow.
+        /// </summary>
+        public static IGdsClientBuilder AddPullDcaKeyPairRecovery(this IGdsClientBuilder builder, string slot)
+        {
+            if (builder is null)
+            {
+                throw new ArgumentNullException(nameof(builder));
+            }
+            if (string.IsNullOrWhiteSpace(slot))
+            {
+                throw new ArgumentException("A stable recovery slot is required.", nameof(slot));
+            }
+            builder.Services.TryAddSingleton<IPullDcaNewKeyPairRecoveryProvider>(services =>
+                new SecretStorePullDcaNewKeyPairRecoveryProvider(
+                    services.GetRequiredService<IProtectedPullDcaRecoveryStore>(),
+                    slot,
+                    services.GetRequiredService<ITelemetryContext>()));
             return builder;
         }
 

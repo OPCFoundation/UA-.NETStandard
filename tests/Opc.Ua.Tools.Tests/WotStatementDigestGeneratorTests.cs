@@ -1,34 +1,7 @@
-/* ========================================================================
- * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
-#if NET10_0
+#if NET10_0_OR_GREATER
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -602,8 +575,23 @@ namespace Opc.Ua.Tools.Tests
             return builder.Append("]}").ToString();
         }
 
+        /// <summary>
+        /// Resolves the digest generator from the configured checkout or assembly ancestors.
+        /// </summary>
+        /// <exception cref="InvalidOperationException">The selected checkout cannot supply the generator.</exception>
         private static string FindRepositoryRoot()
         {
+            string? configured = Environment.GetEnvironmentVariable("OPCUA_TEST_REPOSITORY_ROOT");
+            if (!string.IsNullOrWhiteSpace(configured))
+            {
+                string root = Path.GetFullPath(configured);
+                if (!File.Exists(Path.Combine(root, "tools", "wot-spec", "Get-WotStatementDigests.ps1")))
+                {
+                    throw new InvalidOperationException("The configured repository root has no WoT digest generator.");
+                }
+                return root;
+            }
+
             string? current = TestContext.CurrentContext.TestDirectory;
             while (!string.IsNullOrWhiteSpace(current))
             {

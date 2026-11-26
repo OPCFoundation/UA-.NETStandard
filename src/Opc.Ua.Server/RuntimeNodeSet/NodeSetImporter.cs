@@ -1,31 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using System.Collections.Generic;
@@ -213,9 +187,31 @@ namespace Opc.Ua.Server.RuntimeNodeSet
                         m_factoryRegistry.IsFactoryCreated(child) &&
                         (m_factoryRegistry.IsFactoryCreated(parent) ||
                             isFactoryAuthored?.Invoke(parent) == true),
-                    OnTypedReplacement = onTypedReplacement
+                    OnTypedReplacement = onTypedReplacement,
+                    OnImportedNodeConverted = OnImportedNodeConverted
                 });
             m_completed = true;
+        }
+
+        /// <summary>
+        /// Lets a typed child, which linking copied from an imported child that
+        /// its slot could not hold directly, take over the identity of the
+        /// imported child. Grandchildren are linked afterwards and must see
+        /// the factory provenance of their converted parent.
+        /// </summary>
+        private void OnImportedNodeConverted(
+            BaseInstanceState original,
+            BaseInstanceState converted)
+        {
+            m_factoryRegistry.RegisterConversion(original, converted);
+            if (m_parentNodeIds.TryGetValue(original, out NodeId parentNodeId))
+            {
+                m_parentNodeIds[converted] = parentNodeId;
+            }
+            if (!converted.NodeId.IsNull)
+            {
+                m_nodesById[converted.NodeId] = converted;
+            }
         }
 
         /// <summary>
@@ -545,6 +541,18 @@ namespace Opc.Ua.Server.RuntimeNodeSet
         public bool IsFactoryCreated(NodeState state)
         {
             return m_factoryCreatedStates.Contains(state);
+        }
+
+        /// <summary>
+        /// Carries the factory provenance of an imported state over to the
+        /// typed state which replaced it while linking.
+        /// </summary>
+        public void RegisterConversion(NodeState original, NodeState converted)
+        {
+            if (m_factoryCreatedStates.Contains(original))
+            {
+                m_factoryCreatedStates.Add(converted);
+            }
         }
 
         private static bool SetFactoryNotFound(

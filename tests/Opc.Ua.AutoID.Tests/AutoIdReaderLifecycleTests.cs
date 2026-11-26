@@ -1,31 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using System.Linq;
@@ -150,6 +124,38 @@ namespace Opc.Ua.AutoID.Tests
                 Assert.That(device.GetDeviceLocation, Is.Not.Null);
                 Assert.That(device.AntennaNames!.Value[0].AntennaName, Is.EqualTo("South"));
                 Assert.That(device.SerialNumber!.Value, Is.EqualTo("SN-77"));
+            });
+        }
+
+        /// <summary>
+        /// Publishes mandatory RTLS units without inventing an undefined optional GetUnits signature.
+        /// </summary>
+        [Test]
+        public async Task RtlsPublishesConfiguredUnitsAndPreservesLocationWireOrderAsync()
+        {
+            AutoIdManagerFixture fixture = m_fixture ??
+                throw new InvalidOperationException("The reader fixture is not initialized.");
+            var provider = new FakeRtlsProvider(AutoIdReaderKind.Rtls, [LocationTypeEnumeration.LOCAL]);
+            AutoIdReader reader = await fixture.Runtime.Reader(fixture.Name(Unique("Units")), provider)
+                .WithRtlsUnits(
+                    new EUInformation { UnitId = 1 },
+                    new EUInformation { UnitId = 2 },
+                    new EUInformation { UnitId = 3 },
+                    new EUInformation { UnitId = 4 })
+                .BuildAsync().ConfigureAwait(false);
+            var device = (RtlsDeviceState)reader.Device;
+            PropertyState<ArrayOf<Argument>> arguments = device.GetLocation?.InputArguments ??
+                throw new InvalidOperationException("The RTLS location method has no input metadata.");
+            Assert.Multiple(() =>
+            {
+                Assert.That(device.GetUnits, Is.Null);
+                Assert.That(device.LengthUnit!.Value.UnitId, Is.EqualTo(1));
+                Assert.That(device.RotationalUnit!.Value.UnitId, Is.EqualTo(2));
+                Assert.That(device.GeographicalUnit!.Value.UnitId, Is.EqualTo(3));
+                Assert.That(device.SpeedUnit!.Value.UnitId, Is.EqualTo(4));
+                Assert.That(arguments.Value[0].Name, Is.EqualTo("Identifier"));
+                Assert.That(arguments.Value[1].Name, Is.EqualTo("LocationType"));
+                Assert.That(arguments.Value[2].Name, Is.EqualTo("CodeType"));
             });
         }
 
@@ -625,9 +631,6 @@ namespace Opc.Ua.AutoID.Tests
                     () => runtime.Reader(m_fixture.Name(Unique("G")), new FakeRtlsProvider(
                         AutoIdReaderKind.Rtls, [(LocationTypeEnumeration)99])),
                     "undefined location type");
-                Assert.Throws<ArgumentException>(
-                    () => runtime.Reader(m_fixture.Name(Unique("H")), new InMemoryScanReaderProviderShim()),
-                    "a verifier cannot publish the Scan method the NodeSet declares incorrectly");
             });
         }
 
@@ -740,29 +743,6 @@ namespace Opc.Ua.AutoID.Tests
             CancellationToken cancellationToken = default)
         {
             return new ValueTask<RtlsLocationResult?>((RtlsLocationResult?)null);
-        }
-    }
-
-    /// <summary>
-    /// A verifier provider that wrongly offers the synchronous scan.
-    /// </summary>
-    internal sealed class InMemoryScanReaderProviderShim : IAutoIdScanProvider
-    {
-        public AutoIdReaderKind Kind => AutoIdReaderKind.OpticalVerifier;
-
-        public ValueTask AttachAsync(IAutoIdReaderSink sink, CancellationToken cancellationToken = default)
-        {
-            return default;
-        }
-
-        public ValueTask DetachAsync(CancellationToken cancellationToken = default)
-        {
-            return default;
-        }
-
-        public ValueTask<AutoIdScanOutcome> ScanAsync(ScanSettings settings, CancellationToken cancellationToken = default)
-        {
-            return default;
         }
     }
 }

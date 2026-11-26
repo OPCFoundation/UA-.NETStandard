@@ -3,6 +3,7 @@
     "https://www.w3.org/2022/wot/td/v1.1",
     {
       "ns1": "http://opcfoundation.org/UA/DI/",
+      "qudt": "http://qudt.org/schema/qudt/",
       "ua": "http://opcfoundation.org/UA/",
       "uav": "http://opcfoundation.org/UA/WoT-Binding/"
     },
@@ -101,6 +102,7 @@
       "observable": true,
       "readOnly": true,
       "title": "ComponentName",
+      "type": "string",
       "uav:browseName": "ns1:ComponentName",
       "uav:id": "nsu=http://opcfoundation.org/UA/DI/;i=15099",
       "uav:mapToType": "i=21",
@@ -240,6 +242,7 @@
       "observable": true,
       "readOnly": true,
       "title": "Manufacturer",
+      "type": "string",
       "uav:browseName": "ns1:Manufacturer",
       "uav:id": "nsu=http://opcfoundation.org/UA/DI/;i=15086",
       "uav:mapToType": "i=21",
@@ -295,6 +298,7 @@
       "observable": true,
       "readOnly": true,
       "title": "Model",
+      "type": "string",
       "uav:browseName": "ns1:Model",
       "uav:id": "nsu=http://opcfoundation.org/UA/DI/;i=15088",
       "uav:mapToType": "i=21",
@@ -442,6 +446,22 @@
     }
   },
   "title": "ComponentType",
+  "tm:optional": [
+    "/properties/Manufacturer",
+    "/properties/ManufacturerUri",
+    "/properties/Model",
+    "/properties/HardwareRevision",
+    "/properties/SoftwareRevision",
+    "/properties/DeviceRevision",
+    "/properties/ProductCode",
+    "/properties/DeviceManual",
+    "/properties/DeviceClass",
+    "/properties/SerialNumber",
+    "/properties/ProductInstanceUri",
+    "/properties/RevisionCounter",
+    "/properties/AssetId",
+    "/properties/ComponentName"
+  ],
   "uav:bindingVersion": "1.1",
   "uav:browseName": "ns1:ComponentType",
   "uav:id": "nsu=http://opcfoundation.org/UA/DI/;i=15063",
@@ -688,6 +708,7 @@
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "ComponentType"
           }
         ],
@@ -769,10 +790,12 @@
         "superType": "ns=1;i=1001"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:Manufacturer",
         "dataType": "LocalizedText",
         "displayName": [
           {
+            "locale": "",
             "value": "Manufacturer"
           }
         ],
@@ -798,10 +821,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:ManufacturerUri",
         "dataType": "String",
         "displayName": [
           {
+            "locale": "",
             "value": "ManufacturerUri"
           }
         ],
@@ -827,10 +852,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:Model",
         "dataType": "LocalizedText",
         "displayName": [
           {
+            "locale": "",
             "value": "Model"
           }
         ],
@@ -856,10 +883,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:HardwareRevision",
         "dataType": "String",
         "displayName": [
           {
+            "locale": "",
             "value": "HardwareRevision"
           }
         ],
@@ -885,10 +914,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:SoftwareRevision",
         "dataType": "String",
         "displayName": [
           {
+            "locale": "",
             "value": "SoftwareRevision"
           }
         ],
@@ -914,10 +945,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:DeviceRevision",
         "dataType": "String",
         "displayName": [
           {
+            "locale": "",
             "value": "DeviceRevision"
           }
         ],
@@ -943,10 +976,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:ProductCode",
         "dataType": "String",
         "displayName": [
           {
+            "locale": "",
             "value": "ProductCode"
           }
         ],
@@ -972,10 +1007,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:DeviceManual",
         "dataType": "String",
         "displayName": [
           {
+            "locale": "",
             "value": "DeviceManual"
           }
         ],
@@ -1001,10 +1038,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:DeviceClass",
         "dataType": "String",
         "displayName": [
           {
+            "locale": "",
             "value": "DeviceClass"
           }
         ],
@@ -1030,10 +1069,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:SerialNumber",
         "dataType": "String",
         "displayName": [
           {
+            "locale": "",
             "value": "SerialNumber"
           }
         ],
@@ -1059,10 +1100,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:ProductInstanceUri",
         "dataType": "String",
         "displayName": [
           {
+            "locale": "",
             "value": "ProductInstanceUri"
           }
         ],
@@ -1088,10 +1131,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:RevisionCounter",
         "dataType": "Int32",
         "displayName": [
           {
+            "locale": "",
             "value": "RevisionCounter"
           }
         ],
@@ -1117,10 +1162,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:AssetId",
         "dataType": "String",
         "displayName": [
           {
+            "locale": "",
             "value": "AssetId"
           }
         ],
@@ -1146,10 +1193,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:ComponentName",
         "dataType": "LocalizedText",
         "displayName": [
           {
+            "locale": "",
             "value": "ComponentName"
           }
         ],

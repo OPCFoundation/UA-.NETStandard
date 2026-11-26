@@ -1,31 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using System.Threading;
@@ -42,7 +16,7 @@ namespace Opc.Ua.Redundancy.Server
     /// configured <see cref="ServerRedundancyOptions"/> via the
     /// <see cref="ServerRedundancyController"/>.
     /// </summary>
-    public sealed class ServerRedundancyStartupTask : IServerStartupTask
+    public sealed class ServerRedundancyStartupTask : IServerStartupTask, IAsyncDisposable
     {
         /// <summary>
         /// Creates the task.
@@ -55,9 +29,21 @@ namespace Opc.Ua.Redundancy.Server
         public ServerRedundancyStartupTask(
             ServerRedundancyController controller,
             bool warnIfServiceLevelProviderMissing = false)
+            : this(controller, warnIfServiceLevelProviderMissing, TimeProvider.System)
+        {
+        }
+
+        /// <summary>
+        /// Creates the startup task and supplies the time source for status refresh.
+        /// </summary>
+        internal ServerRedundancyStartupTask(
+            ServerRedundancyController controller,
+            bool warnIfServiceLevelProviderMissing,
+            TimeProvider timeProvider)
         {
             m_controller = controller ?? throw new ArgumentNullException(nameof(controller));
             m_warnIfServiceLevelProviderMissing = warnIfServiceLevelProviderMissing;
+            m_timeProvider = timeProvider;
         }
 
         /// <inheritdoc/>
@@ -72,6 +58,55 @@ namespace Opc.Ua.Redundancy.Server
             WarnIfServiceLevelProviderMissing(server);
 
             await m_controller.AttachAsync(server, cancellationToken).ConfigureAwait(false);
+            m_refresh = RefreshPeerStatusAsync(server, m_stop.Token);
+        }
+
+        /// <inheritdoc/>
+        public async ValueTask DisposeAsync()
+        {
+            if (Interlocked.Exchange(ref m_disposed, 1) != 0)
+            {
+                return;
+            }
+            try
+            {
+                m_stop.Cancel();
+                if (m_refresh != null)
+                {
+                    await m_refresh.ConfigureAwait(false);
+                }
+            }
+            finally
+            {
+                m_stop.Dispose();
+            }
+        }
+
+        private async Task RefreshPeerStatusAsync(IServerContext server, CancellationToken ct)
+        {
+            ILogger? logger = null;
+            try
+            {
+                while (true)
+                {
+                    await m_timeProvider.Delay(s_refreshInterval, ct).ConfigureAwait(false);
+                    using var timeout = CancellationTokenSource.CreateLinkedTokenSource(ct);
+                    timeout.CancelAfter(s_refreshInterval);
+                    try
+                    {
+                        await m_controller.RefreshPeerStatusAsync(timeout.Token).ConfigureAwait(false);
+                    }
+                    catch (Exception ex) when (!ct.IsCancellationRequested)
+                    {
+                        logger ??= server.DefaultSystemContext.Telemetry.CreateLogger<ServerRedundancyStartupTask>();
+                        logger.PeerStatusRefreshFailed(ex);
+                    }
+                }
+            }
+            catch (OperationCanceledException) when (ct.IsCancellationRequested)
+            {
+                // The startup task is being disposed.
+            }
         }
 
         private void WarnIfServiceLevelProviderMissing(IServerContext server)
@@ -87,6 +122,11 @@ namespace Opc.Ua.Redundancy.Server
 
         private readonly ServerRedundancyController m_controller;
         private readonly bool m_warnIfServiceLevelProviderMissing;
+        private readonly TimeProvider m_timeProvider;
+        private readonly CancellationTokenSource m_stop = new();
+        private Task? m_refresh;
+        private int m_disposed;
+        private static readonly TimeSpan s_refreshInterval = TimeSpan.FromSeconds(2);
     }
 
     /// <summary>
@@ -102,6 +142,11 @@ namespace Opc.Ua.Redundancy.Server
         public static partial void NonTransparentServerRedundancyModeWithoutServiceLevelProvider(
             this ILogger logger,
             RedundancySupport redundancyMode);
+
+        [LoggerMessage(EventId = RedundancyServerEventIds.ServerRedundancyStartupTask + 1,
+            Level = LogLevel.Warning,
+            Message = "Could not refresh authenticated redundant peer status. Retrying after the refresh interval.")]
+        public static partial void PeerStatusRefreshFailed(this ILogger logger, Exception exception);
     }
 
 }

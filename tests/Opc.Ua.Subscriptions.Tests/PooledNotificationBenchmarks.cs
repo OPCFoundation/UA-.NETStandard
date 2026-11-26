@@ -1,31 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using BenchmarkDotNet.Attributes;
 using BenchmarkDotNet.Configs;
@@ -41,8 +15,7 @@ namespace Opc.Ua.Client.Subscriptions
     /// Compares the unpooled <c>new</c> path against the pooled
     /// <c>CreateInstance() + Reuse()</c> path for each publish-payload
     /// type tagged <c>Poolable="true"</c> in the design XML
-    /// (<see cref="MonitoredItemNotification"/>,
-    /// <see cref="DataChangeNotification"/>,
+    /// (<see cref="DataChangeNotification"/>,
     /// <see cref="EventFieldList"/>,
     /// <see cref="EventNotificationList"/>).
     /// </summary>
@@ -90,15 +63,9 @@ namespace Opc.Ua.Client.Subscriptions
             // doesn't pay the cost of populating them.
             for (int i = 0; i < Iterations; i++)
             {
-                var m = (MonitoredItemNotification)
-                    MonitoredItemNotificationActivator.Instance.CreateInstance();
-                m.Reuse();
                 var d = (DataChangeNotification)
                     DataChangeNotificationActivator.Instance.CreateInstance();
                 d.Reuse();
-                var e = (EventFieldList)
-                    EventFieldListActivator.Instance.CreateInstance();
-                e.Reuse();
                 var en = (EventNotificationList)
                     EventNotificationListActivator.Instance.CreateInstance();
                 en.Reuse();
@@ -117,22 +84,6 @@ namespace Opc.Ua.Client.Subscriptions
                     ClientHandle = (uint)i
                 };
                 sum += (int)item.ClientHandle;
-            }
-            Assert.That(sum, Is.GreaterThanOrEqualTo(0));
-        }
-
-        [Benchmark(Description = "MonitoredItemNotificationActivator + Reuse")]
-        [Test]
-        public void PooledMonitoredItemNotification()
-        {
-            int sum = 0;
-            for (int i = 0; i < Iterations; i++)
-            {
-                var item = (MonitoredItemNotification)
-                    MonitoredItemNotificationActivator.Instance.CreateInstance();
-                item.ClientHandle = (uint)i;
-                sum += (int)item.ClientHandle;
-                item.Reuse();
             }
             Assert.That(sum, Is.GreaterThanOrEqualTo(0));
         }
@@ -165,12 +116,11 @@ namespace Opc.Ua.Client.Subscriptions
             {
                 var notification = (DataChangeNotification)
                     DataChangeNotificationActivator.Instance.CreateInstance();
-                var item = (MonitoredItemNotification)
-                    MonitoredItemNotificationActivator.Instance.CreateInstance();
-                item.ClientHandle = (uint)i;
-                notification.MonitoredItems = new MonitoredItemNotification[] { item };
+                notification.MonitoredItems = new MonitoredItemNotification[]
+                {
+                    new() { ClientHandle = (uint)i }
+                };
                 count += notification.MonitoredItems.Count;
-                item.Reuse();
                 notification.Reuse();
             }
             Assert.That(count, Is.EqualTo(Iterations));
@@ -188,22 +138,6 @@ namespace Opc.Ua.Client.Subscriptions
                     ClientHandle = (uint)i
                 };
                 sum += (int)item.ClientHandle;
-            }
-            Assert.That(sum, Is.GreaterThanOrEqualTo(0));
-        }
-
-        [Benchmark(Description = "EventFieldListActivator + Reuse")]
-        [Test]
-        public void PooledEventFieldList()
-        {
-            int sum = 0;
-            for (int i = 0; i < Iterations; i++)
-            {
-                var item = (EventFieldList)
-                    EventFieldListActivator.Instance.CreateInstance();
-                item.ClientHandle = (uint)i;
-                sum += (int)item.ClientHandle;
-                item.Reuse();
             }
             Assert.That(sum, Is.GreaterThanOrEqualTo(0));
         }

@@ -3,6 +3,7 @@
     "https://www.w3.org/2022/wot/td/v1.1",
     {
       "ns1": "http://opcfoundation.org/UA/DI/",
+      "qudt": "http://qudt.org/schema/qudt/",
       "ua": "http://opcfoundation.org/UA/",
       "uav": "http://opcfoundation.org/UA/WoT-Binding/"
     },
@@ -166,6 +167,7 @@
       "observable": true,
       "readOnly": true,
       "title": "Manufacturer",
+      "type": "string",
       "uav:browseName": "ns1:Manufacturer",
       "uav:id": "nsu=http://opcfoundation.org/UA/DI/;i=15036",
       "uav:mapToType": "i=21",
@@ -221,6 +223,7 @@
       "observable": true,
       "readOnly": true,
       "title": "Model",
+      "type": "string",
       "uav:browseName": "ns1:Model",
       "uav:id": "nsu=http://opcfoundation.org/UA/DI/;i=15038",
       "uav:mapToType": "i=21",
@@ -432,6 +435,22 @@
     }
   },
   "title": "IVendorNameplateType",
+  "tm:optional": [
+    "/properties/Manufacturer",
+    "/properties/ManufacturerUri",
+    "/properties/Model",
+    "/properties/HardwareRevision",
+    "/properties/SoftwareRevision",
+    "/properties/DeviceRevision",
+    "/properties/ProductCode",
+    "/properties/DeviceManual",
+    "/properties/DeviceClass",
+    "/properties/SerialNumber",
+    "/properties/ProductInstanceUri",
+    "/properties/RevisionCounter",
+    "/properties/SoftwareReleaseDate",
+    "/properties/PatchIdentifiers"
+  ],
   "uav:bindingVersion": "1.1",
   "uav:browseName": "ns1:IVendorNameplateType",
   "uav:id": "nsu=http://opcfoundation.org/UA/DI/;i=15035",
@@ -678,6 +697,7 @@
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "IVendorNameplateType"
           }
         ],
@@ -751,10 +771,12 @@
         "superType": "i=17602"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:Manufacturer",
         "dataType": "LocalizedText",
         "displayName": [
           {
+            "locale": "",
             "value": "Manufacturer"
           }
         ],
@@ -780,10 +802,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:ManufacturerUri",
         "dataType": "String",
         "displayName": [
           {
+            "locale": "",
             "value": "ManufacturerUri"
           }
         ],
@@ -809,10 +833,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:Model",
         "dataType": "LocalizedText",
         "displayName": [
           {
+            "locale": "",
             "value": "Model"
           }
         ],
@@ -838,10 +864,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:HardwareRevision",
         "dataType": "String",
         "displayName": [
           {
+            "locale": "",
             "value": "HardwareRevision"
           }
         ],
@@ -867,10 +895,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:SoftwareRevision",
         "dataType": "String",
         "displayName": [
           {
+            "locale": "",
             "value": "SoftwareRevision"
           }
         ],
@@ -896,10 +926,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:DeviceRevision",
         "dataType": "String",
         "displayName": [
           {
+            "locale": "",
             "value": "DeviceRevision"
           }
         ],
@@ -925,10 +957,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:ProductCode",
         "dataType": "String",
         "displayName": [
           {
+            "locale": "",
             "value": "ProductCode"
           }
         ],
@@ -954,10 +988,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:DeviceManual",
         "dataType": "String",
         "displayName": [
           {
+            "locale": "",
             "value": "DeviceManual"
           }
         ],
@@ -983,10 +1019,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:DeviceClass",
         "dataType": "String",
         "displayName": [
           {
+            "locale": "",
             "value": "DeviceClass"
           }
         ],
@@ -1012,10 +1050,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:SerialNumber",
         "dataType": "String",
         "displayName": [
           {
+            "locale": "",
             "value": "SerialNumber"
           }
         ],
@@ -1041,10 +1081,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:ProductInstanceUri",
         "dataType": "String",
         "displayName": [
           {
+            "locale": "",
             "value": "ProductInstanceUri"
           }
         ],
@@ -1070,10 +1112,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:RevisionCounter",
         "dataType": "Int32",
         "displayName": [
           {
+            "locale": "",
             "value": "RevisionCounter"
           }
         ],
@@ -1099,10 +1143,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:SoftwareReleaseDate",
         "dataType": "DateTime",
         "displayName": [
           {
+            "locale": "",
             "value": "SoftwareReleaseDate"
           }
         ],
@@ -1133,6 +1179,7 @@
         "dataType": "String",
         "displayName": [
           {
+            "locale": "",
             "value": "PatchIdentifiers"
           }
         ],

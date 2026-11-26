@@ -1,60 +1,36 @@
-/* ========================================================================
- * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
-using System.Collections.Generic;
 using System.Globalization;
+using System.Net;
+using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
+using Opc.Ua.Server;
 using Opc.Ua.Server.Hosting;
 using Raft;
 using Raft.Configuration;
-using Raft.Storage;
 using Raft.Storage.File;
-using Raft.Transport.NanoMsg;
 
 namespace Opc.Ua.Redundancy.Kubernetes
 {
     /// <summary>
     /// Extension beyond OPC 10000-4 §6.6: fluent registration of a Kubernetes-hosted multi-node Raft consensus
-    /// backend (RaftCs over NanoMsg, with an optional file WAL) on the <see cref="IOpcUaServerBuilder"/>.
+    /// backend (RaftCs over mutually authenticated TLS, with a durable file WAL) on the
+    /// <see cref="IOpcUaServerBuilder"/>.
     /// </summary>
     public static class KubernetesRaftBuilderExtensions
     {
         /// <summary>
         /// Registers an <see cref="IRaftConsensus"/> for a Kubernetes StatefulSet: this pod's ordinal becomes its
-        /// Raft node id, peers are the other ordinals resolved through the headless Service DNS, the transport is
-        /// <c>NanoMsgBusTransport</c>, and storage is a crash-safe file WAL on a PersistentVolume (or in-memory).
+        /// Raft node id, each peer is pinned to its provisioned TLS leaf, and storage is a crash-safe file WAL
+        /// on a PersistentVolume. Credentials and peer routes are resolved asynchronously before serving requests.
         /// Compose with <c>UseRedundancyConsistency</c> so the shared store and election use this consensus replica.
         /// </summary>
         /// <param name="builder">The server builder.</param>
-        /// <param name="configure">Consensus options (HeadlessServiceName and ReplicaCount are required).</param>
+        /// <param name="configure">The static membership, certificate resolver, and deployment settings.</param>
         /// <returns>The same <see cref="IOpcUaServerBuilder"/> for chaining.</returns>
         /// <exception cref="ArgumentNullException"><paramref name="builder"/> is <c>null</c>.</exception>
         /// <exception cref="ArgumentException"></exception>
@@ -74,100 +50,165 @@ namespace Opc.Ua.Redundancy.Kubernetes
             {
                 throw new ArgumentException("ReplicaCount must be at least 1.", nameof(configure));
             }
-            if (string.IsNullOrEmpty(options.HeadlessServiceName))
+            if (options.ReadyTimeout <= TimeSpan.Zero ||
+                options.ReadyTimeout > TimeSpan.FromMilliseconds(int.MaxValue))
             {
-                throw new ArgumentException("HeadlessServiceName is required.", nameof(configure));
+                throw new ArgumentException("ReadyTimeout must be a positive startup deadline.", nameof(configure));
             }
 
-            builder.Services.TryAddSingleton<IRaftConsensus>(_ => BuildConsensus(options));
+            if (options.UseInProcessTestTransport)
+            {
+                if (options.ReplicaCount != 1)
+                {
+                    throw new ArgumentException("The in-process test backend requires one replica.", nameof(configure));
+                }
+            }
+            else
+            {
+                ValidateNetworkOptions(options);
+            }
+
+            builder.Services.RemoveAll<IRaftConsensus>();
+            builder.Services.AddSingleton<IRaftConsensus>(sp => BuildConsensus(sp, options));
+            builder.Services.TryAddEnumerable(
+                ServiceDescriptor.Singleton<IServerPreStartupTask, RaftStartupTask>());
             return builder;
         }
 
-        private static DefaultRaftConsensus BuildConsensus(KubernetesRaftConsensusOptions options)
+        private static void ValidateNetworkOptions(KubernetesRaftConsensusOptions options)
         {
-            string podName = string.IsNullOrEmpty(options.PodName) ? Environment.MachineName : options.PodName!;
+            if (string.IsNullOrWhiteSpace(options.HeadlessServiceName))
+            {
+                throw new ArgumentException("HeadlessServiceName is required.");
+            }
+            if (options.ResolveMemberCertificateAsync == null)
+            {
+                throw new ArgumentException("ResolveMemberCertificateAsync is required for mutual TLS.");
+            }
+            if (options.TransportOptions == null ||
+                options.TransportOptions.MaxFrameLength < KubernetesRaftConsensusOptions.kMinimumTransportFrameLength)
+            {
+                throw new ArgumentException("TransportOptions must allow a 16 MiB Raft frame.");
+            }
+            if (!options.UseDurableStorage || string.IsNullOrWhiteSpace(options.StoragePath))
+            {
+                throw new ArgumentException("Network Raft requires a durable WAL directory.");
+            }
+            if (options.RaftPort is <= IPEndPoint.MinPort or > IPEndPoint.MaxPort)
+            {
+                throw new ArgumentException("RaftPort must be between 1 and 65535.");
+            }
+        }
+
+        private static DefaultRaftConsensus BuildConsensus(
+            IServiceProvider services,
+            KubernetesRaftConsensusOptions options)
+        {
+            if (options.UseInProcessTestTransport)
+            {
+                if (!string.IsNullOrEmpty(Environment.GetEnvironmentVariable("KUBERNETES_SERVICE_HOST")) ||
+                    !string.IsNullOrEmpty(Environment.GetEnvironmentVariable("POD_IP")) ||
+                    services.GetService<IKubernetesApiClient>() is { IsInCluster: true })
+                {
+                    throw new InvalidOperationException("The in-process Raft test backend cannot run in Kubernetes.");
+                }
+                return DefaultRaftConsensus.CreateSingleNode(readyTimeout: options.ReadyTimeout);
+            }
+
+            string podName = string.IsNullOrEmpty(options.PodName) ? Environment.MachineName : options.PodName;
             int ordinal = ParseOrdinal(podName);
-            if (ordinal < 0 || ordinal >= options.ReplicaCount)
+            if (ordinal >= options.ReplicaCount)
             {
                 throw new InvalidOperationException(
                     $"Pod ordinal {ordinal} derived from '{podName}' is out of range [0,{options.ReplicaCount}).");
             }
 
             ulong nodeId = (ulong)(ordinal + 1);
-            string statefulSet = options.StatefulSetName ?? podName[..podName.LastIndexOf('-')];
-
-            var memberIds = new List<ulong>(options.ReplicaCount);
-            for (int ii = 0; ii < options.ReplicaCount; ii++)
+            string statefulSet = options.StatefulSetName ??
+                podName[..podName.LastIndexOf('-', StringComparison.Ordinal)];
+            IPEndPoint listenEndPoint = ResolveListenEndPoint(options);
+            var memberIds = new ulong[options.ReplicaCount];
+            for (int ii = 0; ii < memberIds.Length; ii++)
             {
-                memberIds.Add((ulong)(ii + 1));
+                memberIds[ii] = (ulong)(ii + 1);
             }
+            var configuredMembership = new ConfState(memberIds);
 
-            var transportOptions = new NanoMsgBusTransportOptions
+            var fileStorage = new FileRaftStorage(
+                new FileRaftStorageOptions(options.StoragePath) { Fsync = options.Fsync });
+            try
             {
-                BindAddress = string.IsNullOrEmpty(options.BindAddress)
-                    ? string.Create(CultureInfo.InvariantCulture, $"tcp://0.0.0.0:{options.RaftPort}")
-                    : options.BindAddress
-            };
-            for (int ii = 0; ii < options.ReplicaCount; ii++)
-            {
-                if (ii == ordinal)
+                ConfState storedMembership = fileStorage.InitialState().ConfState;
+                if (storedMembership.Equals(new ConfState()))
                 {
-                    continue;
+                    fileStorage.SetConfState(configuredMembership);
                 }
-                string host = string.IsNullOrEmpty(options.Namespace)
-                    ? $"{statefulSet}-{ii}.{options.HeadlessServiceName}"
-                    : $"{statefulSet}-{ii}.{options.HeadlessServiceName}.{options.Namespace}.svc";
-                transportOptions.Peers.Add(
-                    string.Create(CultureInfo.InvariantCulture, $"tcp://{host}:{options.RaftPort}"));
-            }
+                else if (!storedMembership.Equals(configuredMembership))
+                {
+                    throw new InvalidOperationException("The Raft WAL membership does not match the StatefulSet.");
+                }
 
-            // CA2000: this is a DI factory; ownership of the transport (via the
-            // node) and the storage transfers to the returned adapter, which the
-            // container disposes.
+                // TODO: Remove this suppression when ownership transfer is modeled by CA2000.
+                // The node owns the deferred transport; the consensus adapter owns the WAL.
 #pragma warning disable CA2000
-            var transport = new NanoMsgBusTransport(transportOptions);
-
-            IRaftWritableStorage storage;
-            IAsyncDisposable? ownedResources;
-            if (options.UseDurableStorage)
-            {
-                var fileStorage = new FileRaftStorage(
-                    new FileRaftStorageOptions(options.StoragePath) { Fsync = options.Fsync });
-                // A fresh WAL has no membership; bootstrap the static voter set.
-                if (fileStorage.InitialState().ConfState.Voters.Count == 0)
-                {
-                    fileStorage.SetConfState(new ConfState(memberIds));
-                }
-                storage = fileStorage;
-                ownedResources = new SyncDisposableAdapter(fileStorage);
-            }
-            else
-            {
-                storage = new MemoryStorage(new ConfState(memberIds));
-                ownedResources = null;
-            }
-
-            return DefaultRaftConsensus.CreateCluster(
-                nodeId,
-                transport,
-                storage,
-                new RaftNodeOptions { TickInterval = options.TickInterval },
-                config =>
-                {
-                    config.ElectionTick = options.ElectionTick;
-                    config.HeartbeatTick = options.HeartbeatTick;
-                    config.PreVote = options.PreVote;
-                    config.CheckQuorum = options.CheckQuorum;
-                },
-                options.ReadyTimeout,
-                ownedResources);
+                return DefaultRaftConsensus.CreateCluster(
+                    nodeId,
+                    new KubernetesRaftTransport(services, options, listenEndPoint, statefulSet, nodeId),
+                    fileStorage,
+                    new RaftNodeOptions
+                    {
+                        TickInterval = options.TickInterval,
+                        MaxIncomingMessageBytes = options.TransportOptions.MaxFrameLength
+                    },
+                    config =>
+                    {
+                        config.ElectionTick = options.ElectionTick;
+                        config.HeartbeatTick = options.HeartbeatTick;
+                        config.PreVote = options.PreVote;
+                        config.CheckQuorum = options.CheckQuorum;
+                    },
+                    options.ReadyTimeout,
+                    new SyncDisposableAdapter(fileStorage));
 #pragma warning restore CA2000
+            }
+            catch
+            {
+                fileStorage.Dispose();
+                throw;
+            }
+        }
+
+        private static IPEndPoint ResolveListenEndPoint(KubernetesRaftConsensusOptions options)
+        {
+            if (options.BindAddress is string bindAddress)
+            {
+                const string tcpPrefix = "tcp://";
+                string address = bindAddress.StartsWith(tcpPrefix, StringComparison.OrdinalIgnoreCase)
+                    ? bindAddress[tcpPrefix.Length..]
+                    : bindAddress;
+                if (IPAddress.TryParse(address, out IPAddress? bindIp))
+                {
+                    return new IPEndPoint(bindIp, options.RaftPort);
+                }
+                if (IPEndPoint.TryParse(address, out IPEndPoint? endPoint) && endPoint.Port != 0)
+                {
+                    return endPoint;
+                }
+                throw new InvalidOperationException("BindAddress must specify a listener IP address.");
+            }
+
+            if (!IPAddress.TryParse(Environment.GetEnvironmentVariable("POD_IP"), out IPAddress? podIp) ||
+                podIp.Equals(IPAddress.Any) || podIp.Equals(IPAddress.IPv6Any))
+            {
+                throw new InvalidOperationException("Configure the POD_IP environment variable or BindAddress.");
+            }
+            return new IPEndPoint(podIp, options.RaftPort);
         }
 
         private static int ParseOrdinal(string podName)
         {
-            int dash = podName.LastIndexOf('-');
-            if (dash < 0 ||
+            int dash = podName.LastIndexOf('-', StringComparison.Ordinal);
+            if (dash <= 0 ||
                 dash == podName.Length - 1 ||
                 !int.TryParse(
                     podName.AsSpan(dash + 1), NumberStyles.None, CultureInfo.InvariantCulture, out int ordinal))
@@ -176,6 +217,20 @@ namespace Opc.Ua.Redundancy.Kubernetes
                     $"Cannot derive a StatefulSet ordinal from pod name '{podName}'.");
             }
             return ordinal;
+        }
+
+        /// <summary>
+        /// Awaits Raft startup before the server starts its node managers or exposes endpoints.
+        /// </summary>
+        private sealed class RaftStartupTask(IRaftConsensus consensus) : IServerPreStartupTask
+        {
+            /// <inheritdoc/>
+            public ValueTask OnServerStartingAsync(
+                IServerContext server,
+                CancellationToken cancellationToken = default)
+            {
+                return consensus.StartAsync(cancellationToken);
+            }
         }
 
         /// <summary>

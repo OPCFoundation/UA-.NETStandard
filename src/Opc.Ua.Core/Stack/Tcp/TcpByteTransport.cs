@@ -1,31 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using System.Collections.Generic;
@@ -531,7 +505,19 @@ namespace Opc.Ua.Bindings
             }
             if (socket != null)
             {
+#if NETFRAMEWORK
+                // On .NET Framework Socket.Dispose spins in cooperative GC mode
+                // until every pending operation has released the socket handle,
+                // and closes with the linger timeout. A close from the completion
+                // of a receive on this socket (the channel's receive loop faulting)
+                // then blocks every GC suspension and freezes the process (#4981).
+                // The shutdown ends the connection here; the dispose runs on the
+                // thread pool, once the current completion has unwound.
+                Shutdown(socket);
+                ThreadPool.UnsafeQueueUserWorkItem(static s => ((Socket)s!).Dispose(), socket);
+#else
                 ShutdownAndDispose(socket);
+#endif
             }
             m_sendCancellation.Cancel();
         }
@@ -693,6 +679,18 @@ namespace Opc.Ua.Bindings
         {
             try
             {
+                Shutdown(socket);
+            }
+            finally
+            {
+                socket.Dispose();
+            }
+        }
+
+        private void Shutdown(Socket socket)
+        {
+            try
+            {
                 if (socket.Connected)
                 {
                     socket.Shutdown(SocketShutdown.Both);
@@ -701,10 +699,6 @@ namespace Opc.Ua.Bindings
             catch (Exception e)
             {
                 m_logger.TcpByteTransportLogMessage1(e);
-            }
-            finally
-            {
-                socket.Dispose();
             }
         }
 
@@ -747,6 +741,12 @@ namespace Opc.Ua.Bindings
         private readonly CancellationTokenSource m_sendCancellation = new();
 
         private readonly Lock m_socketLock = new();
+#if NETFRAMEWORK
+        [System.Diagnostics.CodeAnalysis.SuppressMessage(
+            "Usage",
+            "CA2213:Disposable fields should be disposed",
+            Justification = "Close disposes the socket on the thread pool (#4981).")]
+#endif
         private Socket? m_socket;
         private bool m_closed;
     }

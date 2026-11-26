@@ -1,31 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using System.Collections.Generic;
@@ -681,15 +655,72 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
+        /// Creates the server configuration and resolves namespace permissions asynchronously.
+        /// </summary>
+        /// <param name="systemContext">The server system context.</param>
+        /// <param name="configuration">The application configuration.</param>
+        /// <param name="cancellationToken">The cancellation token.</param>
+        internal async ValueTask CreateServerConfigurationAsync(
+            ServerSystemContext systemContext,
+            ApplicationConfiguration configuration,
+            CancellationToken cancellationToken = default)
+        {
+            ConfigurePushConfiguration(systemContext, configuration);
+            await GrantSecurityAdminCallPermissionsAsync(
+                systemContext,
+                m_serverConfigurationNode!,
+                cancellationToken).ConfigureAwait(false);
+
+            // Namespace metadata and user management belong to the hosting server,
+            // not to independently managed ApplicationConfiguration instances.
+            m_namespaceMetadata.Attach(systemContext);
+
+            if (Server.UserManagement != null)
+            {
+                m_userManagementBinding?.Dispose();
+                m_userManagementBinding = UserManagement.UserManagementBinding.Bind(
+                    this,
+                    Server.UserManagement,
+                    Server.SessionManager);
+            }
+            else
+            {
+                m_userManagementBinding?.Dispose();
+                m_userManagementBinding = null;
+                await DeleteNodeAsync(systemContext, new NodeId(Objects.UserManagement), cancellationToken)
+                    .ConfigureAwait(false);
+            }
+        }
+
+        /// <summary>
         /// Wires certificate and trust management without binding host-only configuration services.
         /// </summary>
         private void ConfigurePushConfiguration(
             ServerSystemContext systemContext,
             ApplicationConfiguration configuration)
         {
-            ServerConfiguration serverConfiguration = configuration.ServerConfiguration ?? new ServerConfiguration();
-            // setup server configuration node
             ServerConfigurationState configNode = m_serverConfigurationNode!;
+            ConfigurePushMethodNodes(configNode, configuration);
+            ConfigureOptionalServerConfigurationSurface(configNode, configuration);
+            m_configurationFile = ConfigureConfigurationFile(systemContext, configNode);
+            GrantSecurityAdminCallPermissions(systemContext, configNode);
+
+            configNode.ClearChangeMasks(systemContext, true);
+            UpdateTransactionDiagnostics(systemContext);
+            foreach (ServerCertificateGroup certGroup in m_certificateGroups)
+            {
+                ConfigurePushTrustList(systemContext, certGroup, certGroup.Node);
+            }
+
+            SubscribeTrustMaterialEnforcement();
+            m_alarmScheduler.UpdateAndEvaluate(systemContext, emitEvents: false);
+        }
+
+        private void ConfigurePushMethodNodes(
+            ServerConfigurationState configNode,
+            ApplicationConfiguration configuration)
+        {
+            ServerConfiguration serverConfiguration = configuration.ServerConfiguration ?? new ServerConfiguration();
             configNode.ServerCapabilities!.Value =
             [
                 .. serverConfiguration.ServerCapabilities
@@ -735,77 +766,51 @@ namespace Opc.Ua.Server
                 = new GetCertificatesMethodStateMethodCallHandler(
                 GetCertificates);
             configNode.SupportsTransactions?.Value = true;
+        }
 
-            ConfigureOptionalServerConfigurationSurface(systemContext, configNode, configuration);
-
-            configNode.ClearChangeMasks(systemContext, true);
-            UpdateTransactionDiagnostics(systemContext);
-
-            // setup certificate group trust list handlers
-            foreach (ServerCertificateGroup certGroup in m_certificateGroups)
+        private void ConfigurePushTrustList(
+            ServerSystemContext systemContext,
+            ServerCertificateGroup certGroup,
+            CertificateGroupState groupNode)
+        {
+            groupNode.CertificateTypes!.Value = certGroup.CertificateTypes;
+            TrustList? trustList = null;
+            try
             {
-                certGroup.Node!.CertificateTypes!.Value = certGroup.CertificateTypes;
-                TrustList? trustList = null;
-                try
+                trustList = new TrustList(
+                    groupNode.TrustList!,
+                    certGroup.TrustedStore,
+                    certGroup.IssuerStore,
+                    new TrustList.SecureAccess(TrustList.AuthorizeReadByPolicy),
+                    new TrustList.SecureAccess(TrustList.AuthorizeWriteByPolicy),
+                    Server.Telemetry,
+                    m_coordinator,
+                    m_configuration.ServerConfiguration?.MaxTrustListSize ?? 0,
+                    m_serverConfigurationOptions.MaxTrustListSizeSafetyCeiling,
+                    m_configuration.CertificateManager as ICertificateStoreResolver);
+                if (m_serverConfigurationOptions.PushAuthorization != null)
                 {
-                    trustList = new TrustList(
-                        certGroup.Node.TrustList!,
-                        certGroup.TrustedStore,
-                        certGroup.IssuerStore,
-                        new TrustList.SecureAccess(HasApplicationSecureAdminAccess),
-                        new TrustList.SecureAccess(HasApplicationSecureAdminAccess),
-                        Server.Telemetry,
-                        m_coordinator,
-                        serverConfiguration.MaxTrustListSize,
-                        m_serverConfigurationOptions.MaxTrustListSizeSafetyCeiling,
-                        m_configuration.CertificateManager as ICertificateStoreResolver);
-                    if (m_serverConfigurationOptions.PushAuthorization != null)
+                    trustList.SetWriteAuthorization((context, _, ct) =>
+                        AuthorizePushAsync(context, ServerAuthorizationDecision.TrustListWrite, ct));
+                    if (m_applicationPushTarget != null)
                     {
-                        trustList.SetWriteAuthorization((context, _, ct) =>
-                            AuthorizePushMutationAsync(context, requireEncryptedChannel: true, ct));
-                        if (m_applicationPushTarget != null)
-                        {
-                            trustList.SetReadAuthorization((context, _, ct) =>
-                                AuthorizePushMutationAsync(context, requireEncryptedChannel: true, ct));
-                        }
+                        trustList.SetReadAuthorization((context, _, ct) =>
+                            AuthorizePushAsync(context, ServerAuthorizationDecision.TrustListRead, ct));
                     }
-                    if (IsApplicationCertificateGroup(certGroup))
-                    {
-                        // OPC 10000-12 §7.8.2.5/§7.8.2.6: certificates written to
-                        // an ApplicationCertificateType TrustList are validated
-                        // with the OPC 10000-4 process.
-                        trustList.SetCertificateValidation(m_configuration.SecurityConfiguration);
-                    }
-                    // §7.8.2: the TrustList audit events must reach Clients that
-                    // subscribe to the Server Object.
-                    trustList.SetAuditEventServer(Server);
-                    certGroup.Node.TrustList!.Handle = trustList;
-                    trustList = null;
                 }
-                finally
+                if (IsApplicationCertificateGroup(certGroup))
                 {
-                    trustList?.Dispose();
+                    trustList.SetCertificateValidation(m_configuration.SecurityConfiguration);
                 }
-                certGroup.Node.ClearChangeMasks(systemContext, true);
+                trustList.SetAuditEventServer(Server);
+                groupNode.TrustList!.Handle = trustList;
+                trustList = null;
             }
-
-            // Enforce trust-material changes on live channels/Sessions
-            // regardless of origin: any TrustListUpdated/CrlUpdated raised on
-            // the certificate manager (push ApplyChanges, WriteTrustListAsync,
-            // ITrustListTransaction commits, HA store sync, ...) triggers the
-            // same §7.10.9 effect fan-out that ApplyChanges runs, so a client
-            // whose certificate was revoked out-of-band is cut immediately
-            // instead of at its next security-token renewal.
-            SubscribeTrustMaterialEnforcement();
-
-            // OPC 10000-12 §7.8.3: publish the current certificate and CRL
-            // state onto the optional alarm inputs (ExpirationDate,
-            // TrustListId, LastUpdateTime) and establish the baseline
-            // inactive state. Events are suppressed here (emitEvents: false)
-            // because the subscription infrastructure is not yet ready during
-            // CreateAddressSpace; StartAlarmMonitoring re-evaluates with events
-            // once the server is running.
-            m_alarmScheduler.UpdateAndEvaluate(systemContext, emitEvents: false);
+            finally
+            {
+                trustList?.Dispose();
+            }
+            groupNode.ClearChangeMasks(systemContext, true);
         }
 
         /// <summary>
@@ -821,7 +826,6 @@ namespace Opc.Ua.Server
         /// the optional-child suppression is preserved.
         /// </summary>
         private void ConfigureOptionalServerConfigurationSurface(
-            ServerSystemContext systemContext,
             ServerConfigurationState configNode,
             ApplicationConfiguration configuration)
         {
@@ -854,7 +858,6 @@ namespace Opc.Ua.Server
                     = new GenericMethodCalledEventHandler2Async(ResetToServerDefaultsAsync);
             }
 
-            ConfigureConfigurationFile(systemContext, configNode);
         }
 
         /// <summary>
@@ -862,17 +865,24 @@ namespace Opc.Ua.Server
         /// handler onto the <c>ConfigurationFile</c> node (§7.10.20) when a
         /// provider is configured and the optional node was materialised.
         /// </summary>
-        private void ConfigureConfigurationFile(
+        private ApplicationConfigurationFile? ConfigureConfigurationFile(
             ServerSystemContext systemContext,
-            ServerConfigurationState configNode)
+            ServerConfigurationState configNode,
+            ApplicationConfigurationFileState? previousFile = null)
         {
             if (m_serverConfigurationOptions.ConfigurationFileProvider is not { } fileProvider ||
                 configNode.ConfigurationFile is not { } fileNode)
             {
-                return;
+                return null;
             }
 
-            m_configurationFile = new ApplicationConfigurationFile(
+            // Read provider state only for the initial attachment. A staged successor
+            // takes its initial values from the predecessor's nodes.
+            uint currentVersion = previousFile == null
+                ? fileProvider.CurrentVersion : previousFile.CurrentVersion!.Value;
+            DateTimeUtc lastUpdateTime = previousFile == null
+                ? new DateTimeUtc(fileProvider.LastUpdateTime) : previousFile.LastUpdateTime!.Value;
+            var file = new ApplicationConfigurationFile(
                 fileNode,
                 fileProvider,
                 new ApplicationConfigurationFile.SecureAccess(
@@ -886,14 +896,15 @@ namespace Opc.Ua.Server
                 m_applicationOperations);
 
             fileNode.ActivityTimeout?.Value = m_serverConfigurationOptions.ConfigurationFileActivityTimeout;
-            fileNode.CurrentVersion?.Value = fileProvider.CurrentVersion;
-            fileNode.LastUpdateTime?.Value = new DateTimeUtc(fileProvider.LastUpdateTime);
+            fileNode.CurrentVersion?.Value = currentVersion;
+            fileNode.LastUpdateTime?.Value = lastUpdateTime;
             fileNode.SupportedDataType?.Value = DataTypeIds.ApplicationConfigurationDataType;
             fileNode.Writable?.Value = true;
             fileNode.UserWritable?.Value = true;
             fileNode.OpenCount?.Value = 0;
 
             fileNode.ClearChangeMasks(systemContext, true);
+            return file;
         }
 
         /// <summary>
@@ -960,55 +971,59 @@ namespace Opc.Ua.Server
             ISystemContext context,
             bool requireEncryptedChannel)
         {
-            if (context is SessionSystemContext { OperationContext: OperationContext operationContext })
+            ServiceResult result = AuthorizationPolicy.Authorize(context, GetPushDecision(requireEncryptedChannel));
+            if (ServiceResult.IsBad(result))
             {
-                MessageSecurityMode securityMode = operationContext
-                    .ChannelContext?
-                    .EndpointDescription?
-                    .SecurityMode
-                    ?? MessageSecurityMode.Invalid;
-
-                bool channelSecure = requireEncryptedChannel
-                    ? securityMode == MessageSecurityMode.SignAndEncrypt
-                    : securityMode is MessageSecurityMode.Sign or MessageSecurityMode.SignAndEncrypt;
-
-                if (!channelSecure)
-                {
-                    throw new ServiceResultException(
-                        StatusCodes.BadSecurityModeInsufficient,
-                        requireEncryptedChannel
-                            ? "This Method must be called from an encrypted SecureChannel " +
-                                "(MessageSecurityMode SignAndEncrypt)."
-                            : "This Method must be called from an authenticated SecureChannel " +
-                                "(MessageSecurityMode Sign or SignAndEncrypt).");
-                }
-
-                IUserIdentity identity = operationContext.UserIdentity;
-                // allow access to system configuration only with Role SecurityAdmin
-                if (identity == null ||
-                    identity.TokenType == UserTokenType.Anonymous ||
-                    !identity.GrantedRoleIds.Contains(ObjectIds.WellKnownRole_SecurityAdmin))
-                {
-                    throw new ServiceResultException(
-                        StatusCodes.BadUserAccessDenied,
-                        "Security Admin Role required to access this item.");
-                }
+                throw new ServiceResultException(result);
             }
         }
 
         /// <summary>
-        /// Awaits host policy only after the standard channel and role checks succeed.
+        /// Awaits host policy only after the server authorization policy grants the push decision.
         /// </summary>
         private ValueTask AuthorizePushMutationAsync(
             ISystemContext context,
             bool requireEncryptedChannel,
             CancellationToken cancellationToken)
         {
-            cancellationToken.ThrowIfCancellationRequested();
-            HasApplicationSecureAdminAccess(context, requireEncryptedChannel);
-            return m_serverConfigurationOptions.PushAuthorization?
-                .AuthorizeAsync(context, cancellationToken) ?? default;
+            return AuthorizePushAsync(context, GetPushDecision(requireEncryptedChannel), cancellationToken);
         }
+
+        /// <summary>
+        /// Asks the server authorization policy for <paramref name="decision"/>, then the host
+        /// push authorization.
+        /// </summary>
+        private async ValueTask AuthorizePushAsync(
+            ISystemContext context,
+            ServerAuthorizationDecision decision,
+            CancellationToken cancellationToken)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            ServiceResult result = await AuthorizationPolicy
+                .AuthorizeAsync(context, decision, cancellationToken)
+                .ConfigureAwait(false);
+            if (ServiceResult.IsBad(result))
+            {
+                throw new ServiceResultException(result);
+            }
+            if (m_serverConfigurationOptions.PushAuthorization is { } pushAuthorization)
+            {
+                await pushAuthorization.AuthorizeAsync(context, cancellationToken).ConfigureAwait(false);
+            }
+        }
+
+        private static ServerAuthorizationDecision GetPushDecision(bool requireEncryptedChannel)
+        {
+            return requireEncryptedChannel
+                ? ServerAuthorizationDecision.CertificatePushEncrypted
+                : ServerAuthorizationDecision.CertificatePush;
+        }
+
+        /// <summary>
+        /// The authorization policy of the owning server.
+        /// </summary>
+        private IServerAuthorizationPolicy AuthorizationPolicy =>
+            ServerAuthorizationPolicy.ResolveServer(Server);
 
         /// <summary>
         /// Extracts the owning Session's NodeId from <paramref name="context"/>,
@@ -1043,7 +1058,15 @@ namespace Opc.Ua.Server
         /// </remarks>
         private void UpdateTransactionDiagnostics(ISystemContext context)
         {
-            if (m_serverConfigurationNode?.TransactionDiagnostics is not { } diagnosticsNode)
+            UpdateTransactionDiagnostics(context, m_serverConfigurationNode?.TransactionDiagnostics);
+            UpdateApplicationDiagnostics(context);
+        }
+
+        private void UpdateTransactionDiagnostics(
+            ISystemContext context,
+            TransactionDiagnosticsState? diagnosticsNode)
+        {
+            if (diagnosticsNode == null)
             {
                 return;
             }
@@ -1248,7 +1271,8 @@ namespace Opc.Ua.Server
         private readonly ThreadLocal<bool> m_selfTrustNotification = new();
         private readonly BackgroundTaskScope m_backgroundWork =
             new(nameof(ConfigurationNodeManager), AmbientMessageContext.Telemetry);
-        private readonly AsyncLocal<List<PendingCertificateRotation>?> m_activeRotationCollector = new();
+        /// <summary>The revocable rotation collector for the current apply callback.</summary>
+        private readonly AsyncLocal<NodeManagerAmbientScope<RotationCollector>?> m_activeRotationCollector = new();
 
         private static readonly ICertificateFactory s_certificateFactory = DefaultCertificateFactory.Instance;
 

@@ -1,31 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 namespace Opc.Ua.AutoID.Server
 {
@@ -37,8 +11,11 @@ namespace Opc.Ua.AutoID.Server
         /// </summary>
         internal void Bind()
         {
+            BindAcquisitionValues();
             BindScanMethods();
             BindDeviceMethods();
+            BindParameters();
+            BindDiagnostics();
             switch (Device)
             {
                 case RfidReaderDeviceState rfid:
@@ -47,6 +24,32 @@ namespace Opc.Ua.AutoID.Server
                 case RtlsDeviceState rtls:
                     BindRtls(rtls);
                     break;
+            }
+        }
+
+        /// <summary>
+        /// Reads each acquisition value, quality and timestamp under its publication lock.
+        /// </summary>
+        private void BindAcquisitionValues()
+        {
+            if (Device.LastScanData != null)
+            {
+                Device.LastScanData.OnReadValueAsync = ReadCachedValueAsync;
+            }
+            if (Device.LastScanTimestamp != null)
+            {
+                Device.LastScanTimestamp.OnReadValueAsync = ReadCachedValueAsync;
+            }
+            if (Device is RfidReaderDeviceState rfid)
+            {
+                if (rfid.LastScanAntenna != null)
+                {
+                    rfid.LastScanAntenna.OnReadValueAsync = ReadCachedValueAsync;
+                }
+                if (rfid.LastScanRSSI != null)
+                {
+                    rfid.LastScanRSSI.OnReadValueAsync = ReadCachedValueAsync;
+                }
             }
         }
 
@@ -74,6 +77,20 @@ namespace Opc.Ua.AutoID.Server
                         {
                             ServiceResult = o.ServiceResult,
                             ResultsOut = ServiceResult.IsGood(o.ServiceResult) ? Cast<OcrScanResult>(o.Results) : default,
+                            Status = o.Status
+                        };
+                    };
+                    break;
+                case OpticalVerifierDeviceState { Scan: { } scan }:
+                    scan.OnCallAsync = async (context, method, objectId, setting, ct) =>
+                    {
+                        ScanCallOutcome o = await ScanCoreAsync(context, setting, ct).ConfigureAwait(false);
+                        return new ScanOpticalVerifierDeviceTypeMethodStateResult
+                        {
+                            ServiceResult = o.ServiceResult,
+                            ResultsOut = ServiceResult.IsGood(o.ServiceResult)
+                                ? Cast<OpticalVerifierScanResult>(o.Results)
+                                : default,
                             Status = o.Status
                         };
                     };

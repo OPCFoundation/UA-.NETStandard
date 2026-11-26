@@ -1,33 +1,8 @@
-/* ========================================================================
- * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
+using System.Globalization;
 using System.Threading.Tasks;
 using NUnit.Framework;
 
@@ -41,6 +16,157 @@ namespace Opc.Ua.Types.Tests.Utils
     public sealed class StringTablePrivateViewTests
     {
         /// <summary>
+        /// An unrelated alias materializes reserved indices permanently, even when publication is abandoned.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public void UnrelatedAliasPreservesReservedIndicesAfterPublicationDisposal(bool namespaces)
+        {
+            StringTable serving = CreateTable(namespaces);
+            StringTable staged = serving.CaptureSnapshot();
+            staged.Append("urn:reserved");
+            long version = serving.Version;
+            using (StringTable.Publication publication = serving.BeginPublication(staged, version))
+            {
+                Assert.That(publication.GetIndexOrAppend("urn:base"), Is.EqualTo(1));
+                Assert.That(serving.GetIndex("urn:reserved"), Is.EqualTo(-1));
+                Assert.That(publication.GetIndexOrAppend("urn:unrelated"), Is.EqualTo(3));
+                long publishedVersion = serving.Version;
+                Assert.That(publication.GetIndexOrAppend("urn:unrelated"), Is.EqualTo(3));
+                Assert.That(serving.Version, Is.EqualTo(publishedVersion));
+                Assert.That(serving.ToArray(),
+                    Is.EqualTo([Namespaces.OpcUa, "urn:base", "urn:reserved", "urn:unrelated"]));
+            }
+
+            Assert.That(serving.GetString(2), Is.EqualTo("urn:reserved"));
+            Assert.That(serving.GetString(3), Is.EqualTo("urn:unrelated"));
+            Assert.That(serving.Append("urn:later"), Is.EqualTo(4));
+            Assert.That(staged.GetIndex("urn:unrelated"), Is.EqualTo(-1));
+        }
+
+        /// <summary>
+        /// Invalid unrelated aliases cannot publish any private namespace prefix.
+        /// </summary>
+        [TestCase(false, null)]
+        [TestCase(false, "")]
+        [TestCase(true, null)]
+        [TestCase(true, "")]
+        public void InvalidAliasLeavesReservedPrefixPrivate(bool namespaces, string? value)
+        {
+            StringTable serving = CreateTable(namespaces);
+            StringTable staged = serving.CaptureSnapshot();
+            staged.Append("urn:reserved");
+            long version = serving.Version;
+            using StringTable.Publication publication = serving.BeginPublication(staged, version);
+
+            Assert.That(() => publication.GetIndexOrAppend(value!), Throws.ArgumentNullException);
+            Assert.That(serving.GetIndex("urn:reserved"), Is.EqualTo(-1));
+            Assert.That(serving.Count, Is.EqualTo(2));
+            Assert.That(serving.Version, Is.EqualTo(version));
+        }
+
+        /// <summary>
+        /// A consumed reservation cannot append aliases after publication disposal.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public void DisposedPublicationRejectsAliasWithoutChangingServingTable(bool namespaces)
+        {
+            StringTable serving = CreateTable(namespaces);
+            StringTable staged = serving.CaptureSnapshot();
+            staged.Append("urn:reserved");
+            using StringTable.Publication publication = serving.BeginPublication(staged, serving.Version);
+            publication.Dispose();
+            long version = serving.Version;
+
+            Assert.That(() => publication.GetIndexOrAppend("urn:late"), Throws.InvalidOperationException);
+            Assert.That(serving.GetIndex("urn:late"), Is.EqualTo(-1));
+            Assert.That(serving.GetIndex("urn:reserved"), Is.EqualTo(-1));
+            Assert.That(serving.Version, Is.EqualTo(version));
+            Assert.That(serving.Append("urn:next"), Is.EqualTo(2));
+        }
+
+        /// <summary>
+        /// An alias cannot overflow the namespace index while a full prefix is reserved.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public void FullReservedPrefixRejectsAliasWithoutChangingServingTable(bool namespaces)
+        {
+            StringTable serving = CreateTable(namespaces);
+            string[] full = new string[ushort.MaxValue];
+            full[0] = Namespaces.OpcUa;
+            full[1] = "urn:base";
+            for (int index = 2; index < full.Length; index++)
+            {
+                full[index] = "urn:full:" + index.ToString(CultureInfo.InvariantCulture);
+            }
+            StringTable staged = serving.CaptureSnapshot();
+            staged.Update(full);
+            long version = serving.Version;
+            using StringTable.Publication publication = serving.BeginPublication(staged, version);
+
+            Assert.That(
+                () => publication.GetIndexOrAppend("urn:overflow"),
+                Throws.TypeOf<ServiceResultException>()
+                    .With.Property(nameof(ServiceResultException.StatusCode))
+                    .EqualTo(StatusCodes.BadEncodingLimitsExceeded));
+            Assert.That(serving.Count, Is.EqualTo(2));
+            Assert.That(serving.GetIndex("urn:overflow"), Is.EqualTo(-1));
+            Assert.That(serving.Version, Is.EqualTo(version));
+        }
+
+        /// <summary>
+        /// Verifies that publication rebinds cached tables and preserves future additions.
+        /// </summary>
+        /// <param name="namespaces">Whether to exercise a namespace table.</param>
+        [TestCase(false)]
+        [TestCase(true)]
+        public void PublishedCachedHandlesObserveFutureAdditionsAndDetachBeforeCleanup(bool namespaces)
+        {
+            StringTable serving = CreateTable(namespaces);
+            StringTable staged = serving.CaptureSnapshot();
+            StringTable cached = CreateTable(namespaces);
+            cached.BindTo(staged);
+            staged.Append("urn:first");
+            Assert.That(serving.GetIndex("urn:first"), Is.EqualTo(-1));
+            using (StringTable.Publication publication = serving.BeginPublication(staged, serving.Version))
+            {
+                Assert.Throws<InvalidOperationException>(() => serving.Append("urn:conflict"));
+                Assert.Throws<InvalidOperationException>(() => serving.GetIndexOrAppend("urn:conflict"));
+                Assert.That(serving.GetIndexOrAppend("urn:base"), Is.EqualTo(1));
+                publication.Complete();
+                cached.BindTo(serving);
+            }
+            Assert.That(serving.GetIndex("urn:conflict"), Is.EqualTo(-1));
+            serving.Append("urn:second");
+            Assert.That(cached.GetIndex("urn:second"), Is.EqualTo(3));
+            cached.Detach();
+            cached.Update([Namespaces.OpcUa]);
+            Assert.That(serving.GetString(2), Is.EqualTo("urn:first"));
+            Assert.That(serving.GetString(3), Is.EqualTo("urn:second"));
+        }
+
+        /// <summary>
+        /// Verifies that a changed source rejects publication without changing either namespace prefix.
+        /// </summary>
+        /// <param name="namespaces">Whether to exercise a namespace table.</param>
+        [TestCase(false)]
+        [TestCase(true)]
+        public void ChangedSourceRejectsPublicationBeforeInstallingPrivateNamespaces(bool namespaces)
+        {
+            StringTable serving = CreateTable(namespaces);
+            StringTable staged = serving.CaptureSnapshot();
+            long revision = serving.Version;
+            staged.Append("urn:private");
+            serving.Append("urn:concurrent");
+            Assert.Throws<OptimisticPublicationConflictException>(() => serving.BeginPublication(staged, revision));
+            Assert.That(serving.GetIndex("urn:private"), Is.EqualTo(-1));
+            Assert.That(serving.GetString(2), Is.EqualTo("urn:concurrent"));
+            Assert.That(staged.GetString(2), Is.EqualTo("urn:private"));
+        }
+
+        /// <summary>
         /// Verifies that private mapping is execution local and preserves concurrent live changes.
         /// </summary>
         /// <param name="namespaces">The namespaces flag for this test case.</param>
@@ -49,17 +175,18 @@ namespace Opc.Ua.Types.Tests.Utils
         public async Task PrivateMappingIsExecutionLocalAndPreservesConcurrentLiveChanges(bool namespaces)
         {
             StringTable table = CreateTable(namespaces);
+            StringTable serving = table;
             ArrayOf<string> before = table.GetSnapshot(out long version);
             var inspectLive = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
             var live = Task.Run(async () =>
             {
                 await inspectLive.Task.WaitAsync(TimeSpan.FromSeconds(30)).ConfigureAwait(false);
-                Assert.That(table.ToArrayOf(), Is.EqualTo(before));
-                Assert.That(table.Version, Is.EqualTo(version));
-                table.Append("urn:live");
+                Assert.That(serving.ToArrayOf(), Is.EqualTo(before));
+                Assert.That(serving.Version, Is.EqualTo(version));
+                serving.Append("urn:live");
             });
 
-            using (table.UsePrivateCopy())
+            table = table.CaptureSnapshot();
             {
                 try
                 {
@@ -76,7 +203,7 @@ namespace Opc.Ua.Types.Tests.Utils
                 Assert.That(table.GetString(2), Is.EqualTo("urn:private"));
                 Assert.That(table.Count, Is.EqualTo(3));
             }
-
+            table = serving;
             Assert.That(table.ToArray(), Is.EqualTo([Namespaces.OpcUa, "urn:base", "urn:live"]));
             Assert.That(table.GetIndex("urn:private"), Is.EqualTo(-1));
             Assert.That(table.Version, Is.EqualTo(version + 1));
@@ -93,7 +220,8 @@ namespace Opc.Ua.Types.Tests.Utils
             StringTable table = CreateTable(namespaces);
             ArrayOf<string> before = table.GetSnapshot(out long version);
 
-            using (table.UsePrivateCopy())
+            StringTable serving = table;
+            table = table.CaptureSnapshot();
             {
                 table.Update([Namespaces.OpcUa, "urn:updated"]);
                 Assert.That(table.Append("urn:appended"), Is.EqualTo(2));
@@ -114,7 +242,7 @@ namespace Opc.Ua.Types.Tests.Utils
                 Assert.That(table.GetString(4), Is.EqualTo("urn:mapped"));
                 Assert.That(table.Version, Is.EqualTo(version + 4));
             }
-
+            table = serving;
             Assert.That(table.ToArrayOf(), Is.EqualTo(before));
             Assert.That(table.Version, Is.EqualTo(version));
         }
@@ -130,21 +258,22 @@ namespace Opc.Ua.Types.Tests.Utils
             StringTable table = CreateTable(namespaces);
             ArrayOf<string> before = table.GetSnapshot(out long version);
 
-            using (table.UsePrivateCopy())
+            StringTable serving = table;
+            table = table.CaptureSnapshot();
             {
                 table.Append("urn:outer");
-                using IDisposable inner = table.UsePrivateCopy();
+                StringTable parent = table;
+                table = table.CaptureSnapshot();
                 table.Append("urn:inner");
                 await Task.Yield();
                 Assert.That(table.GetString(2), Is.EqualTo("urn:outer"));
                 Assert.That(table.GetString(3), Is.EqualTo("urn:inner"));
-                inner.Dispose();
-                inner.Dispose();
+                table = parent;
                 Assert.That(table.GetIndex("urn:inner"), Is.EqualTo(-1));
                 Assert.That(table.GetString(2), Is.EqualTo("urn:outer"));
                 Assert.That(table.Version, Is.EqualTo(version + 1));
             }
-
+            table = serving;
             Assert.That(table.ToArrayOf(), Is.EqualTo(before));
             Assert.That(table.Version, Is.EqualTo(version));
         }
@@ -159,7 +288,8 @@ namespace Opc.Ua.Types.Tests.Utils
         {
             StringTable table = CreateTable(namespaces);
             StringTable copy;
-            using (table.UsePrivateCopy())
+            StringTable serving = table;
+            table = table.CaptureSnapshot();
             {
                 table.Append("urn:private");
                 copy = table is NamespaceTable namespaceTable
@@ -168,7 +298,7 @@ namespace Opc.Ua.Types.Tests.Utils
                 table.Append("urn:later");
                 Assert.That(copy.Count, Is.EqualTo(3));
             }
-
+            table = serving;
             Assert.That(copy.GetString(2), Is.EqualTo("urn:private"));
             Assert.That(copy.GetIndex("urn:later"), Is.EqualTo(-1));
             Assert.That(table.Count, Is.EqualTo(2));
@@ -183,9 +313,9 @@ namespace Opc.Ua.Types.Tests.Utils
         {
             var table = new NamespaceTable([Namespaces.OpcUa, "urn:base"]);
             ArrayOf<string> before = table.GetSnapshot(out long version);
-            using (table.UsePrivateCopy())
+            var staging = (NamespaceTable)table.CaptureSnapshot();
             {
-                Assert.That(() => table.Update(["urn:not-the-opc-ua-namespace"]),
+                Assert.That(() => staging.Update(["urn:not-the-opc-ua-namespace"]),
                     Throws.TypeOf<ArgumentException>());
             }
             Assert.That(table.ToArrayOf(), Is.EqualTo(before));

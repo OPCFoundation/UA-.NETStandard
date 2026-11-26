@@ -1,37 +1,13 @@
-/* ========================================================================
- * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
+using Opc.Ua.Server.FileSystem;
 
 namespace Opc.Ua.Server
 {
@@ -63,6 +39,13 @@ namespace Opc.Ua.Server
     /// installed.
     /// </para>
     /// </remarks>
+    // The gate remains available after shutdown so late handler calls can observe m_stopped and return their
+    // established service status instead of throwing ObjectDisposedException.
+    // TODO: Move admission checks ahead of the gate so it can be safely disposed.
+    [System.Diagnostics.CodeAnalysis.SuppressMessage(
+        "Reliability",
+        "CA2213:Disposable fields should be disposed",
+        Justification = "Disposing the gate changes post-shutdown handler errors and can race nonblocking disposal.")]
     public sealed class ApplicationConfigurationFile : IDisposable
     {
         private const int kDefaultCapacity = 64 * 1024;
@@ -140,6 +123,12 @@ namespace Opc.Ua.Server
             node.GetPosition!.OnCallAsync = GetPositionAsync;
             node.CloseAndUpdate!.OnCallAsync = CloseAndUpdateAsync;
             node.ConfirmUpdate!.OnCallAsync = ConfirmUpdateAsync;
+            node.Size!.OnReadValueAsync += static (_, _, _, _, _) =>
+                new ValueTask<AttributeReadResult>(new AttributeReadResult(
+                    StatusCodes.BadNotSupported,
+                    Variant.Null,
+                    StatusCodes.BadNotSupported,
+                    DateTimeUtc.Now));
         }
 
         /// <summary>
@@ -151,26 +140,74 @@ namespace Opc.Ua.Server
         /// <param name="sessionId">The closing Session.</param>
         public void NotifySessionClosing(NodeId sessionId)
         {
+            bool wasWriting = false;
             lock (m_lock)
             {
-                if (m_sessionId.IsNull || !Utils.IsEqual(m_sessionId, sessionId))
+                foreach (PendingOpen pending in m_openReservations)
                 {
-                    return;
+                    if (pending.SessionId.Equals(sessionId))
+                    {
+                        pending.SessionClosed = true;
+                    }
                 }
 
-                DiscardOpenHandleNoLock();
-            }
+                List<uint> closingHandles = [];
+                foreach ((uint handleId, OpenFileHandle handle) in m_handles)
+                {
+                    if (Utils.IsEqual(handle.SessionId, sessionId))
+                    {
+                        closingHandles.Add(handleId);
+                    }
+                }
 
-            m_coordinator?.SetTrustListWriteOpen(m_node.NodeId, false);
+                foreach (uint handleId in closingHandles)
+                {
+                    if (m_handles.TryGetValue(handleId, out OpenFileHandle? handle))
+                    {
+                        wasWriting |= handle.IsWriting;
+                        CloseOpenHandleNoLock(handleId);
+                    }
+                }
+
+                RestartActivityTimerNoLock();
+                if (wasWriting && !m_updateInProgress)
+                {
+                    m_coordinator?.SetTrustListWriteOpen(m_node.NodeId, false);
+                }
+            }
         }
 
         /// <summary>
-        /// Cancels pending timers and drains deferred provider effects before the owning runtime is released.
+        /// Reports whether this attachment still owns file work that cannot be transferred.
+        /// </summary>
+        internal bool HasOutstandingAttachmentWork
+        {
+            get
+            {
+                lock (m_lock)
+                {
+                    return m_handles.Count != 0 || m_pendingOpens != 0 || m_updateInProgress ||
+                        m_deferredApplyPending || m_pendingUpdateId.Guid != Guid.Empty || m_pendingRevertCts != null;
+                }
+            }
+        }
+
+        /// <summary>
+        /// Stops deferred work and waits for active configuration updates before runtime release.
         /// </summary>
         public async ValueTask StopAsync()
         {
+            Task pendingOpens;
+            lock (m_lock)
+            {
+                m_stopped = true;
+                pendingOpens = m_openDrain?.Task ?? Task.CompletedTask;
+            }
+            await pendingOpens.ConfigureAwait(false);
             CancelPendingRevert();
             await m_backgroundWork.DisposeAsync().ConfigureAwait(false);
+            await m_updateGate.WaitAsync().ConfigureAwait(false);
+            m_updateGate.Release();
         }
 
         /// <summary>
@@ -210,18 +247,17 @@ namespace Opc.Ua.Server
             bool wasWriting;
             lock (m_lock)
             {
-                if (m_sessionId.IsNull || generation != m_activityGeneration)
+                if (m_handles.Count == 0 || m_updateInProgress || generation != m_activityGeneration)
                 {
                     return;
                 }
 
-                wasWriting = m_writing;
-                DiscardOpenHandleNoLock();
-            }
-
-            if (wasWriting)
-            {
-                m_coordinator?.SetTrustListWriteOpen(m_node.NodeId, false);
+                wasWriting = m_writeHandle != 0;
+                DiscardAllOpenHandlesNoLock();
+                if (wasWriting && !m_updateInProgress && !m_deferredApplyPending)
+                {
+                    m_coordinator?.SetTrustListWriteOpen(m_node.NodeId, false);
+                }
             }
 
             m_logger.ConfigurationFileAutoClosedAfterInactivity(m_activityTimeout);
@@ -230,11 +266,16 @@ namespace Opc.Ua.Server
         /// <inheritdoc/>
         public void Dispose()
         {
+            lock (m_lock)
+            {
+                m_stopped = true;
+            }
             // Signal only: Dispose is synchronous. The revert window stops at
             // its delay as soon as the token trips.
             m_backgroundWork.Dispose();
 
             CancelPendingRevert();
+            bool wasWriting;
             lock (m_lock)
             {
                 // Supersede the current activity generation so a callback still
@@ -243,11 +284,14 @@ namespace Opc.Ua.Server
                 m_activityGeneration++;
                 m_activityTimer?.Dispose();
                 m_activityTimer = null;
-                m_strm?.Dispose();
-                m_strm = null;
-                m_sessionId = default;
+                wasWriting = m_writeHandle != 0;
+                DiscardAllOpenHandlesNoLock();
+                if (wasWriting && !m_updateInProgress && !m_deferredApplyPending)
+                {
+                    m_coordinator?.SetTrustListWriteOpen(m_node.NodeId, false);
+                }
             }
-            m_updateGate.Dispose();
+
         }
 
         private async ValueTask<OpenMethodStateResult> OpenAsync(
@@ -266,11 +310,6 @@ namespace Opc.Ua.Server
             else if (mode == ((byte)OpenFileMode.Read | (byte)OpenFileMode.Write))
             {
                 m_writeAccess(context);
-
-                // §7.10.20: opening for writing is rejected with
-                // Bad_TransactionPending when another Session owns the active
-                // PushManagement transaction.
-                m_coordinator?.ValidateSessionCanParticipate(GetSessionId(context));
                 isWriteMode = true;
             }
             else
@@ -287,46 +326,143 @@ namespace Opc.Ua.Server
             }
 
             MemoryStream? strm = null;
+            bool writerFlagSet = false;
+            bool handleAdded = false;
+            bool admissionReserved = false;
+            var reservation = new PendingOpen(GetSessionId(context));
             try
             {
+                ServiceResult? openConflict = null;
+                lock (m_lock)
+                {
+                    if (m_stopped)
+                    {
+                        openConflict = StatusCodes.BadServerHalted;
+                    }
+                    else if (isWriteMode &&
+                        (m_handles.Count != 0 || m_pendingReaders != 0 || m_writeOpenPending || m_updateInProgress))
+                    {
+                        openConflict = StatusCodes.BadNotWritable;
+                    }
+                    else if (!isWriteMode && (m_writeHandle != 0 || m_writeOpenPending || m_updateInProgress))
+                    {
+                        openConflict = StatusCodes.BadNotReadable;
+                    }
+                    else if (m_handles.Count + m_pendingReaders >= ushort.MaxValue)
+                    {
+                        openConflict = StatusCodes.BadTooManyOperations;
+                    }
+                    else
+                    {
+                        admissionReserved = true;
+                        m_openReservations.Add(reservation);
+                        if (m_pendingOpens++ == 0)
+                        {
+                            m_openDrain = new TaskCompletionSource<bool>(
+                                TaskCreationOptions.RunContinuationsAsynchronously);
+                        }
+                        if (isWriteMode)
+                        {
+                            m_writeOpenPending = true;
+                        }
+                        else
+                        {
+                            m_pendingReaders++;
+                        }
+                    }
+                }
+
+                if (openConflict != null)
+                {
+                    return FailedOpen(openConflict.StatusCode);
+                }
+
+                if (isWriteMode && m_coordinator != null)
+                {
+                    writerFlagSet = true;
+                    NodeId sessionId = reservation.SessionId;
+                    if (m_coordinator is IPushConfigurationFileWriteCoordinator fileWriteCoordinator)
+                    {
+                        fileWriteCoordinator.OpenConfigurationFileWrite(m_node.NodeId, sessionId);
+                    }
+                    else
+                    {
+                        m_coordinator.ValidateSessionCanParticipate(sessionId);
+                        m_coordinator.SetTrustListWriteOpen(m_node.NodeId, true);
+                    }
+                }
+
+                int maxByteStringLength = Math.Min(
+                    FileObjectState.GetServerReadLimit(context),
+                    checked((int)kMaxConfigurationFileSize));
+                if (maxByteStringLength <= 0)
+                {
+                    return FailedOpen(StatusCodes.BadEncodingLimitsExceeded);
+                }
+
+                ByteString current = await m_provider.ReadConfigurationAsync(cancellationToken)
+                    .ConfigureAwait(false);
+                cancellationToken.ThrowIfCancellationRequested();
+                byte[] buffer = current.IsNull ? [] : current.ToArray();
+                if (buffer.LongLength > kMaxConfigurationFileSize)
+                {
+                    return FailedOpen(StatusCodes.BadEncodingLimitsExceeded);
+                }
+
                 if (isWriteMode)
                 {
-                    strm = new MemoryStream(kDefaultCapacity);
+                    strm = new MemoryStream(Math.Max(kDefaultCapacity, buffer.Length));
+                    strm.Write(buffer, 0, buffer.Length);
+                    strm.Position = 0;
                 }
                 else
                 {
-                    ByteString current = await m_provider.ReadConfigurationAsync(cancellationToken)
-                        .ConfigureAwait(false);
-                    byte[] buffer = current.IsNull ? [] : current.ToArray();
                     strm = new MemoryStream(buffer, writable: false);
                 }
 
-                uint fileHandle;
+                ServiceResult? finalConflict = null;
+                uint fileHandle = 0;
                 lock (m_lock)
                 {
-                    // Last open always wins, matching the sibling TrustList
-                    // FileType handler, so an abandoned handle cannot block a
-                    // fresh open.
-                    if (!m_sessionId.IsNull)
+                    if (m_stopped)
                     {
-                        DiscardOpenHandleNoLock();
+                        finalConflict = StatusCodes.BadServerHalted;
                     }
-
-                    m_sessionId = GetSessionId(context);
-                    fileHandle = ++m_fileHandle;
-                    m_strm = strm;
-                    m_writing = isWriteMode;
-                    m_totalBytesProcessed = 0;
-                    m_node.OpenCount!.Value = 1;
-                    RestartActivityTimerNoLock();
+                    else if (reservation.SessionClosed)
+                    {
+                        finalConflict = StatusCodes.BadSessionIdInvalid;
+                    }
+                    else if (isWriteMode && (m_handles.Count != 0 || m_updateInProgress))
+                    {
+                        finalConflict = StatusCodes.BadNotWritable;
+                    }
+                    else if (!isWriteMode && (m_writeHandle != 0 || m_writeOpenPending || m_updateInProgress))
+                    {
+                        finalConflict = StatusCodes.BadNotReadable;
+                    }
+                    else if (m_handles.Count >= ushort.MaxValue)
+                    {
+                        finalConflict = StatusCodes.BadTooManyOperations;
+                    }
+                    else
+                    {
+                        MemoryStream stream = strm;
+                        fileHandle = NextFileHandleNoLock();
+                        m_handles.Add(fileHandle, new OpenFileHandle(reservation.SessionId, stream, isWriteMode));
+                        handleAdded = true;
+                        if (isWriteMode)
+                        {
+                            m_writeHandle = fileHandle;
+                            m_writeOpenPending = false;
+                        }
+                        m_node.OpenCount!.Value = (ushort)m_handles.Count;
+                        RestartActivityTimerNoLock();
+                    }
                 }
 
-                // Cleared unconditionally before being set so an evicted
-                // previous write-open never leaves a stale entry behind.
-                m_coordinator?.SetTrustListWriteOpen(m_node.NodeId, false);
-                if (isWriteMode)
+                if (finalConflict != null)
                 {
-                    m_coordinator?.SetTrustListWriteOpen(m_node.NodeId, true);
+                    return FailedOpen(finalConflict.StatusCode);
                 }
 
                 return new OpenMethodStateResult
@@ -335,10 +471,41 @@ namespace Opc.Ua.Server
                     FileHandle = fileHandle
                 };
             }
-            catch
+            finally
             {
-                strm?.Dispose();
-                throw;
+                if (!handleAdded)
+                {
+                    strm?.Dispose();
+                }
+                if (admissionReserved)
+                {
+                    lock (m_lock)
+                    {
+                        m_openReservations.Remove(reservation);
+                        try
+                        {
+                            if (isWriteMode)
+                            {
+                                m_writeOpenPending = false;
+                                if (!handleAdded && writerFlagSet)
+                                {
+                                    m_coordinator?.SetTrustListWriteOpen(m_node.NodeId, false);
+                                }
+                            }
+                            else
+                            {
+                                m_pendingReaders--;
+                            }
+                        }
+                        finally
+                        {
+                            if (--m_pendingOpens == 0)
+                            {
+                                m_openDrain!.TrySetResult(true);
+                            }
+                        }
+                    }
+                }
             }
         }
 
@@ -365,7 +532,7 @@ namespace Opc.Ua.Server
                     });
                 }
 
-                if (length < 0)
+                if (length <= 0)
                 {
                     return new ValueTask<ReadMethodStateResult>(new ReadMethodStateResult
                     {
@@ -374,31 +541,21 @@ namespace Opc.Ua.Server
                     });
                 }
 
-                // Overflow-safe cumulative bound check: m_totalBytesProcessed is
-                // always <= kMaxConfigurationFileSize (never negative), so the
-                // subtraction cannot underflow/overflow. length is a
-                // non-negative int (checked above) widened to long for the
-                // comparison, so int.MaxValue cannot overflow it either. This
-                // rejects an oversized request *before* allocating the buffer,
-                // rather than allocating and truncating afterwards.
-                long remaining = kMaxConfigurationFileSize - m_totalBytesProcessed;
-                if (length > remaining)
+                int limit = GetMaxByteStringLength(context);
+                if (limit <= 0)
                 {
                     return new ValueTask<ReadMethodStateResult>(new ReadMethodStateResult
                     {
-                        ServiceResult = ServiceResult.Create(
-                            StatusCodes.BadEncodingLimitsExceeded,
-                            "Configuration read of {0} bytes would exceed the maximum allowed size of {1} bytes.",
-                            length,
-                            kMaxConfigurationFileSize),
+                        ServiceResult = StatusCodes.BadEncodingLimitsExceeded,
                         Data = default
                     });
                 }
 
-                byte[] buffer = new byte[length];
-                int bytesRead = m_strm!.Read(buffer, 0, length);
-                data = ByteString.From(buffer)[..bytesRead];
-                m_totalBytesProcessed += bytesRead;
+                MemoryStream stream = m_handles[fileHandle].Stream;
+                int count = (int)Math.Min(Math.Min(length, limit), stream.Length - stream.Position);
+                byte[] buffer = new byte[count];
+                int bytesRead = stream.Read(buffer, 0, count);
+                data = ByteString.From(buffer.AsSpan(0, bytesRead));
                 RestartActivityTimerNoLock();
             }
 
@@ -430,7 +587,8 @@ namespace Opc.Ua.Server
                     });
                 }
 
-                if (!m_writing)
+                OpenFileHandle handle = m_handles[fileHandle];
+                if (!handle.IsWriting)
                 {
                     return new ValueTask<WriteMethodStateResult>(new WriteMethodStateResult
                     {
@@ -438,7 +596,9 @@ namespace Opc.Ua.Server
                     });
                 }
 
-                if (m_totalBytesProcessed + data.Length > kMaxConfigurationFileSize)
+                int limit = GetMaxByteStringLength(context);
+                if (limit <= 0 || data.Length > limit ||
+                    Math.Max(handle.Stream.Length, handle.Stream.Position + data.Length) > kMaxConfigurationFileSize)
                 {
                     return new ValueTask<WriteMethodStateResult>(new WriteMethodStateResult
                     {
@@ -452,8 +612,7 @@ namespace Opc.Ua.Server
                 if (!data.IsNull && data.Length > 0)
                 {
                     byte[] bytes = data.ToArray();
-                    m_strm!.Write(bytes, 0, bytes.Length);
-                    m_totalBytesProcessed += data.Length;
+                    handle.Stream.Write(bytes, 0, bytes.Length);
                 }
                 RestartActivityTimerNoLock();
             }
@@ -473,7 +632,6 @@ namespace Opc.Ua.Server
         {
             m_readAccess(context);
 
-            bool wasWriting;
             lock (m_lock)
             {
                 ServiceResult? access = ValidateHandleNoLock(context, fileHandle);
@@ -485,13 +643,12 @@ namespace Opc.Ua.Server
                     });
                 }
 
-                wasWriting = m_writing;
-                DiscardOpenHandleNoLock();
-            }
-
-            if (wasWriting)
-            {
-                m_coordinator?.SetTrustListWriteOpen(m_node.NodeId, false);
+                bool wasWriting = CloseOpenHandleNoLock(fileHandle);
+                RestartActivityTimerNoLock();
+                if (wasWriting && !m_updateInProgress)
+                {
+                    m_coordinator?.SetTrustListWriteOpen(m_node.NodeId, false);
+                }
             }
 
             return new ValueTask<CloseMethodStateResult>(new CloseMethodStateResult
@@ -519,7 +676,8 @@ namespace Opc.Ua.Server
                     });
                 }
 
-                if (position > (ulong)m_strm!.Length)
+                MemoryStream stream = m_handles[fileHandle].Stream;
+                if (position > (ulong)stream.Length)
                 {
                     return new ValueTask<SetPositionMethodStateResult>(new SetPositionMethodStateResult
                     {
@@ -527,7 +685,7 @@ namespace Opc.Ua.Server
                     });
                 }
 
-                m_strm.Position = (long)position;
+                stream.Position = (long)position;
                 RestartActivityTimerNoLock();
             }
 
@@ -557,7 +715,7 @@ namespace Opc.Ua.Server
                     });
                 }
 
-                position = (ulong)m_strm!.Position;
+                position = (ulong)m_handles[fileHandle].Stream.Position;
                 RestartActivityTimerNoLock();
             }
 
@@ -579,9 +737,30 @@ namespace Opc.Ua.Server
             double restartDelayTime,
             CancellationToken cancellationToken)
         {
+            m_writeAccess(context);
+
             await m_updateGate.WaitAsync(cancellationToken).ConfigureAwait(false);
+            bool ownsWriteReservation = false;
             try
             {
+                lock (m_lock)
+                {
+                    if (m_stopped)
+                    {
+                        return new ConfigurationFileCloseAndUpdateMethodStateResult
+                        {
+                            ServiceResult = StatusCodes.BadServerHalted
+                        };
+                    }
+                    if (ValidateHandleNoLock(context, fileHandle) == null &&
+                        m_handles.TryGetValue(fileHandle, out OpenFileHandle? handle) &&
+                        handle.IsWriting)
+                    {
+                        m_updateInProgress = true;
+                        ownsWriteReservation = true;
+                    }
+                }
+
                 return await CloseAndUpdateCoreAsync(
                     context,
                     method,
@@ -595,7 +774,28 @@ namespace Opc.Ua.Server
             }
             finally
             {
-                m_updateGate.Release();
+                try
+                {
+                    if (ownsWriteReservation)
+                    {
+                        lock (m_lock)
+                        {
+                            if (!m_deferredApplyPending)
+                            {
+                                m_updateInProgress = false;
+                                if (!m_handles.ContainsKey(fileHandle))
+                                {
+                                    m_coordinator?.SetTrustListWriteOpen(m_node.NodeId, false);
+                                }
+                            }
+                            RestartActivityTimerNoLock();
+                        }
+                    }
+                }
+                finally
+                {
+                    m_updateGate.Release();
+                }
             }
         }
 
@@ -613,8 +813,6 @@ namespace Opc.Ua.Server
             double restartDelayTime,
             CancellationToken cancellationToken)
         {
-            m_writeAccess(context);
-
             NodeId sessionId = GetSessionId(context);
 
             // §7.10.20: changes queued on another Session block the update.
@@ -642,7 +840,8 @@ namespace Opc.Ua.Server
                     return FailedUpdate(access.StatusCode, targets);
                 }
 
-                if (!m_writing)
+                OpenFileHandle handle = m_handles[fileHandle];
+                if (!handle.IsWriting)
                 {
                     return FailedUpdate(StatusCodes.BadInvalidState, targets);
                 }
@@ -653,7 +852,7 @@ namespace Opc.Ua.Server
                     return FailedUpdate(StatusCodes.BadInvalidArgument, targets);
                 }
 
-                proposed = ByteString.From(m_strm!.ToArray());
+                proposed = ByteString.From(handle.Stream.ToArray());
             }
 
             IRecoverableApplicationConfigurationFileProvider? recoverableProvider =
@@ -907,6 +1106,8 @@ namespace Opc.Ua.Server
                     lock (m_lock)
                     {
                         m_deferredApplyPending = false;
+                        m_updateInProgress = false;
+                        m_coordinator?.SetTrustListWriteOpen(m_node.NodeId, false);
                     }
                     await RevertPendingUpdateIfCreatedAsync(recoverableProvider!, updateId).ConfigureAwait(false);
                     CloseWriteHandle(fileHandle);
@@ -984,6 +1185,8 @@ namespace Opc.Ua.Server
                     lock (m_lock)
                     {
                         m_deferredApplyPending = false;
+                        m_updateInProgress = false;
+                        m_coordinator?.SetTrustListWriteOpen(m_node.NodeId, false);
                     }
                 }
             });
@@ -1096,6 +1299,13 @@ namespace Opc.Ua.Server
             {
                 lock (m_lock)
                 {
+                    if (m_stopped)
+                    {
+                        return new ConfigurationFileConfirmUpdateMethodStateResult
+                        {
+                            ServiceResult = StatusCodes.BadServerHalted
+                        };
+                    }
                     if (m_pendingUpdateId.Guid == Guid.Empty ||
                         m_pendingUpdateId.Guid != updateId.Guid)
                     {
@@ -1141,77 +1351,94 @@ namespace Opc.Ua.Server
 
         private ServiceResult? ValidateHandleNoLock(ISystemContext context, uint fileHandle)
         {
-            if (m_sessionId.IsNull)
-            {
-                return StatusCodes.BadInvalidState;
-            }
-
-            if (context is ISessionSystemContext session &&
-                !m_sessionId.IsNull &&
-                !m_sessionId.Equals(session.SessionId))
-            {
-                return ServiceResult.Create(
-                    StatusCodes.BadUserAccessDenied,
-                    "Session not authorized for this ConfigurationFile handle.");
-            }
-
-            if (m_fileHandle != fileHandle)
+            if (!m_handles.TryGetValue(fileHandle, out OpenFileHandle? handle))
             {
                 return ServiceResult.Create(
                     StatusCodes.BadInvalidArgument,
                     "Invalid file handle.");
             }
 
+            if (context is ISessionSystemContext session &&
+                !handle.SessionId.Equals(session.SessionId))
+            {
+                return ServiceResult.Create(
+                    StatusCodes.BadUserAccessDenied,
+                    "Session not authorized for this ConfigurationFile handle.");
+            }
+
             return null;
         }
 
-        private void DiscardOpenHandleNoLock()
+        /// <summary>
+        /// Closes one handle and updates the address-space OpenCount.
+        /// </summary>
+        private bool CloseOpenHandleNoLock(uint fileHandle)
         {
-            m_sessionId = default;
-            m_writing = false;
-            m_strm?.Dispose();
-            m_strm = null;
-            m_totalBytesProcessed = 0;
+            if (!m_handles.TryGetValue(fileHandle, out OpenFileHandle? handle))
+            {
+                return false;
+            }
+
+            m_handles.Remove(fileHandle);
+            handle.Stream.Dispose();
+            if (handle.IsWriting)
+            {
+                m_writeHandle = 0;
+            }
+            m_node.OpenCount!.Value = (ushort)m_handles.Count;
+            if (m_handles.Count == 0)
+            {
+                StopActivityTimerNoLock();
+            }
+            return handle.IsWriting;
+        }
+
+        private void DiscardAllOpenHandlesNoLock()
+        {
+            foreach (OpenFileHandle handle in m_handles.Values)
+            {
+                handle.Stream.Dispose();
+            }
+            m_handles.Clear();
+            m_writeHandle = 0;
+            m_writeOpenPending = false;
             m_node.OpenCount!.Value = 0;
-            // Supersede the current activity generation so a callback already
-            // queued by the timer disposed here cannot close a handle that is
-            // later reopened for the same or a different Session.
+            StopActivityTimerNoLock();
+        }
+
+        /// <summary>
+        /// Invalidates and disposes the current inactivity timer.
+        /// </summary>
+        private void StopActivityTimerNoLock()
+        {
             m_activityGeneration++;
             m_activityTimer?.Dispose();
             m_activityTimer = null;
         }
 
         /// <summary>
-        /// Discards the open write handle and clears the coordinator's
-        /// write-open flag so a blocked <c>ApplyChanges</c> can proceed. Used
-        /// by <c>CloseAndUpdate</c> for both the successful commit and the
-        /// terminal version/validation/apply failures.
+        /// Discards the open write handle while retaining its transaction
+        /// reservation until the update completes.
         /// </summary>
         private void CloseWriteHandle(uint fileHandle)
         {
-            bool wasWriting;
             lock (m_lock)
             {
                 // The update awaited the provider: a newer Open may have
-                // replaced the handle in the meantime and must survive.
-                if (m_sessionId.IsNull || m_fileHandle != fileHandle)
+                // opened a different handle in the meantime and must survive.
+                if (!m_handles.TryGetValue(fileHandle, out OpenFileHandle? handle) || !handle.IsWriting)
                 {
                     return;
                 }
 
-                wasWriting = m_writing;
-                DiscardOpenHandleNoLock();
-            }
-
-            if (wasWriting)
-            {
-                m_coordinator?.SetTrustListWriteOpen(m_node.NodeId, false);
+                CloseOpenHandleNoLock(fileHandle);
+                RestartActivityTimerNoLock();
             }
         }
 
         private void RestartActivityTimerNoLock()
         {
-            if (m_activityTimeout <= 0 || m_sessionId.IsNull)
+            if (m_activityTimeout <= 0 || m_handles.Count == 0)
             {
                 return;
             }
@@ -1587,6 +1814,18 @@ namespace Opc.Ua.Server
             };
         }
 
+        /// <summary>
+        /// Creates an unsuccessful Open result without publishing a file handle.
+        /// </summary>
+        private static OpenMethodStateResult FailedOpen(StatusCode statusCode)
+        {
+            return new OpenMethodStateResult
+            {
+                ServiceResult = statusCode,
+                FileHandle = 0
+            };
+        }
+
         private static ArrayOf<StatusCode> SuccessResults(ArrayOf<ConfigurationUpdateTargetType> targets)
         {
             if (targets.Count == 0)
@@ -1622,6 +1861,86 @@ namespace Opc.Ua.Server
         private static NodeId GetSessionId(ISystemContext context)
         {
             return (context as ISessionSystemContext)?.SessionId ?? NodeId.Null;
+        }
+
+        /// <summary>
+        /// Allocates a nonzero file handle not currently in use.
+        /// </summary>
+        private uint NextFileHandleNoLock()
+        {
+            do
+            {
+                m_nextFileHandle++;
+            }
+            while (m_nextFileHandle == 0 || m_handles.ContainsKey(m_nextFileHandle));
+
+            return m_nextFileHandle;
+        }
+
+        /// <summary>
+        /// Gets the minimum effective server, file, and ConfigurationFile transfer limit.
+        /// </summary>
+        private int GetMaxByteStringLength(ISystemContext context)
+        {
+            int limit = Math.Min(
+                FileObjectState.GetServerReadLimit(context),
+                checked((int)kMaxConfigurationFileSize));
+            uint fileLimit = m_node.MaxByteStringLength?.Value ?? 0;
+            if (fileLimit > 0)
+            {
+                limit = Math.Min(limit, fileLimit > int.MaxValue ? int.MaxValue : (int)fileLimit);
+            }
+            return limit;
+        }
+
+        /// <summary>
+        /// Captures session ownership until an admitted provider read publishes or abandons its handle.
+        /// </summary>
+        private sealed class PendingOpen(NodeId sessionId)
+        {
+            /// <summary>
+            /// Gets the session that owns the admitted open.
+            /// </summary>
+            public NodeId SessionId { get; } = sessionId;
+
+            /// <summary>
+            /// Gets or sets whether that session closed before handle publication.
+            /// </summary>
+            public bool SessionClosed { get; set; }
+        }
+
+        /// <summary>
+        /// Holds one Session's stream and access mode for an open file handle.
+        /// </summary>
+        private sealed class OpenFileHandle
+        {
+            /// <summary>
+            /// Initializes an open handle.
+            /// </summary>
+            /// <param name="sessionId">The owning Session.</param>
+            /// <param name="stream">The stream used for file operations.</param>
+            /// <param name="isWriting">Whether the handle is open for writing.</param>
+            public OpenFileHandle(NodeId sessionId, MemoryStream stream, bool isWriting)
+            {
+                SessionId = sessionId;
+                Stream = stream;
+                IsWriting = isWriting;
+            }
+
+            /// <summary>
+            /// Gets the owning Session identifier.
+            /// </summary>
+            public NodeId SessionId { get; }
+
+            /// <summary>
+            /// Gets the stream associated with the file handle.
+            /// </summary>
+            public MemoryStream Stream { get; }
+
+            /// <summary>
+            /// Gets whether the handle is open for writing.
+            /// </summary>
+            public bool IsWriting { get; }
         }
 
         /// <summary>
@@ -1661,11 +1980,44 @@ namespace Opc.Ua.Server
         private readonly IPushConfigurationTransactionCoordinator? m_coordinator;
         private readonly TimeProvider m_timeProvider;
         private readonly double m_activityTimeout;
-        private NodeId m_sessionId;
-        private uint m_fileHandle;
-        private MemoryStream? m_strm;
-        private bool m_writing;
-        private long m_totalBytesProcessed;
+        private readonly Dictionary<uint, OpenFileHandle> m_handles = [];
+
+        /// <summary>The next candidate handle identifier.</summary>
+        private uint m_nextFileHandle;
+
+        /// <summary>The active write handle, or zero when no writer is open.</summary>
+        private uint m_writeHandle;
+
+        /// <summary>Whether a write open is waiting for its provider read.</summary>
+        private bool m_writeOpenPending;
+
+        /// <summary>
+        /// Session ownership for provider reads that have not finished handle admission.
+        /// </summary>
+        private readonly HashSet<PendingOpen> m_openReservations = [];
+
+        /// <summary>
+        /// Admitted readers whose provider content has not yet produced an open handle.
+        /// </summary>
+        private int m_pendingReaders;
+
+        /// <summary>
+        /// Admitted provider reads that shutdown must drain before runtime release.
+        /// </summary>
+        private int m_pendingOpens;
+
+        /// <summary>
+        /// Completion of the current admitted-open group.
+        /// </summary>
+        private TaskCompletionSource<bool>? m_openDrain;
+
+        /// <summary>
+        /// Whether shutdown or disposal has closed new handle admission.
+        /// </summary>
+        private bool m_stopped;
+
+        /// <summary>Whether a ConfigurationFile update owns the writer reservation.</summary>
+        private bool m_updateInProgress;
         private ITimer? m_activityTimer;
         private long m_activityGeneration;
         private Uuid m_pendingUpdateId;

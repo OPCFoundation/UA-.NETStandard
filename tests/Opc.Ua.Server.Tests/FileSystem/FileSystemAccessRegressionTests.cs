@@ -1,33 +1,8 @@
-/* ========================================================================
- * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
@@ -150,6 +125,85 @@ namespace Opc.Ua.Server.Tests.FileSystem
         }
 
         /// <summary>
+        /// A Session keeps at most 64 files of a mount open by default; another Session
+        /// can still open files.
+        /// </summary>
+        [Test]
+        public async Task OpenFilesOfASessionAreLimitedByDefaultAsync()
+        {
+            var file = new FileObjectState(m_manager.SystemContext, FileId("a/x.txt"), "a/x.txt", "x.txt");
+            var first = new NodeId(100, 1);
+            var second = new NodeId(101, 1);
+            var handles = new List<uint>();
+            for (int ii = 0; ii < 64; ii++)
+            {
+                handles.Add(await FileReadRegressionTests.OpenAsync(file, m_manager.SystemContext)
+                    .ConfigureAwait(false));
+            }
+
+            (ServiceResult refused, _) = await FileReadRegressionTests.CallAsync(
+                file.Open!, m_manager.SystemContext, file.NodeId, [(byte)0x01]).ConfigureAwait(false);
+            m_manager.SystemContext.SessionId = second;
+            uint otherHandle = await FileReadRegressionTests.OpenAsync(file, m_manager.SystemContext)
+                .ConfigureAwait(false);
+            await CloseAsync(file, otherHandle).ConfigureAwait(false);
+            m_manager.SystemContext.SessionId = first;
+            foreach (uint handle in handles)
+            {
+                await CloseAsync(file, handle).ConfigureAwait(false);
+            }
+
+            Assert.That(refused.StatusCode, Is.EqualTo(StatusCodes.BadTooManyOperations));
+        }
+
+        private async Task CloseAsync(FileObjectState file, uint handle)
+        {
+            (ServiceResult closed, _) = await FileReadRegressionTests.CallAsync(
+                file.Close!, m_manager.SystemContext, file.NodeId, [handle]).ConfigureAwait(false);
+            Assert.That(ServiceResult.IsGood(closed), Is.True, closed.ToString());
+        }
+
+        /// <summary>
+        /// The open file limits of a mount count every file of the mount, apply per Session
+        /// and in total, and are released when a file is closed.
+        /// </summary>
+        [Test]
+        public async Task OpenFileLimitsCountAllFilesOfTheMountAndAreReleasedOnCloseAsync()
+        {
+            m_manager.MaxOpenFilesPerSession = 2;
+            m_manager.MaxOpenFiles = 3;
+            var x = new FileObjectState(m_manager.SystemContext, FileId("a/x.txt"), "a/x.txt", "x.txt");
+            var y = new FileObjectState(m_manager.SystemContext, FileId("a/b/y.txt"), "a/b/y.txt", "y.txt");
+            var first = new NodeId(100, 1);
+            var second = new NodeId(101, 1);
+
+            uint handle = await FileReadRegressionTests.OpenAsync(x, m_manager.SystemContext).ConfigureAwait(false);
+            uint firstY = await FileReadRegressionTests.OpenAsync(y, m_manager.SystemContext).ConfigureAwait(false);
+            (ServiceResult perSession, _) = await FileReadRegressionTests.CallAsync(
+                x.Open!, m_manager.SystemContext, x.NodeId, [(byte)0x01]).ConfigureAwait(false);
+            m_manager.SystemContext.SessionId = second;
+            uint secondX = await FileReadRegressionTests.OpenAsync(x, m_manager.SystemContext).ConfigureAwait(false);
+            (ServiceResult total, _) = await FileReadRegressionTests.CallAsync(
+                y.Open!, m_manager.SystemContext, y.NodeId, [(byte)0x01]).ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(perSession.StatusCode, Is.EqualTo(StatusCodes.BadTooManyOperations));
+                Assert.That(total.StatusCode, Is.EqualTo(StatusCodes.BadTooManyOperations));
+            });
+
+            m_manager.SystemContext.SessionId = first;
+            await CloseAsync(x, handle).ConfigureAwait(false);
+            m_manager.SystemContext.SessionId = second;
+            uint secondY = await FileReadRegressionTests.OpenAsync(y, m_manager.SystemContext).ConfigureAwait(false);
+
+            await CloseAsync(x, secondX).ConfigureAwait(false);
+            await CloseAsync(y, secondY).ConfigureAwait(false);
+            m_manager.SystemContext.SessionId = first;
+            await CloseAsync(y, firstY).ConfigureAwait(false);
+        }
+
+        /// <summary>
         /// S12-3: reserved mode bits and EraseExisting without Write are invalid; a reader
         /// cannot open a file that is open for writing.
         /// </summary>
@@ -173,7 +227,7 @@ namespace Opc.Ua.Server.Tests.FileSystem
                 Assert.That(eraseWithoutWrite.StatusCode, Is.EqualTo(StatusCodes.BadInvalidArgument));
                 Assert.That(reservedBits.StatusCode, Is.EqualTo(StatusCodes.BadInvalidArgument));
                 Assert.That(readWhileWriting.StatusCode, Is.EqualTo(StatusCodes.BadNotReadable));
-                Assert.That(writeWhileWriting.StatusCode, Is.EqualTo(StatusCodes.BadInvalidState));
+                Assert.That(writeWhileWriting.StatusCode, Is.EqualTo(StatusCodes.BadNotWritable));
             });
         }
 

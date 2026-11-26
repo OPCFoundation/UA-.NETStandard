@@ -1,31 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 namespace Opc.Ua.Redundancy.Server
 {
@@ -35,15 +9,19 @@ namespace Opc.Ua.Redundancy.Server
     /// </summary>
     internal static class PeerEndpointCodec
     {
-        private const byte Version = 1;
+        private const byte Version = 2;
 
         /// <summary>
-        /// Encodes an endpoint set into a self-describing payload.
+        /// Encodes an endpoint set and its publication timestamp.
         /// </summary>
-        public static ByteString Encode(ArrayOf<EndpointDescription> endpoints, IServiceMessageContext context)
+        public static ByteString Encode(
+            ArrayOf<EndpointDescription> endpoints,
+            long timestampTicks,
+            IServiceMessageContext context)
         {
             using var encoder = new BinaryEncoder(context);
             encoder.WriteByte(null, Version);
+            encoder.WriteInt64(null, timestampTicks);
             encoder.WriteEncodeableArray(null, endpoints);
             byte[]? buffer = encoder.CloseAndReturnBuffer();
             return buffer is null ? ByteString.Empty : new ByteString(buffer);
@@ -55,9 +33,11 @@ namespace Opc.Ua.Redundancy.Server
         public static bool TryDecode(
             ByteString payload,
             IServiceMessageContext context,
-            out ArrayOf<EndpointDescription> endpoints)
+            out ArrayOf<EndpointDescription> endpoints,
+            out long timestampTicks)
         {
             endpoints = [];
+            timestampTicks = 0;
 
             if (payload.IsNull || payload.Length == 0)
             {
@@ -71,6 +51,7 @@ namespace Opc.Ua.Redundancy.Server
                 {
                     return false;
                 }
+                timestampTicks = decoder.ReadInt64(null);
                 endpoints = decoder.ReadEncodeableArray<EndpointDescription>(null);
                 return true;
             }

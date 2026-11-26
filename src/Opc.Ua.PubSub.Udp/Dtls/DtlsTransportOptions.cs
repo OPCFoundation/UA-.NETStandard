@@ -1,31 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using System.Collections.Generic;
@@ -106,17 +80,21 @@ namespace Opc.Ua.PubSub.Udp.Dtls
         public ICertificateValidatorEx? PeerCertificateValidator { get; set; }
 
         /// <summary>
-        /// Requests DTLS 1.3 mutual authentication. When <see langword="false"/> (the default) the
-        /// transport uses the one-way authentication model in which only the server presents a
-        /// certificate; for Part 14 PubSub the publisher is normally authenticated at the message
-        /// layer through SKS-managed security keys, so client certificates are not required at the
-        /// DTLS layer. When <see langword="true"/> the server includes a CertificateRequest in its
-        /// flight, the client answers with its Certificate and CertificateVerify, and the server
-        /// validates the client chain through the same fail-closed certificate validator used for the
-        /// server certificate. Enabling mutual authentication requires a configured peer certificate
-        /// validator on the server and a local certificate on the client; otherwise the handshake
-        /// fails closed.
+        /// Requires DTLS 1.3 mutual authentication. When <see langword="true"/> (the default) the
+        /// server includes a CertificateRequest in its flight, the client answers with its
+        /// Certificate and CertificateVerify, and the server validates the client chain through the
+        /// same fail-closed certificate validator used for the server certificate. Mutual
+        /// authentication requires a configured peer certificate validator on the server and a local
+        /// certificate on the client; otherwise the handshake fails closed.
         /// </summary>
-        public bool RequireClientCertificate { get; set; }
+        /// <remarks>
+        /// The DTLS server (the subscriber) accepts a single association and pins the peer that
+        /// completes the handshake. Without client authentication any host that can reach the port
+        /// first becomes that peer, locks the real publisher out and, on a connection with writers,
+        /// receives its data. Set this to <see langword="false"/> only when the publisher is
+        /// authenticated by other means (for example SKS-managed message security) and the network
+        /// is trusted.
+        /// </remarks>
+        public bool RequireClientCertificate { get; set; } = true;
     }
 }

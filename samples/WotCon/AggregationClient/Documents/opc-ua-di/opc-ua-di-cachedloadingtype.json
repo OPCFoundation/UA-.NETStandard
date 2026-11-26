@@ -3,6 +3,7 @@
     "https://www.w3.org/2022/wot/td/v1.1",
     {
       "ns1": "http://opcfoundation.org/UA/DI/",
+      "qudt": "http://qudt.org/schema/qudt/",
       "ua": "http://opcfoundation.org/UA/",
       "uav": "http://opcfoundation.org/UA/WoT-Binding/"
     },
@@ -20,12 +21,6 @@
   ],
   "actions": {
     "GetUpdateBehavior": {
-      "@context": {
-        "title": {
-          "@id": "https://www.w3.org/2019/wot/td#title",
-          "@language": null
-        }
-      },
       "@type": "uav:method",
       "input": {
         "properties": {
@@ -67,6 +62,7 @@
       "output": {
         "properties": {
           "UpdateBehavior": {
+            "type": "integer",
             "uav:mapToType": "nsu=http://opcfoundation.org/UA/DI/;i=333",
             "uav:valueRank": -1
           }
@@ -360,6 +356,7 @@
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "CachedLoadingType"
           }
         ],
@@ -388,12 +385,281 @@
         "superType": "ns=1;i=137"
       },
       {
+        "browseName": "1:PendingVersion",
+        "displayName": [
+          {
+            "locale": "",
+            "value": "PendingVersion"
+          }
+        ],
+        "modellingRule": "Mandatory",
+        "nodeClass": "Object",
+        "nodeId": "ns=1;i=187",
+        "parentNodeId": "ns=1;i=171",
+        "references": [
+          {
+            "referenceType": "HasProperty",
+            "target": "ns=1;i=366"
+          },
+          {
+            "referenceType": "HasProperty",
+            "target": "ns=1;i=367"
+          },
+          {
+            "referenceType": "HasProperty",
+            "target": "ns=1;i=368"
+          },
+          {
+            "referenceType": "HasTypeDefinition",
+            "target": "ns=1;i=212"
+          },
+          {
+            "referenceType": "HasModellingRule",
+            "target": "i=78"
+          },
+          {
+            "isForward": false,
+            "referenceType": "HasComponent",
+            "target": "ns=1;i=171"
+          }
+        ],
+        "typeDefinition": "ns=1;i=212"
+      },
+      {
+        "arrayDimensions": "",
+        "browseName": "1:Manufacturer",
+        "dataType": "LocalizedText",
+        "displayName": [
+          {
+            "locale": "",
+            "value": "Manufacturer"
+          }
+        ],
+        "modellingRule": "Mandatory",
+        "nodeClass": "Variable",
+        "nodeId": "ns=1;i=366",
+        "parentNodeId": "ns=1;i=187",
+        "references": [
+          {
+            "referenceType": "HasTypeDefinition",
+            "target": "i=68"
+          },
+          {
+            "referenceType": "HasModellingRule",
+            "target": "i=78"
+          },
+          {
+            "isForward": false,
+            "referenceType": "HasProperty",
+            "target": "ns=1;i=187"
+          }
+        ],
+        "typeDefinition": "i=68"
+      },
+      {
+        "arrayDimensions": "",
+        "browseName": "1:ManufacturerUri",
+        "dataType": "String",
+        "displayName": [
+          {
+            "locale": "",
+            "value": "ManufacturerUri"
+          }
+        ],
+        "modellingRule": "Mandatory",
+        "nodeClass": "Variable",
+        "nodeId": "ns=1;i=367",
+        "parentNodeId": "ns=1;i=187",
+        "references": [
+          {
+            "referenceType": "HasTypeDefinition",
+            "target": "i=68"
+          },
+          {
+            "referenceType": "HasModellingRule",
+            "target": "i=78"
+          },
+          {
+            "isForward": false,
+            "referenceType": "HasProperty",
+            "target": "ns=1;i=187"
+          }
+        ],
+        "typeDefinition": "i=68"
+      },
+      {
+        "arrayDimensions": "",
+        "browseName": "1:SoftwareRevision",
+        "dataType": "String",
+        "displayName": [
+          {
+            "locale": "",
+            "value": "SoftwareRevision"
+          }
+        ],
+        "modellingRule": "Mandatory",
+        "nodeClass": "Variable",
+        "nodeId": "ns=1;i=368",
+        "parentNodeId": "ns=1;i=187",
+        "references": [
+          {
+            "referenceType": "HasTypeDefinition",
+            "target": "i=68"
+          },
+          {
+            "referenceType": "HasModellingRule",
+            "target": "i=78"
+          },
+          {
+            "isForward": false,
+            "referenceType": "HasProperty",
+            "target": "ns=1;i=187"
+          }
+        ],
+        "typeDefinition": "i=68"
+      },
+      {
+        "browseName": "1:FallbackVersion",
+        "displayName": [
+          {
+            "locale": "",
+            "value": "FallbackVersion"
+          }
+        ],
+        "modellingRule": "Optional",
+        "nodeClass": "Object",
+        "nodeId": "ns=1;i=188",
+        "parentNodeId": "ns=1;i=171",
+        "references": [
+          {
+            "referenceType": "HasProperty",
+            "target": "ns=1;i=373"
+          },
+          {
+            "referenceType": "HasProperty",
+            "target": "ns=1;i=374"
+          },
+          {
+            "referenceType": "HasProperty",
+            "target": "ns=1;i=375"
+          },
+          {
+            "referenceType": "HasTypeDefinition",
+            "target": "ns=1;i=212"
+          },
+          {
+            "referenceType": "HasModellingRule",
+            "target": "i=80"
+          },
+          {
+            "isForward": false,
+            "referenceType": "HasComponent",
+            "target": "ns=1;i=171"
+          }
+        ],
+        "typeDefinition": "ns=1;i=212"
+      },
+      {
+        "arrayDimensions": "",
+        "browseName": "1:Manufacturer",
+        "dataType": "LocalizedText",
+        "displayName": [
+          {
+            "locale": "",
+            "value": "Manufacturer"
+          }
+        ],
+        "modellingRule": "Mandatory",
+        "nodeClass": "Variable",
+        "nodeId": "ns=1;i=373",
+        "parentNodeId": "ns=1;i=188",
+        "references": [
+          {
+            "referenceType": "HasTypeDefinition",
+            "target": "i=68"
+          },
+          {
+            "referenceType": "HasModellingRule",
+            "target": "i=78"
+          },
+          {
+            "isForward": false,
+            "referenceType": "HasProperty",
+            "target": "ns=1;i=188"
+          }
+        ],
+        "typeDefinition": "i=68"
+      },
+      {
+        "arrayDimensions": "",
+        "browseName": "1:ManufacturerUri",
+        "dataType": "String",
+        "displayName": [
+          {
+            "locale": "",
+            "value": "ManufacturerUri"
+          }
+        ],
+        "modellingRule": "Mandatory",
+        "nodeClass": "Variable",
+        "nodeId": "ns=1;i=374",
+        "parentNodeId": "ns=1;i=188",
+        "references": [
+          {
+            "referenceType": "HasTypeDefinition",
+            "target": "i=68"
+          },
+          {
+            "referenceType": "HasModellingRule",
+            "target": "i=78"
+          },
+          {
+            "isForward": false,
+            "referenceType": "HasProperty",
+            "target": "ns=1;i=188"
+          }
+        ],
+        "typeDefinition": "i=68"
+      },
+      {
+        "arrayDimensions": "",
+        "browseName": "1:SoftwareRevision",
+        "dataType": "String",
+        "displayName": [
+          {
+            "locale": "",
+            "value": "SoftwareRevision"
+          }
+        ],
+        "modellingRule": "Mandatory",
+        "nodeClass": "Variable",
+        "nodeId": "ns=1;i=375",
+        "parentNodeId": "ns=1;i=188",
+        "references": [
+          {
+            "referenceType": "HasTypeDefinition",
+            "target": "i=68"
+          },
+          {
+            "referenceType": "HasModellingRule",
+            "target": "i=78"
+          },
+          {
+            "isForward": false,
+            "referenceType": "HasProperty",
+            "target": "ns=1;i=188"
+          }
+        ],
+        "typeDefinition": "i=68"
+      },
+      {
         "browseName": "1:GetUpdateBehavior",
         "category": [
           "DI SU CachedLoading"
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "GetUpdateBehavior"
           }
         ],
@@ -428,6 +694,7 @@
         "dataType": "i=296",
         "displayName": [
           {
+            "locale": "",
             "value": "InputArguments"
           }
         ],
@@ -460,6 +727,7 @@
         "dataType": "i=296",
         "displayName": [
           {
+            "locale": "",
             "value": "OutputArguments"
           }
         ],

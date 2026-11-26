@@ -5,6 +5,7 @@
       "ns1": "http://opcfoundation.org/UA/Pumps/",
       "ns2": "http://opcfoundation.org/UA/Machinery/",
       "ns3": "http://opcfoundation.org/UA/DI/",
+      "qudt": "http://qudt.org/schema/qudt/",
       "ua": "http://opcfoundation.org/UA/",
       "uav": "http://opcfoundation.org/UA/WoT-Binding/"
     },
@@ -45,7 +46,7 @@
         }
       },
       "@type": "uav:variable",
-      "const": false,
+      "default": false,
       "description": "This attribute indicates an unacceptable abrasion of the axial bearing.",
       "links": [
         {
@@ -74,7 +75,7 @@
         }
       },
       "@type": "uav:variable",
-      "const": false,
+      "default": false,
       "description": "This attribute indicates a failure of the axial bearing.",
       "links": [
         {
@@ -103,7 +104,7 @@
         }
       },
       "@type": "uav:variable",
-      "const": false,
+      "default": false,
       "description": "This attribute indicates an overheating of the axial bearing.",
       "links": [
         {
@@ -132,7 +133,7 @@
         }
       },
       "@type": "uav:variable",
-      "const": false,
+      "default": false,
       "description": "This attribute indicates a generic bearing failure.",
       "links": [
         {
@@ -161,7 +162,7 @@
         }
       },
       "@type": "uav:variable",
-      "const": false,
+      "default": false,
       "description": "This attribute indicates a problem of the brake chopper.",
       "links": [
         {
@@ -190,7 +191,7 @@
         }
       },
       "@type": "uav:variable",
-      "const": false,
+      "default": false,
       "description": "This attribute indicates an overheating of a brake.",
       "links": [
         {
@@ -231,9 +232,6 @@
       "title": "Definition",
       "type": "string",
       "uav:browseName": "Definition",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=6704"
-      ],
       "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=12252",
       "uav:mapToType": "i=12",
       "uav:modellingRule": "Optional"
@@ -262,9 +260,6 @@
       "title": "Definition",
       "type": "string",
       "uav:browseName": "Definition",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=6731"
-      ],
       "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=12279",
       "uav:mapToType": "i=12",
       "uav:modellingRule": "Optional"
@@ -293,9 +288,6 @@
       "title": "Definition",
       "type": "string",
       "uav:browseName": "Definition",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=6734"
-      ],
       "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=12282",
       "uav:mapToType": "i=12",
       "uav:modellingRule": "Optional"
@@ -324,9 +316,6 @@
       "title": "Definition",
       "type": "string",
       "uav:browseName": "Definition",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=6737"
-      ],
       "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=12285",
       "uav:mapToType": "i=12",
       "uav:modellingRule": "Optional"
@@ -355,9 +344,6 @@
       "title": "Definition",
       "type": "string",
       "uav:browseName": "Definition",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=6740"
-      ],
       "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=12288",
       "uav:mapToType": "i=12",
       "uav:modellingRule": "Optional"
@@ -386,9 +372,6 @@
       "title": "Definition",
       "type": "string",
       "uav:browseName": "Definition",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=6743"
-      ],
       "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=12291",
       "uav:mapToType": "i=12",
       "uav:modellingRule": "Optional"
@@ -417,9 +400,6 @@
       "title": "Definition",
       "type": "string",
       "uav:browseName": "Definition",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=6746"
-      ],
       "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=12294",
       "uav:mapToType": "i=12",
       "uav:modellingRule": "Optional"
@@ -448,9 +428,6 @@
       "title": "Definition",
       "type": "string",
       "uav:browseName": "Definition",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=6749"
-      ],
       "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=12297",
       "uav:mapToType": "i=12",
       "uav:modellingRule": "Optional"
@@ -479,9 +456,6 @@
       "title": "Definition",
       "type": "string",
       "uav:browseName": "Definition",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=6707"
-      ],
       "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=12255",
       "uav:mapToType": "i=12",
       "uav:modellingRule": "Optional"
@@ -510,9 +484,6 @@
       "title": "Definition",
       "type": "string",
       "uav:browseName": "Definition",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=6710"
-      ],
       "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=12258",
       "uav:mapToType": "i=12",
       "uav:modellingRule": "Optional"
@@ -541,9 +512,6 @@
       "title": "Definition",
       "type": "string",
       "uav:browseName": "Definition",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=6713"
-      ],
       "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=12261",
       "uav:mapToType": "i=12",
       "uav:modellingRule": "Optional"
@@ -572,9 +540,6 @@
       "title": "Definition",
       "type": "string",
       "uav:browseName": "Definition",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=6716"
-      ],
       "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=12264",
       "uav:mapToType": "i=12",
       "uav:modellingRule": "Optional"
@@ -603,9 +568,6 @@
       "title": "Definition",
       "type": "string",
       "uav:browseName": "Definition",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=6719"
-      ],
       "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=12267",
       "uav:mapToType": "i=12",
       "uav:modellingRule": "Optional"
@@ -634,9 +596,6 @@
       "title": "Definition",
       "type": "string",
       "uav:browseName": "Definition",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=6722"
-      ],
       "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=12270",
       "uav:mapToType": "i=12",
       "uav:modellingRule": "Optional"
@@ -665,9 +624,6 @@
       "title": "Definition",
       "type": "string",
       "uav:browseName": "Definition",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=6725"
-      ],
       "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=12273",
       "uav:mapToType": "i=12",
       "uav:modellingRule": "Optional"
@@ -696,9 +652,6 @@
       "title": "Definition",
       "type": "string",
       "uav:browseName": "Definition",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=6728"
-      ],
       "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=12276",
       "uav:mapToType": "i=12",
       "uav:modellingRule": "Optional"
@@ -715,7 +668,7 @@
         }
       },
       "@type": "uav:variable",
-      "const": false,
+      "default": false,
       "description": "This attribute indicates unacceptable high mechanical vibration.",
       "links": [
         {
@@ -754,10 +707,8 @@
       "observable": true,
       "readOnly": true,
       "title": "FalseState",
+      "type": "string",
       "uav:browseName": "FalseState",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=6704"
-      ],
       "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=6705",
       "uav:mapToType": "i=21",
       "uav:modellingRule": "Mandatory"
@@ -784,10 +735,8 @@
       "observable": true,
       "readOnly": true,
       "title": "FalseState",
+      "type": "string",
       "uav:browseName": "FalseState",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=6731"
-      ],
       "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=6732",
       "uav:mapToType": "i=21",
       "uav:modellingRule": "Mandatory"
@@ -814,10 +763,8 @@
       "observable": true,
       "readOnly": true,
       "title": "FalseState",
+      "type": "string",
       "uav:browseName": "FalseState",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=6734"
-      ],
       "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=6735",
       "uav:mapToType": "i=21",
       "uav:modellingRule": "Mandatory"
@@ -844,10 +791,8 @@
       "observable": true,
       "readOnly": true,
       "title": "FalseState",
+      "type": "string",
       "uav:browseName": "FalseState",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=6737"
-      ],
       "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=6738",
       "uav:mapToType": "i=21",
       "uav:modellingRule": "Mandatory"
@@ -874,10 +819,8 @@
       "observable": true,
       "readOnly": true,
       "title": "FalseState",
+      "type": "string",
       "uav:browseName": "FalseState",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=6740"
-      ],
       "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=6741",
       "uav:mapToType": "i=21",
       "uav:modellingRule": "Mandatory"
@@ -904,10 +847,8 @@
       "observable": true,
       "readOnly": true,
       "title": "FalseState",
+      "type": "string",
       "uav:browseName": "FalseState",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=6743"
-      ],
       "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=6744",
       "uav:mapToType": "i=21",
       "uav:modellingRule": "Mandatory"
@@ -934,10 +875,8 @@
       "observable": true,
       "readOnly": true,
       "title": "FalseState",
+      "type": "string",
       "uav:browseName": "FalseState",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=6746"
-      ],
       "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=6747",
       "uav:mapToType": "i=21",
       "uav:modellingRule": "Mandatory"
@@ -964,10 +903,8 @@
       "observable": true,
       "readOnly": true,
       "title": "FalseState",
+      "type": "string",
       "uav:browseName": "FalseState",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=6749"
-      ],
       "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=6750",
       "uav:mapToType": "i=21",
       "uav:modellingRule": "Mandatory"
@@ -994,10 +931,8 @@
       "observable": true,
       "readOnly": true,
       "title": "FalseState",
+      "type": "string",
       "uav:browseName": "FalseState",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=6707"
-      ],
       "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=6708",
       "uav:mapToType": "i=21",
       "uav:modellingRule": "Mandatory"
@@ -1024,10 +959,8 @@
       "observable": true,
       "readOnly": true,
       "title": "FalseState",
+      "type": "string",
       "uav:browseName": "FalseState",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=6710"
-      ],
       "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=6711",
       "uav:mapToType": "i=21",
       "uav:modellingRule": "Mandatory"
@@ -1054,10 +987,8 @@
       "observable": true,
       "readOnly": true,
       "title": "FalseState",
+      "type": "string",
       "uav:browseName": "FalseState",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=6713"
-      ],
       "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=6714",
       "uav:mapToType": "i=21",
       "uav:modellingRule": "Mandatory"
@@ -1084,10 +1015,8 @@
       "observable": true,
       "readOnly": true,
       "title": "FalseState",
+      "type": "string",
       "uav:browseName": "FalseState",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=6716"
-      ],
       "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=6717",
       "uav:mapToType": "i=21",
       "uav:modellingRule": "Mandatory"
@@ -1114,10 +1043,8 @@
       "observable": true,
       "readOnly": true,
       "title": "FalseState",
+      "type": "string",
       "uav:browseName": "FalseState",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=6719"
-      ],
       "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=6720",
       "uav:mapToType": "i=21",
       "uav:modellingRule": "Mandatory"
@@ -1144,10 +1071,8 @@
       "observable": true,
       "readOnly": true,
       "title": "FalseState",
+      "type": "string",
       "uav:browseName": "FalseState",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=6722"
-      ],
       "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=6723",
       "uav:mapToType": "i=21",
       "uav:modellingRule": "Mandatory"
@@ -1174,10 +1099,8 @@
       "observable": true,
       "readOnly": true,
       "title": "FalseState",
+      "type": "string",
       "uav:browseName": "FalseState",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=6725"
-      ],
       "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=6726",
       "uav:mapToType": "i=21",
       "uav:modellingRule": "Mandatory"
@@ -1204,10 +1127,8 @@
       "observable": true,
       "readOnly": true,
       "title": "FalseState",
+      "type": "string",
       "uav:browseName": "FalseState",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=6728"
-      ],
       "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=6729",
       "uav:mapToType": "i=21",
       "uav:modellingRule": "Mandatory"
@@ -1224,7 +1145,7 @@
         }
       },
       "@type": "uav:variable",
-      "const": false,
+      "default": false,
       "description": "This attribute indicates a mechanical wear at gap.",
       "links": [
         {
@@ -1253,7 +1174,7 @@
         }
       },
       "@type": "uav:variable",
-      "const": false,
+      "default": false,
       "description": "This attribute indicates a generic mechanical fault.",
       "links": [
         {
@@ -1282,7 +1203,7 @@
         }
       },
       "@type": "uav:variable",
-      "const": false,
+      "default": false,
       "description": "This attribute indicates a misalignment.",
       "links": [
         {
@@ -1311,7 +1232,7 @@
         }
       },
       "@type": "uav:variable",
-      "const": false,
+      "default": false,
       "description": "This attribute indicates an unacceptable abrasion of the radial bearing.",
       "links": [
         {
@@ -1340,7 +1261,7 @@
         }
       },
       "@type": "uav:variable",
-      "const": false,
+      "default": false,
       "description": "This attribute indicates a failure of the radial bearing.",
       "links": [
         {
@@ -1369,7 +1290,7 @@
         }
       },
       "@type": "uav:variable",
-      "const": false,
+      "default": false,
       "description": "This attribute indicates an overheating of the radial bearing.",
       "links": [
         {
@@ -1398,7 +1319,7 @@
         }
       },
       "@type": "uav:variable",
-      "const": false,
+      "default": false,
       "description": "This attribute indicates a blocked rotor.",
       "links": [
         {
@@ -1427,7 +1348,7 @@
         }
       },
       "@type": "uav:variable",
-      "const": false,
+      "default": false,
       "description": "This attribute indicates the rubbing of stator and rotor.",
       "links": [
         {
@@ -1466,10 +1387,8 @@
       "observable": true,
       "readOnly": true,
       "title": "TrueState",
+      "type": "string",
       "uav:browseName": "TrueState",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=6704"
-      ],
       "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=6706",
       "uav:mapToType": "i=21",
       "uav:modellingRule": "Mandatory"
@@ -1496,10 +1415,8 @@
       "observable": true,
       "readOnly": true,
       "title": "TrueState",
+      "type": "string",
       "uav:browseName": "TrueState",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=6731"
-      ],
       "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=6733",
       "uav:mapToType": "i=21",
       "uav:modellingRule": "Mandatory"
@@ -1526,10 +1443,8 @@
       "observable": true,
       "readOnly": true,
       "title": "TrueState",
+      "type": "string",
       "uav:browseName": "TrueState",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=6734"
-      ],
       "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=6736",
       "uav:mapToType": "i=21",
       "uav:modellingRule": "Mandatory"
@@ -1556,10 +1471,8 @@
       "observable": true,
       "readOnly": true,
       "title": "TrueState",
+      "type": "string",
       "uav:browseName": "TrueState",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=6737"
-      ],
       "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=6739",
       "uav:mapToType": "i=21",
       "uav:modellingRule": "Mandatory"
@@ -1586,10 +1499,8 @@
       "observable": true,
       "readOnly": true,
       "title": "TrueState",
+      "type": "string",
       "uav:browseName": "TrueState",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=6740"
-      ],
       "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=6742",
       "uav:mapToType": "i=21",
       "uav:modellingRule": "Mandatory"
@@ -1616,10 +1527,8 @@
       "observable": true,
       "readOnly": true,
       "title": "TrueState",
+      "type": "string",
       "uav:browseName": "TrueState",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=6743"
-      ],
       "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=6745",
       "uav:mapToType": "i=21",
       "uav:modellingRule": "Mandatory"
@@ -1646,10 +1555,8 @@
       "observable": true,
       "readOnly": true,
       "title": "TrueState",
+      "type": "string",
       "uav:browseName": "TrueState",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=6746"
-      ],
       "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=6748",
       "uav:mapToType": "i=21",
       "uav:modellingRule": "Mandatory"
@@ -1676,10 +1583,8 @@
       "observable": true,
       "readOnly": true,
       "title": "TrueState",
+      "type": "string",
       "uav:browseName": "TrueState",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=6749"
-      ],
       "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=6751",
       "uav:mapToType": "i=21",
       "uav:modellingRule": "Mandatory"
@@ -1706,10 +1611,8 @@
       "observable": true,
       "readOnly": true,
       "title": "TrueState",
+      "type": "string",
       "uav:browseName": "TrueState",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=6707"
-      ],
       "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=6709",
       "uav:mapToType": "i=21",
       "uav:modellingRule": "Mandatory"
@@ -1736,10 +1639,8 @@
       "observable": true,
       "readOnly": true,
       "title": "TrueState",
+      "type": "string",
       "uav:browseName": "TrueState",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=6710"
-      ],
       "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=6712",
       "uav:mapToType": "i=21",
       "uav:modellingRule": "Mandatory"
@@ -1766,10 +1667,8 @@
       "observable": true,
       "readOnly": true,
       "title": "TrueState",
+      "type": "string",
       "uav:browseName": "TrueState",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=6713"
-      ],
       "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=6715",
       "uav:mapToType": "i=21",
       "uav:modellingRule": "Mandatory"
@@ -1796,10 +1695,8 @@
       "observable": true,
       "readOnly": true,
       "title": "TrueState",
+      "type": "string",
       "uav:browseName": "TrueState",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=6716"
-      ],
       "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=6718",
       "uav:mapToType": "i=21",
       "uav:modellingRule": "Mandatory"
@@ -1826,10 +1723,8 @@
       "observable": true,
       "readOnly": true,
       "title": "TrueState",
+      "type": "string",
       "uav:browseName": "TrueState",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=6719"
-      ],
       "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=6721",
       "uav:mapToType": "i=21",
       "uav:modellingRule": "Mandatory"
@@ -1856,10 +1751,8 @@
       "observable": true,
       "readOnly": true,
       "title": "TrueState",
+      "type": "string",
       "uav:browseName": "TrueState",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=6722"
-      ],
       "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=6724",
       "uav:mapToType": "i=21",
       "uav:modellingRule": "Mandatory"
@@ -1886,10 +1779,8 @@
       "observable": true,
       "readOnly": true,
       "title": "TrueState",
+      "type": "string",
       "uav:browseName": "TrueState",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=6725"
-      ],
       "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=6727",
       "uav:mapToType": "i=21",
       "uav:modellingRule": "Mandatory"
@@ -1916,10 +1807,8 @@
       "observable": true,
       "readOnly": true,
       "title": "TrueState",
+      "type": "string",
       "uav:browseName": "TrueState",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=6728"
-      ],
       "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=6730",
       "uav:mapToType": "i=21",
       "uav:modellingRule": "Mandatory"
@@ -1936,7 +1825,7 @@
         }
       },
       "@type": "uav:variable",
-      "const": false,
+      "default": false,
       "description": "This attribute indicates an unbalance.",
       "links": [
         {
@@ -1955,6 +1844,40 @@
     }
   },
   "title": "SupervisionMechanicsType",
+  "tm:optional": [
+    "/properties/AxialBearingAbrasion",
+    "/properties/AxialBearingFault",
+    "/properties/AxialBearingOverheat",
+    "/properties/BearingFault",
+    "/properties/BrakeChopper",
+    "/properties/BrakeOverheat",
+    "/properties/ExcessVibration",
+    "/properties/GapWear",
+    "/properties/MechanicalFault",
+    "/properties/Misalignment",
+    "/properties/RadialBearingAbrasion",
+    "/properties/RadialBearingFault",
+    "/properties/RadialBearingOverheat",
+    "/properties/RotorBlocked",
+    "/properties/RotorStationRubbing",
+    "/properties/Unbalance",
+    "/properties/Definition",
+    "/properties/Definition_2",
+    "/properties/Definition_3",
+    "/properties/Definition_4",
+    "/properties/Definition_5",
+    "/properties/Definition_6",
+    "/properties/Definition_7",
+    "/properties/Definition_8",
+    "/properties/Definition_9",
+    "/properties/Definition_10",
+    "/properties/Definition_11",
+    "/properties/Definition_12",
+    "/properties/Definition_13",
+    "/properties/Definition_14",
+    "/properties/Definition_15",
+    "/properties/Definition_16"
+  ],
   "uav:bindingVersion": "1.1",
   "uav:browseName": "ns1:SupervisionMechanicsType",
   "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=1012",
@@ -2176,11 +2099,13 @@
         "browseName": "1:SupervisionMechanicsType",
         "description": [
           {
+            "locale": "",
             "value": "Supervision mechanics specifies supervising information related to device mechanics."
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "SupervisionMechanicsType"
           }
         ],
@@ -2278,15 +2203,18 @@
       },
       {
         "accessLevel": 5,
+        "arrayDimensions": "",
         "browseName": "1:AxialBearingAbrasion",
         "dataType": "Boolean",
         "description": [
           {
+            "locale": "",
             "value": "This attribute indicates an unacceptable abrasion of the axial bearing."
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "AxialBearingAbrasion"
           }
         ],
@@ -2326,10 +2254,12 @@
         "valueXml": "<uax:Boolean xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">false</uax:Boolean>"
       },
       {
+        "arrayDimensions": "",
         "browseName": "Definition",
         "dataType": "String",
         "displayName": [
           {
+            "locale": "",
             "value": "Definition"
           }
         ],
@@ -2355,10 +2285,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "FalseState",
         "dataType": "LocalizedText",
         "displayName": [
           {
+            "locale": "",
             "value": "FalseState"
           }
         ],
@@ -2384,10 +2316,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "TrueState",
         "dataType": "LocalizedText",
         "displayName": [
           {
+            "locale": "",
             "value": "TrueState"
           }
         ],
@@ -2414,15 +2348,18 @@
       },
       {
         "accessLevel": 5,
+        "arrayDimensions": "",
         "browseName": "1:AxialBearingFault",
         "dataType": "Boolean",
         "description": [
           {
+            "locale": "",
             "value": "This attribute indicates a failure of the axial bearing."
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "AxialBearingFault"
           }
         ],
@@ -2462,10 +2399,12 @@
         "valueXml": "<uax:Boolean xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">false</uax:Boolean>"
       },
       {
+        "arrayDimensions": "",
         "browseName": "Definition",
         "dataType": "String",
         "displayName": [
           {
+            "locale": "",
             "value": "Definition"
           }
         ],
@@ -2491,10 +2430,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "FalseState",
         "dataType": "LocalizedText",
         "displayName": [
           {
+            "locale": "",
             "value": "FalseState"
           }
         ],
@@ -2520,10 +2461,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "TrueState",
         "dataType": "LocalizedText",
         "displayName": [
           {
+            "locale": "",
             "value": "TrueState"
           }
         ],
@@ -2550,15 +2493,18 @@
       },
       {
         "accessLevel": 5,
+        "arrayDimensions": "",
         "browseName": "1:AxialBearingOverheat",
         "dataType": "Boolean",
         "description": [
           {
+            "locale": "",
             "value": "This attribute indicates an overheating of the axial bearing."
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "AxialBearingOverheat"
           }
         ],
@@ -2598,10 +2544,12 @@
         "valueXml": "<uax:Boolean xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">false</uax:Boolean>"
       },
       {
+        "arrayDimensions": "",
         "browseName": "Definition",
         "dataType": "String",
         "displayName": [
           {
+            "locale": "",
             "value": "Definition"
           }
         ],
@@ -2627,10 +2575,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "FalseState",
         "dataType": "LocalizedText",
         "displayName": [
           {
+            "locale": "",
             "value": "FalseState"
           }
         ],
@@ -2656,10 +2606,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "TrueState",
         "dataType": "LocalizedText",
         "displayName": [
           {
+            "locale": "",
             "value": "TrueState"
           }
         ],
@@ -2686,15 +2638,18 @@
       },
       {
         "accessLevel": 5,
+        "arrayDimensions": "",
         "browseName": "1:BearingFault",
         "dataType": "Boolean",
         "description": [
           {
+            "locale": "",
             "value": "This attribute indicates a generic bearing failure."
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "BearingFault"
           }
         ],
@@ -2734,10 +2689,12 @@
         "valueXml": "<uax:Boolean xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">false</uax:Boolean>"
       },
       {
+        "arrayDimensions": "",
         "browseName": "Definition",
         "dataType": "String",
         "displayName": [
           {
+            "locale": "",
             "value": "Definition"
           }
         ],
@@ -2763,10 +2720,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "FalseState",
         "dataType": "LocalizedText",
         "displayName": [
           {
+            "locale": "",
             "value": "FalseState"
           }
         ],
@@ -2792,10 +2751,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "TrueState",
         "dataType": "LocalizedText",
         "displayName": [
           {
+            "locale": "",
             "value": "TrueState"
           }
         ],
@@ -2822,15 +2783,18 @@
       },
       {
         "accessLevel": 5,
+        "arrayDimensions": "",
         "browseName": "1:BrakeChopper",
         "dataType": "Boolean",
         "description": [
           {
+            "locale": "",
             "value": "This attribute indicates a problem of the brake chopper."
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "BrakeChopper"
           }
         ],
@@ -2870,10 +2834,12 @@
         "valueXml": "<uax:Boolean xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">false</uax:Boolean>"
       },
       {
+        "arrayDimensions": "",
         "browseName": "Definition",
         "dataType": "String",
         "displayName": [
           {
+            "locale": "",
             "value": "Definition"
           }
         ],
@@ -2899,10 +2865,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "FalseState",
         "dataType": "LocalizedText",
         "displayName": [
           {
+            "locale": "",
             "value": "FalseState"
           }
         ],
@@ -2928,10 +2896,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "TrueState",
         "dataType": "LocalizedText",
         "displayName": [
           {
+            "locale": "",
             "value": "TrueState"
           }
         ],
@@ -2958,15 +2928,18 @@
       },
       {
         "accessLevel": 5,
+        "arrayDimensions": "",
         "browseName": "1:BrakeOverheat",
         "dataType": "Boolean",
         "description": [
           {
+            "locale": "",
             "value": "This attribute indicates an overheating of a brake."
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "BrakeOverheat"
           }
         ],
@@ -3006,10 +2979,12 @@
         "valueXml": "<uax:Boolean xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">false</uax:Boolean>"
       },
       {
+        "arrayDimensions": "",
         "browseName": "Definition",
         "dataType": "String",
         "displayName": [
           {
+            "locale": "",
             "value": "Definition"
           }
         ],
@@ -3035,10 +3010,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "FalseState",
         "dataType": "LocalizedText",
         "displayName": [
           {
+            "locale": "",
             "value": "FalseState"
           }
         ],
@@ -3064,10 +3041,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "TrueState",
         "dataType": "LocalizedText",
         "displayName": [
           {
+            "locale": "",
             "value": "TrueState"
           }
         ],
@@ -3094,15 +3073,18 @@
       },
       {
         "accessLevel": 5,
+        "arrayDimensions": "",
         "browseName": "1:ExcessVibration",
         "dataType": "Boolean",
         "description": [
           {
+            "locale": "",
             "value": "This attribute indicates unacceptable high mechanical vibration."
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "ExcessVibration"
           }
         ],
@@ -3142,10 +3124,12 @@
         "valueXml": "<uax:Boolean xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">false</uax:Boolean>"
       },
       {
+        "arrayDimensions": "",
         "browseName": "Definition",
         "dataType": "String",
         "displayName": [
           {
+            "locale": "",
             "value": "Definition"
           }
         ],
@@ -3171,10 +3155,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "FalseState",
         "dataType": "LocalizedText",
         "displayName": [
           {
+            "locale": "",
             "value": "FalseState"
           }
         ],
@@ -3200,10 +3186,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "TrueState",
         "dataType": "LocalizedText",
         "displayName": [
           {
+            "locale": "",
             "value": "TrueState"
           }
         ],
@@ -3230,15 +3218,18 @@
       },
       {
         "accessLevel": 5,
+        "arrayDimensions": "",
         "browseName": "1:GapWear",
         "dataType": "Boolean",
         "description": [
           {
+            "locale": "",
             "value": "This attribute indicates a mechanical wear at gap."
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "GapWear"
           }
         ],
@@ -3278,10 +3269,12 @@
         "valueXml": "<uax:Boolean xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">false</uax:Boolean>"
       },
       {
+        "arrayDimensions": "",
         "browseName": "Definition",
         "dataType": "String",
         "displayName": [
           {
+            "locale": "",
             "value": "Definition"
           }
         ],
@@ -3307,10 +3300,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "FalseState",
         "dataType": "LocalizedText",
         "displayName": [
           {
+            "locale": "",
             "value": "FalseState"
           }
         ],
@@ -3336,10 +3331,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "TrueState",
         "dataType": "LocalizedText",
         "displayName": [
           {
+            "locale": "",
             "value": "TrueState"
           }
         ],
@@ -3366,15 +3363,18 @@
       },
       {
         "accessLevel": 5,
+        "arrayDimensions": "",
         "browseName": "1:MechanicalFault",
         "dataType": "Boolean",
         "description": [
           {
+            "locale": "",
             "value": "This attribute indicates a generic mechanical fault."
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "MechanicalFault"
           }
         ],
@@ -3414,10 +3414,12 @@
         "valueXml": "<uax:Boolean xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">false</uax:Boolean>"
       },
       {
+        "arrayDimensions": "",
         "browseName": "Definition",
         "dataType": "String",
         "displayName": [
           {
+            "locale": "",
             "value": "Definition"
           }
         ],
@@ -3443,10 +3445,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "FalseState",
         "dataType": "LocalizedText",
         "displayName": [
           {
+            "locale": "",
             "value": "FalseState"
           }
         ],
@@ -3472,10 +3476,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "TrueState",
         "dataType": "LocalizedText",
         "displayName": [
           {
+            "locale": "",
             "value": "TrueState"
           }
         ],
@@ -3502,15 +3508,18 @@
       },
       {
         "accessLevel": 5,
+        "arrayDimensions": "",
         "browseName": "1:Misalignment",
         "dataType": "Boolean",
         "description": [
           {
+            "locale": "",
             "value": "This attribute indicates a misalignment."
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "Misalignment"
           }
         ],
@@ -3550,10 +3559,12 @@
         "valueXml": "<uax:Boolean xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">false</uax:Boolean>"
       },
       {
+        "arrayDimensions": "",
         "browseName": "Definition",
         "dataType": "String",
         "displayName": [
           {
+            "locale": "",
             "value": "Definition"
           }
         ],
@@ -3579,10 +3590,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "FalseState",
         "dataType": "LocalizedText",
         "displayName": [
           {
+            "locale": "",
             "value": "FalseState"
           }
         ],
@@ -3608,10 +3621,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "TrueState",
         "dataType": "LocalizedText",
         "displayName": [
           {
+            "locale": "",
             "value": "TrueState"
           }
         ],
@@ -3638,15 +3653,18 @@
       },
       {
         "accessLevel": 5,
+        "arrayDimensions": "",
         "browseName": "1:RadialBearingAbrasion",
         "dataType": "Boolean",
         "description": [
           {
+            "locale": "",
             "value": "This attribute indicates an unacceptable abrasion of the radial bearing."
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "RadialBearingAbrasion"
           }
         ],
@@ -3686,10 +3704,12 @@
         "valueXml": "<uax:Boolean xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">false</uax:Boolean>"
       },
       {
+        "arrayDimensions": "",
         "browseName": "Definition",
         "dataType": "String",
         "displayName": [
           {
+            "locale": "",
             "value": "Definition"
           }
         ],
@@ -3715,10 +3735,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "FalseState",
         "dataType": "LocalizedText",
         "displayName": [
           {
+            "locale": "",
             "value": "FalseState"
           }
         ],
@@ -3744,10 +3766,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "TrueState",
         "dataType": "LocalizedText",
         "displayName": [
           {
+            "locale": "",
             "value": "TrueState"
           }
         ],
@@ -3774,15 +3798,18 @@
       },
       {
         "accessLevel": 5,
+        "arrayDimensions": "",
         "browseName": "1:RadialBearingFault",
         "dataType": "Boolean",
         "description": [
           {
+            "locale": "",
             "value": "This attribute indicates a failure of the radial bearing."
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "RadialBearingFault"
           }
         ],
@@ -3822,10 +3849,12 @@
         "valueXml": "<uax:Boolean xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">false</uax:Boolean>"
       },
       {
+        "arrayDimensions": "",
         "browseName": "Definition",
         "dataType": "String",
         "displayName": [
           {
+            "locale": "",
             "value": "Definition"
           }
         ],
@@ -3851,10 +3880,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "FalseState",
         "dataType": "LocalizedText",
         "displayName": [
           {
+            "locale": "",
             "value": "FalseState"
           }
         ],
@@ -3880,10 +3911,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "TrueState",
         "dataType": "LocalizedText",
         "displayName": [
           {
+            "locale": "",
             "value": "TrueState"
           }
         ],
@@ -3910,15 +3943,18 @@
       },
       {
         "accessLevel": 5,
+        "arrayDimensions": "",
         "browseName": "1:RadialBearingOverheat",
         "dataType": "Boolean",
         "description": [
           {
+            "locale": "",
             "value": "This attribute indicates an overheating of the radial bearing."
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "RadialBearingOverheat"
           }
         ],
@@ -3958,10 +3994,12 @@
         "valueXml": "<uax:Boolean xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">false</uax:Boolean>"
       },
       {
+        "arrayDimensions": "",
         "browseName": "Definition",
         "dataType": "String",
         "displayName": [
           {
+            "locale": "",
             "value": "Definition"
           }
         ],
@@ -3987,10 +4025,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "FalseState",
         "dataType": "LocalizedText",
         "displayName": [
           {
+            "locale": "",
             "value": "FalseState"
           }
         ],
@@ -4016,10 +4056,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "TrueState",
         "dataType": "LocalizedText",
         "displayName": [
           {
+            "locale": "",
             "value": "TrueState"
           }
         ],
@@ -4046,15 +4088,18 @@
       },
       {
         "accessLevel": 5,
+        "arrayDimensions": "",
         "browseName": "1:RotorBlocked",
         "dataType": "Boolean",
         "description": [
           {
+            "locale": "",
             "value": "This attribute indicates a blocked rotor."
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "RotorBlocked"
           }
         ],
@@ -4094,10 +4139,12 @@
         "valueXml": "<uax:Boolean xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">false</uax:Boolean>"
       },
       {
+        "arrayDimensions": "",
         "browseName": "Definition",
         "dataType": "String",
         "displayName": [
           {
+            "locale": "",
             "value": "Definition"
           }
         ],
@@ -4123,10 +4170,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "FalseState",
         "dataType": "LocalizedText",
         "displayName": [
           {
+            "locale": "",
             "value": "FalseState"
           }
         ],
@@ -4152,10 +4201,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "TrueState",
         "dataType": "LocalizedText",
         "displayName": [
           {
+            "locale": "",
             "value": "TrueState"
           }
         ],
@@ -4182,15 +4233,18 @@
       },
       {
         "accessLevel": 5,
+        "arrayDimensions": "",
         "browseName": "1:RotorStationRubbing",
         "dataType": "Boolean",
         "description": [
           {
+            "locale": "",
             "value": "This attribute indicates the rubbing of stator and rotor."
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "RotorStationRubbing"
           }
         ],
@@ -4230,10 +4284,12 @@
         "valueXml": "<uax:Boolean xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">false</uax:Boolean>"
       },
       {
+        "arrayDimensions": "",
         "browseName": "Definition",
         "dataType": "String",
         "displayName": [
           {
+            "locale": "",
             "value": "Definition"
           }
         ],
@@ -4259,10 +4315,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "FalseState",
         "dataType": "LocalizedText",
         "displayName": [
           {
+            "locale": "",
             "value": "FalseState"
           }
         ],
@@ -4288,10 +4346,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "TrueState",
         "dataType": "LocalizedText",
         "displayName": [
           {
+            "locale": "",
             "value": "TrueState"
           }
         ],
@@ -4318,15 +4378,18 @@
       },
       {
         "accessLevel": 5,
+        "arrayDimensions": "",
         "browseName": "1:Unbalance",
         "dataType": "Boolean",
         "description": [
           {
+            "locale": "",
             "value": "This attribute indicates an unbalance."
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "Unbalance"
           }
         ],
@@ -4366,10 +4429,12 @@
         "valueXml": "<uax:Boolean xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">false</uax:Boolean>"
       },
       {
+        "arrayDimensions": "",
         "browseName": "Definition",
         "dataType": "String",
         "displayName": [
           {
+            "locale": "",
             "value": "Definition"
           }
         ],
@@ -4395,10 +4460,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "FalseState",
         "dataType": "LocalizedText",
         "displayName": [
           {
+            "locale": "",
             "value": "FalseState"
           }
         ],
@@ -4424,10 +4491,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "TrueState",
         "dataType": "LocalizedText",
         "displayName": [
           {
+            "locale": "",
             "value": "TrueState"
           }
         ],

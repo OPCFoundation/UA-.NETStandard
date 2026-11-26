@@ -1,31 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using System.Collections.Generic;
@@ -282,10 +256,47 @@ namespace Opc.Ua
     }
 
     /// <summary>
+    /// Supports committing registrations without replacing mappings already held by the factory.
+    /// </summary>
+    public interface IAdditiveEncodeableFactoryBuilder : IEncodeableFactoryBuilder
+    {
+        /// <summary>
+        /// Adds missing type identifiers and XML names while preserving existing mappings.
+        /// The existence checks and updates are serialized with other factory commits.
+        /// </summary>
+        /// <remarks>
+        /// Type identifiers are checked across both structure and enumeration registrations.
+        /// An existing XML-name mapping is preserved independently of the type-identifier mappings.
+        /// Readers can observe individual maps during publication; this is not a single-snapshot update.
+        /// A later ordinary commit can still replace mappings.
+        /// </remarks>
+        void CommitIfAbsent();
+    }
+
+    /// <summary>
     /// Obsolete methods on the IEncodeableFactory interface.
     /// </summary>
     public static class EncodeableFactoryExtensions
     {
+        /// <summary>
+        /// Commits missing registrations without replacing existing factory mappings.
+        /// </summary>
+        /// <param name="builder">The builder containing the registrations.</param>
+        /// <exception cref="ArgumentNullException">The builder is null.</exception>
+        /// <exception cref="NotSupportedException">The builder does not support additive commits.</exception>
+        public static void CommitIfAbsent(this IEncodeableFactoryBuilder builder)
+        {
+            if (builder == null)
+            {
+                throw new ArgumentNullException(nameof(builder));
+            }
+            if (builder is not IAdditiveEncodeableFactoryBuilder additiveBuilder)
+            {
+                throw new NotSupportedException("The encodeable factory builder does not support additive commits.");
+            }
+            additiveBuilder.CommitIfAbsent();
+        }
+
         /// <summary>
         /// Adds an extension type to the factory builder.
         /// </summary>

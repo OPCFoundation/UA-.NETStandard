@@ -1,31 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using System.Collections.Generic;
@@ -147,10 +121,30 @@ namespace Opc.Ua.Redundancy.Server
         }
 
         /// <inheritdoc/>
-        public async ValueTask<bool> TryReplaceAsync(
+        public ValueTask<bool> TryReplaceAsync(
             SharedSessionEntry current,
             SharedSessionEntry replacement,
             CancellationToken ct = default)
+        {
+            return TryReplaceAsync(current, replacement, allowEventualMetadata: false, ct);
+        }
+
+        /// <summary>
+        /// Updates metadata that will not be used to admit cross-replica activations.
+        /// </summary>
+        internal ValueTask<bool> TryReplaceMetadataAsync(
+            SharedSessionEntry current,
+            SharedSessionEntry replacement,
+            CancellationToken ct)
+        {
+            return TryReplaceAsync(current, replacement, allowEventualMetadata: true, ct);
+        }
+
+        private async ValueTask<bool> TryReplaceAsync(
+            SharedSessionEntry current,
+            SharedSessionEntry replacement,
+            bool allowEventualMetadata,
+            CancellationToken ct)
         {
             if (current == null)
             {
@@ -173,7 +167,7 @@ namespace Opc.Ua.Redundancy.Server
 
             string key = KeyFor(current.AuthenticationToken);
             ByteString value = Protect(key, replacement);
-            if (!await CompareAndSwapAsync(key, stored.Value, value, ct).ConfigureAwait(false))
+            if (!await CompareAndSwapAsync(key, stored.Value, value, allowEventualMetadata, ct).ConfigureAwait(false))
             {
                 return false;
             }
@@ -184,6 +178,22 @@ namespace Opc.Ua.Redundancy.Server
         /// <inheritdoc/>
         public ValueTask<bool> TryRemoveAsync(SharedSessionEntry current, CancellationToken ct = default)
         {
+            return TryRemoveAsync(current, allowEventualMetadata: false, ct);
+        }
+
+        /// <summary>
+        /// Removes metadata that will not be used to admit cross-replica activations.
+        /// </summary>
+        internal ValueTask<bool> TryRemoveMetadataAsync(SharedSessionEntry current, CancellationToken ct)
+        {
+            return TryRemoveAsync(current, allowEventualMetadata: true, ct);
+        }
+
+        private ValueTask<bool> TryRemoveAsync(
+            SharedSessionEntry current,
+            bool allowEventualMetadata,
+            CancellationToken ct)
+        {
             if (current == null)
             {
                 throw new ArgumentNullException(nameof(current));
@@ -192,7 +202,8 @@ namespace Opc.Ua.Redundancy.Server
             {
                 return new ValueTask<bool>(false);
             }
-            return CompareAndSwapAsync(KeyFor(current.AuthenticationToken), stored.Value, default, ct);
+            return CompareAndSwapAsync(
+                KeyFor(current.AuthenticationToken), stored.Value, default, allowEventualMetadata, ct);
         }
 
         /// <inheritdoc/>
@@ -204,8 +215,7 @@ namespace Opc.Ua.Redundancy.Server
                 .ConfigureAwait(false))
             {
                 SharedSessionEntry? entry = Unprotect(pair.Key, pair.Value);
-                if (entry != null &&
-                    string.Equals(KeyFor(entry.AuthenticationToken), pair.Key, StringComparison.Ordinal))
+                if (entry != null)
                 {
                     yield return entry;
                 }
@@ -228,6 +238,10 @@ namespace Opc.Ua.Redundancy.Server
             try
             {
                 SharedSessionEntry entry = Decode(payload);
+                if (!string.Equals(KeyFor(entry.AuthenticationToken), key, StringComparison.Ordinal))
+                {
+                    return null;
+                }
                 Track(entry, value);
                 return entry;
             }
@@ -253,16 +267,21 @@ namespace Opc.Ua.Redundancy.Server
         }
 
         /// <summary>
-        /// A compare-and-swap that also works over a store without one (the CRDT gossip
-        /// store): there the comparison and the write are not atomic, which matches the
-        /// eventual consistency of such a store.
+        /// Requires actual compare-and-swap for authoritative operations. Only
+        /// metadata-only mirroring can fall back to an eventually consistent update.
         /// </summary>
         private async ValueTask<bool> CompareAndSwapAsync(
             string key,
             ByteString expected,
             ByteString value,
+            bool allowEventualMetadata,
             CancellationToken ct)
         {
+            if (!allowEventualMetadata)
+            {
+                return await m_store.CompareAndSwapAsync(key, expected, value, ct).ConfigureAwait(false);
+            }
+
             if (!m_compareAndSwapUnsupported)
             {
                 try

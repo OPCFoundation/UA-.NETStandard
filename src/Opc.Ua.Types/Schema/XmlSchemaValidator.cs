@@ -1,31 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using System.Collections.Generic;
@@ -94,9 +68,31 @@ namespace Opc.Ua.Schema.Xml
                 import.Schema = Load(import.SchemaLocation, import.Namespace, handler);
             }
 
-            SchemaSet = new XmlSchemaSet();
+            // Imports are resolved above from the import table only. Includes and
+            // redefines are not resolved: on .NET Framework the default resolver
+            // of a schema set would open any location the schema names.
+            SchemaSet = new XmlSchemaSet { XmlResolver = null };
             SchemaSet.Add(TargetSchema);
             SchemaSet.Compile();
+        }
+
+        /// <summary>
+        /// Reads a schema without compiling it. Use this for a schema from an
+        /// untrusted source, such as a data type dictionary read from a server.
+        /// </summary>
+        /// <remarks>
+        /// The schema compiler resolves base types, groups and content models
+        /// recursively and without a bound, so a schema chosen by a peer can
+        /// overflow the stack or occupy the processor in <see cref="Validate(Stream, ILogger)"/>.
+        /// After this call <see cref="TargetSchema"/> is set,
+        /// <see cref="SchemaSet"/> stays <see langword="null"/>, imports are not
+        /// loaded and references between declarations are not checked.
+        /// </remarks>
+        public void Read(Stream stream, ILogger logger)
+        {
+            var handler = new ValidationEventHandler((_, e) => OnValidate(e, logger));
+            SchemaSet = null;
+            TargetSchema = Load(stream, handler);
         }
 
         /// <summary>
@@ -116,7 +112,11 @@ namespace Opc.Ua.Schema.Xml
 
             try
             {
-                if (typeName == null || TargetSchema!.Elements.Values.Count == 0)
+                if (SchemaSet == null)
+                {
+                    WriteUncompiledSchema(TargetSchema!, typeName, writer);
+                }
+                else if (typeName == null || TargetSchema!.Elements.Values.Count == 0)
                 {
                     TargetSchema!.Write(writer);
                 }
@@ -142,6 +142,50 @@ namespace Opc.Ua.Schema.Xml
             }
 
             return Encoding.UTF8.GetString(ostrm.ToArray());
+        }
+
+        /// <summary>
+        /// Writes the whole schema, or the global element named
+        /// <paramref name="typeName"/> with its type, from the declarations as
+        /// they were read: a schema that was not compiled has no element table
+        /// and no resolved element types.
+        /// </summary>
+        [UnconditionalSuppressMessage("ReflectionAnalysis", "IL2026",
+            Justification = "XmlSchema.Write is used with schema objects read from a schema document.")]
+        [UnconditionalSuppressMessage("AOT", "IL3050",
+            Justification = "XmlSchema.Write is used with schema objects read from a schema document.")]
+        private static void WriteUncompiledSchema(XmlSchema target, string? typeName, XmlWriter writer)
+        {
+            if (typeName == null || !target.Items.OfType<XmlSchemaElement>().Any())
+            {
+                target.Write(writer);
+                return;
+            }
+
+            XmlSchemaElement? element = target.Items
+                .OfType<XmlSchemaElement>()
+                .FirstOrDefault(e => e.Name == typeName);
+            if (element == null)
+            {
+                return;
+            }
+
+            var schema = new XmlSchema();
+            // an inline type is written with its element.
+            if (element.SchemaType == null &&
+                !element.SchemaTypeName.IsEmpty &&
+                element.SchemaTypeName.Namespace == (target.TargetNamespace ?? string.Empty))
+            {
+                XmlSchemaType? type = target.Items
+                    .OfType<XmlSchemaType>()
+                    .FirstOrDefault(t => t.Name == element.SchemaTypeName.Name);
+                if (type != null)
+                {
+                    schema.Items.Add(type);
+                }
+            }
+            schema.Items.Add(element);
+            schema.Write(writer);
         }
 
         /// <summary>

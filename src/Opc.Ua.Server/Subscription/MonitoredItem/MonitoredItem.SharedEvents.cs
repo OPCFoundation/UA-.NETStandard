@@ -1,31 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using System.Threading;
@@ -90,17 +64,21 @@ namespace Opc.Ua.Server
         internal void QueueSharedEvent(
             IFilterTarget instance,
             SharedEventFilterKey key,
-            SharedEventEvaluation evaluation)
+            SharedEventEvaluation evaluation,
+            NodeManagerGeneration? admittedGeneration = null)
         {
-            SharedEventScope previous = t_sharedEvent;
-            t_sharedEvent = new SharedEventScope(this, instance, key, evaluation);
-            try
+            lock (m_lock)
             {
-                QueueEvent(instance);
-            }
-            finally
-            {
-                t_sharedEvent = previous;
+                SharedEventScope previous = t_sharedEvent;
+                t_sharedEvent = new SharedEventScope(this, instance, key, evaluation);
+                try
+                {
+                    QueueAdmittedEvent(instance, admittedGeneration);
+                }
+                finally
+                {
+                    t_sharedEvent = previous;
+                }
             }
         }
 
@@ -152,6 +130,22 @@ namespace Opc.Ua.Server
 
         [ThreadStatic]
         private static SharedEventScope t_sharedEvent;
+
+        /// <summary>
+        /// This item's source admission, carried through virtual queue calls while its lock is held.
+        /// </summary>
+        private NodeManagerGeneration? m_admittedSourceGeneration;
+
+        /// <summary>
+        /// This item's source-emission admission, carried through virtual value queue calls while its lock is held.
+        /// </summary>
+        private MasterNodeManager.SourceEmissionAdmission? m_admittedSourceEmission;
+
+        /// <summary>
+        /// Indicates that the current virtual value queue call carries an initial value.
+        /// </summary>
+        private bool m_admittedInitialValue;
+
         private SharedEventFilterKey? m_sharedEventFilterKey;
 
         /// <summary>
@@ -375,10 +369,33 @@ namespace Opc.Ua.Server
                 return copy;
             }
 
+            /// <summary>
+            /// Returns the admission stamp of the shared field values, created once for the
+            /// group, or <c>null</c> when <paramref name="fields"/> is an item's own copy or
+            /// the event has no sealed identity (the item then stamps its fields itself).
+            /// </summary>
+            public object? GetFieldsStamp(EventManager manager, IFilterTarget instance, Variant[] fields)
+            {
+                if (!ReferenceEquals(fields, Volatile.Read(ref m_fields)))
+                {
+                    return null;
+                }
+                object? stamp = Volatile.Read(ref m_stamp);
+                if (stamp == null)
+                {
+                    // two items may create a stamp at the same time; both are equivalent.
+                    stamp = manager.CreateSharedEventFieldsStamp(instance, fields) ?? s_noStamp;
+                    stamp = Interlocked.CompareExchange(ref m_stamp, stamp, null) ?? stamp;
+                }
+                return ReferenceEquals(stamp, s_noStamp) ? null : stamp;
+            }
+
+            private static readonly object s_noStamp = new();
             private readonly Lock m_lock = new();
             private int m_whereClause;
             private Variant[]? m_fields;
             private bool m_copyPerItem;
+            private object? m_stamp;
         }
     }
 }

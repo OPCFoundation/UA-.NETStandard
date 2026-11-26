@@ -1,31 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using System.Collections.Generic;
@@ -868,6 +842,142 @@ namespace Opc.Ua.Machinery.Tests
         }
 
         [Test]
+        public void AnElementReferencedByManyOperandsIsEvaluatedOnce()
+        {
+            var result = new MachineryResultFilterTarget(Result("S-1", jobId: "J").Data);
+
+            // Every element refers to the one below it twice. The filter is
+            // valid, and evaluating an element once per reference would take
+            // 2^200 evaluations. The leaf reads one field of the result, so
+            // the target refuses a second read: an evaluator that evaluates
+            // the leaf again fails at once instead of running for ever.
+            var filter = new ContentFilter();
+            ContentFilterElement element = filter.Push(FilterOperator.Equals, Leaf(true));
+            for (int ii = 0; ii < 200; ii++)
+            {
+                element = filter.Push(
+                    FilterOperator.And,
+                    Variant.FromStructure(element),
+                    Variant.FromStructure(element));
+            }
+
+            Assert.That(
+                ServiceResult.IsGood(filter.Validate(CreateFilterContext()).Status),
+                Is.True);
+            var target = new SingleReadFilterTarget(result);
+            Assert.That(
+                MachineryResultFilterEvaluator.Evaluate(filter, CreateFilterContext(), target),
+                Is.True);
+            Assert.That(target.Reads, Is.EqualTo(1));
+
+            var rejecting = new ContentFilter();
+            element = rejecting.Push(FilterOperator.Equals, Leaf(null));
+            for (int ii = 0; ii < 200; ii++)
+            {
+                element = rejecting.Push(
+                    FilterOperator.Or,
+                    Variant.FromStructure(element),
+                    Variant.FromStructure(element));
+            }
+            target = new SingleReadFilterTarget(result);
+            Assert.That(
+                MachineryResultFilterEvaluator.Evaluate(rejecting, CreateFilterContext(), target),
+                Is.False);
+            Assert.That(target.Reads, Is.EqualTo(1));
+        }
+
+        [Test]
+        public void TheLikeElementsOfOneEvaluationShareOneBudgetPerResult()
+        {
+            var target = new MachineryResultFilterTarget(Result("B-2", jobId: "J").Data);
+
+            // One such match is decided FALSE within the budget, at between
+            // 0.4 and 0.8 million steps; three of them are not.
+            Variant text = Variant.From(new string('a', 1300));
+            Variant pattern = Variant.From("%" + new string('a', 500) + "b");
+            Variant[] cheap = [Variant.From("aaab"), Variant.From("%b")];
+
+            // Or(expensive, cheap): the cheap match is still decided. Every
+            // evaluation starts with a full budget, so it is decided again
+            // for each further result.
+            var within = new ContentFilter();
+            ContentFilterElement element = within.Push(FilterOperator.Like, cheap);
+            within.Push(
+                FilterOperator.Or,
+                Variant.FromStructure(within.Push(FilterOperator.Like, text, pattern)),
+                Variant.FromStructure(element));
+            for (int ii = 0; ii < 3; ii++)
+            {
+                Assert.That(Evaluate(within, target), Is.True);
+            }
+
+            // Or(expensive, Or(expensive, Or(expensive, cheap))): the three
+            // expensive elements use the budget up between them, so the cheap
+            // one is NULL and nothing is selected.
+            var exceeding = new ContentFilter();
+            element = exceeding.Push(FilterOperator.Like, cheap);
+            for (int ii = 0; ii < 3; ii++)
+            {
+                element = exceeding.Push(
+                    FilterOperator.Or,
+                    Variant.FromStructure(exceeding.Push(FilterOperator.Like, text, pattern)),
+                    Variant.FromStructure(element));
+            }
+            Assert.That(Evaluate(exceeding, target), Is.False);
+        }
+
+        [Test]
+        public void ALikePatternThatIsNotASearchStringMatchesNothing()
+        {
+            var target = new MachineryResultFilterTarget(Result("B-3", jobId: "J").Data);
+
+            // A pattern that ends in its escape character is not a valid
+            // search string. Validate() refuses it as a literal, but a pattern
+            // can also come from a field; it then matches nothing, which is
+            // FALSE and not NULL, so its negation selects.
+            Variant text = Variant.From("abc");
+            Variant pattern = Variant.From("abc\\");
+
+            Assert.That(Evaluate(Single(FilterOperator.Like, text, pattern), target), Is.False);
+
+            var negated = new ContentFilter();
+            ContentFilterElement element = negated.Push(FilterOperator.Like, text, pattern);
+            negated.Push(FilterOperator.Not, Variant.FromStructure(element));
+            Assert.That(Evaluate(negated, target), Is.True);
+        }
+
+        [Test]
+        public void ALikeElementThatExceedsTheMatchBudgetIsNull()
+        {
+            var target = new MachineryResultFilterTarget(Result("B-1", jobId: "J").Data);
+
+            // Every position of the text restarts the match of a long run that
+            // only fails on its last character: the product of both lengths,
+            // far beyond ContentFilter.MaxLikeMatchSteps.
+            Variant text = Variant.From(new string('a', 8000));
+            Variant pattern = Variant.From("%" + new string('a', 4000) + "b");
+
+            var like = new ContentFilter();
+            like.Push(FilterOperator.Like, text, pattern);
+            Assert.That(Evaluate(like, target), Is.False);
+
+            // NULL, not FALSE: its negation selects nothing either.
+            var negated = new ContentFilter();
+            ContentFilterElement element = negated.Push(FilterOperator.Like, text, pattern);
+            negated.Push(FilterOperator.Not, Variant.FromStructure(element));
+            Assert.That(Evaluate(negated, target), Is.False);
+
+            // A match within the budget is still decided.
+            var cheap = new ContentFilter();
+            element = cheap.Push(FilterOperator.Like, Variant.From("aaab"), Variant.From("%b"));
+            cheap.Push(FilterOperator.Not, Variant.FromStructure(element));
+            Assert.That(Evaluate(cheap, target), Is.False);
+            Assert.That(
+                Evaluate(Single(FilterOperator.Like, Variant.From("aaab"), Variant.From("%b")), target),
+                Is.True);
+        }
+
+        [Test]
         public async Task GenerateFileForWriteIsRefusedAsNotWritableAsync()
         {
             ResultManagementState management = await BuildWithResultsAsync("Write-Refused");
@@ -1335,6 +1445,43 @@ namespace Opc.Ua.Machinery.Tests
         private static string[] Ids(params string[] ids)
         {
             return ids;
+        }
+
+        /// <summary>
+        /// A filter target that answers one attribute read and refuses any
+        /// further one, which bounds a test whose filter reads one field.
+        /// </summary>
+        private sealed class SingleReadFilterTarget : IFilterTarget
+        {
+            public SingleReadFilterTarget(IFilterTarget inner)
+            {
+                m_inner = inner;
+            }
+
+            public int Reads { get; private set; }
+
+            public bool IsTypeOf(IFilterContext context, NodeId typeDefinitionId)
+            {
+                return m_inner.IsTypeOf(context, typeDefinitionId);
+            }
+
+            public Variant GetAttributeValue(
+                IFilterContext context,
+                NodeId typeDefinitionId,
+                ArrayOf<QualifiedName> relativePath,
+                uint attributeId,
+                NumericRange indexRange)
+            {
+                if (++Reads > 1)
+                {
+                    throw new InvalidOperationException(
+                        "The filter element was evaluated more than once.");
+                }
+                return m_inner.GetAttributeValue(
+                    context, typeDefinitionId, relativePath, attributeId, indexRange);
+            }
+
+            private readonly IFilterTarget m_inner;
         }
 
         private const string ResultBrowseNamesResult = Opc.Ua.Machinery.Result.BrowseNames.Result;

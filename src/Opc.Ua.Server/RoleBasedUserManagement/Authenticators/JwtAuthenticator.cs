@@ -1,32 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using System.Collections.Generic;
@@ -220,6 +193,9 @@ namespace Opc.Ua.Server
                 string? issuer = GetOptionalString(payload, "iss");
                 string? subject = GetOptionalString(payload, "sub");
 
+                // ValidatePayload has checked that exp is present.
+                TryGetInt64(payload, "exp", out long expiresAt);
+
                 return AuthenticationResult.Accept(
                     new JwtUserIdentity(
                         issuedTokenHandler,
@@ -227,7 +203,8 @@ namespace Opc.Ua.Server
                         groups,
                         roles,
                         issuer,
-                        subject));
+                        subject,
+                        GetExpiration(expiresAt)));
             }
             catch (JsonException)
             {
@@ -253,6 +230,33 @@ namespace Opc.Ua.Server
             {
                 return AuthenticationResult.Reject(ex.Result);
             }
+        }
+
+        /// <summary>
+        /// The UTC time until which the session credentials of a token with the
+        /// expiration claim <paramref name="expiresAt"/> (seconds since the Unix
+        /// epoch) stay valid: the expiration plus the clock skew tolerance, which
+        /// is also the grace the activation itself applies.
+        /// </summary>
+        private DateTime GetExpiration(long expiresAt)
+        {
+            const long kMinUnixSeconds = -62135596800; // 0001-01-01T00:00:00Z
+            const long kMaxUnixSeconds = 253402300799; // 9999-12-31T23:59:59Z
+            if (expiresAt >= kMaxUnixSeconds)
+            {
+                return DateTime.MaxValue;
+            }
+
+            DateTime expiration = DateTimeOffset
+                .FromUnixTimeSeconds(Math.Max(expiresAt, kMinUnixSeconds))
+                .UtcDateTime;
+            if (m_clockSkewTolerance <= TimeSpan.Zero)
+            {
+                return expiration;
+            }
+            return DateTime.MaxValue - expiration > m_clockSkewTolerance
+                ? expiration + m_clockSkewTolerance
+                : DateTime.MaxValue;
         }
 
         private ServiceResult? ValidatePayload(JsonElement payload)

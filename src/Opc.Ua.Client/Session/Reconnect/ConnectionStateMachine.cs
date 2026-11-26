@@ -1,31 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using System.Collections.Generic;
@@ -113,6 +87,7 @@ namespace Opc.Ua.Client
         private int m_disposed;
         private bool m_hasConnected;
         private readonly ITimer m_recoveryTimer;
+        private DateTime? m_recoveryNotBefore;
         private ConnectionStateBudgetOperation? m_requestedReconnect;
         private ConnectionStateBudgetOperation? m_requestedFailover;
         private TaskCompletionSource<ServiceResult>? m_requestedFailoverOutcome;
@@ -364,6 +339,12 @@ namespace Opc.Ua.Client
                 m_recoveryTimer.Change(Timeout.InfiniteTimeSpan, Timeout.InfiniteTimeSpan);
                 if (m_state == ConnectionState.Disconnected)
                 {
+                    if (RecoveryDeferredLocked())
+                    {
+                        ScheduleRecoveryLocked();
+                        return false;
+                    }
+                    m_recoveryNotBefore = null;
                     m_reconnectPolicy.Reset();
                 }
                 m_requestedReconnect = operation;
@@ -378,6 +359,28 @@ namespace Opc.Ua.Client
             }
 
             m_trigger.Set();
+            DispatchStateChanges();
+            return true;
+        }
+
+        /// <summary>
+        /// Withholds services and defers the next recovery cycle until a maintenance deadline.
+        /// </summary>
+        internal bool SuspendRecoveryUntil(DateTime retryAfter, ServiceResult error)
+        {
+            lock (m_lock)
+            {
+                if (m_state != ConnectionState.Connected &&
+                    (!IsWorkerFlow || m_state is not (ConnectionState.Connecting or
+                        ConnectionState.Reconnecting or ConnectionState.Failover)))
+                {
+                    return false;
+                }
+
+                m_recoveryNotBefore = retryAfter;
+                m_lastError = error;
+                TransitionToDisconnectedLocked(error);
+            }
             DispatchStateChanges();
             return true;
         }
@@ -469,7 +472,7 @@ namespace Opc.Ua.Client
         {
             lock (m_lock)
             {
-                if (m_state != ConnectionState.Disconnected)
+                if (m_state != ConnectionState.Disconnected || RecoveryDeferredLocked())
                 {
                     return;
                 }
@@ -707,8 +710,7 @@ namespace Opc.Ua.Client
 
             lock (m_lock)
             {
-                if (m_state is ConnectionState.Closing
-                    or ConnectionState.Closed)
+                if (m_state != ConnectionState.Connecting)
                 {
                     return;
                 }
@@ -818,8 +820,7 @@ namespace Opc.Ua.Client
 
                         lock (m_lock)
                         {
-                            if (m_state is ConnectionState.Closing
-                                or ConnectionState.Closed)
+                            if (m_state != ConnectionState.Reconnecting)
                             {
                                 return;
                             }
@@ -841,8 +842,7 @@ namespace Opc.Ua.Client
 
                         // Stay in Reconnecting but notify observers
                         // of the failed attempt.
-                        if (m_state is ConnectionState.Closing
-                            or ConnectionState.Closed)
+                        if (m_state != ConnectionState.Reconnecting)
                         {
                             return;
                         }
@@ -928,13 +928,25 @@ namespace Opc.Ua.Client
             int attempt,
             bool budgetExhausted)
         {
-            if (budgetExhausted)
+            // Without a failover operation the Failover state would only report
+            // BadNotSupported, so a session without redundancy goes straight to
+            // Disconnected.
+            bool failover = FailoverWithBudgetAsync != null || FailoverAsync != null;
+            if (failover && budgetExhausted)
             {
                 m_logger.ConnectionStateMachineReconnectBudgetExhaustedAfterAttempt(attempt);
             }
-            else
+            else if (failover)
             {
                 m_logger.ConnectionStateMachineReconnectPolicyExhaustedAfterAttempt(attempt);
+            }
+            else if (budgetExhausted)
+            {
+                m_logger.ConnectionStateMachineReconnectBudgetExhaustedNoFailover(attempt);
+            }
+            else
+            {
+                m_logger.ConnectionStateMachineReconnectPolicyExhaustedNoFailover(attempt);
             }
 
             lock (m_lock)
@@ -944,10 +956,18 @@ namespace Opc.Ua.Client
                 if (m_state is not ConnectionState.Closing
                     and not ConnectionState.Closed)
                 {
-                    TransitionTo(
-                        ConnectionState.Failover,
-                        error: null,
-                        reconnectAttempt: attempt);
+                    if (failover)
+                    {
+                        TransitionTo(
+                            ConnectionState.Failover,
+                            error: null,
+                            reconnectAttempt: attempt);
+                    }
+                    else
+                    {
+                        TransitionToDisconnectedLocked(
+                            m_lastError ?? new ServiceResult(StatusCodes.BadNotConnected));
+                    }
                 }
             }
 
@@ -1000,8 +1020,7 @@ namespace Opc.Ua.Client
 
             lock (m_lock)
             {
-                if (m_state is ConnectionState.Closing
-                    or ConnectionState.Closed)
+                if (m_state != ConnectionState.Failover)
                 {
                     return;
                 }
@@ -1022,7 +1041,7 @@ namespace Opc.Ua.Client
                     // A requested failover leaves a session the reconnect policy can
                     // restore; it must not wait for the recovery timer.
                     ClearReconnectBudget();
-                    m_logger.ConnectionStateMachineFailoverFailedError(result);
+                    LogFailoverFailed(result);
                     m_lastError = result;
                     TransitionTo(
                         ConnectionState.Reconnecting,
@@ -1032,37 +1051,75 @@ namespace Opc.Ua.Client
                 }
                 else
                 {
-                    ClearReconnectBudget();
-                    m_logger.ConnectionStateMachineFailoverFailedError(result);
+                    LogFailoverFailed(result);
 
                     // Prefer the connect/reconnect error: failover usually just
                     // reports BadNotSupported / BadNothingToDo because no
-                    // redundant server is configured.
+                    // redundant server is available.
                     m_lastError ??= result;
 
-                    TransitionTo(
-                        ConnectionState.Disconnected,
-                        error: result,
-                        reconnectAttempt: 0);
-
-                    if (m_hasConnected)
-                    {
-                        TimeSpan delay = m_reconnectPolicy is ReconnectPolicy policy
-                            ? policy.MaxDelay
-                            : ReconnectPolicy.DefaultMaxDelay;
-                        if (delay < ReconnectPolicy.DefaultInitialDelay)
-                        {
-                            delay = ReconnectPolicy.DefaultInitialDelay;
-                        }
-                        m_recoveryTimer.Change(delay, Timeout.InfiniteTimeSpan);
-                    }
-
-                    // Initial-connect failure remains terminal. An established
-                    // session retains its identity and retries after backoff.
-                    m_settled.Set();
+                    TransitionToDisconnectedLocked(result);
                 }
             }
             DispatchStateChanges();
+        }
+
+        /// <summary>
+        /// Enters <see cref="ConnectionState.Disconnected"/> once reconnect and
+        /// failover are exhausted. An established session retries after backoff;
+        /// an initial-connect failure remains terminal.
+        /// Must be called under <see cref="m_lock"/>.
+        /// </summary>
+        private void TransitionToDisconnectedLocked(ServiceResult error)
+        {
+            ClearReconnectBudget();
+            TransitionTo(
+                ConnectionState.Disconnected,
+                error: error,
+                reconnectAttempt: 0);
+
+            if (m_hasConnected)
+            {
+                ScheduleRecoveryLocked();
+            }
+
+            m_settled.Set();
+        }
+
+        private void ScheduleRecoveryLocked()
+        {
+            TimeSpan delay = m_recoveryNotBefore is DateTime retryAfter
+                ? retryAfter - m_timeProvider.GetUtcNow().UtcDateTime
+                : m_reconnectPolicy is ReconnectPolicy policy
+                    ? policy.MaxDelay
+                    : ReconnectPolicy.DefaultMaxDelay;
+            TimeSpan minimum = m_recoveryNotBefore.HasValue ? TimeSpan.Zero : ReconnectPolicy.DefaultInitialDelay;
+            TimeSpan maximum = TimeSpan.FromMilliseconds(uint.MaxValue - 1);
+            m_recoveryTimer.Change(
+                delay < minimum ? minimum : delay > maximum ? maximum : delay,
+                Timeout.InfiniteTimeSpan);
+        }
+
+        private bool RecoveryDeferredLocked()
+        {
+            return m_recoveryNotBefore is DateTime retryAfter && retryAfter > m_timeProvider.GetUtcNow().UtcDateTime;
+        }
+
+        /// <summary>
+        /// Logs a failed failover. Finding no redundant server to fail over to
+        /// is an expected outcome and is not logged as an error.
+        /// </summary>
+        private void LogFailoverFailed(ServiceResult result)
+        {
+            if (result.StatusCode == StatusCodes.BadNothingToDo ||
+                result.StatusCode == StatusCodes.BadNotSupported)
+            {
+                m_logger.ConnectionStateMachineFailoverNoRedundantServer(result);
+            }
+            else
+            {
+                m_logger.ConnectionStateMachineFailoverFailedError(result);
+            }
         }
 
         /// <summary>
@@ -1441,5 +1498,25 @@ namespace Opc.Ua.Client
         [LoggerMessage(EventId = ClientEventIds.ConnectionStateMachine + 16, Level = LogLevel.Information,
             Message = "ConnectionStateMachine: Reconnect attempt abandoned because a close was requested.")]
         public static partial void ConnectionStateMachineReconnectAbandonedForClose(this ILogger logger);
+
+        [LoggerMessage(EventId = ClientEventIds.ConnectionStateMachine + 17, Level = LogLevel.Warning,
+            Message = "ConnectionStateMachine: Reconnect budget exhausted after {Attempt} attempts, no failover" +
+                " is configured.")]
+        public static partial void ConnectionStateMachineReconnectBudgetExhaustedNoFailover(
+            this ILogger logger,
+            int attempt);
+
+        [LoggerMessage(EventId = ClientEventIds.ConnectionStateMachine + 18, Level = LogLevel.Warning,
+            Message = "ConnectionStateMachine: Reconnect policy exhausted after {Attempt} attempts, no failover" +
+                " is configured.")]
+        public static partial void ConnectionStateMachineReconnectPolicyExhaustedNoFailover(
+            this ILogger logger,
+            int attempt);
+
+        [LoggerMessage(EventId = ClientEventIds.ConnectionStateMachine + 19, Level = LogLevel.Information,
+            Message = "ConnectionStateMachine: No redundant server to fail over to: {Error}.")]
+        public static partial void ConnectionStateMachineFailoverNoRedundantServer(
+            this ILogger logger,
+            ServiceResult error);
     }
 }

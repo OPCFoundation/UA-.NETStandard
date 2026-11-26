@@ -1,42 +1,16 @@
-/* ========================================================================
- * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using System.Threading;
+using Microsoft.Extensions.Logging;
+using Opc.Ua.Server;
 
 namespace Opc.Ua.Redundancy.Server
 {
     /// <summary>
-    /// An <see cref="IServiceLevelProvider"/> driven by leadership: the
-    /// leader reports the highest level so Clients prefer it; standbys report
-    /// a lower level. This is how non-transparent server Failover is advertised
-    /// through the OPC 10000-4 §6.6.2.4.2 <c>ServiceLevel</c> mechanism.
+    /// Combines the administrative override, replica readiness, role, health and load
+    /// into a <c>ServiceLevel</c> according to OPC 10000-4 §6.6.2.4.2.
     /// </summary>
     public sealed class LeaderServiceLevelProvider : IServiceLevelProvider, IServiceLevelController, IDisposable
     {
@@ -52,11 +26,25 @@ namespace Opc.Ua.Redundancy.Server
             RedundancySupport failoverMode = RedundancySupport.Warm,
             Func<uint>? getConnectedClientCount = null,
             Func<byte>? getHealthServiceLevel = null)
+            : this(election, failoverMode, getConnectedClientCount, getHealthServiceLevel, null)
+        {
+        }
+
+        /// <summary>
+        /// Creates a provider that also checks whether the elected role is ready to serve.
+        /// </summary>
+        internal LeaderServiceLevelProvider(
+            ILeaderElection election,
+            RedundancySupport failoverMode,
+            Func<uint>? getConnectedClientCount,
+            Func<byte>? getHealthServiceLevel,
+            Func<bool, bool>? isRoleReady)
         {
             m_election = election ?? throw new ArgumentNullException(nameof(election));
             m_failoverMode = failoverMode;
             m_getConnectedClientCount = getConnectedClientCount;
             m_getHealthServiceLevel = getHealthServiceLevel;
+            m_isRoleReady = isRoleReady;
             m_election.LeadershipChanged += OnLeadershipChanged;
         }
 
@@ -81,29 +69,43 @@ namespace Opc.Ua.Redundancy.Server
         /// <inheritdoc/>
         public event Action<byte>? ServiceLevelChanged;
 
+        /// <summary>
+        /// Gets the last evaluated value used by the hosted publisher.
+        /// </summary>
+        internal byte PublishedServiceLevel => (byte)Volatile.Read(ref m_publishedLevel);
+
         /// <inheritdoc/>
         public byte GetServiceLevel()
         {
-            int manualServiceLevel = Volatile.Read(ref m_manualServiceLevel);
-            if (manualServiceLevel >= 0)
+            IServerContext? server = Volatile.Read(ref m_server);
+            try
             {
-                return (byte)manualServiceLevel;
+                return CalculateServiceLevel(server);
             }
-
-            byte level = m_election.IsLeader ? m_leaderLevel : GetStandbyServiceLevel();
-            if (m_getHealthServiceLevel != null)
+            catch (Exception ex)
             {
-                level = Math.Min(level, m_getHealthServiceLevel());
+                server?.DefaultSystemContext?.Telemetry.CreateLogger<LeaderServiceLevelProvider>()
+                    .ServiceLevelInputsUnavailable(ex);
+                return ServiceLevels.NoData;
             }
-
-            return ApplyHealthyLoadBalancing(level);
         }
 
-        /// <inheritdoc/>
+        /// <summary>
+        /// Sets a service-level override that remains in effect across elections.
+        /// An incompatible replica identity still advertises Maintenance.
+        /// </summary>
+        /// <param name="serviceLevel">The level to advertise until the override is cleared.</param>
         public void SetServiceLevel(byte serviceLevel)
         {
-            Volatile.Write(ref m_manualServiceLevel, serviceLevel);
-            ServiceLevelChanged?.Invoke(serviceLevel);
+            SetOverride(serviceLevel);
+        }
+
+        /// <summary>
+        /// Clears an administrative override and immediately recomputes the role, health and load.
+        /// </summary>
+        public void ClearServiceLevelOverride()
+        {
+            SetOverride(kNoManualServiceLevel);
         }
 
         /// <summary>
@@ -114,10 +116,90 @@ namespace Opc.Ua.Redundancy.Server
             m_election.LeadershipChanged -= OnLeadershipChanged;
         }
 
+        /// <summary>
+        /// Connects or disconnects the default load and identity inputs for the hosted server.
+        /// </summary>
+        internal void SetServerContext(IServerContext? server)
+        {
+            Volatile.Write(ref m_server, server);
+        }
+
+        /// <summary>
+        /// Requires the event feed to catch up under the acquired writer grant before advertising availability.
+        /// </summary>
+        internal void SetEventReadiness(Func<bool> isReady)
+        {
+            Volatile.Write(ref m_isEventReady, isReady);
+        }
+
+        /// <summary>
+        /// Updates the announced policy result after health or load may have changed.
+        /// </summary>
+        internal void RefreshServiceLevel()
+        {
+            byte level;
+            lock (m_policyLock)
+            {
+                level = GetServiceLevel();
+                if (level == m_publishedLevel)
+                {
+                    return;
+                }
+                Volatile.Write(ref m_publishedLevel, level);
+            }
+            ServiceLevelChanged?.Invoke(level);
+        }
+
+        /// <summary>
+        /// Checks the local namespace and NodeId compatibility gate.
+        /// </summary>
+        internal static bool HasIncompatibleIdentity(IServerContext? server)
+        {
+            return server is INodeIdFactoryProvider { NodeIdFactory: ReplicaNodeIdFactory { IsCompatible: false } };
+        }
+
+        private byte CalculateServiceLevel(IServerContext? server)
+        {
+            if (HasIncompatibleIdentity(server))
+            {
+                return ServiceLevels.Maintenance;
+            }
+
+            int manualServiceLevel = Volatile.Read(ref m_manualServiceLevel);
+            if (manualServiceLevel != ServiceLevels.Maintenance &&
+                Volatile.Read(ref m_isEventReady)?.Invoke() == false)
+            {
+                return ServiceLevels.NoData;
+            }
+            if (manualServiceLevel >= 0)
+            {
+                return (byte)manualServiceLevel;
+            }
+
+            bool isLeader = m_election.IsLeader;
+            if (m_isRoleReady?.Invoke(isLeader) == false)
+            {
+                return ServiceLevels.NoData;
+            }
+
+            byte level = isLeader ? m_leaderLevel : GetStandbyServiceLevel();
+            if (m_getHealthServiceLevel != null)
+            {
+                level = Math.Min(level, m_getHealthServiceLevel());
+            }
+
+            return ApplyHealthyLoadBalancing(server, level);
+        }
+
+        private void SetOverride(int serviceLevel)
+        {
+            Volatile.Write(ref m_manualServiceLevel, serviceLevel);
+            RefreshServiceLevel();
+        }
+
         private void OnLeadershipChanged(bool isLeader)
         {
-            Volatile.Write(ref m_manualServiceLevel, kNoManualServiceLevel);
-            ServiceLevelChanged?.Invoke(GetServiceLevel());
+            RefreshServiceLevel();
         }
 
         private byte GetStandbyServiceLevel()
@@ -136,27 +218,48 @@ namespace Opc.Ua.Redundancy.Server
             };
         }
 
-        private byte ApplyHealthyLoadBalancing(byte level)
+        private byte ApplyHealthyLoadBalancing(IServerContext? server, byte level)
         {
-            if (m_getConnectedClientCount == null || !ServiceLevels.IsHealthy(level))
+            if (level <= ServiceLevels.HealthyMinimum)
             {
                 return level;
             }
 
-            uint clientCount = m_getConnectedClientCount();
+            uint clientCount = m_getConnectedClientCount?.Invoke() ??
+                (uint)((server as IServerInternal)?.SessionManager?.GetSessions().Count ?? 0);
             byte maximumDecrement = (byte)(level - ServiceLevels.HealthyMinimum);
             byte decrement = clientCount > maximumDecrement ? maximumDecrement : (byte)clientCount;
             return (byte)(level - decrement);
         }
 
+        private readonly Lock m_policyLock = new();
         private readonly ILeaderElection m_election;
         private readonly RedundancySupport m_failoverMode;
         private readonly Func<uint>? m_getConnectedClientCount;
         private readonly Func<byte>? m_getHealthServiceLevel;
+        private readonly Func<bool, bool>? m_isRoleReady;
+        private Func<bool>? m_isEventReady;
         private readonly byte m_leaderLevel = ServiceLevels.Maximum;
         private readonly byte? m_standbyLevel;
+        private IServerContext? m_server;
         private int m_manualServiceLevel = kNoManualServiceLevel;
+        private int m_publishedLevel = -1;
 
         private const int kNoManualServiceLevel = -1;
+    }
+
+    /// <summary>
+    /// Log messages for service-level policy evaluation.
+    /// </summary>
+    internal static partial class LeaderServiceLevelProviderLog
+    {
+        /// <summary>
+        /// Logs that a policy input could not be collected and NoData is being used.
+        /// </summary>
+        [LoggerMessage(
+            EventId = RedundancyServerEventIds.LeaderServiceLevelProvider,
+            Level = LogLevel.Warning,
+            Message = "Could not evaluate the server service-level policy; using NoData.")]
+        public static partial void ServiceLevelInputsUnavailable(this ILogger logger, Exception exception);
     }
 }

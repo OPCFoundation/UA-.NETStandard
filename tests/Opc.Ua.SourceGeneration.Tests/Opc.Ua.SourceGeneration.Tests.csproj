@@ -1,3 +1,7 @@
+<!--
+SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+SPDX-License-Identifier: MIT
+-->
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <TargetFrameworks>$(TestsTargetFrameworks)</TargetFrameworks>
@@ -43,6 +47,9 @@
       <Link>Resources\%(Filename)%(Extension)</Link>
     </EmbeddedResource>
     <EmbeddedResource Include="..\..\src\Opc.Ua.Gds\Design\OpcUaGdsModel.*">
+      <Link>Resources\%(Filename)%(Extension)</Link>
+    </EmbeddedResource>
+    <EmbeddedResource Include="..\..\src\Opc.Ua.ISA95\Design\JobControl\V2\Opc.Ua.ISA95.JobControl.V2.NodeSet2.xml">
       <Link>Resources\%(Filename)%(Extension)</Link>
     </EmbeddedResource>
   </ItemGroup>

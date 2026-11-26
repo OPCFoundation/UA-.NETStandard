@@ -40,6 +40,9 @@ Minimal Client together.
   browsing, and method calls.
 - [Console LDS Server](../samples/Lds/ConsoleLdsServer) — a standalone
   Local Discovery Server built on `Opc.Ua.Lds.Server`.
+- [Simulated Base Network Model](../samples/Network/README.md) — a Part 22
+  server/client scenario for layered interfaces, priority mappings, TSN stream
+  failures and LLDP neighbor changes; no host-network configuration.
 
 ## PubSub samples
 
@@ -49,6 +52,9 @@ Minimal Client together.
 
 ## Companion-model samples
 
+- [Industrial Automation server and client](../samples/IA/README.md) — a
+  Machinery-owned device with stacklights, aggregate and rolling statistics,
+  calibration-target information, and an encrypted typed-client self-check.
 - [Generic recycling simulation](../samples/Recycling/README.md) — one durable causal coordinator
   and ten process views with typed OPC UA coordination, native companion equipment,
   material genealogy and read-only committed measurements. Its optional

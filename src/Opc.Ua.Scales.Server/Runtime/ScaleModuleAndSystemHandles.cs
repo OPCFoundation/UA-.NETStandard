@@ -1,33 +1,8 @@
-/* ========================================================================
- * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
+using System.Collections.Generic;
 using System.Threading;
 using Opc.Ua.Di;
 using Opc.Ua.PackML;
@@ -45,21 +20,12 @@ namespace Opc.Ua.Scales.Server.Runtime
             m_services = services;
             Module = module;
             m_owner = owner;
-            Notifications = new ScaleNotifications(services.Context, module, services.Register);
+            Notifications = new ScaleNotifications(
+                services.Context, module, services.Register, owner?.WriteOperations);
             if (module is FeederModuleState feeder && feeder.SetFeederSpeed != null)
             {
                 feeder.SetFeederSpeed.OnCall = (context, method, objectId, speed, units) =>
-                {
-                    if (m_owner?.CommandInterceptor is { } interceptor)
-                    {
-                        ServiceResult veto = interceptor(ScaleCommand.SetFeederSpeed);
-                        if (ServiceResult.IsBad(veto))
-                        {
-                            return veto;
-                        }
-                    }
-                    return SetFeederSpeed(speed, units);
-                };
+                    SetFeederSpeed(speed, units);
             }
             ScaleMachineryStates.SetItemState(services, MachineryItemState, ScaleItemState.NotExecuting);
             ScaleMachineryStates.SetOperationMode(services, MachineryOperationMode, ScaleOperationMode.Processing);
@@ -100,6 +66,12 @@ namespace Opc.Ua.Scales.Server.Runtime
         /// <param name="units">The unit of <paramref name="speed"/>.</param>
         public ServiceResult SetFeederSpeed(float speed, EUInformation units)
         {
+            if (m_owner != null)
+            {
+                return m_owner.Execute(
+                    ScaleCommand.SetFeederSpeed,
+                    () => SetFeederSpeedCore(speed, units));
+            }
             return Locked(() => SetFeederSpeedCore(speed, units));
         }
 
@@ -146,19 +118,23 @@ namespace Opc.Ua.Scales.Server.Runtime
             {
                 return;
             }
-            Locked(() =>
+            ExecuteScaleWrite(() =>
             {
-                ScaleValues.Set(m_services.Context, feeder.FeederRunning, running);
-                if (load.HasValue)
+                Locked(() =>
                 {
-                    ScaleValues.Set(m_services.Context, feeder.FeederLoad, Variant.From(load.Value));
-                }
-                return true;
+                    ScaleValues.Set(m_services.Context, feeder.FeederRunning, running);
+                    if (load.HasValue)
+                    {
+                        ScaleValues.Set(m_services.Context, feeder.FeederLoad, Variant.From(load.Value));
+                    }
+                    return true;
+                });
+                Notifications.SetAlarm(
+                    ScaleNotificationId.FeederNotRunning,
+                    expectedRunning && !running,
+                    new LocalizedText(
+                        expectedRunning && !running ? "The feeder is not running." : "The feeder is running."));
             });
-            Notifications.SetAlarm(
-                ScaleNotificationId.FeederNotRunning,
-                expectedRunning && !running,
-                new LocalizedText(expectedRunning && !running ? "The feeder is not running." : "The feeder is running."));
         }
 
         /// <summary>
@@ -216,6 +192,16 @@ namespace Opc.Ua.Scales.Server.Runtime
             }
         }
 
+        private void ExecuteScaleWrite(Action operation)
+        {
+            if (m_owner == null)
+            {
+                operation();
+                return;
+            }
+            m_owner.WriteOperations.ExecuteSynchronously(operation);
+        }
+
         private Opc.Ua.Machinery.MachineryItemState_StateMachineState? MachineryItemState =>
             (Module as FeederModuleState)?.MachineryItemState ?? (Module as PrinterModuleState)?.MachineryItemState;
 
@@ -246,7 +232,16 @@ namespace Opc.Ua.Scales.Server.Runtime
     /// </summary>
     public sealed class ScaleSystemHandle
     {
-        internal ScaleSystemHandle(ScaleRuntimeServices services, ScaleSystemState system)
+        /// <summary>
+        /// Creates the system runtime with the selected statistical observation mode.
+        /// </summary>
+        /// <param name="services">The owning node manager's runtime services.</param>
+        /// <param name="system">The registered scale system.</param>
+        /// <param name="observationMode">The sample or 100%-check deviation equation.</param>
+        internal ScaleSystemHandle(
+            ScaleRuntimeServices services,
+            ScaleSystemState system,
+            ScaleStatisticsObservationMode observationMode = ScaleStatisticsObservationMode.Sample)
         {
             m_services = services;
             System = system;
@@ -267,22 +262,31 @@ namespace Opc.Ua.Scales.Server.Runtime
             }
             if (system.ProductionOutput != null)
             {
-                ProductionOutput = new ScaleStatistics(services.Context, system.ProductionOutput);
+                ProductionOutput = new ScaleStatistics(services.Context, system.ProductionOutput, observationMode);
             }
             if (system.ResetGlobalStatistics != null)
             {
                 system.ResetGlobalStatistics.OnCallMethod2 = (context, method, objectId, inputs, outputs) =>
                 {
-                    if (CommandInterceptor is { } interceptor)
+                    if (!TryExecuteScaleWrites(() =>
                     {
-                        ServiceResult veto = interceptor(ScaleCommand.ResetGlobalStatistics);
-                        if (ServiceResult.IsBad(veto))
+                        if (CommandInterceptor is { } interceptor)
                         {
-                            return veto;
+                            ServiceResult veto = interceptor(ScaleCommand.ResetGlobalStatistics);
+                            if (ServiceResult.IsBad(veto))
+                            {
+                                return veto;
+                            }
                         }
+                        ResetGlobalStatisticsCore();
+                        return ServiceResult.Good;
+                    }, out ServiceResult result))
+                    {
+                        return ServiceResult.Create(
+                            StatusCodes.BadInvalidState,
+                            "A scale write is awaiting an asynchronous state notification.");
                     }
-                    ResetGlobalStatistics();
-                    return ServiceResult.Good;
+                    return result;
                 };
             }
             ScaleMachineryStates.SetItemState(services, system.MachineryItemState, ScaleItemState.NotExecuting);
@@ -337,11 +341,36 @@ namespace Opc.Ua.Scales.Server.Runtime
         /// </summary>
         public void ResetGlobalStatistics()
         {
+            ExecuteScaleWrites(ResetGlobalStatisticsCore);
+        }
+
+        private void ResetGlobalStatisticsCore()
+        {
             ProductionOutput?.Reset("ResetGlobalStatistics");
             foreach (ScaleHandle scale in m_scales)
             {
                 scale.ProductionOutput?.Reset("ResetGlobalStatistics");
             }
+        }
+
+        private bool TryExecuteScaleWrites<T>(Func<T> operation, out T result)
+        {
+            var gates = new List<ScaleWriteGate>(m_scales.Count);
+            foreach (ScaleHandle scale in m_scales)
+            {
+                gates.Add(scale.WriteOperations);
+            }
+            return ScaleWriteGate.TryExecuteSynchronously(gates, operation, out result);
+        }
+
+        private void ExecuteScaleWrites(Action operation)
+        {
+            var gates = new List<ScaleWriteGate>(m_scales.Count);
+            foreach (ScaleHandle scale in m_scales)
+            {
+                gates.Add(scale.WriteOperations);
+            }
+            ScaleWriteGate.ExecuteSynchronously(gates, operation);
         }
 
         /// <summary>

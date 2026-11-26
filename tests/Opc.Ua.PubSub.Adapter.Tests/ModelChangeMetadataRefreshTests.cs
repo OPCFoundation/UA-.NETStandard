@@ -1,31 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using System.Threading;
@@ -143,7 +117,10 @@ namespace Opc.Ua.PubSub.Adapter.Tests
                 .Returns(default(ValueTask));
             var firstRefreshEntered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
             var releaseFirstRefresh = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var trailingRefreshCompleted =
+                new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
             int readCount = 0;
+            int refreshCount = 0;
             session.Setup(s => s.ReadAsync(
                     It.IsAny<ArrayOf<ReadValueId>>(),
                     It.IsAny<CancellationToken>()))
@@ -154,13 +131,21 @@ namespace Opc.Ua.PubSub.Adapter.Tests
                 AdapterTestHelpers.Telemetry());
 
             await builder.ResolveAsync().ConfigureAwait(false);
+            builder.MetaDataChanged += (_, _) =>
+            {
+                if (Interlocked.Increment(ref refreshCount) == 2)
+                {
+                    trailingRefreshCompleted.TrySetResult(true);
+                }
+            };
             session.Raise(s => s.ModelChanged += null, EventArgs.Empty);
             await firstRefreshEntered.Task.WaitAsync(TimeSpan.FromSeconds(2)).ConfigureAwait(false);
 
             session.Raise(s => s.ModelChanged += null, EventArgs.Empty);
             releaseFirstRefresh.SetResult(true);
 
-            await WaitForReadCountAsync(() => Volatile.Read(ref readCount), 3).ConfigureAwait(false);
+            await trailingRefreshCompleted.Task.WaitAsync(TimeSpan.FromSeconds(2)).ConfigureAwait(false);
+            Assert.That(Volatile.Read(ref readCount), Is.EqualTo(3));
 
             DataSetMetaDataType metaData = builder.BuildMetaData();
             Assert.That(metaData.Fields[0].DataType, Is.EqualTo(DataTypeIds.Double));
@@ -176,19 +161,6 @@ namespace Opc.Ua.PubSub.Adapter.Tests
                 }
                 return CreateTypeResults(ordinal >= 3 ? DataTypeIds.Double : DataTypeIds.Int16);
             }
-        }
-
-        private static async Task WaitForReadCountAsync(Func<int> readCount, int expected)
-        {
-            for (int i = 0; i < 20; i++)
-            {
-                if (readCount() >= expected)
-                {
-                    return;
-                }
-                await Task.Delay(100).ConfigureAwait(false);
-            }
-            Assert.Fail("Timed out waiting for trailing metadata refresh.");
         }
 
         private static ArrayOf<DataValue> CreateTypeResults(NodeId dataType)

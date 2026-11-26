@@ -5,6 +5,7 @@
       "ns1": "http://opcfoundation.org/UA/Pumps/",
       "ns2": "http://opcfoundation.org/UA/Machinery/",
       "ns3": "http://opcfoundation.org/UA/DI/",
+      "qudt": "http://qudt.org/schema/qudt/",
       "ua": "http://opcfoundation.org/UA/",
       "uav": "http://opcfoundation.org/UA/WoT-Binding/"
     },
@@ -40,7 +41,7 @@
         }
       },
       "@type": "uav:variable",
-      "const": 0,
+      "default": 0,
       "description": "Measured consumed mains current of the whole unit of the motor.",
       "links": [
         {
@@ -49,6 +50,12 @@
         }
       ],
       "observable": true,
+      "qudt:hasQuantityKind": {
+        "@id": "http://qudt.org/vocab/quantitykind/ElectricCurrent"
+      },
+      "qudt:hasUnit": {
+        "@id": "http://qudt.org/vocab/unit/A"
+      },
       "readOnly": true,
       "title": "Current",
       "type": "number",
@@ -71,7 +78,7 @@
         }
       },
       "@type": "uav:variable",
-      "const": 0,
+      "default": 0,
       "description": "Measured actual electrical dc current of the converter.",
       "links": [
         {
@@ -80,6 +87,12 @@
         }
       ],
       "observable": true,
+      "qudt:hasQuantityKind": {
+        "@id": "http://qudt.org/vocab/quantitykind/ElectricCurrent"
+      },
+      "qudt:hasUnit": {
+        "@id": "http://qudt.org/vocab/unit/A"
+      },
       "readOnly": true,
       "title": "DCLinkCurrent",
       "type": "number",
@@ -102,7 +115,7 @@
         }
       },
       "@type": "uav:variable",
-      "const": 0,
+      "default": 0,
       "description": "Measured actual electrical dc voltage of the converter.",
       "links": [
         {
@@ -111,6 +124,12 @@
         }
       ],
       "observable": true,
+      "qudt:hasQuantityKind": {
+        "@id": "http://qudt.org/vocab/quantitykind/ElectricPotential"
+      },
+      "qudt:hasUnit": {
+        "@id": "http://qudt.org/vocab/unit/V"
+      },
       "readOnly": true,
       "title": "DCLinkVoltage",
       "type": "number",
@@ -145,9 +164,6 @@
       "title": "Definition",
       "type": "string",
       "uav:browseName": "Definition",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=9443"
-      ],
       "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=9469",
       "uav:mapToType": "i=12",
       "uav:modellingRule": "Optional"
@@ -176,9 +192,6 @@
       "title": "Definition",
       "type": "string",
       "uav:browseName": "Definition",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=9461"
-      ],
       "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=9496",
       "uav:mapToType": "i=12",
       "uav:modellingRule": "Optional"
@@ -207,9 +220,6 @@
       "title": "Definition",
       "type": "string",
       "uav:browseName": "Definition",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=9463"
-      ],
       "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=9499",
       "uav:mapToType": "i=12",
       "uav:modellingRule": "Optional"
@@ -238,9 +248,6 @@
       "title": "Definition",
       "type": "string",
       "uav:browseName": "Definition",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=9465"
-      ],
       "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=9502",
       "uav:mapToType": "i=12",
       "uav:modellingRule": "Optional"
@@ -269,9 +276,6 @@
       "title": "Definition",
       "type": "string",
       "uav:browseName": "Definition",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=9467"
-      ],
       "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=9505",
       "uav:mapToType": "i=12",
       "uav:modellingRule": "Optional"
@@ -300,9 +304,6 @@
       "title": "Definition",
       "type": "string",
       "uav:browseName": "Definition",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=9445"
-      ],
       "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=9472",
       "uav:mapToType": "i=12",
       "uav:modellingRule": "Optional"
@@ -331,9 +332,6 @@
       "title": "Definition",
       "type": "string",
       "uav:browseName": "Definition",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=9447"
-      ],
       "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=9475",
       "uav:mapToType": "i=12",
       "uav:modellingRule": "Optional"
@@ -362,9 +360,6 @@
       "title": "Definition",
       "type": "string",
       "uav:browseName": "Definition",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=9449"
-      ],
       "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=9478",
       "uav:mapToType": "i=12",
       "uav:modellingRule": "Optional"
@@ -393,9 +388,6 @@
       "title": "Definition",
       "type": "string",
       "uav:browseName": "Definition",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=9451"
-      ],
       "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=9481",
       "uav:mapToType": "i=12",
       "uav:modellingRule": "Optional"
@@ -424,9 +416,6 @@
       "title": "Definition",
       "type": "string",
       "uav:browseName": "Definition",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=9453"
-      ],
       "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=9484",
       "uav:mapToType": "i=12",
       "uav:modellingRule": "Optional"
@@ -455,9 +444,6 @@
       "title": "Definition",
       "type": "string",
       "uav:browseName": "Definition",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=9455"
-      ],
       "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=9487",
       "uav:mapToType": "i=12",
       "uav:modellingRule": "Optional"
@@ -486,9 +472,6 @@
       "title": "Definition",
       "type": "string",
       "uav:browseName": "Definition",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=9457"
-      ],
       "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=9490",
       "uav:mapToType": "i=12",
       "uav:modellingRule": "Optional"
@@ -517,9 +500,6 @@
       "title": "Definition",
       "type": "string",
       "uav:browseName": "Definition",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=9459"
-      ],
       "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=9493",
       "uav:mapToType": "i=12",
       "uav:modellingRule": "Optional"
@@ -536,7 +516,7 @@
         }
       },
       "@type": "uav:variable",
-      "const": 0,
+      "default": 0,
       "description": "Measured power absorbed by the motor.",
       "links": [
         {
@@ -545,6 +525,12 @@
         }
       ],
       "observable": true,
+      "qudt:hasQuantityKind": {
+        "@id": "http://qudt.org/vocab/quantitykind/Power"
+      },
+      "qudt:hasUnit": {
+        "@id": "http://qudt.org/vocab/unit/W"
+      },
       "readOnly": true,
       "title": "DriverPowerInput",
       "type": "number",
@@ -578,9 +564,6 @@
       "readOnly": true,
       "title": "EURange",
       "uav:browseName": "EURange",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=9443"
-      ],
       "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=9470",
       "uav:mapToType": "i=884",
       "uav:modellingRule": "Optional"
@@ -608,9 +591,6 @@
       "readOnly": true,
       "title": "EURange",
       "uav:browseName": "EURange",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=9461"
-      ],
       "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=9497",
       "uav:mapToType": "i=884",
       "uav:modellingRule": "Optional"
@@ -638,9 +618,6 @@
       "readOnly": true,
       "title": "EURange",
       "uav:browseName": "EURange",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=9463"
-      ],
       "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=9500",
       "uav:mapToType": "i=884",
       "uav:modellingRule": "Optional"
@@ -668,9 +645,6 @@
       "readOnly": true,
       "title": "EURange",
       "uav:browseName": "EURange",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=9465"
-      ],
       "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=9503",
       "uav:mapToType": "i=884",
       "uav:modellingRule": "Optional"
@@ -698,9 +672,6 @@
       "readOnly": true,
       "title": "EURange",
       "uav:browseName": "EURange",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=9467"
-      ],
       "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=9506",
       "uav:mapToType": "i=884",
       "uav:modellingRule": "Optional"
@@ -728,9 +699,6 @@
       "readOnly": true,
       "title": "EURange",
       "uav:browseName": "EURange",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=9445"
-      ],
       "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=9473",
       "uav:mapToType": "i=884",
       "uav:modellingRule": "Optional"
@@ -758,9 +726,6 @@
       "readOnly": true,
       "title": "EURange",
       "uav:browseName": "EURange",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=9447"
-      ],
       "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=9476",
       "uav:mapToType": "i=884",
       "uav:modellingRule": "Optional"
@@ -788,9 +753,6 @@
       "readOnly": true,
       "title": "EURange",
       "uav:browseName": "EURange",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=9449"
-      ],
       "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=9479",
       "uav:mapToType": "i=884",
       "uav:modellingRule": "Optional"
@@ -818,9 +780,6 @@
       "readOnly": true,
       "title": "EURange",
       "uav:browseName": "EURange",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=9451"
-      ],
       "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=9482",
       "uav:mapToType": "i=884",
       "uav:modellingRule": "Optional"
@@ -848,9 +807,6 @@
       "readOnly": true,
       "title": "EURange",
       "uav:browseName": "EURange",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=9453"
-      ],
       "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=9485",
       "uav:mapToType": "i=884",
       "uav:modellingRule": "Optional"
@@ -878,9 +834,6 @@
       "readOnly": true,
       "title": "EURange",
       "uav:browseName": "EURange",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=9455"
-      ],
       "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=9488",
       "uav:mapToType": "i=884",
       "uav:modellingRule": "Optional"
@@ -908,9 +861,6 @@
       "readOnly": true,
       "title": "EURange",
       "uav:browseName": "EURange",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=9457"
-      ],
       "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=9491",
       "uav:mapToType": "i=884",
       "uav:modellingRule": "Optional"
@@ -938,9 +888,6 @@
       "readOnly": true,
       "title": "EURange",
       "uav:browseName": "EURange",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=9459"
-      ],
       "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=9494",
       "uav:mapToType": "i=884",
       "uav:modellingRule": "Optional"
@@ -957,7 +904,7 @@
         }
       },
       "@type": "uav:variable",
-      "const": 0,
+      "default": 0,
       "description": "Measured energy consumption of the unit of the motor.",
       "links": [
         {
@@ -966,6 +913,12 @@
         }
       ],
       "observable": true,
+      "qudt:hasQuantityKind": {
+        "@id": "http://qudt.org/vocab/quantitykind/Energy"
+      },
+      "qudt:hasUnit": {
+        "@id": "http://qudt.org/vocab/unit/J"
+      },
       "readOnly": true,
       "title": "EnergyConsumption",
       "type": "number",
@@ -1000,9 +953,6 @@
       "title": "EngineeringUnits",
       "type": "string",
       "uav:browseName": "EngineeringUnits",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=9443"
-      ],
       "uav:engineeringUnits": {
         "description": "ampere",
         "displayName": "A",
@@ -1037,9 +987,6 @@
       "title": "EngineeringUnits",
       "type": "string",
       "uav:browseName": "EngineeringUnits",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=9461"
-      ],
       "uav:engineeringUnits": {
         "description": "volt",
         "displayName": "V",
@@ -1073,9 +1020,6 @@
       "readOnly": true,
       "title": "EngineeringUnits",
       "uav:browseName": "EngineeringUnits",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=9463"
-      ],
       "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=9501",
       "uav:mapToType": "i=887",
       "uav:modellingRule": "Optional"
@@ -1104,9 +1048,6 @@
       "title": "EngineeringUnits",
       "type": "string",
       "uav:browseName": "EngineeringUnits",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=9465"
-      ],
       "uav:engineeringUnits": {
         "description": "newton metre",
         "displayName": "N·m",
@@ -1141,9 +1082,6 @@
       "title": "EngineeringUnits",
       "type": "string",
       "uav:browseName": "EngineeringUnits",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=9467"
-      ],
       "uav:engineeringUnits": {
         "description": "volt",
         "displayName": "V",
@@ -1178,9 +1116,6 @@
       "title": "EngineeringUnits",
       "type": "string",
       "uav:browseName": "EngineeringUnits",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=9445"
-      ],
       "uav:engineeringUnits": {
         "description": "ampere",
         "displayName": "A",
@@ -1215,9 +1150,6 @@
       "title": "EngineeringUnits",
       "type": "string",
       "uav:browseName": "EngineeringUnits",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=9447"
-      ],
       "uav:engineeringUnits": {
         "description": "volt",
         "displayName": "V",
@@ -1252,9 +1184,6 @@
       "title": "EngineeringUnits",
       "type": "string",
       "uav:browseName": "EngineeringUnits",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=9449"
-      ],
       "uav:engineeringUnits": {
         "description": "watt",
         "displayName": "W",
@@ -1289,9 +1218,6 @@
       "title": "EngineeringUnits",
       "type": "string",
       "uav:browseName": "EngineeringUnits",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=9451"
-      ],
       "uav:engineeringUnits": {
         "description": "joule",
         "displayName": "J",
@@ -1326,9 +1252,6 @@
       "title": "EngineeringUnits",
       "type": "string",
       "uav:browseName": "EngineeringUnits",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=9453"
-      ],
       "uav:engineeringUnits": {
         "description": "hertz",
         "displayName": "Hz",
@@ -1363,9 +1286,6 @@
       "title": "EngineeringUnits",
       "type": "string",
       "uav:browseName": "EngineeringUnits",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=9455"
-      ],
       "uav:engineeringUnits": {
         "description": "ampere",
         "displayName": "A",
@@ -1400,9 +1320,6 @@
       "title": "EngineeringUnits",
       "type": "string",
       "uav:browseName": "EngineeringUnits",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=9457"
-      ],
       "uav:engineeringUnits": {
         "description": "percent",
         "displayName": "%",
@@ -1437,9 +1354,6 @@
       "title": "EngineeringUnits",
       "type": "string",
       "uav:browseName": "EngineeringUnits",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=9459"
-      ],
       "uav:engineeringUnits": {
         "description": "kelvin",
         "displayName": "K",
@@ -1462,7 +1376,7 @@
         }
       },
       "@type": "uav:variable",
-      "const": 0,
+      "default": 0,
       "description": "Measured output frequency of the frequency converter.",
       "links": [
         {
@@ -1471,6 +1385,12 @@
         }
       ],
       "observable": true,
+      "qudt:hasQuantityKind": {
+        "@id": "http://qudt.org/vocab/quantitykind/Frequency"
+      },
+      "qudt:hasUnit": {
+        "@id": "http://qudt.org/vocab/unit/HZ"
+      },
       "readOnly": true,
       "title": "Frequency",
       "type": "number",
@@ -1493,7 +1413,7 @@
         }
       },
       "@type": "uav:variable",
-      "const": "electric current",
+      "default": "electric current",
       "description": "Scalar quantity equal to the flux of the electric current density J through a given directed surface S",
       "links": [
         {
@@ -1511,9 +1431,6 @@
       "title": "KindOfQuantity",
       "type": "string",
       "uav:browseName": "ns1:KindOfQuantity",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=9443"
-      ],
       "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=14880",
       "uav:mapToType": "i=12",
       "uav:modellingRule": "Optional"
@@ -1530,7 +1447,7 @@
         }
       },
       "@type": "uav:variable",
-      "const": "voltage",
+      "default": "voltage",
       "description": "Scalar quantity equal to the line integral of the electric field strength E along a specific path linking two points a and b",
       "links": [
         {
@@ -1548,9 +1465,6 @@
       "title": "KindOfQuantity",
       "type": "string",
       "uav:browseName": "ns1:KindOfQuantity",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=9461"
-      ],
       "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=14916",
       "uav:mapToType": "i=12",
       "uav:modellingRule": "Optional"
@@ -1567,7 +1481,7 @@
         }
       },
       "@type": "uav:variable",
-      "const": "rational number",
+      "default": "rational number",
       "description": "Element of a set of mathematical entities that includes all integers and other entities, each defined as the quotient of two integers, such that the division is defined for any two entities, except zero as a divisor",
       "links": [
         {
@@ -1585,9 +1499,6 @@
       "title": "KindOfQuantity",
       "type": "string",
       "uav:browseName": "ns1:KindOfQuantity",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=9463"
-      ],
       "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=14920",
       "uav:mapToType": "i=12",
       "uav:modellingRule": "Optional"
@@ -1604,7 +1515,7 @@
         }
       },
       "@type": "uav:variable",
-      "const": "moment of force",
+      "default": "moment of force",
       "description": "Vector quantity described by the vector product M=r * F where r is position vector with respect to the axis of rotation and F is force",
       "links": [
         {
@@ -1622,9 +1533,6 @@
       "title": "KindOfQuantity",
       "type": "string",
       "uav:browseName": "ns1:KindOfQuantity",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=9465"
-      ],
       "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=14927",
       "uav:mapToType": "i=12",
       "uav:modellingRule": "Optional"
@@ -1641,7 +1549,7 @@
         }
       },
       "@type": "uav:variable",
-      "const": "voltage",
+      "default": "voltage",
       "description": "Scalar quantity equal to the line integral of the electric field strength E along a specific path linking two points a and b",
       "links": [
         {
@@ -1659,9 +1567,6 @@
       "title": "KindOfQuantity",
       "type": "string",
       "uav:browseName": "ns1:KindOfQuantity",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=9467"
-      ],
       "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=14935",
       "uav:mapToType": "i=12",
       "uav:modellingRule": "Optional"
@@ -1678,7 +1583,7 @@
         }
       },
       "@type": "uav:variable",
-      "const": "electric current",
+      "default": "electric current",
       "description": "Scalar quantity equal to the flux of the electric current density J through a given directed surface S",
       "links": [
         {
@@ -1696,9 +1601,6 @@
       "title": "KindOfQuantity",
       "type": "string",
       "uav:browseName": "ns1:KindOfQuantity",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=9445"
-      ],
       "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=14884",
       "uav:mapToType": "i=12",
       "uav:modellingRule": "Optional"
@@ -1715,7 +1617,7 @@
         }
       },
       "@type": "uav:variable",
-      "const": "voltage",
+      "default": "voltage",
       "description": "Scalar quantity equal to the line integral of the electric field strength E along a specific path linking two points a and b",
       "links": [
         {
@@ -1733,9 +1635,6 @@
       "title": "KindOfQuantity",
       "type": "string",
       "uav:browseName": "ns1:KindOfQuantity",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=9447"
-      ],
       "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=14888",
       "uav:mapToType": "i=12",
       "uav:modellingRule": "Optional"
@@ -1752,7 +1651,7 @@
         }
       },
       "@type": "uav:variable",
-      "const": "power",
+      "default": "power",
       "description": "Derivative with respect to time t of energy E being transferred or transformed",
       "links": [
         {
@@ -1770,9 +1669,6 @@
       "title": "KindOfQuantity",
       "type": "string",
       "uav:browseName": "ns1:KindOfQuantity",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=9449"
-      ],
       "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=14892",
       "uav:mapToType": "i=12",
       "uav:modellingRule": "Optional"
@@ -1789,7 +1685,7 @@
         }
       },
       "@type": "uav:variable",
-      "const": "energy",
+      "default": "energy",
       "description": "Ability of a system to do work",
       "links": [
         {
@@ -1807,9 +1703,6 @@
       "title": "KindOfQuantity",
       "type": "string",
       "uav:browseName": "ns1:KindOfQuantity",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=9451"
-      ],
       "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=14896",
       "uav:mapToType": "i=12",
       "uav:modellingRule": "Optional"
@@ -1826,7 +1719,7 @@
         }
       },
       "@type": "uav:variable",
-      "const": "frequency",
+      "default": "frequency",
       "description": "Inverse of one cycle of a periodic event",
       "links": [
         {
@@ -1844,9 +1737,6 @@
       "title": "KindOfQuantity",
       "type": "string",
       "uav:browseName": "ns1:KindOfQuantity",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=9453"
-      ],
       "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=14900",
       "uav:mapToType": "i=12",
       "uav:modellingRule": "Optional"
@@ -1863,7 +1753,7 @@
         }
       },
       "@type": "uav:variable",
-      "const": "electric current",
+      "default": "electric current",
       "description": "Scalar quantity equal to the flux of the electric current density J through a given directed surface S",
       "links": [
         {
@@ -1881,9 +1771,6 @@
       "title": "KindOfQuantity",
       "type": "string",
       "uav:browseName": "ns1:KindOfQuantity",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=9455"
-      ],
       "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=14904",
       "uav:mapToType": "i=12",
       "uav:modellingRule": "Optional"
@@ -1900,7 +1787,7 @@
         }
       },
       "@type": "uav:variable",
-      "const": "ratio",
+      "default": "ratio",
       "description": "Quotient of two numbers or two quantities of the same kind",
       "links": [
         {
@@ -1918,9 +1805,6 @@
       "title": "KindOfQuantity",
       "type": "string",
       "uav:browseName": "ns1:KindOfQuantity",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=9457"
-      ],
       "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=14908",
       "uav:mapToType": "i=12",
       "uav:modellingRule": "Optional"
@@ -1937,7 +1821,7 @@
         }
       },
       "@type": "uav:variable",
-      "const": "temperature",
+      "default": "temperature",
       "description": "Quantity representing a temperature value",
       "links": [
         {
@@ -1955,9 +1839,6 @@
       "title": "KindOfQuantity",
       "type": "string",
       "uav:browseName": "ns1:KindOfQuantity",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=9459"
-      ],
       "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=14912",
       "uav:mapToType": "i=12",
       "uav:modellingRule": "Optional"
@@ -1974,7 +1855,7 @@
         }
       },
       "@type": "uav:variable",
-      "const": 0,
+      "default": 0,
       "description": "Measured actual motor current.",
       "links": [
         {
@@ -1983,6 +1864,12 @@
         }
       ],
       "observable": true,
+      "qudt:hasQuantityKind": {
+        "@id": "http://qudt.org/vocab/quantitykind/ElectricCurrent"
+      },
+      "qudt:hasUnit": {
+        "@id": "http://qudt.org/vocab/unit/A"
+      },
       "readOnly": true,
       "title": "MotorCurrent",
       "type": "number",
@@ -2005,7 +1892,7 @@
         }
       },
       "@type": "uav:variable",
-      "const": 0,
+      "default": 0,
       "description": "Determined proportion of the motor power input P_mot delivered as pump power input P_mot, u",
       "links": [
         {
@@ -2014,6 +1901,9 @@
         }
       ],
       "observable": true,
+      "qudt:hasUnit": {
+        "@id": "http://qudt.org/vocab/unit/PERCENT"
+      },
       "readOnly": true,
       "title": "MotorEfficiency",
       "type": "number",
@@ -2036,7 +1926,7 @@
         }
       },
       "@type": "uav:variable",
-      "const": 0,
+      "default": 0,
       "description": "Measured temperature of the motor.",
       "links": [
         {
@@ -2045,6 +1935,12 @@
         }
       ],
       "observable": true,
+      "qudt:hasQuantityKind": {
+        "@id": "http://qudt.org/vocab/quantitykind/Temperature"
+      },
+      "qudt:hasUnit": {
+        "@id": "http://qudt.org/vocab/unit/K"
+      },
       "readOnly": true,
       "title": "MotorTemperature",
       "type": "number",
@@ -2067,7 +1963,7 @@
         }
       },
       "@type": "uav:variable",
-      "const": 0,
+      "default": 0,
       "description": "Measured actual motor voltage.",
       "links": [
         {
@@ -2076,6 +1972,12 @@
         }
       ],
       "observable": true,
+      "qudt:hasQuantityKind": {
+        "@id": "http://qudt.org/vocab/quantitykind/ElectricPotential"
+      },
+      "qudt:hasUnit": {
+        "@id": "http://qudt.org/vocab/unit/V"
+      },
       "readOnly": true,
       "title": "MotorVoltage",
       "type": "number",
@@ -2098,7 +2000,7 @@
         }
       },
       "@type": "uav:variable",
-      "const": 0,
+      "default": 0,
       "description": "Determined power factor of the motor.",
       "links": [
         {
@@ -2127,7 +2029,7 @@
         }
       },
       "@type": "uav:variable",
-      "const": 0,
+      "default": 0,
       "description": "Measured torque of the motor.",
       "links": [
         {
@@ -2136,6 +2038,12 @@
         }
       ],
       "observable": true,
+      "qudt:hasQuantityKind": {
+        "@id": "http://qudt.org/vocab/quantitykind/Torque"
+      },
+      "qudt:hasUnit": {
+        "@id": "http://qudt.org/vocab/unit/N-M"
+      },
       "readOnly": true,
       "title": "Torque",
       "type": "number",
@@ -2158,7 +2066,7 @@
         }
       },
       "@type": "uav:variable",
-      "const": 0,
+      "default": 0,
       "description": "Measured actual mains voltage of the motor.",
       "links": [
         {
@@ -2167,6 +2075,12 @@
         }
       ],
       "observable": true,
+      "qudt:hasQuantityKind": {
+        "@id": "http://qudt.org/vocab/quantitykind/ElectricPotential"
+      },
+      "qudt:hasUnit": {
+        "@id": "http://qudt.org/vocab/unit/V"
+      },
       "readOnly": true,
       "title": "Voltage",
       "type": "number",
@@ -2179,6 +2093,73 @@
     }
   },
   "title": "DriveMeasurementsType",
+  "tm:optional": [
+    "/properties/Current",
+    "/properties/DCLinkCurrent",
+    "/properties/DCLinkVoltage",
+    "/properties/DriverPowerInput",
+    "/properties/EnergyConsumption",
+    "/properties/Frequency",
+    "/properties/MotorCurrent",
+    "/properties/MotorEfficiency",
+    "/properties/MotorTemperature",
+    "/properties/MotorVoltage",
+    "/properties/PowerFactor",
+    "/properties/Torque",
+    "/properties/Voltage",
+    "/properties/Definition",
+    "/properties/EngineeringUnits",
+    "/properties/EURange",
+    "/properties/KindOfQuantity",
+    "/properties/Definition_2",
+    "/properties/EngineeringUnits_2",
+    "/properties/EURange_2",
+    "/properties/KindOfQuantity_2",
+    "/properties/Definition_3",
+    "/properties/EngineeringUnits_3",
+    "/properties/EURange_3",
+    "/properties/KindOfQuantity_3",
+    "/properties/Definition_4",
+    "/properties/EngineeringUnits_4",
+    "/properties/EURange_4",
+    "/properties/KindOfQuantity_4",
+    "/properties/Definition_5",
+    "/properties/EngineeringUnits_5",
+    "/properties/EURange_5",
+    "/properties/KindOfQuantity_5",
+    "/properties/Definition_6",
+    "/properties/EngineeringUnits_6",
+    "/properties/EURange_6",
+    "/properties/KindOfQuantity_6",
+    "/properties/Definition_7",
+    "/properties/EngineeringUnits_7",
+    "/properties/EURange_7",
+    "/properties/KindOfQuantity_7",
+    "/properties/Definition_8",
+    "/properties/EngineeringUnits_8",
+    "/properties/EURange_8",
+    "/properties/KindOfQuantity_8",
+    "/properties/Definition_9",
+    "/properties/EngineeringUnits_9",
+    "/properties/EURange_9",
+    "/properties/KindOfQuantity_9",
+    "/properties/Definition_10",
+    "/properties/EngineeringUnits_10",
+    "/properties/EURange_10",
+    "/properties/KindOfQuantity_10",
+    "/properties/Definition_11",
+    "/properties/EngineeringUnits_11",
+    "/properties/EURange_11",
+    "/properties/KindOfQuantity_11",
+    "/properties/Definition_12",
+    "/properties/EngineeringUnits_12",
+    "/properties/EURange_12",
+    "/properties/KindOfQuantity_12",
+    "/properties/Definition_13",
+    "/properties/EngineeringUnits_13",
+    "/properties/EURange_13",
+    "/properties/KindOfQuantity_13"
+  ],
   "uav:bindingVersion": "1.1",
   "uav:browseName": "ns1:DriveMeasurementsType",
   "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=1051",
@@ -2400,6 +2381,7 @@
         "browseName": "1:DriveMeasurementsType",
         "displayName": [
           {
+            "locale": "",
             "value": "DriveMeasurementsType"
           }
         ],
@@ -2472,15 +2454,18 @@
         "superType": "ns=3;i=1005"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:Current",
         "dataType": "Double",
         "description": [
           {
+            "locale": "",
             "value": "Measured consumed mains current of the whole unit of the motor."
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "Current"
           }
         ],
@@ -2523,10 +2508,12 @@
         "valueXml": "<uax:Double xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">0</uax:Double>"
       },
       {
+        "arrayDimensions": "",
         "browseName": "Definition",
         "dataType": "String",
         "displayName": [
           {
+            "locale": "",
             "value": "Definition"
           }
         ],
@@ -2552,10 +2539,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "EngineeringUnits",
         "dataType": "EUInformation",
         "displayName": [
           {
+            "locale": "",
             "value": "EngineeringUnits"
           }
         ],
@@ -2582,10 +2571,12 @@
         "valueXml": "<uax:ExtensionObject xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">\n        <uax:TypeId>\n          <uax:Identifier>i=888</uax:Identifier>\n        </uax:TypeId>\n        <uax:Body>\n          <uax:EUInformation>\n            <uax:NamespaceUri>http://www.opcfoundation.org/UA/units/un/cefact</uax:NamespaceUri>\n            <uax:UnitId>4279632</uax:UnitId>\n            <uax:DisplayName>\n              <uax:Text>A</uax:Text>\n            </uax:DisplayName>\n            <uax:Description>\n              <uax:Text>ampere</uax:Text>\n            </uax:Description>\n          </uax:EUInformation>\n        </uax:Body>\n      </uax:ExtensionObject>"
       },
       {
+        "arrayDimensions": "",
         "browseName": "EURange",
         "dataType": "Range",
         "displayName": [
           {
+            "locale": "",
             "value": "EURange"
           }
         ],
@@ -2611,15 +2602,18 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:KindOfQuantity",
         "dataType": "String",
         "description": [
           {
+            "locale": "",
             "value": "Scalar quantity equal to the flux of the electric current density J through a given directed surface S"
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "KindOfQuantity"
           }
         ],
@@ -2646,15 +2640,18 @@
         "valueXml": "<uax:String xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">electric current</uax:String>"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:DCLinkCurrent",
         "dataType": "Double",
         "description": [
           {
+            "locale": "",
             "value": "Measured actual electrical dc current of the converter."
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "DCLinkCurrent"
           }
         ],
@@ -2697,10 +2694,12 @@
         "valueXml": "<uax:Double xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">0</uax:Double>"
       },
       {
+        "arrayDimensions": "",
         "browseName": "Definition",
         "dataType": "String",
         "displayName": [
           {
+            "locale": "",
             "value": "Definition"
           }
         ],
@@ -2726,10 +2725,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "EngineeringUnits",
         "dataType": "EUInformation",
         "displayName": [
           {
+            "locale": "",
             "value": "EngineeringUnits"
           }
         ],
@@ -2756,10 +2757,12 @@
         "valueXml": "<uax:ExtensionObject xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">\n        <uax:TypeId>\n          <uax:Identifier>i=888</uax:Identifier>\n        </uax:TypeId>\n        <uax:Body>\n          <uax:EUInformation>\n            <uax:NamespaceUri>http://www.opcfoundation.org/UA/units/un/cefact</uax:NamespaceUri>\n            <uax:UnitId>4279632</uax:UnitId>\n            <uax:DisplayName>\n              <uax:Text>A</uax:Text>\n            </uax:DisplayName>\n            <uax:Description>\n              <uax:Text>ampere</uax:Text>\n            </uax:Description>\n          </uax:EUInformation>\n        </uax:Body>\n      </uax:ExtensionObject>"
       },
       {
+        "arrayDimensions": "",
         "browseName": "EURange",
         "dataType": "Range",
         "displayName": [
           {
+            "locale": "",
             "value": "EURange"
           }
         ],
@@ -2785,15 +2788,18 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:KindOfQuantity",
         "dataType": "String",
         "description": [
           {
+            "locale": "",
             "value": "Scalar quantity equal to the flux of the electric current density J through a given directed surface S"
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "KindOfQuantity"
           }
         ],
@@ -2820,15 +2826,18 @@
         "valueXml": "<uax:String xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">electric current</uax:String>"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:DCLinkVoltage",
         "dataType": "Double",
         "description": [
           {
+            "locale": "",
             "value": "Measured actual electrical dc voltage of the converter."
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "DCLinkVoltage"
           }
         ],
@@ -2871,10 +2880,12 @@
         "valueXml": "<uax:Double xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">0</uax:Double>"
       },
       {
+        "arrayDimensions": "",
         "browseName": "Definition",
         "dataType": "String",
         "displayName": [
           {
+            "locale": "",
             "value": "Definition"
           }
         ],
@@ -2900,10 +2911,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "EngineeringUnits",
         "dataType": "EUInformation",
         "displayName": [
           {
+            "locale": "",
             "value": "EngineeringUnits"
           }
         ],
@@ -2930,10 +2943,12 @@
         "valueXml": "<uax:ExtensionObject xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">\n        <uax:TypeId>\n          <uax:Identifier>i=888</uax:Identifier>\n        </uax:TypeId>\n        <uax:Body>\n          <uax:EUInformation>\n            <uax:NamespaceUri>http://www.opcfoundation.org/UA/units/un/cefact</uax:NamespaceUri>\n            <uax:UnitId>5655636</uax:UnitId>\n            <uax:DisplayName>\n              <uax:Text>V</uax:Text>\n            </uax:DisplayName>\n            <uax:Description>\n              <uax:Text>volt</uax:Text>\n            </uax:Description>\n          </uax:EUInformation>\n        </uax:Body>\n      </uax:ExtensionObject>"
       },
       {
+        "arrayDimensions": "",
         "browseName": "EURange",
         "dataType": "Range",
         "displayName": [
           {
+            "locale": "",
             "value": "EURange"
           }
         ],
@@ -2959,15 +2974,18 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:KindOfQuantity",
         "dataType": "String",
         "description": [
           {
+            "locale": "",
             "value": "Scalar quantity equal to the line integral of the electric field strength E along a specific path linking two points a and b"
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "KindOfQuantity"
           }
         ],
@@ -2994,15 +3012,18 @@
         "valueXml": "<uax:String xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">voltage</uax:String>"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:DriverPowerInput",
         "dataType": "Double",
         "description": [
           {
+            "locale": "",
             "value": "Measured power absorbed by the motor."
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "DriverPowerInput"
           }
         ],
@@ -3045,10 +3066,12 @@
         "valueXml": "<uax:Double xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">0</uax:Double>"
       },
       {
+        "arrayDimensions": "",
         "browseName": "Definition",
         "dataType": "String",
         "displayName": [
           {
+            "locale": "",
             "value": "Definition"
           }
         ],
@@ -3074,10 +3097,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "EngineeringUnits",
         "dataType": "EUInformation",
         "displayName": [
           {
+            "locale": "",
             "value": "EngineeringUnits"
           }
         ],
@@ -3104,10 +3129,12 @@
         "valueXml": "<uax:ExtensionObject xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">\n        <uax:TypeId>\n          <uax:Identifier>i=888</uax:Identifier>\n        </uax:TypeId>\n        <uax:Body>\n          <uax:EUInformation>\n            <uax:NamespaceUri>http://www.opcfoundation.org/UA/units/un/cefact</uax:NamespaceUri>\n            <uax:UnitId>5723220</uax:UnitId>\n            <uax:DisplayName>\n              <uax:Text>W</uax:Text>\n            </uax:DisplayName>\n            <uax:Description>\n              <uax:Text>watt</uax:Text>\n            </uax:Description>\n          </uax:EUInformation>\n        </uax:Body>\n      </uax:ExtensionObject>"
       },
       {
+        "arrayDimensions": "",
         "browseName": "EURange",
         "dataType": "Range",
         "displayName": [
           {
+            "locale": "",
             "value": "EURange"
           }
         ],
@@ -3133,15 +3160,18 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:KindOfQuantity",
         "dataType": "String",
         "description": [
           {
+            "locale": "",
             "value": "Derivative with respect to time t of energy E being transferred or transformed"
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "KindOfQuantity"
           }
         ],
@@ -3168,15 +3198,18 @@
         "valueXml": "<uax:String xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">power</uax:String>"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:EnergyConsumption",
         "dataType": "Double",
         "description": [
           {
+            "locale": "",
             "value": "Measured energy consumption of the unit of the motor."
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "EnergyConsumption"
           }
         ],
@@ -3219,10 +3252,12 @@
         "valueXml": "<uax:Double xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">0</uax:Double>"
       },
       {
+        "arrayDimensions": "",
         "browseName": "Definition",
         "dataType": "String",
         "displayName": [
           {
+            "locale": "",
             "value": "Definition"
           }
         ],
@@ -3248,10 +3283,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "EngineeringUnits",
         "dataType": "EUInformation",
         "displayName": [
           {
+            "locale": "",
             "value": "EngineeringUnits"
           }
         ],
@@ -3278,10 +3315,12 @@
         "valueXml": "<uax:ExtensionObject xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">\n        <uax:TypeId>\n          <uax:Identifier>i=888</uax:Identifier>\n        </uax:TypeId>\n        <uax:Body>\n          <uax:EUInformation>\n            <uax:NamespaceUri>http://www.opcfoundation.org/UA/units/un/cefact</uax:NamespaceUri>\n            <uax:UnitId>4869973</uax:UnitId>\n            <uax:DisplayName>\n              <uax:Text>J</uax:Text>\n            </uax:DisplayName>\n            <uax:Description>\n              <uax:Text>joule</uax:Text>\n            </uax:Description>\n          </uax:EUInformation>\n        </uax:Body>\n      </uax:ExtensionObject>"
       },
       {
+        "arrayDimensions": "",
         "browseName": "EURange",
         "dataType": "Range",
         "displayName": [
           {
+            "locale": "",
             "value": "EURange"
           }
         ],
@@ -3307,15 +3346,18 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:KindOfQuantity",
         "dataType": "String",
         "description": [
           {
+            "locale": "",
             "value": "Ability of a system to do work"
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "KindOfQuantity"
           }
         ],
@@ -3342,15 +3384,18 @@
         "valueXml": "<uax:String xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">energy</uax:String>"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:Frequency",
         "dataType": "Double",
         "description": [
           {
+            "locale": "",
             "value": "Measured output frequency of the frequency converter."
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "Frequency"
           }
         ],
@@ -3393,10 +3438,12 @@
         "valueXml": "<uax:Double xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">0</uax:Double>"
       },
       {
+        "arrayDimensions": "",
         "browseName": "Definition",
         "dataType": "String",
         "displayName": [
           {
+            "locale": "",
             "value": "Definition"
           }
         ],
@@ -3422,10 +3469,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "EngineeringUnits",
         "dataType": "EUInformation",
         "displayName": [
           {
+            "locale": "",
             "value": "EngineeringUnits"
           }
         ],
@@ -3452,10 +3501,12 @@
         "valueXml": "<uax:ExtensionObject xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">\n        <uax:TypeId>\n          <uax:Identifier>i=888</uax:Identifier>\n        </uax:TypeId>\n        <uax:Body>\n          <uax:EUInformation>\n            <uax:NamespaceUri>http://www.opcfoundation.org/UA/units/un/cefact</uax:NamespaceUri>\n            <uax:UnitId>4740186</uax:UnitId>\n            <uax:DisplayName>\n              <uax:Text>Hz</uax:Text>\n            </uax:DisplayName>\n            <uax:Description>\n              <uax:Text>hertz</uax:Text>\n            </uax:Description>\n          </uax:EUInformation>\n        </uax:Body>\n      </uax:ExtensionObject>"
       },
       {
+        "arrayDimensions": "",
         "browseName": "EURange",
         "dataType": "Range",
         "displayName": [
           {
+            "locale": "",
             "value": "EURange"
           }
         ],
@@ -3481,15 +3532,18 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:KindOfQuantity",
         "dataType": "String",
         "description": [
           {
+            "locale": "",
             "value": "Inverse of one cycle of a periodic event"
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "KindOfQuantity"
           }
         ],
@@ -3516,15 +3570,18 @@
         "valueXml": "<uax:String xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">frequency</uax:String>"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:MotorCurrent",
         "dataType": "Double",
         "description": [
           {
+            "locale": "",
             "value": "Measured actual motor current."
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "MotorCurrent"
           }
         ],
@@ -3567,10 +3624,12 @@
         "valueXml": "<uax:Double xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">0</uax:Double>"
       },
       {
+        "arrayDimensions": "",
         "browseName": "Definition",
         "dataType": "String",
         "displayName": [
           {
+            "locale": "",
             "value": "Definition"
           }
         ],
@@ -3596,10 +3655,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "EngineeringUnits",
         "dataType": "EUInformation",
         "displayName": [
           {
+            "locale": "",
             "value": "EngineeringUnits"
           }
         ],
@@ -3626,10 +3687,12 @@
         "valueXml": "<uax:ExtensionObject xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">\n        <uax:TypeId>\n          <uax:Identifier>i=888</uax:Identifier>\n        </uax:TypeId>\n        <uax:Body>\n          <uax:EUInformation>\n            <uax:NamespaceUri>http://www.opcfoundation.org/UA/units/un/cefact</uax:NamespaceUri>\n            <uax:UnitId>4279632</uax:UnitId>\n            <uax:DisplayName>\n              <uax:Text>A</uax:Text>\n            </uax:DisplayName>\n            <uax:Description>\n              <uax:Text>ampere</uax:Text>\n            </uax:Description>\n          </uax:EUInformation>\n        </uax:Body>\n      </uax:ExtensionObject>"
       },
       {
+        "arrayDimensions": "",
         "browseName": "EURange",
         "dataType": "Range",
         "displayName": [
           {
+            "locale": "",
             "value": "EURange"
           }
         ],
@@ -3655,15 +3718,18 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:KindOfQuantity",
         "dataType": "String",
         "description": [
           {
+            "locale": "",
             "value": "Scalar quantity equal to the flux of the electric current density J through a given directed surface S"
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "KindOfQuantity"
           }
         ],
@@ -3690,15 +3756,18 @@
         "valueXml": "<uax:String xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">electric current</uax:String>"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:MotorEfficiency",
         "dataType": "Double",
         "description": [
           {
+            "locale": "",
             "value": "Determined proportion of the motor power input P_mot delivered as pump power input P_mot, u"
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "MotorEfficiency"
           }
         ],
@@ -3741,10 +3810,12 @@
         "valueXml": "<uax:Double xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">0</uax:Double>"
       },
       {
+        "arrayDimensions": "",
         "browseName": "Definition",
         "dataType": "String",
         "displayName": [
           {
+            "locale": "",
             "value": "Definition"
           }
         ],
@@ -3770,10 +3841,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "EngineeringUnits",
         "dataType": "EUInformation",
         "displayName": [
           {
+            "locale": "",
             "value": "EngineeringUnits"
           }
         ],
@@ -3800,10 +3873,12 @@
         "valueXml": "<uax:ExtensionObject xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">\n        <uax:TypeId>\n          <uax:Identifier>i=888</uax:Identifier>\n        </uax:TypeId>\n        <uax:Body>\n          <uax:EUInformation>\n            <uax:NamespaceUri>http://www.opcfoundation.org/UA/units/un/cefact</uax:NamespaceUri>\n            <uax:UnitId>20529</uax:UnitId>\n            <uax:DisplayName>\n              <uax:Text>%</uax:Text>\n            </uax:DisplayName>\n            <uax:Description>\n              <uax:Text>percent</uax:Text>\n            </uax:Description>\n          </uax:EUInformation>\n        </uax:Body>\n      </uax:ExtensionObject>"
       },
       {
+        "arrayDimensions": "",
         "browseName": "EURange",
         "dataType": "Range",
         "displayName": [
           {
+            "locale": "",
             "value": "EURange"
           }
         ],
@@ -3829,15 +3904,18 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:KindOfQuantity",
         "dataType": "String",
         "description": [
           {
+            "locale": "",
             "value": "Quotient of two numbers or two quantities of the same kind"
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "KindOfQuantity"
           }
         ],
@@ -3864,15 +3942,18 @@
         "valueXml": "<uax:String xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">ratio</uax:String>"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:MotorTemperature",
         "dataType": "Double",
         "description": [
           {
+            "locale": "",
             "value": "Measured temperature of the motor."
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "MotorTemperature"
           }
         ],
@@ -3915,10 +3996,12 @@
         "valueXml": "<uax:Double xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">0</uax:Double>"
       },
       {
+        "arrayDimensions": "",
         "browseName": "Definition",
         "dataType": "String",
         "displayName": [
           {
+            "locale": "",
             "value": "Definition"
           }
         ],
@@ -3944,10 +4027,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "EngineeringUnits",
         "dataType": "EUInformation",
         "displayName": [
           {
+            "locale": "",
             "value": "EngineeringUnits"
           }
         ],
@@ -3974,10 +4059,12 @@
         "valueXml": "<uax:ExtensionObject xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">\n        <uax:TypeId>\n          <uax:Identifier>i=888</uax:Identifier>\n        </uax:TypeId>\n        <uax:Body>\n          <uax:EUInformation>\n            <uax:NamespaceUri>http://www.opcfoundation.org/UA/units/un/cefact</uax:NamespaceUri>\n            <uax:UnitId>4932940</uax:UnitId>\n            <uax:DisplayName>\n              <uax:Text>K</uax:Text>\n            </uax:DisplayName>\n            <uax:Description>\n              <uax:Text>kelvin</uax:Text>\n            </uax:Description>\n          </uax:EUInformation>\n        </uax:Body>\n      </uax:ExtensionObject>"
       },
       {
+        "arrayDimensions": "",
         "browseName": "EURange",
         "dataType": "Range",
         "displayName": [
           {
+            "locale": "",
             "value": "EURange"
           }
         ],
@@ -4003,15 +4090,18 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:KindOfQuantity",
         "dataType": "String",
         "description": [
           {
+            "locale": "",
             "value": "Quantity representing a temperature value"
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "KindOfQuantity"
           }
         ],
@@ -4038,15 +4128,18 @@
         "valueXml": "<uax:String xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">temperature</uax:String>"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:MotorVoltage",
         "dataType": "Double",
         "description": [
           {
+            "locale": "",
             "value": "Measured actual motor voltage."
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "MotorVoltage"
           }
         ],
@@ -4089,10 +4182,12 @@
         "valueXml": "<uax:Double xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">0</uax:Double>"
       },
       {
+        "arrayDimensions": "",
         "browseName": "Definition",
         "dataType": "String",
         "displayName": [
           {
+            "locale": "",
             "value": "Definition"
           }
         ],
@@ -4118,10 +4213,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "EngineeringUnits",
         "dataType": "EUInformation",
         "displayName": [
           {
+            "locale": "",
             "value": "EngineeringUnits"
           }
         ],
@@ -4148,10 +4245,12 @@
         "valueXml": "<uax:ExtensionObject xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">\n        <uax:TypeId>\n          <uax:Identifier>i=888</uax:Identifier>\n        </uax:TypeId>\n        <uax:Body>\n          <uax:EUInformation>\n            <uax:NamespaceUri>http://www.opcfoundation.org/UA/units/un/cefact</uax:NamespaceUri>\n            <uax:UnitId>5655636</uax:UnitId>\n            <uax:DisplayName>\n              <uax:Text>V</uax:Text>\n            </uax:DisplayName>\n            <uax:Description>\n              <uax:Text>volt</uax:Text>\n            </uax:Description>\n          </uax:EUInformation>\n        </uax:Body>\n      </uax:ExtensionObject>"
       },
       {
+        "arrayDimensions": "",
         "browseName": "EURange",
         "dataType": "Range",
         "displayName": [
           {
+            "locale": "",
             "value": "EURange"
           }
         ],
@@ -4177,15 +4276,18 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:KindOfQuantity",
         "dataType": "String",
         "description": [
           {
+            "locale": "",
             "value": "Scalar quantity equal to the line integral of the electric field strength E along a specific path linking two points a and b"
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "KindOfQuantity"
           }
         ],
@@ -4212,15 +4314,18 @@
         "valueXml": "<uax:String xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">voltage</uax:String>"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:PowerFactor",
         "dataType": "Double",
         "description": [
           {
+            "locale": "",
             "value": "Determined power factor of the motor."
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "PowerFactor"
           }
         ],
@@ -4263,10 +4368,12 @@
         "valueXml": "<uax:Double xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">0</uax:Double>"
       },
       {
+        "arrayDimensions": "",
         "browseName": "Definition",
         "dataType": "String",
         "displayName": [
           {
+            "locale": "",
             "value": "Definition"
           }
         ],
@@ -4292,10 +4399,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "EngineeringUnits",
         "dataType": "EUInformation",
         "displayName": [
           {
+            "locale": "",
             "value": "EngineeringUnits"
           }
         ],
@@ -4321,10 +4430,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "EURange",
         "dataType": "Range",
         "displayName": [
           {
+            "locale": "",
             "value": "EURange"
           }
         ],
@@ -4350,15 +4461,18 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:KindOfQuantity",
         "dataType": "String",
         "description": [
           {
+            "locale": "",
             "value": "Element of a set of mathematical entities that includes all integers and other entities, each defined as the quotient of two integers, such that the division is defined for any two entities, except zero as a divisor"
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "KindOfQuantity"
           }
         ],
@@ -4385,15 +4499,18 @@
         "valueXml": "<uax:String xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">rational number</uax:String>"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:Torque",
         "dataType": "Double",
         "description": [
           {
+            "locale": "",
             "value": "Measured torque of the motor."
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "Torque"
           }
         ],
@@ -4436,10 +4553,12 @@
         "valueXml": "<uax:Double xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">0</uax:Double>"
       },
       {
+        "arrayDimensions": "",
         "browseName": "Definition",
         "dataType": "String",
         "displayName": [
           {
+            "locale": "",
             "value": "Definition"
           }
         ],
@@ -4465,10 +4584,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "EngineeringUnits",
         "dataType": "EUInformation",
         "displayName": [
           {
+            "locale": "",
             "value": "EngineeringUnits"
           }
         ],
@@ -4495,10 +4616,12 @@
         "valueXml": "<uax:ExtensionObject xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">\n        <uax:TypeId>\n          <uax:Identifier>i=888</uax:Identifier>\n        </uax:TypeId>\n        <uax:Body>\n          <uax:EUInformation>\n            <uax:NamespaceUri>http://www.opcfoundation.org/UA/units/un/cefact</uax:NamespaceUri>\n            <uax:UnitId>20053</uax:UnitId>\n            <uax:DisplayName>\n              <uax:Text>N·m</uax:Text>\n            </uax:DisplayName>\n            <uax:Description>\n              <uax:Text>newton metre</uax:Text>\n            </uax:Description>\n          </uax:EUInformation>\n        </uax:Body>\n      </uax:ExtensionObject>"
       },
       {
+        "arrayDimensions": "",
         "browseName": "EURange",
         "dataType": "Range",
         "displayName": [
           {
+            "locale": "",
             "value": "EURange"
           }
         ],
@@ -4524,15 +4647,18 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:KindOfQuantity",
         "dataType": "String",
         "description": [
           {
+            "locale": "",
             "value": "Vector quantity described by the vector product M=r * F where r is position vector with respect to the axis of rotation and F is force"
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "KindOfQuantity"
           }
         ],
@@ -4559,15 +4685,18 @@
         "valueXml": "<uax:String xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">moment of force</uax:String>"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:Voltage",
         "dataType": "Double",
         "description": [
           {
+            "locale": "",
             "value": "Measured actual mains voltage of the motor."
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "Voltage"
           }
         ],
@@ -4610,10 +4739,12 @@
         "valueXml": "<uax:Double xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">0</uax:Double>"
       },
       {
+        "arrayDimensions": "",
         "browseName": "Definition",
         "dataType": "String",
         "displayName": [
           {
+            "locale": "",
             "value": "Definition"
           }
         ],
@@ -4639,10 +4770,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "EngineeringUnits",
         "dataType": "EUInformation",
         "displayName": [
           {
+            "locale": "",
             "value": "EngineeringUnits"
           }
         ],
@@ -4669,10 +4802,12 @@
         "valueXml": "<uax:ExtensionObject xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">\n        <uax:TypeId>\n          <uax:Identifier>i=888</uax:Identifier>\n        </uax:TypeId>\n        <uax:Body>\n          <uax:EUInformation>\n            <uax:NamespaceUri>http://www.opcfoundation.org/UA/units/un/cefact</uax:NamespaceUri>\n            <uax:UnitId>5655636</uax:UnitId>\n            <uax:DisplayName>\n              <uax:Text>V</uax:Text>\n            </uax:DisplayName>\n            <uax:Description>\n              <uax:Text>volt</uax:Text>\n            </uax:Description>\n          </uax:EUInformation>\n        </uax:Body>\n      </uax:ExtensionObject>"
       },
       {
+        "arrayDimensions": "",
         "browseName": "EURange",
         "dataType": "Range",
         "displayName": [
           {
+            "locale": "",
             "value": "EURange"
           }
         ],
@@ -4698,15 +4833,18 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:KindOfQuantity",
         "dataType": "String",
         "description": [
           {
+            "locale": "",
             "value": "Scalar quantity equal to the line integral of the electric field strength E along a specific path linking two points a and b"
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "KindOfQuantity"
           }
         ],

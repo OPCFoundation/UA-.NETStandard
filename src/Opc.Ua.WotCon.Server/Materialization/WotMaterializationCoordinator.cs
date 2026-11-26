@@ -1,31 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using System.Collections.Generic;
@@ -38,6 +12,7 @@ using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 using Opc.Ua.Export;
+using Opc.Ua.Server;
 using Opc.Ua.Wot;
 using Opc.Ua.WotCon.Bindings;
 using Opc.Ua.WotCon.Server.Registry;
@@ -155,9 +130,17 @@ namespace Opc.Ua.WotCon.Server.Materialization
         /// <exception cref="ObjectDisposedException"></exception>
         /// <param name="cancellationToken">The cancellation token passed to the asynchronous operation.</param>
         /// <param name="request">The WoT refresh request.</param>
-        public async ValueTask<WotRefreshResult> RefreshAsync(
+        public ValueTask<WotRefreshResult> RefreshAsync(
             WotRefreshRequest request,
             CancellationToken cancellationToken = default)
+        {
+            return RefreshAsync(request, null, cancellationToken);
+        }
+
+        internal async ValueTask<WotRefreshResult> RefreshAsync(
+            WotRefreshRequest request,
+            NodeManagerReadinessContext? readiness,
+            CancellationToken cancellationToken)
         {
             WotCapturedRefreshRequest invocation = WotCapturedRefreshRequest.Capture(request);
             m_converterOptions.Validate();
@@ -189,7 +172,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
                         }
                         try
                         {
-                            await RecoverCommittedImageAsync(cancellationToken).ConfigureAwait(false);
+                            await RecoverCommittedImageAsync(readiness, cancellationToken).ConfigureAwait(false);
                             m_publicationRecoveryRequired = false;
                         }
                         catch (Exception failure) when (failure is IOException or InvalidDataException)
@@ -214,7 +197,8 @@ namespace Opc.Ua.WotCon.Server.Materialization
                             WotRegistrySnapshot expectedRegistry = m_registry.Current;
                             CheckExpectedGeneration(invocation, expectedRegistry.RefreshGeneration);
                             m_generation = expectedRegistry.RefreshGeneration;
-                            IWotProjectionPublicationCapture sourceCapture = invocationHost.CapturePublication();
+                            IWotProjectionPublicationCapture sourceCapture = CaptureSourcePublication(
+                                invocationHost, readiness);
                             using WotRefreshCapture capture = await CaptureInputsAsync(invocation, cancellationToken)
                                 .ConfigureAwait(false);
                             IWotRegistryPublication registryPublication = await invocationRegistry
@@ -338,6 +322,10 @@ namespace Opc.Ua.WotCon.Server.Materialization
                 skipped += retiredResults.Length;
                 results.AddRange(retiredResults);
             }
+            else
+            {
+                results.AddRange(retiredResults.Where(result => result.Outcome == WoTOutcomeEnum.Warning));
+            }
 
             foreach (WotDependencyClosure closure in closures)
             {
@@ -407,6 +395,10 @@ namespace Opc.Ua.WotCon.Server.Materialization
             WoTOutcomeEnum overall = failed > 0
                 ? (succeeded > 0 ? WoTOutcomeEnum.Warning : WoTOutcomeEnum.Failed)
                 : (succeeded > 0 ? WoTOutcomeEnum.Success : WoTOutcomeEnum.Unchanged);
+            if (retiredResults.Any(result => result.Outcome == WoTOutcomeEnum.Warning))
+            {
+                overall = WoTOutcomeEnum.Warning;
+            }
 
             var summary = new WoTRefreshSummaryDataType
             {
@@ -497,7 +489,14 @@ namespace Opc.Ua.WotCon.Server.Materialization
                 await m_mutex.WaitAsync(cancellationToken).ConfigureAwait(false);
                 try
                 {
-                    foreach (ClosureState state in m_closures.Values)
+                    if (m_sourceHost is IWotInvocationProjectionHost { SupportsPreparedPublication: true } source &&
+                        m_sourceViewHost is LifecycleWotViewProjectionHost { RequiresPreparedRetirement: true } views)
+                    {
+                        await RemoveCanonicalProjectionsAsync(source, views, cancellationToken).ConfigureAwait(false);
+                        return;
+                    }
+                    var cleanupFailures = new List<Exception>();
+                    foreach (ClosureState state in m_closures.Values.ToArray())
                     {
                         // Deactivate bindings before removing the projection (before
                         // retirement / unload), then release the projection handle.
@@ -506,6 +505,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
                             await m_binders.DeactivateAsync(plan, cancellationToken)
                                 .ConfigureAwait(false);
                         }
+
                         foreach (WotViewProjectionHandle viewHandle in state.ViewHandles)
                         {
                             await m_viewHost.RemoveAsync(viewHandle, cancellationToken)
@@ -513,11 +513,36 @@ namespace Opc.Ua.WotCon.Server.Materialization
                         }
                         if (state.Handle is not null)
                         {
-                            await m_host.RemoveAsync(state.Handle, cancellationToken)
+                            LifecycleResult? removal = await m_host.RemoveAsync(state.Handle, cancellationToken)
                                 .ConfigureAwait(false);
+                            m_closures.Remove(state.Key);
+                            if (removal is not null)
+                            {
+                                if (removal.CleanupFailure is { } failure)
+                                {
+                                    cleanupFailures.Add(failure);
+                                }
+                                try
+                                {
+                                    await removal.Retired.ConfigureAwait(false);
+                                }
+                                catch (Exception retirementFailure) when (retirementFailure is not OutOfMemoryException)
+                                {
+                                    cleanupFailures.Add(retirementFailure);
+                                }
+                            }
+                        }
+                        else
+                        {
+                            m_closures.Remove(state.Key);
                         }
                     }
                     m_closures.Clear();
+                    if (cleanupFailures.Count != 0)
+                    {
+                        throw new AggregateException("Projection removal committed with cleanup failures.",
+                            cleanupFailures);
+                    }
                 }
                 finally
                 {
@@ -540,7 +565,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
         /// successful version switch.
         /// </summary>
         public WotProjectionRetirementPolicy RetirementPolicy { get; set; } =
-            WotProjectionRetirementPolicy.Graceful;
+            WotProjectionRetirementPolicy.Migrate;
 
         /// <summary>
         /// Gets the binding capability snapshots advertised by the registered
@@ -877,7 +902,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
                 {
                     if (previous.Handle is { } retiredHandle && !ReferenceEquals(retiredHandle, tracked.Handle))
                     {
-                        await m_host.RemoveAsync(retiredHandle, cancellationToken).ConfigureAwait(false);
+                        ProjectionCaptureAdapter.RecordRemoval(m_preparing!, retiredHandle);
                     }
                     ClosureStates.Remove(previous.Key);
                 }
@@ -1234,7 +1259,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
                         handle = await m_host.AddAsync(document, cancellationToken)
                             .ConfigureAwait(false);
                     }
-                    else if (capture.RetirementPolicy == WotProjectionRetirementPolicy.Immediate)
+                    else if (capture.RetirementPolicy == WotProjectionRetirementPolicy.Invalidate)
                     {
                         handle = await m_host.ImmediateReloadAsync(
                             tracked.Handle, document, cancellationToken).ConfigureAwait(false);
@@ -1403,6 +1428,53 @@ namespace Opc.Ua.WotCon.Server.Materialization
                 ByteString.From(aggregateDigest));
         }
 
+        /// <summary>
+        /// Removes runtime sources and the canonical View owner without changing durable intent.
+        /// </summary>
+        private async ValueTask RemoveCanonicalProjectionsAsync(
+            IWotInvocationProjectionHost source, LifecycleWotViewProjectionHost views,
+            CancellationToken cancellationToken)
+        {
+            IWotProjectionPublicationCapture capture = source.CapturePublication();
+            IWotProjectionPublication writer = await capture.BeginAsync(cancellationToken)
+                .ConfigureAwait(false);
+            await using var writerLifetime = writer.ConfigureAwait(false);
+            IWotPreparedViewPublication retirement = await views.PrepareRetirementAsync(
+                CommittedPublication, cancellationToken).ConfigureAwait(false);
+            await using var retirementLifetime = retirement.ConfigureAwait(false);
+            ArrayOf<WotProjectionChange> changes = m_closures.Values
+                .Where(state => state.Handle is not null)
+                .Select(state => WotProjectionChange.Remove(state.Handle!)).ToArrayOf();
+            IWotPreparedProjectionPublication prepared = await writer.PrepareAsync(
+                changes, retirement, cancellationToken).ConfigureAwait(false);
+            await using var preparedLifetime = prepared.ConfigureAwait(false);
+            foreach (ClosureState state in m_closures.Values)
+            {
+                foreach (WotBindingPlan plan in state.BindingPlans)
+                {
+                    await m_sourceBinders.DeactivateAsync(plan, cancellationToken).ConfigureAwait(false);
+                }
+            }
+            await prepared.CommitAsync(static _ => default, () =>
+            {
+                retirement.OnPublished(CommittedPublication);
+                m_closures.Clear();
+            }, cancellationToken).ConfigureAwait(false);
+            Exception? failure = prepared.CleanupFailure;
+            try
+            {
+                await prepared.Retired.ConfigureAwait(false);
+            }
+            catch (Exception retirementFailure) when (retirementFailure is not OutOfMemoryException)
+            {
+                failure = failure is null ? retirementFailure : new AggregateException(failure, retirementFailure);
+            }
+            if (failure is not null)
+            {
+                System.Runtime.ExceptionServices.ExceptionDispatchInfo.Capture(failure).Throw();
+            }
+        }
+
         private async ValueTask<(int Retired, ImmutableArray<WoTResourceLoadResultDataType> Results)>
             ReconcileRetirementsAsync(
             HashSet<string> targetKeys,
@@ -1420,12 +1492,12 @@ namespace Opc.Ua.WotCon.Server.Materialization
                     if (state.Handle is not null)
                     {
                         retired++;
-                        foreach (ClosureMemberState member in state.Members)
-                        {
-                            results.Add(RetiredResult(member, generation));
-                        }
                         if (dryRun)
                         {
+                            foreach (ClosureMemberState member in state.Members)
+                            {
+                                results.Add(RetiredResult(member, generation));
+                            }
                             continue;
                         }
                         // Deactivate bindings before retiring the projection.
@@ -1434,8 +1506,34 @@ namespace Opc.Ua.WotCon.Server.Materialization
                             await m_binders.DeactivateAsync(plan, cancellationToken)
                                 .ConfigureAwait(false);
                         }
-                        await m_host.RemoveAsync(state.Handle, cancellationToken)
+                        LifecycleResult? removal = await m_host.RemoveAsync(state.Handle, cancellationToken)
                             .ConfigureAwait(false);
+                        state.Handle = null;
+                        Exception? removalFailure = removal?.CleanupFailure;
+                        if (removal is not null)
+                        {
+                            try
+                            {
+                                await removal.Retired.ConfigureAwait(false);
+                            }
+                            catch (Exception retirementFailure) when (retirementFailure is not OutOfMemoryException)
+                            {
+                                removalFailure = removalFailure is null
+                                    ? retirementFailure
+                                    : new AggregateException(removalFailure, retirementFailure);
+                            }
+                        }
+                        foreach (ClosureMemberState member in state.Members)
+                        {
+                            WoTResourceLoadResultDataType result = RetiredResult(member, generation);
+                            if (removalFailure is not null)
+                            {
+                                result.Outcome = WoTOutcomeEnum.Warning;
+                                result.Message += " Removal committed; cleanup failed: " +
+                                    DescribeCommittedFailure(removalFailure);
+                            }
+                            results.Add(result);
+                        }
                     }
                     if (!dryRun)
                     {
@@ -1528,13 +1626,13 @@ namespace Opc.Ua.WotCon.Server.Materialization
         /// Returns <c>NodeId.Null</c> when there is no root or the namespace table is
         /// unavailable or does not yet contain the owning namespace.
         /// </summary>
-        private NodeId ResolveRootNodeId(ExpandedNodeId root)
+        private NodeId ResolveRootNodeId(ExpandedNodeId root, NamespaceTable? namespaceUris = null)
         {
             if (root.IsNull)
             {
                 return NodeId.Null;
             }
-            NamespaceTable? namespaces = ServerNamespaceUris;
+            NamespaceTable? namespaces = namespaceUris ?? ServerNamespaceUris;
             if (namespaces is null)
             {
                 return NodeId.Null;

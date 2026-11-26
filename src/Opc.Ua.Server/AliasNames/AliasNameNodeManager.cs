@@ -1,34 +1,9 @@
-/* ========================================================================
- * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
@@ -81,7 +56,9 @@ namespace Opc.Ua.Server.AliasNames
     /// to opt out.
     /// </para>
     /// </remarks>
-    public class AliasNameNodeManager : AsyncCustomNodeManager, IAliasNameMaterializerHost
+    public class AliasNameNodeManager :
+        AsyncCustomNodeManager, IAliasNameMaterializerHost, INodeManagerReadinessNotification,
+        INodeManagerReadinessInitializer
     {
         /// <summary>
         /// Initializes a new instance.
@@ -104,7 +81,6 @@ namespace Opc.Ua.Server.AliasNames
             Store = store ?? throw new ArgumentNullException(nameof(store));
             Options = options ?? new AliasNameNodeManagerOptions();
             m_aliasLogger = server.Telemetry.CreateLogger<AliasNameNodeManager>();
-            m_registry = ResolveServerRegistry(server);
             m_localCategoryDispatcher = new AliasNameStoreRegistry();
             m_localCategoryDispatcher.Register(Store);
             m_materializer = new AliasNameNodeMaterializer(
@@ -138,6 +114,21 @@ namespace Opc.Ua.Server.AliasNames
             IDictionary<NodeId, IList<IReference>> externalReferences,
             CancellationToken cancellationToken = default)
         {
+            if (Options.RegisterWithServerRegistry)
+            {
+                NodeManagerGenerationRegistry.TryGet(this, out NodeManagerGeneration? generation);
+                bool replacesRegistration = generation?.Slot.Current?.NodeManager is { } current &&
+                    NodeManagerGenerationRegistry.GetIdentity(current) is AliasNameNodeManager previous &&
+                    Volatile.Read(ref previous.m_registeredWithServer);
+                if (Server is IAliasNameStoreRegistrationValidator validator)
+                {
+                    validator.ValidateAliasNameStoreRegistration(Store, replacesRegistration);
+                }
+                else if (ResolveServerRegistry(Server) is { } registry)
+                {
+                    ValidateRegistryRegistration(registry, Store, replacesRegistration);
+                }
+            }
             await base.CreateAddressSpaceAsync(externalReferences, cancellationToken)
                 .ConfigureAwait(false);
 
@@ -154,21 +145,66 @@ namespace Opc.Ua.Server.AliasNames
 
             m_aliasLogger.MaterializedAliasNameNodes(created.Count);
 
-            if (Options.RegisterWithServerRegistry && m_registry != null)
-            {
-                try
-                {
-                    m_registry.Register(Store);
-                    m_registeredWithServer = true;
-                }
-                catch (InvalidOperationException ex)
-                {
-                    m_aliasLogger.AliasNameStoreCouldNotBeRegisteredWithThe(ex);
-                }
-            }
-
             Store.Changed += OnStoreChanged;
             m_aliasRefresh?.RequestRefresh();
+        }
+
+        /// <inheritdoc/>
+        ValueTask INodeManagerReadinessInitializer.OnServerReadyAsync(
+            NodeManagerReadinessContext readiness,
+            CancellationToken cancellationToken)
+        {
+            return OnServerReadyAsync(cancellationToken);
+        }
+
+        /// <inheritdoc/>
+        public ValueTask OnServerReadyAsync(CancellationToken cancellationToken = default)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            lock (m_registrationLock)
+            {
+                if (m_registrationDisposed)
+                {
+                    throw new ObjectDisposedException(nameof(AliasNameNodeManager));
+                }
+                if (Options.RegisterWithServerRegistry && !m_registeredWithServer)
+                {
+                    IAliasNameStoreRegistry? registry = ResolveServerRegistry(Server);
+                    if (registry is not null)
+                    {
+                        NodeManagerGenerationRegistry.TryGet(this, out NodeManagerGeneration? generation);
+                        ValidateRegistryRegistration(registry, Store, replacesRegisteredStore: false);
+                        if (m_registrationDisposed)
+                        {
+                            throw new ObjectDisposedException(nameof(AliasNameNodeManager));
+                        }
+                        try
+                        {
+                            if (registry is IAliasNameStoreRegistrationProvider registrations)
+                            {
+                                m_registration = registrations.AcquireRegistration(
+                                    Store, generation?.Slot.Id ?? m_registrationOwnerId);
+                            }
+                            else
+                            {
+                                registry.Register(Store);
+                            }
+                            m_registry = registry;
+                            Volatile.Write(ref m_registeredWithServer, true);
+                        }
+                        catch (InvalidOperationException ex)
+                        {
+                            m_aliasLogger.AliasNameStoreCouldNotBeRegisteredWithThe(ex);
+                        }
+                        if (m_registrationDisposed)
+                        {
+                            ReleaseServerRegistration();
+                            throw new ObjectDisposedException(nameof(AliasNameNodeManager));
+                        }
+                    }
+                }
+            }
+            return default;
         }
 
         /// <inheritdoc/>
@@ -176,13 +212,13 @@ namespace Opc.Ua.Server.AliasNames
         {
             if (disposing)
             {
+                lock (m_registrationLock)
+                {
+                    m_registrationDisposed = true;
+                    ReleaseServerRegistration();
+                }
                 m_aliasRefresh?.Dispose();
                 Store.Changed -= OnStoreChanged;
-                if (m_registeredWithServer && m_registry != null)
-                {
-                    m_registry.Unregister(Store);
-                    m_registeredWithServer = false;
-                }
                 m_localCategoryDispatcher.Dispose();
             }
             base.Dispose(disposing);
@@ -196,6 +232,48 @@ namespace Opc.Ua.Server.AliasNames
                 await m_aliasRefresh.DisposeAsync().ConfigureAwait(false);
             }
             await base.DisposeAsyncCore().ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// Checks legacy ownership compatibility without acquiring or exposing any serving registration.
+        /// </summary>
+        internal static void ValidateRegistryRegistration(
+            IAliasNameStoreRegistry registry, IAliasNameStore store, bool replacesRegisteredStore)
+        {
+            if (store is null)
+            {
+                throw new ArgumentNullException(nameof(store));
+            }
+            if (registry is not IAliasNameStoreRegistrationProvider &&
+                (replacesRegisteredStore || registry.Stores.Any(value => ReferenceEquals(value, store))))
+            {
+                throw new NotSupportedException(
+                    "Shared and replacement alias stores require IAliasNameStoreRegistrationProvider.");
+            }
+        }
+
+        /// <summary>
+        /// Releases the current server claim after clearing this manager's ownership.
+        /// </summary>
+        private void ReleaseServerRegistration()
+        {
+            bool registered = m_registeredWithServer;
+            IDisposable? registration = m_registration;
+            IAliasNameStoreRegistry? registry = m_registry;
+            Volatile.Write(ref m_registeredWithServer, false);
+            m_registration = null;
+            m_registry = null;
+            if (registered)
+            {
+                if (registration is not null)
+                {
+                    registration.Dispose();
+                }
+                else
+                {
+                    registry?.Unregister(Store);
+                }
+            }
         }
 
         private async ValueTask RefreshAliasesAsync(long generation, CancellationToken cancellationToken)
@@ -239,6 +317,13 @@ namespace Opc.Ua.Server.AliasNames
         NamespaceTable IAliasNameMaterializerHost.NamespaceUris => Server.NamespaceUris;
 
         StringTable IAliasNameMaterializerHost.ServerUris => Server.ServerUris;
+
+        ushort IAliasNameMaterializerHost.GetServerIndexOrAppend(string serverUri)
+        {
+            ushort index = Server.ServerUris.GetIndexOrAppend(serverUri);
+            ServerUrisVersion.Update(Server);
+            return index;
+        }
 
         ushort IAliasNameMaterializerHost.MaterializationNamespaceIndex => NamespaceIndex;
 
@@ -348,7 +433,6 @@ namespace Opc.Ua.Server.AliasNames
         }
 
         private readonly ILogger m_aliasLogger;
-        private readonly IAliasNameStoreRegistry? m_registry;
         private readonly AliasNameNodeMaterializer m_materializer;
         private readonly AliasNameRefreshCoordinator? m_aliasRefresh;
 
@@ -358,6 +442,22 @@ namespace Opc.Ua.Server.AliasNames
         /// server does not implement IAliasNameStoreRegistryProvider.
         /// </summary>
         private readonly AliasNameStoreRegistry m_localCategoryDispatcher;
+
+        /// <summary>The server registry resolved after publication, when registration is enabled.</summary>
+        private IAliasNameStoreRegistry? m_registry;
+
+        /// <summary>The claim acquired from an ownership-aware server registry after publication.</summary>
+        private IDisposable? m_registration;
+
+        /// <summary>The stable owner identity used when this manager is hosted without the lifecycle service.</summary>
+        private readonly Guid m_registrationOwnerId = Guid.NewGuid();
+
+        /// <summary>Serializes readiness acquisition with release and disposal.</summary>
+        private readonly Lock m_registrationLock = new();
+
+        /// <summary>Prevents registration after disposal, including reentrant provider callbacks.</summary>
+        private bool m_registrationDisposed;
+
         private bool m_registeredWithServer;
         private readonly Lock m_lock = new();
     }

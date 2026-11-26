@@ -1,31 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using System.Threading;
@@ -208,19 +182,28 @@ namespace Opc.Ua
         {
             await Task.CompletedTask.ConfigureAwait(false);
 
+            // a policy may be given by its short name; compare the canonical URI.
+            SecurityPolicyInfo? securityPolicy = string.IsNullOrEmpty(securityPolicyUri)
+                ? null
+                : m_securityPolicies.GetInfo(securityPolicyUri);
+
             // handle no encryption.
             if (string.IsNullOrEmpty(securityPolicyUri) ||
-                securityPolicyUri == SecurityPolicies.None)
+                securityPolicy?.Uri == SecurityPolicies.None)
             {
                 m_token.TokenData = m_decryptedTokenData.ToByteString();
                 m_token.EncryptionAlgorithm = string.Empty;
                 return;
             }
 
-            SecurityPolicyInfo securityPolicy = m_securityPolicies.GetInfo(securityPolicyUri)
-                ?? throw new ServiceResultException(
+            if (securityPolicy == null)
+            {
+                throw new ServiceResultException(
                     StatusCodes.BadSecurityPolicyRejected,
                     "Unknown security policy: " + securityPolicyUri);
+            }
+
+            securityPolicyUri = securityPolicy.Uri;
 
             if (securityPolicy.EphemeralKeyAlgorithm == CertificateKeyAlgorithm.None)
             {
@@ -283,13 +266,27 @@ namespace Opc.Ua
             ICertificateValidatorEx? validator = null,
             CancellationToken ct = default)
         {
+            // a policy may be given by its short name; compare the canonical URI.
+            SecurityPolicyInfo? securityPolicy = string.IsNullOrEmpty(securityPolicyUri)
+                ? null
+                : m_securityPolicies.GetInfo(securityPolicyUri);
+
             // handle no encryption.
             if (string.IsNullOrEmpty(securityPolicyUri) ||
-                securityPolicyUri == SecurityPolicies.None)
+                securityPolicy?.Uri == SecurityPolicies.None)
             {
                 DecryptedTokenData = m_token.TokenData.ToArray();
                 return;
             }
+
+            if (securityPolicy == null)
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadSecurityPolicyRejected,
+                    "Unknown security policy: " + securityPolicyUri);
+            }
+
+            securityPolicyUri = securityPolicy.Uri;
 
             var encryptedData = new EncryptedData
             {
@@ -297,16 +294,45 @@ namespace Opc.Ua
                 Algorithm = m_token.EncryptionAlgorithm
             };
 
-            SecurityPolicyInfo securityPolicy = m_securityPolicies.GetInfo(securityPolicyUri)
-                ?? throw new ServiceResultException(
-                    StatusCodes.BadSecurityPolicyRejected,
-                    "Unknown security policy: " + securityPolicyUri);
-
             if (securityPolicy.EphemeralKeyAlgorithm == CertificateKeyAlgorithm.None)
             {
-                byte[]? decryptedTokenData = await m_securityPolicies
-                    .DecryptAsync(certificate, securityPolicyUri, encryptedData, ct)
-                    .ConfigureAwait(false);
+                // Part 4 §7.40.6: an encrypted IssuedIdentityToken uses the EncryptedSecret
+                // format and the server ignores encryptionAlgorithm. The envelope is
+                // recognized by its RsaEncryptedSecret type id, so the legacy format
+                // (Table 191, raw RSA blocks) still falls back below. TryDecryptRsa throws
+                // the specific cause for any malformed RsaEncryptedSecret.
+                byte[] tokenData = m_token.TokenData.ToArray();
+                if (StartsWithRsaEncryptedSecretTypeId(context, tokenData))
+                {
+                    using var encryptedSecret = EncryptedSecret.CreateForRsa(
+                        context,
+                        securityPolicyUri,
+                        certificate,
+                        receiverNonce);
+                    if (encryptedSecret.TryDecryptRsa(
+                        tokenData,
+                        receiverNonce?.Data,
+                        out byte[]? rsaSecret))
+                    {
+                        IdentityTokenLimits.ThrowIfSecretTooLong(
+                            rsaSecret,
+                            IdentityTokenLimits.MaxIssuedTokenDataLength);
+                        m_decryptedTokenData = rsaSecret;
+                        return;
+                    }
+                }
+
+                // the legacy format decrypts every RSA block of the token data, so
+                // the blocks are bounded to what the longest issued token needs
+                // before the first private-key operation (OPC 10000-4 7.41.2.2).
+                byte[]? decryptedTokenData = await IdentityTokenLimits.DecryptLegacyAsync(
+                    m_securityPolicies,
+                    certificate,
+                    securityPolicyUri,
+                    encryptedData,
+                    IdentityTokenLimits.MaxIssuedTokenDataLength,
+                    receiverNonce,
+                    ct).ConfigureAwait(false);
 
                 // verify the sender's nonce.
                 int startOfNonce = decryptedTokenData!.Length;
@@ -322,6 +348,14 @@ namespace Opc.Ua
                             throw new ServiceResultException(StatusCodes.BadIdentityTokenRejected);
                         }
                     }
+                }
+
+                if (startOfNonce > IdentityTokenLimits.MaxIssuedTokenDataLength)
+                {
+                    Array.Clear(decryptedTokenData, 0, decryptedTokenData.Length);
+                    IdentityTokenLimits.ThrowIfSecretTooLong(
+                        startOfNonce,
+                        IdentityTokenLimits.MaxIssuedTokenDataLength);
                 }
 
                 // copy results.
@@ -352,6 +386,9 @@ namespace Opc.Ua
                     "Failed to decrypt IssuedIdentityToken token data using ECC encrypted secret.");
             }
 
+            IdentityTokenLimits.ThrowIfSecretTooLong(
+                decryptedSecret,
+                IdentityTokenLimits.MaxIssuedTokenDataLength);
             m_decryptedTokenData = decryptedSecret;
         }
 
@@ -400,6 +437,34 @@ namespace Opc.Ua
         }
 
         private byte[]? m_decryptedTokenData;
+
+        /// <summary>
+        /// Returns <c>true</c> when the token data starts with a binary encoded
+        /// RsaEncryptedSecret type id, i.e. it is an EncryptedSecret envelope and not
+        /// legacy RSA blocks (whose random leading bytes match with negligible probability).
+        /// </summary>
+        private static bool StartsWithRsaEncryptedSecretTypeId(
+            IServiceMessageContext context,
+            byte[] tokenData)
+        {
+            // decode the type id so every valid NodeId encoding is recognized; data that
+            // does not decode is not an EncryptedSecret and stays on the legacy path.
+            if (tokenData.Length < 8)
+            {
+                return false;
+            }
+
+            try
+            {
+                using var decoder = new BinaryDecoder(tokenData, context);
+                return decoder.ReadNodeId(null) == DataTypeIds.RsaEncryptedSecret;
+            }
+            catch (ServiceResultException)
+            {
+                return false;
+            }
+        }
+
         private readonly IssuedIdentityToken m_token;
         private readonly ISecurityPolicyRegistry m_securityPolicies;
         private readonly Func<SecurityPolicyInfo, Nonce> m_nonceFactory = Nonce.CreateNonce;

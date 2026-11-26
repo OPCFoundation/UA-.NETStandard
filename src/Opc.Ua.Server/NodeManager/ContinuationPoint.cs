@@ -1,33 +1,9 @@
-/* ========================================================================
- * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
+using System.Collections.Concurrent;
+using System.Collections.Generic;
 using System.Threading;
 
 namespace Opc.Ua.Server
@@ -35,7 +11,10 @@ namespace Opc.Ua.Server
     /// <summary>
     /// The parameters, state, and generation ownership of a resumable Browse operation.
     /// </summary>
-    /// <remarks>This class is thread safe.</remarks>
+    /// <remarks>
+    /// The mutable properties and their referenced data are not synchronized by this class. The owner must
+    /// serialize access to them, including changes made while the point is being disposed.
+    /// </remarks>
     public class ContinuationPoint : IDisposable
     {
         /// <summary>
@@ -46,28 +25,7 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
-        /// Reports whether the exact manager is the source or a captured dependency of this point.
-        /// Session ownership trackers must use this query rather than compare only <see cref="Manager"/>.
-        /// </summary>
-        /// <param name="nodeManager">The node manager to look for.</param>
-        /// <returns><c>true</c> if the manager is the source or a captured dependency.</returns>
-        public bool RequiresManager(IAsyncNodeManager nodeManager)
-        {
-            if (nodeManager is null)
-            {
-                throw new ArgumentNullException(nameof(nodeManager));
-            }
-            if (MatchesManager(Manager, nodeManager))
-            {
-                return true;
-            }
-            IAsyncNodeManager[]? dependencies = Volatile.Read(ref m_dependencyOwners);
-            return dependencies is not null && Array.Exists(
-                dependencies, owner => MatchesManager(owner, nodeManager));
-        }
-
-        /// <summary>
-        /// Frees any unmanaged resources.
+        /// Disposes the continuation point.
         /// </summary>
         public void Dispose()
         {
@@ -93,7 +51,7 @@ namespace Opc.Ua.Server
                 }
                 finally
                 {
-                    RoutingSnapshot = null;
+                    Generation = null;
                     owner?.Invoke();
                 }
             }
@@ -127,32 +85,194 @@ namespace Opc.Ua.Server
         public Guid Id { get; set; }
 
         /// <summary>
-        /// The node manager that created the continuation point.
+        /// Gets the manager associated with the recorded generation or assigns a manager to record its identity.
         /// </summary>
-        public IAsyncNodeManager Manager { get; set; } = null!;
-
-        /// <summary>
-        /// Gets or sets the routing snapshot captured when the continuation was created, used to resume against the
-        /// same node manager generations.
-        /// </summary>
-        internal NodeManagerRoutingTable.RoutingSnapshot? RoutingSnapshot { get; set; }
-
-        /// <summary>
-        /// Gets whether the node managers the continuation depends on have been captured.
-        /// </summary>
-        internal bool HasCapturedDependencies => Volatile.Read(ref m_dependencyOwners) is not null;
-
-        /// <summary>
-        /// Captures the node managers the continuation depends on. This can be done only once.
-        /// </summary>
-        /// <param name="owners">The node managers retained for the lifetime of the continuation point.</param>
-        internal void SetDependencyOwners(ArrayOf<IAsyncNodeManager> owners)
+        /// <remarks>
+        /// The getter can return <c>null</c> when the weak generation identity no longer resolves. Assigning a stack
+        /// adapter can record a generation owned by its wrapped manager, so the getter can return a different manager
+        /// from the one assigned. The base disposal implementation clears the identity, but a later assignment can
+        /// set it again.
+        /// </remarks>
+        /// <exception cref="ArgumentNullException">The assigned manager is <c>null</c>.</exception>
+        public IAsyncNodeManager Manager
         {
-            if (Interlocked.CompareExchange(ref m_dependencyOwners, owners.ToArray(), null) is not null)
+            get => Generation?.TryGetGeneration(out NodeManagerGeneration? generation) == true &&
+                generation is not null
+                ? generation.NodeManager
+                : null!;
+            set
             {
-                throw new InvalidOperationException("The Browse dependencies have already been captured.");
+                if (value is null)
+                {
+                    throw new ArgumentNullException(nameof(value));
+                }
+                Generation = NodeManagerGenerationRegistry.GetOrCreate(value).Reference;
             }
         }
+
+        /// <summary>
+        /// Gets or sets the weak identity of the generation recorded for this continuation.
+        /// It does not keep the generation or its manager alive.
+        /// </summary>
+        internal NodeManagerGenerationReference? Generation { get; set; }
+
+        /// <summary>
+        /// Captures override generation identities without retaining a routing view or its managers.
+        /// </summary>
+        internal IReadOnlyDictionary<NodeId, NodeManagerGenerationReference>? OverrideOwners { get; set; }
+
+        /// <summary>
+        /// Tracks local targets observed by the browser without retaining their owning generations.
+        /// </summary>
+        internal ConcurrentDictionary<NodeId, byte> OverrideTargets { get; set; } = new();
+
+        /// <summary>
+        /// Validates previously observed targets before resuming a saved browser.
+        /// </summary>
+        internal void ValidateOverrideTargets(NodeManagerRoutingTable.RoutingSnapshot snapshot)
+        {
+            foreach (NodeId nodeId in OverrideTargets.Keys)
+            {
+                ValidateOverrideOwner(snapshot, nodeId);
+            }
+        }
+
+        /// <summary>
+        /// Rejects a saved browser before it can evaluate an unseen or lazy override dependency.
+        /// </summary>
+        internal void ValidateOverrideOwners(NodeManagerRoutingTable.RoutingSnapshot snapshot)
+        {
+            if (OverrideOwners is null)
+            {
+                return;
+            }
+
+            foreach (NodeId nodeId in OverrideOwners.Keys)
+            {
+                ValidateOverrideOwner(snapshot, nodeId);
+            }
+            foreach (NodeId nodeId in snapshot.NodeOverrides.Keys)
+            {
+                ValidateOverrideOwner(snapshot, nodeId);
+            }
+        }
+
+        /// <summary>
+        /// Captures and validates the source's stored references for targets affected by an override.
+        /// </summary>
+        internal void ValidateOverrideReferences(
+            NodeManagerRoutingTable.RoutingSnapshot snapshot,
+            NodeState source,
+            ISystemContext context)
+        {
+            ArrayOf<IReference> current = source.CaptureStoredReferences(context);
+            m_referenceCheck.Validate(this, snapshot, current);
+        }
+
+        /// <summary>
+        /// Shares dependency state when a manager replaces its continuation object.
+        /// </summary>
+        internal void ShareOverrideDependencies(ContinuationPoint previous)
+        {
+            OverrideTargets = previous.OverrideTargets;
+            m_referenceCheck = previous.m_referenceCheck;
+        }
+
+        /// <summary>
+        /// Rejects a target whose override owner changed since the browser was created.
+        /// </summary>
+        internal void ValidateOverrideTarget(
+            NodeManagerRoutingTable.RoutingSnapshot snapshot,
+            ExpandedNodeId targetId)
+        {
+            if (targetId.IsAbsolute)
+            {
+                return;
+            }
+            var nodeId = (NodeId)targetId;
+            ValidateOverrideOwner(snapshot, nodeId);
+            OverrideTargets.TryAdd(nodeId, 0);
+        }
+
+        private void ValidateOverrideOwner(NodeManagerRoutingTable.RoutingSnapshot snapshot, NodeId nodeId)
+        {
+            NodeManagerGenerationReference? previous = null;
+            OverrideOwners?.TryGetValue(nodeId, out previous);
+            NodeManagerGenerationReference? current = snapshot.NodeOverrides.TryGetValue(
+                nodeId, out IAsyncNodeManager? owner)
+                ? snapshot.GetGeneration(owner).Reference
+                : null;
+            if (!ReferenceEquals(previous, current))
+            {
+                throw new ServiceResultException(StatusCodes.BadContinuationPointInvalid);
+            }
+        }
+
+        private bool IsOverrideDependency(
+            NodeManagerRoutingTable.RoutingSnapshot snapshot,
+            ExpandedNodeId targetId)
+        {
+            if (targetId.IsAbsolute)
+            {
+                return false;
+            }
+            var nodeId = (NodeId)targetId;
+            return OverrideOwners?.ContainsKey(nodeId) == true || snapshot.NodeOverrides.ContainsKey(nodeId);
+        }
+
+        private sealed class ReferenceCheck
+        {
+            /// <summary>
+            /// Captures the initial references and rejects changes to override dependencies.
+            /// </summary>
+            internal void Validate(
+                ContinuationPoint point,
+                NodeManagerRoutingTable.RoutingSnapshot snapshot,
+                ArrayOf<IReference> current)
+            {
+                lock (m_lock)
+                {
+                    if (!m_initialized)
+                    {
+                        m_references = current;
+                        m_initialized = true;
+                        return;
+                    }
+                    var previous = new ReferenceDictionary<bool>();
+                    var next = new ReferenceDictionary<bool>();
+                    foreach (IReference reference in m_references)
+                    {
+                        previous[reference] = true;
+                    }
+                    foreach (IReference reference in current)
+                    {
+                        next[reference] = true;
+                    }
+                    foreach (IReference reference in previous.Keys)
+                    {
+                        if (point.IsOverrideDependency(snapshot, reference.TargetId) &&
+                            !next.ContainsKey(reference))
+                        {
+                            throw new ServiceResultException(StatusCodes.BadContinuationPointInvalid);
+                        }
+                    }
+                    foreach (IReference reference in next.Keys)
+                    {
+                        if (point.IsOverrideDependency(snapshot, reference.TargetId) &&
+                            !previous.ContainsKey(reference))
+                        {
+                            throw new ServiceResultException(StatusCodes.BadContinuationPointInvalid);
+                        }
+                    }
+                }
+            }
+
+            private readonly Lock m_lock = new();
+            private bool m_initialized;
+            private ArrayOf<IReference> m_references;
+        }
+
+        private ReferenceCheck m_referenceCheck = new();
 
         /// <summary>
         /// The view being browsed.
@@ -205,15 +325,13 @@ namespace Opc.Ua.Server
         public int Index { get; set; }
 
         /// <summary>
-        /// Node manager specific data that is necessary to continue the browse.
+        /// Gets or sets node-manager-specific data used to continue the browse.
         /// </summary>
         /// <remarks>
-        /// A node manager needs to hold onto unmanaged resources to continue the browse.
-        /// If this is the case then the object stored here must implement the Idispose
-        /// interface. This will ensure the unmanaged resources are freed if the continuation
-        /// point expires.
-        /// For pagination, the data must also implement <see cref="IBrowseContinuationDependencies"/>
-        /// and declare every remaining dependency before the point is saved.
+        /// If the data owns resources that need disposal, it must implement <see cref="IDisposable"/>. The base
+        /// disposal implementation calls <see cref="IDisposable.Dispose"/> at most once and does not clear this
+        /// property. The data can therefore retain a manager or other objects after disposal. If disposal starts
+        /// asynchronous cleanup, its completion must be coordinated separately.
         /// </remarks>
         public object? Data { get; set; }
 
@@ -276,22 +394,7 @@ namespace Opc.Ua.Server
             }
         }
 
-        /// <summary>
-        /// Determines whether a node manager is the same owner as, or the synchronous node manager behind, the
-        /// specified candidate.
-        /// </summary>
-        /// <param name="owner">The retained owner, or null.</param>
-        /// <param name="candidate">The node manager to compare against.</param>
-        /// <returns>True if both refer to the same node manager.</returns>
-        private static bool MatchesManager(IAsyncNodeManager? owner, IAsyncNodeManager candidate)
-        {
-            return ReferenceEquals(owner, candidate) ||
-                (owner?.SyncNodeManager is { } syncManager &&
-                    ReferenceEquals(syncManager, candidate.SyncNodeManager));
-        }
-
         private static readonly Action s_disposedOwner = static () => { };
         private Action? m_ownerRelease;
-        private IAsyncNodeManager[]? m_dependencyOwners;
     }
 }

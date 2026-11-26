@@ -1,0 +1,21 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFrameworks>$(TestsTargetFrameworks)</TargetFrameworks>
+    <RootNamespace>Opc.Ua.ECM.Tests</RootNamespace>
+    <GenerateProgramFile>false</GenerateProgramFile>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="BenchmarkDotNet" />
+    <PackageReference Include="Microsoft.NET.Test.Sdk" />
+    <PackageReference Include="Moq" />
+    <PackageReference Include="NUnit" />
+    <PackageReference Include="NUnit.Analyzers" PrivateAssets="all" />
+    <PackageReference Include="NUnit3TestAdapter" PrivateAssets="all" />
+    <PackageReference Include="coverlet.collector" PrivateAssets="all" />
+    <Compile Include="..\Common\Main.cs" />
+    <ProjectReference Include="..\..\src\Opc.Ua.ECM.Server\Opc.Ua.ECM.Server.csproj" />
+    <ProjectReference Include="..\..\src\Opc.Ua.ECM.Client\Opc.Ua.ECM.Client.csproj" />
+    <ProjectReference Include="..\Opc.Ua.Test.Common\Opc.Ua.Test.Common.csproj" />
+  </ItemGroup>
+</Project>

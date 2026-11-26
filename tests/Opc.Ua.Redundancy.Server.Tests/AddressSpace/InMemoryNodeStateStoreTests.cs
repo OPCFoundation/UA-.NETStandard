@@ -1,31 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 // CA2000: system-under-test disposables are created per test and released at teardown;
 //   there is no cross-test resource leak. Suppressed file-level for the suite.
@@ -84,6 +58,180 @@ namespace Opc.Ua.Server.Tests.Redundancy
                 ServerUris = messageContext.ServerUris,
                 EncodeableFactory = messageContext.Factory
             };
+        }
+
+        /// <summary>
+        /// A guarded storage commit rejects a paused operation once the next grant has committed.
+        /// </summary>
+        [TestCase("reservation", InMemoryNodeStateStore.SequenceKey, 1)]
+        [TestCase("upsert", "n/", 1)]
+        [TestCase("value", "v/", 1)]
+        [TestCase("delta", "dlog/", 1)]
+        [TestCase("completion", InMemoryNodeStateStore.SequenceKey, 2)]
+        [TestCase("partition", "partition/", 1)]
+        [TestCase("snapshot", "snap/", 1)]
+        [TestCase("manifest", "snapmeta/manifest", 1)]
+        [TestCase("snapshot", "dlog/", 1)]
+        public async Task SupersededWriterCannotCommitAddressSpaceMutationAsync(
+            string operation,
+            string targetPrefix,
+            int occurrence)
+        {
+            const string guardKey = "election/test-grant";
+            using var storage = new InMemorySharedKeyValueStore();
+            var oldGrant = new ByteString(new byte[] { 1 });
+            var newGrant = new ByteString(new byte[] { 2 });
+            await storage.SetAsync(guardKey, oldGrant).ConfigureAwait(false);
+            var nodeId = new NodeId("fenced", 1);
+            using var store = new InMemoryNodeStateStore(storage, m_messageContext);
+            if (operation == "snapshot")
+            {
+                await store.UpsertNodeAsync(new StoredNode(nodeId, oldGrant)).ConfigureAwait(false);
+            }
+            var entered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var release = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            int matches = 0;
+            var gated = new Mock<IDeadlineGuardedSharedKeyValueStore>(MockBehavior.Strict);
+            gated.SetupGet(s => s.SupportsGuardedDeadlines).Returns(true);
+            gated.Setup(s => s.TryGetAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+                .Returns((string key, CancellationToken ct) => storage.TryGetAsync(key, ct));
+            gated.Setup(s => s.ScanAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+                .Returns((string prefix, CancellationToken ct) => storage.ScanAsync(prefix, ct));
+            gated.Setup(s => s.CompareAndSwapBeforeAsync(
+                    It.IsAny<string>(), It.IsAny<ByteString>(), It.IsAny<ByteString>(),
+                    It.IsAny<string>(), It.IsAny<ByteString>(), It.IsAny<DateTimeOffset>(),
+                    It.IsAny<CancellationToken>()))
+                .Returns(async (string key, ByteString expected, ByteString value,
+                    string guard, ByteString grant, DateTimeOffset deadline, CancellationToken ct) =>
+                {
+                    if (key.StartsWith(targetPrefix, StringComparison.Ordinal) &&
+                        Interlocked.Increment(ref matches) == occurrence)
+                    {
+                        entered.TrySetResult(true);
+                        await release.Task.WaitAsync(ct).ConfigureAwait(false);
+                    }
+                    return await storage.CompareAndSwapBeforeAsync(key, expected, value, guard, grant, deadline, ct)
+                        .ConfigureAwait(false);
+                });
+            var view = new FencedAddressSpaceWriteView(
+                gated.Object, storage, guardKey, () => new SharedStoreWriteGrant(oldGrant, DateTimeOffset.MaxValue));
+            using InMemoryNodeStateStore writer = store.CreateWriter(view);
+            Task mutation = operation switch
+            {
+                "value" => writer.WriteValueAsync(nodeId, new DataValue(new Variant(1))).AsTask(),
+                "partition" => ((INodeStatePartitionStore)writer).MarkPartitionInitializedAsync("test").AsTask(),
+                "manifest" or "snapshot" => writer.WriteSnapshotAsync().AsTask(),
+                _ => writer.UpsertNodeAsync(new StoredNode(nodeId, oldGrant)).AsTask()
+            };
+            Dictionary<string, ByteString> before;
+            try
+            {
+                await entered.Task.WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
+                await storage.SetAsync(guardKey, newGrant).ConfigureAwait(false);
+                before = await ReadStoreAsync(storage).ConfigureAwait(false);
+            }
+            finally
+            {
+                release.TrySetResult(true);
+            }
+            await Assert.ThatAsync(
+                async () => await mutation.WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false),
+                Throws.TypeOf<ServiceResultException>().With.Property(nameof(ServiceResultException.StatusCode))
+                    .EqualTo(StatusCodes.BadNotWritable)).ConfigureAwait(false);
+            Assert.That(await ReadStoreAsync(storage).ConfigureAwait(false), Is.EquivalentTo(before));
+        }
+
+        private static async Task<Dictionary<string, ByteString>> ReadStoreAsync(ISharedKeyValueStore store)
+        {
+            var records = new Dictionary<string, ByteString>(StringComparer.Ordinal);
+            await foreach (KeyValuePair<string, ByteString> record in store.ScanAsync(string.Empty).ConfigureAwait(false))
+            {
+                records.Add(record.Key, record.Value);
+            }
+            return records;
+        }
+
+        /// <summary>
+        /// The managed registry's unbound view cannot write nodes, values, or publication metadata.
+        /// </summary>
+        [Test]
+        public async Task ManagedDistributedStoreRejectsUnboundWritesAsync()
+        {
+            using var storage = new SimulatedSharedKeyValueStore();
+            using var store = new InMemoryNodeStateStore(
+                storage, m_messageContext, null, default, requireWriterGeneration: true);
+            var nodeId = new NodeId("managed", 1);
+            Func<ValueTask>[] mutations =
+            [
+                () => store.UpsertNodeAsync(new StoredNode(nodeId, new ByteString(new byte[] { 1 }))),
+                () => store.WriteValueAsync(nodeId, new DataValue(new Variant(1))),
+                () => ((INodeStatePartitionStore)store).MarkPartitionInitializedAsync("partition"),
+                () => store.WriteSnapshotAsync()
+            ];
+            foreach (Func<ValueTask> mutate in mutations)
+            {
+                await Assert.ThatAsync(
+                    async () => await mutate().ConfigureAwait(false),
+                    Throws.TypeOf<ServiceResultException>().With.Property(nameof(ServiceResultException.StatusCode))
+                        .EqualTo(StatusCodes.BadNotWritable)).ConfigureAwait(false);
+            }
+            Assert.That(await ReadStoreAsync(storage).ConfigureAwait(false), Is.Empty);
+        }
+
+        /// <summary>
+        /// Managed cache writes use the owning synchronizer's committed grant, not the unbound registry.
+        /// </summary>
+        [Test]
+        public async Task ManagedCachePublishesThroughCommittedGrantAsync()
+        {
+            using var payload = new InMemorySharedKeyValueStore();
+            using var authority = new InMemorySharedKeyValueStore();
+            Mock<ISharedKeyValueStore> simulated = CreateStoreMock(authority);
+            simulated.As<ISharedKeyValueStoreConsistency>()
+                .Setup(s => s.IsProcessLocal(It.IsAny<string>())).Returns(false);
+            Mock<IDeadlineGuardedSharedKeyValueStore> guarded = simulated.As<IDeadlineGuardedSharedKeyValueStore>();
+            guarded.SetupGet(s => s.SupportsGuardedDeadlines).Returns(true);
+            guarded.Setup(s => s.CompareAndSwapBeforeAsync(
+                    It.IsAny<string>(), It.IsAny<ByteString>(), It.IsAny<ByteString>(),
+                    It.IsAny<string>(), It.IsAny<ByteString>(), It.IsAny<DateTimeOffset>(),
+                    It.IsAny<CancellationToken>()))
+                .Returns((string key, ByteString expected, ByteString value,
+                    string guard, ByteString grant, DateTimeOffset deadline, CancellationToken ct) =>
+                    authority.CompareAndSwapBeforeAsync(key, expected, value, guard, grant, deadline, ct));
+            using var protector = new AesCbcHmacRecordProtector(new byte[32]);
+            var shared = new FreshnessProtectedKeyValueStore(
+                payload, simulated.Object, protector, Guid.NewGuid(), Guid.NewGuid());
+            await shared.EnrollAsync().ConfigureAwait(false);
+            await using var election = new SharedStoreLeaseElection(
+                shared, "election/test", "writer", ["writer"], TimeSpan.FromMinutes(1), TimeSpan.FromSeconds(15));
+            Assert.That(await election.TryAcquireOrRenewAsync().ConfigureAwait(false), Is.True);
+
+            var local = new DictionaryAddressSpace(new SystemContext(m_messageContext.Telemetry)
+            {
+                NamespaceUris = m_messageContext.NamespaceUris,
+                ServerUris = m_messageContext.ServerUris,
+                EncodeableFactory = m_messageContext.Factory
+            });
+            AddressSpaceSynchronizer? writer = null;
+            using var registry = new InMemoryNodeStateStore(
+                shared, m_messageContext, protector, default, requireWriterGeneration: true,
+                publishManagedValue: (id, value, ct) => writer!.PublishManagedValueAsync(id, value, ct));
+            await using var synchronizer = new AddressSpaceSynchronizer(registry, local, election);
+            writer = synchronizer;
+            await synchronizer.SeedOrHydrateAsync().ConfigureAwait(false);
+            synchronizer.Start();
+            Assert.That(synchronizer.IsWriter, Is.True);
+            var nodeId = new NodeId("cached", NamespaceIndex);
+            await registry.WriteValueAsync(nodeId, new DataValue(new Variant(9))).ConfigureAwait(false);
+
+            (bool found, DataValue cached) = await registry.TryReadValueAsync(nodeId).ConfigureAwait(false);
+            Assert.That(found, Is.True);
+            Assert.That(cached.WrappedValue, Is.EqualTo(new Variant(9)));
+            guarded.Verify(s => s.CompareAndSwapBeforeAsync(
+                It.Is<string>(key => key.EndsWith("/generation/v/" + nodeId, StringComparison.Ordinal)),
+                It.IsAny<ByteString>(), It.IsAny<ByteString>(),
+                It.Is<string>(key => key.EndsWith("/election/test", StringComparison.Ordinal)),
+                It.IsAny<ByteString>(), It.IsAny<DateTimeOffset>(), It.IsAny<CancellationToken>()), Times.Once);
         }
 
         [Test]
@@ -1156,8 +1304,7 @@ namespace Opc.Ua.Server.Tests.Redundancy
             await using var network = new InMemoryNetwork();
             await using var crdt = new ReplicatedSharedKeyValueStore(
                 ReplicaId.New(), network.CreateTransport(), TimeProvider.System, CrdtReaderOptions.Default);
-            await using var coordinator = new RaftSharedKeyValueStore(
-                DefaultRaftConsensus.CreateSingleNode(), ownsConsensus: true);
+            using var coordinator = new SimulatedSharedKeyValueStore();
             await using var hybrid = new HybridSharedKeyValueStore(crdt, coordinator);
             var baseline = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
             Mock<ISharedKeyValueStore> observed = CreateStoreMock(hybrid);
@@ -1229,8 +1376,7 @@ namespace Opc.Ua.Server.Tests.Redundancy
                 network.CreateTransport(),
                 TimeProvider.System,
                 CrdtReaderOptions.Default);
-            await using var coordinator = new RaftSharedKeyValueStore(
-                DefaultRaftConsensus.CreateSingleNode(), ownsConsensus: true);
+            using var coordinator = new SimulatedSharedKeyValueStore();
             await using var hybrid = new HybridSharedKeyValueStore(crdt, coordinator);
             using var store = new InMemoryNodeStateStore(
                 hybrid,
@@ -1264,8 +1410,7 @@ namespace Opc.Ua.Server.Tests.Redundancy
             await using var network = new InMemoryNetwork();
             await using var crdt = new ReplicatedSharedKeyValueStore(
                 ReplicaId.New(), network.CreateTransport(), TimeProvider.System, CrdtReaderOptions.Default);
-            await using var coordinator = new RaftSharedKeyValueStore(
-                DefaultRaftConsensus.CreateSingleNode(), ownsConsensus: true);
+            using var coordinator = new SimulatedSharedKeyValueStore();
             await using var hybrid = new HybridSharedKeyValueStore(crdt, coordinator);
             using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(15));
             var nodeId = new NodeId("delayed", NamespaceIndex);

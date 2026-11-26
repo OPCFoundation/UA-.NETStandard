@@ -1,34 +1,9 @@
-/* ========================================================================
- * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using System.Collections.Generic;
+using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
@@ -54,10 +29,10 @@ namespace Opc.Ua.Types.Tests.State
         /// </summary>
         [TestCase(false)]
         [TestCase(true)]
-        public async Task EventDiamondVisitsEachNodeOncePerPublicationAsync(bool synchronous)
+        public async Task EventDiamondNotifiesEachNodeOnceButCallsTheRootOverrideForEachPathAsync(bool synchronous)
         {
             SystemContext context = CreateSystemContext();
-            var root = new BaseObjectState(null);
+            var root = new PairedEventNode(null);
             var parent = new BaseObjectState(root);
             var alternate = new BaseObjectState(root);
             var source = new BaseObjectState(parent);
@@ -88,6 +63,8 @@ namespace Opc.Ua.Types.Tests.State
             Assert.That(parents, Is.EqualTo(2));
             Assert.That(alternates, Is.EqualTo(2));
             Assert.That(sources, Is.EqualTo(2));
+            Assert.That(root.SyncReports, Is.EqualTo(synchronous ? 4 : 0));
+            Assert.That(root.AsyncReports, Is.EqualTo(synchronous ? 0 : 4));
         }
 
         /// <summary>
@@ -151,6 +128,103 @@ namespace Opc.Ua.Types.Tests.State
             Assert.That(reports, Is.EqualTo(2));
         }
 
+        /// <summary>
+        /// A captured callback context retains the event graph only while its publication is active.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task CapturedEventContextReleasesCompletedEventGraphAsync(bool completed)
+        {
+            (Task publication, TaskCompletionSource<bool> release,
+                Task<ExecutionContext> entered, WeakReference occurrence, WeakReference owner) =
+                StartCapturedEventPublication();
+            ExecutionContext? captured = null;
+            try
+            {
+                captured = await entered.WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
+                if (completed)
+                {
+                    release.TrySetResult(true);
+                    await publication.ConfigureAwait(false);
+                }
+                for (int attempt = 0; attempt < 3; attempt++)
+                {
+                    await Task.Yield();
+                    GC.Collect();
+                    GC.WaitForPendingFinalizers();
+                    GC.Collect();
+                }
+                using (Assert.EnterMultipleScope())
+                {
+                    Assert.That(occurrence.IsAlive, Is.EqualTo(!completed), "Event occurrence");
+                    Assert.That(owner.IsAlive, Is.EqualTo(!completed), "Event parent");
+                }
+            }
+            finally
+            {
+                release.TrySetResult(true);
+                await publication.ConfigureAwait(false);
+                GC.KeepAlive(captured);
+            }
+        }
+
+        /// <summary>
+        /// An awaited child shares deduplication, but work released after the publisher exits starts a new occurrence.
+        /// </summary>
+        /// <exception cref="AssertionException">The publisher did not start its inherited child.</exception>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task InheritedEventContextExpiresAfterPublisherReturnsAsync(bool escaped)
+        {
+            SystemContext context = CreateSystemContext();
+            var source = new BaseObjectState(null);
+            var occurrence = new BaseObjectState(null);
+            var started = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var release = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            Task? child = null;
+            int reports = 0;
+            source.OnReportEventAsync = async (_, _, _, _) =>
+            {
+                if (Interlocked.Increment(ref reports) != 1)
+                {
+                    return;
+                }
+                child = Task.Run(async () =>
+                {
+                    started.TrySetResult(true);
+                    if (escaped)
+                    {
+                        await release.Task.ConfigureAwait(false);
+                    }
+                    await source.ReportEventAsync(context, occurrence).ConfigureAwait(false);
+                }, CancellationToken.None);
+                await started.Task.ConfigureAwait(false);
+                if (!escaped)
+                {
+                    await child.ConfigureAwait(false);
+                }
+            };
+            Task publication = source.ReportEventAsync(context, occurrence).AsTask();
+            try
+            {
+                await publication.WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
+                Assert.That(reports, Is.EqualTo(1));
+                release.TrySetResult(true);
+                await (child ?? throw new AssertionException("The inherited child was not started."))
+                    .WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
+                Assert.That(reports, Is.EqualTo(escaped ? 2 : 1));
+            }
+            finally
+            {
+                release.TrySetResult(true);
+                await publication.ConfigureAwait(false);
+                if (child is not null)
+                {
+                    await child.ConfigureAwait(false);
+                }
+            }
+        }
+
         [OneTimeSetUp]
         protected void OneTimeSetUp()
         {
@@ -162,6 +236,30 @@ namespace Opc.Ua.Types.Tests.State
         protected void OneTimeTearDown()
         {
             (m_messageContext as IDisposable)?.Dispose();
+        }
+
+        /// <summary>
+        /// Separates event allocation from the caller retaining the captured callback context.
+        /// </summary>
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        private (Task Publication, TaskCompletionSource<bool> Release,
+            Task<ExecutionContext> Entered, WeakReference Occurrence, WeakReference Owner)
+            StartCapturedEventPublication()
+        {
+            var entered = new TaskCompletionSource<ExecutionContext>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            var release = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var source = new BaseObjectState(null);
+            var owner = new BaseObjectState(null);
+            var occurrence = new BaseObjectState(owner);
+            source.OnReportEventAsync = (_, _, _, _) =>
+            {
+                entered.SetResult(ExecutionContext.Capture() ??
+                    throw new InvalidOperationException("The callback context was not captured."));
+                return new ValueTask(release.Task);
+            };
+            Task publication = source.ReportEventAsync(CreateSystemContext(), occurrence).AsTask();
+            return (publication, release, entered.Task, new WeakReference(occurrence), new WeakReference(owner));
         }
 
         private SystemContext CreateSystemContext()
@@ -236,6 +334,178 @@ namespace Opc.Ua.Types.Tests.State
             Assert.That(asyncMask, Is.EqualTo(NodeStateChangeMasks.Value));
         }
 
+        /// <summary>
+        /// A state-change sink that clears another tree on the same thread must not disturb
+        /// the child list of the outer clear: every child of both trees is reported once.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task NestedClearFromSinkReportsEveryChildOfBothTreesAsync(bool synchronous)
+        {
+            SystemContext ctx = CreateSystemContext();
+            (BaseObjectState inner, BaseDataVariableState[] innerChildren) = CreateTree(ctx, 3);
+            (BaseObjectState outer, BaseDataVariableState[] outerChildren) = CreateTree(ctx, 3);
+            var reports = new Dictionary<NodeState, int>();
+
+            foreach (BaseDataVariableState child in innerChildren)
+            {
+                child.OnStateChanged = (_, n, _) => Bump(reports, n);
+            }
+            for (int ii = 0; ii < outerChildren.Length; ii++)
+            {
+                bool nests = ii == 0;
+                outerChildren[ii].OnStateChanged = (c, n, _) =>
+                {
+                    Bump(reports, n);
+                    if (nests)
+                    {
+                        inner.ClearChangeMasks(c, includeChildren: true);
+                    }
+                };
+                if (nests)
+                {
+                    outerChildren[ii].OnStateChangedAsync = async (c, _, _, ct) =>
+                        await inner.ClearChangeMasksAsync(c, includeChildren: true, ct).ConfigureAwait(false);
+                }
+            }
+
+            foreach (BaseDataVariableState child in innerChildren)
+            {
+                child.UpdateChangeMasks(NodeStateChangeMasks.Value);
+            }
+            foreach (BaseDataVariableState child in outerChildren)
+            {
+                child.UpdateChangeMasks(NodeStateChangeMasks.Value);
+            }
+
+            if (synchronous)
+            {
+                outer.ClearChangeMasks(ctx, includeChildren: true);
+            }
+            else
+            {
+                await outer.ClearChangeMasksAsync(ctx, includeChildren: true).ConfigureAwait(false);
+            }
+
+            foreach (BaseDataVariableState child in innerChildren)
+            {
+                Assert.That(CountOf(reports, child), Is.EqualTo(1), child.BrowseName.Name);
+                Assert.That(child.ChangeMasks, Is.EqualTo(NodeStateChangeMasks.None));
+            }
+            foreach (BaseDataVariableState child in outerChildren)
+            {
+                Assert.That(CountOf(reports, child), Is.EqualTo(1), child.BrowseName.Name);
+                Assert.That(child.ChangeMasks, Is.EqualTo(NodeStateChangeMasks.None));
+            }
+        }
+
+        /// <summary>
+        /// Concurrent asynchronous clears whose sinks resume on other threads each walk their
+        /// own children completely, and the clears stay correct when run again afterwards.
+        /// </summary>
+        [Test]
+        public async Task ConcurrentSuspendingAsyncClearsReportEveryChildAsync()
+        {
+            SystemContext ctx = CreateSystemContext();
+            const int kTrees = 32;
+            const int kChildren = 4;
+            var trees = new BaseObjectState[kTrees];
+            var allChildren = new List<BaseDataVariableState>();
+            int reports = 0;
+
+            for (int ii = 0; ii < kTrees; ii++)
+            {
+                (trees[ii], BaseDataVariableState[] children) = CreateTree(ctx, kChildren);
+                foreach (BaseDataVariableState child in children)
+                {
+                    child.OnStateChangedAsync = async (_, _, _, _) =>
+                    {
+                        await Task.Yield();
+                        Interlocked.Increment(ref reports);
+                    };
+                    allChildren.Add(child);
+                }
+            }
+
+            for (int round = 1; round <= 3; round++)
+            {
+                foreach (BaseDataVariableState child in allChildren)
+                {
+                    child.UpdateChangeMasks(NodeStateChangeMasks.Value);
+                }
+
+                var clears = new Task[kTrees];
+                for (int ii = 0; ii < kTrees; ii++)
+                {
+                    BaseObjectState tree = trees[ii];
+                    clears[ii] = Task.Run(() => tree.ClearChangeMasksAsync(ctx, includeChildren: true).AsTask());
+                }
+                await Task.WhenAll(clears).ConfigureAwait(false);
+
+                Assert.That(Volatile.Read(ref reports), Is.EqualTo(round * kTrees * kChildren));
+            }
+        }
+
+        /// <summary>
+        /// A node with more children than the reused list holds still reports each of them.
+        /// </summary>
+        [Test]
+        public async Task ClearWithManyChildrenReportsEachChildAsync()
+        {
+            SystemContext ctx = CreateSystemContext();
+            (BaseObjectState parent, BaseDataVariableState[] children) = CreateTree(ctx, 200);
+            int reports = 0;
+            foreach (BaseDataVariableState child in children)
+            {
+                child.OnStateChanged = (_, _, _) => reports++;
+                child.UpdateChangeMasks(NodeStateChangeMasks.Value);
+            }
+
+            await parent.ClearChangeMasksAsync(ctx, includeChildren: true).ConfigureAwait(false);
+            foreach (BaseDataVariableState child in children)
+            {
+                child.UpdateChangeMasks(NodeStateChangeMasks.Value);
+            }
+            parent.ClearChangeMasks(ctx, includeChildren: true);
+
+            Assert.That(reports, Is.EqualTo(400));
+        }
+
+        private static void Bump(Dictionary<NodeState, int> reports, NodeState node)
+        {
+            reports[node] = CountOf(reports, node) + 1;
+        }
+
+        private static int CountOf(Dictionary<NodeState, int> reports, NodeState node)
+        {
+            return reports.TryGetValue(node, out int count) ? count : 0;
+        }
+
+        private static (BaseObjectState Parent, BaseDataVariableState[] Children) CreateTree(
+            SystemContext ctx,
+            int childCount)
+        {
+            var parent = new BaseObjectState(null)
+            {
+                NodeId = new NodeId(Guid.NewGuid()),
+                BrowseName = new QualifiedName("Parent")
+            };
+            var children = new BaseDataVariableState[childCount];
+            for (int ii = 0; ii < childCount; ii++)
+            {
+                children[ii] = new BaseDataVariableState(parent)
+                {
+                    NodeId = new NodeId(Guid.NewGuid()),
+                    BrowseName = new QualifiedName("Child" + ii)
+                };
+                parent.AddChild(children[ii]);
+            }
+
+            // flush the masks set while building the tree.
+            parent.ClearChangeMasks(ctx, includeChildren: true);
+            return (parent, children);
+        }
+
         [Test]
         public async Task ClearChangeMasksAsyncAwaitsStateChangedAsyncEvent()
         {
@@ -276,6 +546,99 @@ namespace Opc.Ua.Types.Tests.State
 
             Assert.That(syncTarget, Is.SameAs(target));
             Assert.That(asyncTarget, Is.SameAs(target));
+        }
+
+        /// <summary>
+        /// Async reporting bypasses a synchronous-only override on a non-instance node.
+        /// </summary>
+        [Test]
+        public async Task ReportEventAsyncBypassesSynchronousOverrideOnTypeNodeAsync()
+        {
+            SystemContext context = CreateSystemContext();
+            var node = new SyncOnlyEventTypeNode();
+            var target = new BaseObjectState(null);
+            int reports = 0;
+            node.OnReportEvent = (_, _, _) => reports++;
+
+            await node.ReportEventAsync(context, target).ConfigureAwait(false);
+
+            Assert.That(node.SyncReports, Is.Zero);
+            Assert.That(reports, Is.EqualTo(1));
+
+            node.ReportEvent(context, target);
+
+            Assert.That(node.SyncReports, Is.EqualTo(1));
+            Assert.That(reports, Is.EqualTo(2));
+        }
+
+        /// <summary>
+        /// Async propagation bypasses synchronous-only overrides at the source, parent, and inverse notifier.
+        /// </summary>
+        [Test]
+        public async Task ReportEventAsyncBypassesSynchronousOverridesDuringInstancePropagationAsync()
+        {
+            SystemContext context = CreateSystemContext();
+            var parent = new SyncOnlyEventNode(null);
+            var inverse = new SyncOnlyEventNode(null);
+            var source = new SyncOnlyEventNode(parent);
+            source.AddNotifier(context, ReferenceTypeIds.HasNotifier, true, inverse);
+            var target = new BaseObjectState(null);
+            int sourceReports = 0;
+            int parentReports = 0;
+            int inverseReports = 0;
+            source.OnReportEvent = (_, _, _) => sourceReports++;
+            parent.OnReportEvent = (_, _, _) => parentReports++;
+            inverse.OnReportEvent = (_, _, _) => inverseReports++;
+
+            await source.ReportEventAsync(context, target).ConfigureAwait(false);
+
+            Assert.That(source.SyncReports, Is.Zero);
+            Assert.That(parent.SyncReports, Is.Zero);
+            Assert.That(inverse.SyncReports, Is.Zero);
+            Assert.That(sourceReports, Is.EqualTo(1));
+            Assert.That(parentReports, Is.EqualTo(1));
+            Assert.That(inverseReports, Is.EqualTo(1));
+
+            source.ReportEvent(context, target);
+
+            Assert.That(source.SyncReports, Is.EqualTo(1));
+            Assert.That(parent.SyncReports, Is.EqualTo(1));
+            Assert.That(inverse.SyncReports, Is.EqualTo(1));
+            Assert.That(sourceReports, Is.EqualTo(2));
+            Assert.That(parentReports, Is.EqualTo(2));
+            Assert.That(inverseReports, Is.EqualTo(2));
+        }
+
+        /// <summary>
+        /// Paired overrides customize async propagation without invoking the synchronous overrides.
+        /// </summary>
+        [Test]
+        public async Task ReportEventAsyncInvokesPairedOverridesDuringInstancePropagationAsync()
+        {
+            SystemContext context = CreateSystemContext();
+            var parent = new PairedEventNode(null);
+            var inverse = new PairedEventNode(null);
+            var source = new PairedEventNode(parent);
+            source.AddNotifier(context, ReferenceTypeIds.HasNotifier, true, inverse);
+            var target = new BaseObjectState(null);
+
+            await source.ReportEventAsync(context, target).ConfigureAwait(false);
+
+            Assert.That(source.AsyncReports, Is.EqualTo(1));
+            Assert.That(parent.AsyncReports, Is.EqualTo(1));
+            Assert.That(inverse.AsyncReports, Is.EqualTo(1));
+            Assert.That(source.SyncReports, Is.Zero);
+            Assert.That(parent.SyncReports, Is.Zero);
+            Assert.That(inverse.SyncReports, Is.Zero);
+
+            source.ReportEvent(context, target);
+
+            Assert.That(source.SyncReports, Is.EqualTo(1));
+            Assert.That(parent.SyncReports, Is.EqualTo(1));
+            Assert.That(inverse.SyncReports, Is.EqualTo(1));
+            Assert.That(source.AsyncReports, Is.EqualTo(1));
+            Assert.That(parent.AsyncReports, Is.EqualTo(1));
+            Assert.That(inverse.AsyncReports, Is.EqualTo(1));
         }
 
         [Test]
@@ -708,6 +1071,99 @@ namespace Opc.Ua.Types.Tests.State
                     SynchronizationContext.SetSynchronizationContext(originalContext);
                 }
             }, CancellationToken.None, TaskCreationOptions.LongRunning, TaskScheduler.Default);
+        }
+
+        /// <summary>
+        /// Object type node with only the synchronous event reporting override.
+        /// </summary>
+        private sealed class SyncOnlyEventTypeNode : BaseObjectTypeState
+        {
+            /// <summary>
+            /// Gets the number of synchronous reports.
+            /// </summary>
+            public int SyncReports { get; private set; }
+
+            /// <summary>
+            /// Records synchronous reports before forwarding them.
+            /// </summary>
+            public override void ReportEvent(ISystemContext context, IFilterTarget e)
+            {
+                SyncReports++;
+                base.ReportEvent(context, e);
+            }
+        }
+
+        /// <summary>
+        /// Instance node with only the synchronous event reporting override.
+        /// </summary>
+        private sealed class SyncOnlyEventNode : BaseObjectState
+        {
+            /// <summary>
+            /// Creates a node with the specified parent.
+            /// </summary>
+            public SyncOnlyEventNode(NodeState? parent)
+                : base(parent)
+            {
+            }
+
+            /// <summary>
+            /// Gets the number of synchronous reports.
+            /// </summary>
+            public int SyncReports { get; private set; }
+
+            /// <summary>
+            /// Records synchronous reports before forwarding them.
+            /// </summary>
+            public override void ReportEvent(ISystemContext context, IFilterTarget e)
+            {
+                SyncReports++;
+                base.ReportEvent(context, e);
+            }
+        }
+
+        /// <summary>
+        /// Instance node with paired synchronous and asynchronous reporting overrides.
+        /// </summary>
+        private sealed class PairedEventNode : BaseObjectState
+        {
+            /// <summary>
+            /// Creates a node with the specified parent.
+            /// </summary>
+            public PairedEventNode(NodeState? parent)
+                : base(parent)
+            {
+            }
+
+            /// <summary>
+            /// Gets the number of synchronous reports.
+            /// </summary>
+            public int SyncReports { get; private set; }
+
+            /// <summary>
+            /// Gets the number of asynchronous reports.
+            /// </summary>
+            public int AsyncReports { get; private set; }
+
+            /// <summary>
+            /// Records synchronous reports before forwarding them.
+            /// </summary>
+            public override void ReportEvent(ISystemContext context, IFilterTarget e)
+            {
+                SyncReports++;
+                base.ReportEvent(context, e);
+            }
+
+            /// <summary>
+            /// Records asynchronous reports before forwarding them.
+            /// </summary>
+            public override ValueTask ReportEventAsync(
+                ISystemContext context,
+                IFilterTarget e,
+                CancellationToken cancellationToken = default)
+            {
+                AsyncReports++;
+                return base.ReportEventAsync(context, e, cancellationToken);
+            }
         }
 
         private static readonly TimeSpan s_timeout = TimeSpan.FromSeconds(30);

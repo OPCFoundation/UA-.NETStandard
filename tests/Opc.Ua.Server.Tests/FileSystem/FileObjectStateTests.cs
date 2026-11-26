@@ -1,31 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using System.IO;
@@ -174,7 +148,7 @@ namespace Opc.Ua.Server.Tests.FileSystem
             {
                 OpenMethodStateResult second = await alternate.Open!.OnCallAsync!(
                     m_context, alternate.Open, alternate.NodeId, 6, CancellationToken.None).ConfigureAwait(false);
-                Assert.That(second.ServiceResult.StatusCode, Is.EqualTo(StatusCodes.BadInvalidState));
+                Assert.That(second.ServiceResult.StatusCode, Is.EqualTo(StatusCodes.BadNotWritable));
                 Assert.That(second.FileHandle, Is.Zero);
             }
 
@@ -423,7 +397,7 @@ namespace Opc.Ua.Server.Tests.FileSystem
         }
 
         [Test]
-        public void OpenForWriteThenWritePersistsData()
+        public async Task OpenForWriteThenWritePersistsData()
         {
             FileObjectState state = CreateFileState("out.txt");
 
@@ -437,9 +411,9 @@ namespace Opc.Ua.Server.Tests.FileSystem
                 m_context, state.Write, state.NodeId, fileHandle, payload);
             Assert.That(ServiceResult.IsGood(writeResult), Is.True);
 
-            ServiceResult closeResult = state.Close!.OnCall!(
-                m_context, state.Close, state.NodeId, fileHandle);
-            Assert.That(ServiceResult.IsGood(closeResult), Is.True);
+            CloseMethodStateResult closeResult = await state.Close!.OnCallAsync!(
+                m_context, state.Close, state.NodeId, fileHandle, CancellationToken.None).ConfigureAwait(false);
+            Assert.That(ServiceResult.IsGood(closeResult.ServiceResult), Is.True);
 
             Assert.That(File.ReadAllText(Path.Combine(m_root, "out.txt")), Is.EqualTo("written"));
         }

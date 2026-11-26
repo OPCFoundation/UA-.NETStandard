@@ -1,31 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using System.Collections.Generic;
@@ -240,6 +214,74 @@ namespace Opc.Ua.Core.Security.Tests
                         .ConfigureAwait(false),
                     Is.False,
                     $"Audit event {eventType} must not be delivered without ReceiveEvents.");
+            }
+        }
+
+        /// <summary>
+        /// The Attribute services and the Call service raise the generic failure audit
+        /// (an AuditEventType event with SourceName Attribute/&lt;Service&gt; or
+        /// Method/Call) when they fail with a service fault, here Bad_NothingToDo for an
+        /// empty list of operations.
+        /// </summary>
+        [TestCase("Read")]
+        [TestCase("HistoryRead")]
+        [TestCase("Write")]
+        [TestCase("HistoryUpdate")]
+        [TestCase("Call")]
+        public async Task ServiceFaultRaisesGenericAuditEventAsync(string service)
+        {
+            ServiceResultException? fault = null;
+            List<NodeId> eventTypes = await ObserveEventsAsync(
+                async (session, _) =>
+                {
+                    try
+                    {
+                        await InvokeWithNoOperationsAsync(session, service).ConfigureAwait(false);
+                    }
+                    catch (ServiceResultException e)
+                    {
+                        fault = e;
+                    }
+                },
+                null!,
+                (_, eventType) => Task.FromResult(eventType == ObjectTypeIds.AuditEventType))
+                .ConfigureAwait(false);
+
+            Assert.That(fault, Is.Not.Null, $"{service} with no operations must fail.");
+            Assert.That(fault!.StatusCode, Is.EqualTo(StatusCodes.BadNothingToDo));
+            Assert.That(
+                eventTypes,
+                Does.Contain(ObjectTypeIds.AuditEventType),
+                $"A failed {service} must raise the generic failure audit event.");
+        }
+
+        private static Task InvokeWithNoOperationsAsync(ISession session, string service)
+        {
+            switch (service)
+            {
+                case "Read":
+                    return session.ReadAsync(
+                        null,
+                        0,
+                        TimestampsToReturn.Neither,
+                        default,
+                        CancellationToken.None).AsTask();
+                case "HistoryRead":
+                    return session.HistoryReadAsync(
+                        null,
+                        new ExtensionObject(new ReadRawModifiedDetails()),
+                        TimestampsToReturn.Neither,
+                        false,
+                        default,
+                        CancellationToken.None).AsTask();
+                case "Write":
+                    return session.WriteAsync(null, default, CancellationToken.None).AsTask();
+                case "HistoryUpdate":
+                    return session.HistoryUpdateAsync(null, default, CancellationToken.None).AsTask();
+                case "Call":
+                    return session.CallAsync(null, default, CancellationToken.None).AsTask();
+                default:
+                    throw new ArgumentOutOfRangeException(nameof(service), service, null);
             }
         }
 

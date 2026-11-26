@@ -1,32 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
-
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using System.Collections.Generic;
@@ -77,6 +50,11 @@ namespace Opc.Ua.Perf.ServerLoadHarness
         public override (double Count, string Name)? Secondary =>
             m_serverSamples > 0 ? (m_serverSamples, "sample") : null;
 
+        /// <summary>
+        /// Whether the last report failed the per-item progress gate.
+        /// </summary>
+        internal bool Failed { get; private set; }
+
         public override void OnServerReport(string report)
         {
             const string Key = "samplesTaken=";
@@ -87,7 +65,7 @@ namespace Opc.Ua.Perf.ServerLoadHarness
                 return;
             }
             start += Key.Length;
-            int end = report.IndexOf(' ', start);
+            int end = report.IndexOf(' ', start, StringComparison.Ordinal);
             m_serverSamples = double.Parse(
                 end < 0 ? report[start..] : report[start..end],
                 System.Globalization.CultureInfo.InvariantCulture);
@@ -109,6 +87,7 @@ namespace Opc.Ua.Perf.ServerLoadHarness
                         await SetupSubscriptionAsync(m_sessions[s], first).ConfigureAwait(false);
                     }
                 }).ConfigureAwait(false);
+            ReportSetupTimes();
             Console.WriteLine(FormattableString.Invariant(
                 $"counters: {m_sessions.Length} sessions x {m_subscriptionsPerSession} subscriptions x {m_itemsPerSubscription} items ") +
                 FormattableString.Invariant(
@@ -119,6 +98,47 @@ namespace Opc.Ua.Perf.ServerLoadHarness
         }
 
         private async Task SetupSubscriptionAsync(ISession session, int first)
+        {
+            int before = Volatile.Read(ref m_itemsCreated);
+            long start = Stopwatch.GetTimestamp();
+            await SetupSubscriptionCoreAsync(session, first).ConfigureAwait(false);
+            double ms = Stopwatch.GetElapsedTime(start).TotalMilliseconds;
+            Interlocked.Add(ref m_itemsCreated, m_itemsPerSubscription);
+            lock (m_lock)
+            {
+                m_setupTimes.Add((before, ms));
+            }
+        }
+
+        /// <summary>
+        /// Prints the mean subscription setup time by tenth of the items that existed when it
+        /// started, so creation cost that grows with the item count shows as a rising row.
+        /// </summary>
+        private void ReportSetupTimes()
+        {
+            const int Buckets = 10;
+            int total = m_latestValue.Length;
+            double[] sum = new double[Buckets];
+            int[] count = new int[Buckets];
+            foreach ((int before, double ms) in m_setupTimes)
+            {
+                int b = (int)Math.Min(Buckets - 1, (long)before * Buckets / Math.Max(1, total));
+                sum[b] += ms;
+                count[b]++;
+            }
+            var line = new System.Text.StringBuilder("setup per subscription (existing items+: mean ms):");
+            for (int b = 0; b < Buckets; b++)
+            {
+                if (count[b] > 0)
+                {
+                    line.Append(System.Globalization.CultureInfo.InvariantCulture,
+                        $" {(long)total * b / Buckets}+:{sum[b] / count[b]:F0}");
+                }
+            }
+            Console.WriteLine(line.ToString());
+        }
+
+        private async Task SetupSubscriptionCoreAsync(ISession session, int first)
         {
             ushort namespaceIndex = (ushort)session.NamespaceUris.GetIndex(CounterNodeManager.Namespace);
             if (session is ManagedSession managed)
@@ -218,13 +238,14 @@ namespace Opc.Ua.Perf.ServerLoadHarness
             // queue size one: at most one notification per item and publishing interval, and per sample
             double expectedNotifications = m_latestValue.Length * seconds * 1000 /
                 Math.Max(m_publishingInterval, m_samplingInterval);
+            Failed = below != 0 || missing != 0;
             return FormattableString.Invariant(
                 $"notif/s={notifications / seconds:F0} delivered={notifications / expectedNotifications:P1} ") +
                 FormattableString.Invariant(
                 $"items={m_latestValue.Length} progressMin={min:P2} ") +
                 FormattableString.Invariant(
                 $"progressMean={(measured == 0 ? 0 : sum / measured):P2} itemsBelow99={below} itemsWithoutData={missing} ") +
-                (below == 0 && missing == 0 ? "PASS" : "FAIL");
+                (Failed ? "FAIL" : "PASS");
         }
 
         private async Task SetupManagedAsync(ManagedSession session, ushort namespaceIndex, int first)
@@ -371,6 +392,8 @@ namespace Opc.Ua.Perf.ServerLoadHarness
         private readonly Lock m_lock = new();
         private long m_notifications;
         private double m_serverSamples;
+        private int m_itemsCreated;
+        private readonly List<(int Before, double Ms)> m_setupTimes = [];
         private string? m_revisedSampling;
     }
 }

@@ -1,31 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using System.Collections.Concurrent;
@@ -603,7 +577,10 @@ namespace Opc.Ua
             {
                 result = HandleCertificateValidationException(se, certificate, acceptError);
             }
-            if (result.IsValid && validatedPath != null && options?.ValidateForSigning != true)
+            if (result.IsValid &&
+                validatedPath != null &&
+                !m_state.UsesSharedKeyValueStore &&
+                options?.ValidateForSigning != true)
             {
                 m_validatedCertificates[certificate.Thumbprint] = validatedPath;
             }
@@ -961,8 +938,11 @@ namespace Opc.Ua
                 // connection and permanently defeat the cache for exactly
                 // the certificates it was written for. Time validity must
                 // still hold for the leaf and every resolved issuer. A current
-                // cache hit skips the expensive chain-policy build below.
+                // cache hit skips the expensive chain-policy build below. For
+                // shared stores, a committed trust removal can leave the same
+                // issuer path (e.g. supplied by the peer); re-evaluate trust.
                 if (UseValidatedCertificates &&
+                    !state.UsesSharedKeyValueStore &&
                     options?.ValidateForSigning != true &&
                     !HasRevocationError(validationErrors) &&
                     m_validatedCertificates.TryGetValue(
@@ -1575,6 +1555,12 @@ namespace Opc.Ua
             ICertificateStore? store = m_openStore(storeIdentifier);
             if (store == null)
             {
+                if (storeIdentifier.StoreType == CertificateStoreType.SharedKeyValue)
+                {
+                    throw new ServiceResultException(
+                        StatusCodes.BadSecurityChecksFailed,
+                        "The configured shared certificate store could not be opened.");
+                }
                 return null;
             }
 
@@ -1924,14 +1910,18 @@ namespace Opc.Ua
             CertificateValidationOptions options,
             CancellationToken ct)
         {
+            if (m_state.UsesSharedKeyValueStore)
+            {
+                return await CheckIssuerRevocationInTrustStoresAsync(issuer, certificate, options, ct)
+                    .ConfigureAwait(false);
+            }
             StatusCode status = await store.IsRevokedAsync(issuer, certificate, ct).ConfigureAwait(false);
             return ToRevocationError(status, certificate, options);
         }
 
         /// <summary>
-        /// Checks the revocation status of <paramref name="certificate"/> for an
-        /// issuer that was not found in a store, against the CRLs held by the
-        /// trusted and the issuer store. A revocation in either store wins; with
+        /// Checks the revocation status of <paramref name="certificate"/> across the
+        /// trusted and issuer stores. A revocation in either store wins; with
         /// no valid CRL in either store the status is unknown. A store that
         /// cannot hold CRLs gives no answer; only when no opened store can hold
         /// CRLs is the check reported as not supported.
@@ -2435,7 +2425,15 @@ namespace Opc.Ua
             ArrayOf<Certificate> ApplicationCertificates,
             ArrayOf<CertificateIdentifier> TrustedCertificates = default,
             ArrayOf<CertificateIdentifier> IssuerCertificates = default,
-            ArrayOf<X509CRL> CertificateRevocationLists = default);
+            ArrayOf<X509CRL> CertificateRevocationLists = default)
+        {
+            /// <summary>
+            /// Gets whether trust or revocation policy depends on a shared certificate store.
+            /// </summary>
+            public bool UsesSharedKeyValueStore =>
+                TrustedStore?.StoreType == CertificateStoreType.SharedKeyValue ||
+                IssuerStore?.StoreType == CertificateStoreType.SharedKeyValue;
+        }
     }
 
     /// <summary>

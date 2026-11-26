@@ -1,31 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using System.IO;
@@ -35,6 +9,7 @@ using Microsoft.Extensions.DependencyInjection;
 using NUnit.Framework;
 using Opc.Ua.Client;
 using Opc.Ua.Client.TestFramework;
+using Opc.Ua.Server;
 using Opc.Ua.Server.TestFramework;
 using Opc.Ua.Tests;
 using Opc.Ua.WotCon.Client;
@@ -47,6 +22,8 @@ using Opc.Ua.XRegistry;
 using Opc.Ua.XRegistry.Server;
 using Quickstarts.ReferenceServer;
 
+using ISession = Opc.Ua.Client.ISession;
+
 namespace Opc.Ua.WotCon.Tests
 {
     /// <summary>
@@ -54,7 +31,6 @@ namespace Opc.Ua.WotCon.Tests
     /// </summary>
     [TestFixture(false)]
     [TestFixture(true)]
-    [NonParallelizable]
     [Category("WotCon")]
     [Category("Integration")]
     public sealed partial class WotRegistryIdentityLiveTests
@@ -85,6 +61,7 @@ namespace Opc.Ua.WotCon.Tests
                 SecurityNone = true,
                 AutoAccept = true
             };
+            await WotTestPki.SeedAsync(m_root).ConfigureAwait(false);
             m_server = await m_serverFixture.StartAsync(m_root).ConfigureAwait(false);
             m_store = new NativeStore();
             WotRegistryServerOptions options;
@@ -118,11 +95,15 @@ namespace Opc.Ua.WotCon.Tests
                 m_registry, new LifecycleWotProjectionHost(m_server.NodeManagerLifecycle),
                 documentConverter: new FakeWotDocumentConverter());
             var factory = new WotRegistryNodeManagerFactory(options, m_registry, m_coordinator);
-            Ua.Server.NodeManagerRegistration registration = await m_server.NodeManagerLifecycle.AddAsync(factory, null)
+            LifecycleResult publication = await m_server.NodeManagerLifecycle.ApplyAsync([LifecycleChange.Add(factory)])
                 .ConfigureAwait(false);
-            m_registration = registration;
-            m_manager = (WotRegistryNodeManager)registration.NodeManager;
+            Assert.That(publication.CleanupFailure, Is.Null);
+            Assert.That(publication.Registrations[0].TryGetRegistration(out NodeManagerRegistration? registration),
+                Is.True);
+            m_registration = registration!;
+            m_manager = (WotRegistryNodeManager)registration!.NodeManager;
             m_clientFixture = new ClientFixture(false, false, m_telemetry);
+            await WotTestPki.SeedAsync(m_root).ConfigureAwait(false);
             await m_clientFixture.LoadClientConfigurationAsync(m_root).ConfigureAwait(false);
             m_bootstrapSession = await m_clientFixture.ConnectAsync(
                 new Uri($"{Utils.UriSchemeOpcTcp}://localhost:{m_serverFixture.Port}"), SecurityPolicies.None)
@@ -302,6 +283,7 @@ namespace Opc.Ua.WotCon.Tests
             Assert.That(m_registry.Current.FindResource(group.GroupId, allocation.Version.ResourceId)!.SourceId,
                 Is.EqualTo("urn:thing"));
             using var otherFixture = new ClientFixture(false, false, m_telemetry);
+            await WotTestPki.SeedAsync(m_root).ConfigureAwait(false);
             await otherFixture.LoadClientConfigurationAsync(m_root).ConfigureAwait(false);
             using ISession other = await otherFixture.ConnectAsync(
                 new Uri($"{Utils.UriSchemeOpcTcp}://localhost:{m_serverFixture.Port}"), SecurityPolicies.None)

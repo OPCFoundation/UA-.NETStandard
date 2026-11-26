@@ -1,3 +1,8 @@
+<!--
+SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+SPDX-License-Identifier: MIT
+-->
+
 # OPC UA Profiles and Facets Support
 
 This document describes which [OPC UA Profiles and Facets](https://profiles.opcfoundation.org/) are implemented in the OPC UA .NET Standard Stack, and where in the codebase / documentation each one lives.
@@ -28,30 +33,18 @@ The SDK provides full or partial support for these core areas:
   and key credentials, with the [documented GDS gaps](GDS.md#remaining-optional--unsupported-part-12-items).
 - Part 14: [PubSub](PubSub.md), including UADP/JSON, broker and datagram
   transports, with platform-dependent DTLS profile limits.
-- Parts 16-19 and 23: state machines, aliases, roles, dictionary references
-  and common reference types.
-- Part 20: [file transfer](FileSystemClient.md); the shared file handler
-  rejects combined Read + Write opens and can return `Bad_InvalidState` for a
-  conflicting write-only open.
-- Part 21: [ticket validation, registrar runtime and pull/push workflows](GDS.md#opc-10000-21-onboardingclient),
-  with retained device credentials, security reset and provider-backed managed
-  Server/ClientAndServer push. The default managed-application verifier supports
-  UA-TCP and HTTPS, with separate TLS trust/pin and application-identity checks.
-  Provider registration and provider-backed address-space behavior
-  have regression tests, but a full hosted composition test is not present. The
-  registrar uses its configured certificate type by default; the host can select
-  a different advertised type for each managed application.
-  Per-entry remote `ConfigurationFile` update/confirm is optional Part 12
-  functionality backed by application-scoped providers; shared `ConfigurationFile` transfer
-  has separate Part 12/20 gaps. The device factory adds a Part 22 `Resources`
-  parent reference, but shared Base Network integration remains a source gap.
-  The optional externally authenticated DCA handoff validates dedicated CA trust
-  and configured product/application approval, then reuses registrar/Part 12
-  lifecycle operations. FDO authentication and credential installation remain
-  external.
-  Connected recovery fixtures are present; their execution status is separate
-  from this implementation rating.
-- Parts 22, 25 and 26: generated Base Network, Object Serialization and
+- Parts 16-20 and 23: state machines, aliases, roles, dictionary references,
+  file transfer and common reference types.
+- Part 21: [ticket validation, registrar runtime and pull/push workflows](Onboarding.md#opc-10000-21-onboardingclient),
+  with retained device credentials, security reset, managed Client provisioning,
+  provider-backed Server/ClientAndServer push, durable accepted-work recovery,
+  signing and key-pair pull, and lifecycle-aware Part 22 `Resources` composition.
+  Applications supply the deployment providers. The GDS guide describes
+  provider ownership, recovery boundaries, and optional `ConfigurationFile` limits.
+- Part 22: [Base Network Model](BaseNetworkModel.md) runtime, typed clients and
+  an in-memory simulator, including defined optional capabilities when supplied
+  by the provider; applications supply production network providers.
+- Parts 25 and 26: generated Object Serialization and
   LogObject declarations, without complete runtime services for those models.
 
 The [companion and extension catalogue](#companion-and-extension-models)
@@ -59,8 +52,25 @@ describes the supported Devices, Asset Management Basics, Industrial Automation,
 Positioning, ISA-95, WoT, AutoID, PackML, PA-DIM, LADS, Energy Consumption
 Management, Machinery, Robotics, Cranes and Hoists, plastics/rubber, extrusion,
 Machine Vision, weighing, measurement, Pumps and MachineTool families.
+Weighing includes registered catchweigher and price-labeler observations,
+completed hopper fills, piece-count registration and product totals, and opt-in
+recipe condition waits; equipment operation and recipe-file parsing remain
+application responsibilities.
+Scales provides native async service writes for product targets/tolerances,
+recipe condition settings and notification category/ID enums with
+`ValueAsText`. Custom synchronous-only handlers must provide native async behavior.
 Source-generation tooling also implements selected modelling checks relevant
 to OPC 11030.
+
+LADS supports optional cooperative Hold/Unhold, Suspend/Unsuspend, Reset and
+ToComplete operations when an acknowledging executor or hardware provider is
+configured. Its optional store restores templates, results, file bytes,
+maintenance records and counters without resuming interrupted physical
+execution; the default lifecycle still stops automatically. Opted-in AMB
+configuration adds configurable asset identification and selected asset
+building blocks without changing legacy device identities. Optional DI Locking
+enforces session ownership across UA writes and method calls throughout the
+device subtree, including generated AMB and FileType handlers.
 
 Support describes SDK functionality, not certification of every current
 feature, companion model or application. Historical reference-server
@@ -190,9 +200,10 @@ canonical URI string before claiming a facet):
   `IFileSystemProvider` in `src/Opc.Ua.Server/FileSystem/`. The
   reference server enables it via the `EnableFileSystemNodeManager`
   option. The matching System.IO-style client lives in
-  [`FileSystemClient`](FileSystemClient.md). The shared file handler rejects
-  combined Read + Write opens. A conflicting write-only open on a writable file
-  can return `Bad_InvalidState` where Part 20 requires `Bad_NotWritable`.
+  [`FileSystemClient`](FileSystemClient.md). Combined Read + Write opens
+  require an `IFileSystemReadWriteProvider`; the server returns
+  `Bad_NotSupported` when the provider lacks it. A conflicting write open can
+  return `Bad_InvalidState` where Part 20 requires `Bad_NotWritable`.
 - **Node Management** (Part 4 service set) —
   `INodeManagementAsyncNodeManager` opt-in plus a per-NodeManager
   `AllowNodeManagement` gate for `AddNodes` / `DeleteNodes` /
@@ -204,6 +215,13 @@ canonical URI string before claiming a facet):
   / `LastChange`. The reference server wires the standard Aliases and
   Topics nodes via `ConfigureAliasNameStore`. See
   [Alias Names](AliasNames.md).
+- **Base Network Model** (Part 22) — `AddNetworkModel` binds application-owned
+  providers to standard Resources entry points, interfaces, priority mappings,
+  TSN streams and LLDP, including defined optional capabilities when supplied.
+  The reference provider simulates state; it does not configure host interfaces
+  or reserve TSN bandwidth. No profile URI is synthesized from the
+  specification's conformance-unit names. See
+  [Base Network Model](BaseNetworkModel.md).
 - **WoT Connectivity** (OPC 10100-1) — `Opc.Ua.WotCon` /
   `Opc.Ua.WotCon.Server` / `Opc.Ua.WotCon.Client` library trio for
   surfacing OPC UA servers as Web-of-Things Thing Descriptions. See
@@ -218,6 +236,31 @@ canonical URI string before claiming a facet):
   including RSL spatial lists and model changes plus the GPOS GlobalPosition,
   GlobalLocation, and Zones conformance units. See
   [Positioning](Positioning.md).
+- **Industrial Automation** (OPC 10000-200), **Full** — shared `Opc.Ua.IA`
+  model with `Opc.Ua.IA.Server` provider bindings for stacklights, statistics
+  and calibration-target information, and `Opc.Ua.IA.Client` generated-proxy
+  access, discovery and feature inspection. Statistics copy exact
+  `EnumValueType` and `Argument` bodies field by field and accept
+  application-defined structures as encoded `ExtensionObject` values. Providers
+  encode custom structures before publication, and clients with the matching
+  model can decode them. Physical procedures and storage remain
+  application-owned. See
+  [Industrial Automation](IndustrialAutomation.md).
+- **PA-DIM** (OPC 30081), **Full** — `Opc.Ua.PADIM.Server` publishes
+  provider-backed devices under the Device Integration `DeviceSet`, and
+  `Opc.Ua.PADIM.Client` discovers them and accesses their methods through
+  generated proxies. The runtime supports configured signal and analyser
+  families; applications select optional capabilities per device and supply
+  acquisition or operation providers. Analog bindings retain copied engineering
+  metadata and report registered property changes through semantic notifications.
+  See [PA-DIM](PADIM.md).
+- **Energy Consumption Management** (OPC 34100), **Full** — `Opc.Ua.ECM`,
+  `Opc.Ua.ECM.Server` and `Opc.Ua.ECM.Client` provide provider-backed
+  measurement, standby and WOL bindings with typed client access.
+  `EcmConformanceContributor` reports configured capabilities and their
+  required profiles. Physical equipment and wake transport remain
+  application-owned. See
+  [Energy Consumption Management](ECM.md).
 - **Robotics** (OPC 40010-1) over **Industrial Automation** (OPC 10000-200) —
   `Opc.Ua.Robotics` / `Opc.Ua.Robotics.Server` / `Opc.Ua.Robotics.Client`
   library trio implementing the released Robotics 1.02 model over IA and
@@ -275,25 +318,27 @@ support gap.
 
 | Model or family | Support | Implemented behavior and limits |
 | --- | --- | --- |
+| [Base Network Model](BaseNetworkModel.md), OPC 10000-22 | Full | Provider-backed Resources model, typed clients and simulator, with defined optional interface, mapping, TSN and LLDP capabilities when supplied; applications supply production network providers |
 | [Device Integration](DeviceIntegration.md), OPC 10000-100 | Partial | Device composition, locking and software updates; offline/online representations, some loading modes and `UpdateStatus` remain incomplete |
-| [Asset Management Basics](AMB.md), OPC 10000-110 | Partial | Identity, health, maintenance, documentation, locations and dictionary classification; asset-health and past-maintenance event history remain unimplemented |
-| [Industrial Automation](Robotics.md), OPC 10000-200 | Partial | Shared generated model and the behavior used by Machinery/Robotics; not every standalone IA facet |
+| [Asset Management Basics](AMB.md), OPC 10000-110 | Full | Identity, health, maintenance, documentation, locations, dictionary classification, opt-in Part 11 history and explicit cross-server sub-asset traversal; applications provide history providers and remote-session resolution policy |
+| [Industrial Automation](IndustrialAutomation.md), OPC 10000-200 | Full | Stacklights, statistics and calibration targets with provider bindings, typed clients and a sample; physical drivers and calibration remain application-owned |
 | [Machinery](Machinery.md), OPC 40001-1/-2/-3/-4/-101 | Full | Building blocks, process values, jobs, energy and result transfer; select capabilities and supply equipment/storage providers |
 | [MachineTool and WMTP](MachineTool.md), OPC 40501-1 and OPC 40505 | Full | Monitoring, tools, production, jobs, files, peripheral measurements/configuration/records and typed clients; physical CNC/Bluetooth behavior belongs to providers |
-| [GMS](GMS.md), OPC 40210 | Partial | Systems, sensors, calibration observations, jobs/parts and results; Production facet withheld because upstream leaves `GMS_ProductionStatisticsType` undefined |
+| [GMS](GMS.md), OPC 40210 | Partial | Systems, sensors, calibration observations, jobs/parts and results; Table 63 names `GMS GMS_ProductionStatisticsType` as a mandatory Production conformance unit, but Table 56 does not define that unit; the facet remains withheld |
 | [Cranes and Hoists](CranesHoists.md), OPC 40020-1 | Full | Robotics-derived topology, load/protection observations and authorized limit requests; not a motion or safety controller |
-| [Pumps](Pumps.md), OPC 40223 | Partial | Model, builders and typed clients; writable identification is not retained and pump-specific alarms, event notification and history are absent |
-| [AutoID Devices](AutoID.md), OPC 30010 | Partial | Reader hosting, scanning, RFID access, RTLS, events and clients; Full facet lacks `ScanActive` control/RuntimeParameters, and the optical-verifier Scan declaration is inconsistent upstream |
-| [Scales](Scales.md), OPC 40200 | Partial | Weighing, zero/tare, products, statistics, recipes and clients; dedicated catchweigher, price-labeler and totalizing-hopper controllers are missing, as is server evaluation of recipe sleep thresholds |
+| [Pumps](Pumps.md), OPC 40223 | Full | Fluent builders, typed identity writes, retained identification, DI NE107/limit conditions, event notification, shared raw/aggregate/event history and files; profile advertisement follows configured inherited facets; Table 155's Base dependency uses the Table 153 Pump Base URI while the CAS Base link remains a publication discrepancy; no physical pump executor |
+| [AutoID Devices](AutoID.md), OPC 30010 | Full | Reader hosting, RuntimeParameters/ScanActive, diagnostic formatting, typed clients, RFID/RTLS operations, verifier scans, provider-published image files and application-defined IOData composition. Devices expose configured capabilities; Full Server Facet is available for qualifying readers. Undefined optional RTLS GetUnits is omitted; mandatory unit properties remain available |
+| [Scales](Scales.md), OPC 40200 | Partial | Weighing, products, registered catchweigher/price-labeler items, completed hopper fills, piece-count registration and opt-in product totals, recipes, PackML, per-vehicle signed/absolute totals, typed clients and opt-in analog/edge waits over registered local sources. Without PackML, recipe starts require explicit application release or an allowing callback. Notification metadata, statistical equations and immediate GiveAway refresh after nominal writes are implemented. Ordinary notification reentry permits writes from overlapping callbacks. Existing mixed-category reporting and measured-only totals are preserved; Weighed does not represent fixed category participation. Physical equipment operation remains application-owned |
 | [ISA-95](ISA95.md), OPC 10030 and OPC 10031-4 | Full | Common resources and Job Control V1/V2 server/client interfaces; providers supply execution, catalogues and persistence |
 | [Positioning](Positioning.md), OPC 10000-210/-211 | Full | RSL/GPOS models, spatial lists, model changes, positions, locations, zones and transforms; hardware observations require providers |
 | [Robotics](Robotics.md), OPC 40010-1 | Full | Released motion-device topology and controller/program interfaces; physical motion and safety behavior remain equipment responsibilities |
 | [Machine Vision](Vision.md), OPC 40100-1/-2 | Full | Control, configuration, recipes, results, asset/condition monitoring and clients; providers supply acquisition, separate from the Perception draft |
 | [WoT Connectivity](WotCon.md), OPC 10100-1 | Full | Published 1.02 asset-connection API, server and client; additive registry extensions have separate scope |
 | [WoT Binding](WotBindings.md), OPC 10101 | Partial | Published 1.00 consumer mode and conversions; general UA Binary payload codec and complete TD/TM/Binding-result schema validation are missing |
-| [PackML](Scales.md), OPC 30050 | Partial | Generated model and Scales recipe/state integration; not a standalone implementation of every PackML unit mode |
-| [PA-DIM and ECM](Machinery.md), OPC 30081 and OPC 34100 | Partial | Generated dependency models and Machinery process-value/energy bindings; not complete standalone PA-DIM/ECM device runtimes |
-| [LADS](LADS.md), OPC 30500-1 | Partial | Devices, functional units, functions, programs, results and maintenance; optional Hold/Unhold/Suspend/Unsuspend/Reset/ToComplete server methods and persistence are missing |
+| [PackML](PackML.md), OPC 30050 | Partial | Standalone runtime, administration, typed clients and fluent hosting; the runtime does not advertise a PackML server profile URI. Applications must configure time synchronization for certification. |
+| [PA-DIM](PADIM.md), OPC 30081 | Full | Provider-backed DI devices, signal/analyser families, operations, typed clients and sample; applications select optional capabilities per device and supply acquisition or operation providers |
+| [Energy Consumption Management](ECM.md), OPC 34100 | Full | All defined measurement, standby and WOL capabilities with provider-backed server bindings, typed clients and fluent DI composition; equipment behavior remains application-owned |
+| [LADS](LADS.md), OPC 30500-1 | Full | Devices, functions, programs, results, maintenance, cooperative running operations, stored-data restoration, opt-in AMB building blocks and optional DI subtree locking. BaseServer configurable identification requires a stable URI and persistent AMB store; physical execution requires application providers |
 | [Plastics and rubber common types](PlasticsRubber.md), OPC 40083 | Full | Common controls, monitoring, maintenance, materials, diagnostics and production datasets; independently authored 1.03 interface implementation on the licensed 1.02 basis |
 | [Granulate drying](PlasticsRubber.md#granulate-drying-devices-opc-40082-6), OPC 40082-6 | Full | Device construction, selectable conformance units, provider-backed commands, observations, events and typed clients |
 | [Extrusion](Extrusion.md), OPC 40084-1/-2/-3/-4/-5/-7/-8/-9/-10/-11/-12 | Full | General types and concrete device/line runtimes, jobs, datasets, events and clients; equipment authority remains with explicit providers |
@@ -327,6 +372,10 @@ through two coexisting paths:
 
 Client-side feature coverage:
 
+- **Base Network Model** (Part 22) — `AddNetworkModelClient` provides typed
+  discovery, reads, observations and mapping methods. Mapping calls preserve
+  operation and argument results without replaying commands. See
+  [Base Network Model](BaseNetworkModel.md#discover-and-use-the-typed-client).
 - **Subscriptions and monitored items** — Both the classic publish
   engine and the V2 subscription engine (`ISubscriptionManager` /
   `DefaultSubscriptionEngine`) are supported and selectable per session.
@@ -415,7 +464,7 @@ The stack implements the following transport profiles:
   - Restricted to `MessageSecurityMode.None`
   - Authentication via Anonymous, Bearer JWT, HTTP Basic, or Mutual TLS (see [WebApi.md](WebApi.md))
   - Server-side discovery emission: `HttpsServiceHost` emits this sub-profile as a discovery-only twin alongside each `SecurityMode.None` HTTPS-binary endpoint, so discovery-driven clients can find the OpenAPI endpoint without hard-coding the URL.
-  - Shipped as part of the `OPCFoundation.NetStandard.Opc.Ua.Bindings.Https` package (net8+ only)
+  - Shipped as part of the `OPCFoundation.NetStandard.Opc.Ua.Bindings.Https` package (net10+ only)
   - Surfaced via `Profiles.HttpsOpenApiTransport`
 
 - **[WSS OpenAPI](https://profiles.opcfoundation.org/profile/2339)** (`opc.wss://` and `wss://`) - OPC UA OpenAPI Mapping over secure WebSockets (Part 6 §7.5.2, sub-protocol `opcua+openapi` / `opcua+openapi+<accesstoken>`) — official OPC Foundation profile/2339, URI `http://opcfoundation.org/UA-Profile/Transport/wss-uajson-openapi`
@@ -530,11 +579,11 @@ Modern AEAD cipher alternatives for traditional ECC curves:
 - **RSA_DH_ChaChaPoly** — RSA Diffie-Hellman key agreement with ChaCha20-Poly1305
 
 **Platform requirements for ECC.** Certificate creation, storage, and validation
-are distinct from ECC SecureChannel and user-token security policies. On .NET 8.0 or
+are distinct from ECC SecureChannel and user-token security policies. On .NET 10.0 or
 later those policies use the platform's raw ECDH agreement and authenticated ciphers;
 on .NET Framework the agreement and the AES-GCM and ChaCha20-Poly1305 ciphers run in
 the managed BouncyCastle implementation. Curve and cipher availability also depends on
-the OS and, on .NET 8+, the runtime probes
+the OS and, on .NET 10+, the runtime probes
 (`AesGcm.IsSupported` / `ChaCha20Poly1305.IsSupported`). See the
 [ECC platform limitations](EccProfiles.md#known-limitations) for the certificate-operation
 and channel-policy boundaries. PubSub has its own
@@ -619,28 +668,43 @@ OPC UA Part 12 areas:
   certificate issuance, typed pull/push workflows, and a singleton device host
   with retained factory credentials and security reset. Providers own software
   approval and state retention; restart durability depends on selecting a
-  durable provider. The bounded push scheduler accepts work in process and does
-  not persist the queue. Registrar push provisions managed Client
+  durable provider. The standard push registration requires a work store that
+  persists acceptance and reconciles interrupted attempts before retry.
+  Registrar push provisions managed Client
   applications and supports managed Server/ClientAndServer applications when
   the host supplies authoritative discovery URLs, installed certificates,
   endpoints, user identities and explicit client trust. The default managed-
   application verifier supports UA-TCP and HTTPS with independently validated
   TLS and application identities. The sample can be configured for
   one managed Server or ClientAndServer application after DCA proof. The
-  provisionable-device factory adds a Part 22 `Resources` parent reference, but
-  shared Resources manager integration is not implemented. Registrar push uses
+  provisionable-device factory publishes its standard nodes through lifecycle-aware
+  routing alongside the Part 22 `Resources` manager. A host can
+  [replace the device node manager](Onboarding.md#replace-a-provisionable-devices-node-manager)
+  without replacing its runtime or managed targets. Registrar push uses
   the configured certificate type by default and permits a host-selected type
   for each managed application; the selected type must be advertised by its
   certificate group. Per-entry remote `ConfigurationFile`
   update/confirm and restart recovery use optional application-scoped Part 12
-  providers. The originally selected certificate type is retained during recovery.
+  providers. The client reads the existing content and rewinds before writing.
+  It rejects shorter replacements because FileType supplies no interoperable
+  truncation operation.
+  Pull supports signing and new-key-pair requests for the DCA and managed
+  applications. Signing recovery retains the request and its private key.
+  [New-key-pair recovery](GDS.md#recover-pull-dca-key-pair-requests) resumes from a protected
+  checkpoint. If the registrar consumed the request and the response was lost,
+  the workflow starts a fresh request rather than attempting certificate-only
+  recovery. Recovery retains the originally selected certificate type.
   The optional external-authentication handoff uses an injectable provider for
   dedicated CA trust and configured product/DCA approval; typed external pull
-  and registrar push reuse the existing lifecycle. FDO protocols and credential
-  installation remain external.
-  Connected recovery fixtures are present; their execution status is tracked
-  separately. See
-  [the implemented scope](GDS.md#opc-10000-21-onboardingclient).
+  and registrar push reuse the existing lifecycle. The external service runs
+  FDO and installs the bootstrap credential when that authentication option
+  is used.
+  **Deployment requirements:** Implementers supply protected key-pair storage,
+  exclusive ownership for durable records, and any distributed coordination or
+  software installation their deployment needs. The connected recovery test
+  uses an in-memory checkpoint to verify the SDK workflow across a new session;
+  it does not verify persistence across a process restart. See
+  [the implemented scope](Onboarding.md#opc-10000-21-onboardingclient).
 
 See the [GDS Developer Guide](GDS.md) for the implemented facets, provider-dependent
 features, partial support, and hosting integration. This is not a claim that every
@@ -721,21 +785,25 @@ actually implements is tracked in
 
 Node managers that implement `IConformanceContributor`, such as the
 companion node managers, contribute the facets and conformance units they
-actually wire. At startup the server registers them with the
-`ConformanceUnitsManager` and publishes the aggregate to
+actually wire. The `ConformanceUnitsManager` reads visible routed managers
+under their generation admissions and publishes the aggregate to
 `Server/ServerCapabilities/ConformanceUnits` and `ServerProfileArray`.
+Hidden managers are not read or advertised. A routed facade supplies its own
+contribution when it implements the interface; otherwise a contributor exposed
+by its synchronous manager or the stack's synchronous adapter is used.
+Applications can also register contributors independently of the lifecycle.
 The startup lifecycle republishes after the actual endpoint descriptions are
 installed, so security-dependent companion claims are evaluated against real
 endpoint policies rather than a placeholder registry.
 
-The manager keeps the registered contributors and reads them again on every
+The manager reads routed and explicitly registered contributors again on every
 `PublishAsync`, because the ServerCapabilities describe the current
 configuration of the server (OPC 10000-5 §6.3.2). A contributor whose
 support changes at runtime calls `PublishAsync` afterwards (the manager is
 `ServerInternalData.ConformanceUnitsManager`); a unit or profile
-that no contributor reports any more is withdrawn. `Unregister` removes a
-contributor. The profiles from the `ServerProfileArray` configuration are
-always kept.
+that no contributor reports any more is withdrawn. `Unregister` removes an
+explicit registration, not a contribution supplied by a visible manager.
+The profiles from the `ServerProfileArray` configuration are always kept.
 
 ### Security policy configuration
 
@@ -787,6 +855,7 @@ for the variant selected by `--ctt`.
 - [Aggregates](Aggregates.md) (Part 13)
 - [State Machines](StateMachines.md) (Part 16)
 - [Alias Names](AliasNames.md) (Part 17)
+- [Base Network Model](BaseNetworkModel.md) (Part 22, provider and simulation boundaries)
 - [Role-Based User Management](RoleBasedUserManagement.md) (Part 18)
 - [Identity Providers](IdentityProviders.md)
 - [Authorization Service](AuthorizationService.md) (Part 12 §9)
@@ -796,15 +865,19 @@ for the variant selected by `--ctt`.
 - [Device Integration](DeviceIntegration.md) (Part 100)
 - [Relative Spatial Location and Global Positioning](Positioning.md)
   (Parts 210 and 211)
+- [Industrial Automation](IndustrialAutomation.md) (OPC 10000-200)
 - [Robotics](Robotics.md) (OPC 40010-1 over OPC 10000-200)
 - [Software Update](SoftwareUpdate.md)
 - [WoT Connectivity](WotCon.md) (OPC 10100-1)
 - [Node Management](NodeManagement.md) (Part 4)
 - [Asset Management Basics](AMB.md) (OPC 10000-110)
 - [Machinery](Machinery.md) (OPC 40001 series, PA-DIM and ECM)
+- [Energy Consumption Management](ECM.md) (OPC 34100)
+- [PA-DIM](PADIM.md) (OPC 30081)
 - [Pumps](Pumps.md) (OPC 40223)
 - [AutoID Devices](AutoID.md) (OPC 30010)
 - [Scales](Scales.md) (OPC 40200 and PackML)
+- [PackML](PackML.md) (OPC 30050 standalone units)
 - [ISA-95](ISA95.md) (OPC 10030 and OPC 10031-4)
 - [MachineTool and WMTP](MachineTool.md) (OPC 40501-1 and OPC 40505)
 - [Geometric Measurement Systems](GMS.md) (OPC 40210)
@@ -854,13 +927,13 @@ not a promise that every optional facet is enabled, and not an application's
 `ServerProfileArray`. For concepts and guidance documents, the rating refers
 to their application in the SDK rather than a separately executable protocol.
 The [catalogue](#companion-and-extension-models) and linked guides identify
-implementation evidence and provider boundaries. The partial-support column
-records the specific gap rather than repeating ordinary provider requirements.
+implementation evidence and provider boundaries. The final column records
+specific gaps for Partial entries only.
 The model-only core entries refer to declarations in the shipped
 [core NodeSet](../src/Opc.Ua.Core/Schema/Opc.Ua.NodeSet.xml); their presence
 does not establish executable management, serialization or logging methods.
 
-| Specification | Latest version | Support | Why support is partial |
+| Specification | Latest version | Support | Partial support gap |
 | --- | --- | --- | --- |
 | [OPC 10000-1: Overview and Concepts](https://reference.opcfoundation.org/specs/OPC-10000-1) | 1.05.06 | Full | - |
 | [OPC 10000-2: Security Model](https://reference.opcfoundation.org/specs/OPC-10000-2) | 1.05.06 | Full | - |
@@ -873,7 +946,7 @@ does not establish executable management, serialization or logging methods.
 | [OPC 10000-9: Alarms and Conditions](https://reference.opcfoundation.org/specs/OPC-10000-9) | 1.05.06 | Full | - |
 | [OPC 10000-10: Programs](https://reference.opcfoundation.org/specs/OPC-10000-10) | 1.05.00 | Full | - |
 | [OPC 10000-11: Historical Access](https://reference.opcfoundation.org/specs/OPC-10000-11) | 1.05.04 | Full | - |
-| [OPC 10000-12: Discovery and Global Services](https://reference.opcfoundation.org/specs/OPC-10000-12) | 1.05.07 | Partial | Runtime-backed ManagedApplications entries support independent certificate, trust and optional per-application ConfigurationFile update, confirmation and restart recovery. Shared `ConfigurationFile` Read + Write opens start empty, so the client cannot read the current content and rewind before writing. `ApplicationConfigurationFile` replaces the existing handle on each successful new `Open` instead of retaining multiple readers or rejecting incompatible opens with the `Bad_NotWritable` / `Bad_NotReadable` statuses required by Part 20 §4.2.2; the AuthorizationServices configuration folder is absent |
+| [OPC 10000-12: Discovery and Global Services](https://reference.opcfoundation.org/specs/OPC-10000-12) | 1.05.07 | Partial | Pull `FinishRequest` checks the SecureChannel client certificate against the fingerprint stored at request start. `ConfigurationFile` transfer and open-handle behavior are incomplete. Shorter replacement semantics are unresolved, and `AuthorizationServices` is absent. [Details](GDS.md#remaining-optional--unsupported-part-12-items) |
 | [OPC 10000-13: Aggregates](https://reference.opcfoundation.org/specs/OPC-10000-13) | 1.05.07 | Full | - |
 | [OPC 10000-14: PubSub](https://reference.opcfoundation.org/specs/OPC-10000-14) | 1.05.06 | Partial | Curve25519/Curve448 DTLS profiles unavailable; other DTLS profiles depend on platform probes |
 | [OPC 10000-15: Safety](https://reference.opcfoundation.org/specs/OPC-10000-15) | 1.05.04 | No | - |
@@ -881,9 +954,9 @@ does not establish executable management, serialization or logging methods.
 | [OPC 10000-17: Alias Names](https://reference.opcfoundation.org/specs/OPC-10000-17) | 1.05.07 | Full | - |
 | [OPC 10000-18: Role-Based Security](https://reference.opcfoundation.org/specs/OPC-10000-18) | 1.05.06 | Full | - |
 | [OPC 10000-19: Dictionary Reference](https://reference.opcfoundation.org/specs/OPC-10000-19) | 1.05.03 | Full | - |
-| [OPC 10000-20: File Transfer](https://reference.opcfoundation.org/specs/OPC-10000-20) | 1.05.06 | Partial | The shared file handler rejects combined Read + Write opens; a conflicting write-only open on a writable file can return `Bad_InvalidState` instead of `Bad_NotWritable` |
-| [OPC 10000-21: Device Onboarding](https://reference.opcfoundation.org/specs/OPC-10000-21) | 1.05.04 | Partial | Ticket validation, registrar runtime and pull/push workflows are implemented, including managed Client and provider-backed Server/ClientAndServer push. The shared Part 22 `Resources` manager is not integrated; the device factory currently adds only its parent reference. The optional external DCA certificate handoff validates dedicated CA trust and configured product/application approval through an injectable provider, with typed pull, push and retained enrollment evidence. FDO protocols and credential installation remain external. Registrar push uses an explicit per-application certificate type or the configured default when absent, validates the advertised group types, and retains the original selection during recovery. The default managed-application verifier supports UA-TCP and HTTPS; HTTPS independently validates TLS trust or a TLS pin, the pinned application certificate, expected URI and application proof before credentials. Its TLS terminator is part of the trust boundary. Per-entry remote `ConfigurationFile` update, confirmation and restart recovery use optional application-scoped Part 12 providers; shared `ConfigurationFile` transfer has separate Part 12/20 gaps. The registrar sample can configure one managed Server/ClientAndServer application, and the device sample can configure multiple managed Client applications. The Partial rating reflects implementation gaps, not pending test execution |
-| [OPC 10000-22: Base Network Model](https://reference.opcfoundation.org/specs/OPC-10000-22) | 1.05.04 | Partial | Generated network model types; no complete network-management runtime |
+| [OPC 10000-20: File Transfer](https://reference.opcfoundation.org/specs/OPC-10000-20) | 1.05.06 | Partial | Combined Read + Write opens require `IFileSystemReadWriteProvider`; conflicting write opens can return `Bad_InvalidState` instead of `Bad_NotWritable` |
+| [OPC 10000-21: Device Onboarding](https://reference.opcfoundation.org/specs/OPC-10000-21) | 1.05.04 | Full | - |
+| [OPC 10000-22: Base Network Model](https://reference.opcfoundation.org/specs/OPC-10000-22) | 1.05.04 | Full | - |
 | [OPC 10000-23: Common ReferenceTypes](https://reference.opcfoundation.org/specs/OPC-10000-23) | 1.05.02 | Full | - |
 | [OPC 10000-24: Scheduler](https://reference.opcfoundation.org/specs/OPC-10000-24) | 1.05.02 | No | - |
 | [OPC 10000-25: Object Serialization](https://reference.opcfoundation.org/specs/OPC-10000-25) | 1.05.06 | Partial | Generated serialization declarations; no complete ConfigureSerialization runtime |
@@ -894,9 +967,9 @@ does not establish executable management, serialization or logging methods.
 | [OPC 10000-83: UAFX Offline Engineering](https://reference.opcfoundation.org/specs/OPC-10000-83) | 1.00.03 | No | - |
 | [OPC 10000-84: UAFX Profiles](https://reference.opcfoundation.org/specs/OPC-10000-84) | 1.00.04 | No | - |
 | [OPC 10000-100: Devices](https://reference.opcfoundation.org/specs/OPC-10000-100) | 1.05.0 | Partial | DI Offline, some software-loading modes and UpdateStatus missing |
-| [OPC 10000-110: Asset Management Basics](https://reference.opcfoundation.org/specs/OPC-10000-110) | 1.01.1 | Partial | Asset-health tracking and past-maintenance event history missing |
+| [OPC 10000-110: Asset Management Basics](https://reference.opcfoundation.org/specs/OPC-10000-110) | 1.01.1 | Full | - |
 | [OPC 10000-120: OPC UA and XML Data Type Mapping](https://reference.opcfoundation.org/specs/OPC-10000-120) | 1.00 | No | - |
-| [OPC 10000-200: Industrial Automation](https://reference.opcfoundation.org/specs/OPC-10000-200) | 1.01.4 | Partial | Generated model and Machinery/Robotics bindings; not every standalone IA facet |
+| [OPC 10000-200: Industrial Automation](https://reference.opcfoundation.org/specs/OPC-10000-200) | 1.01.4 | Full | - |
 | [OPC 10000-210: Relative Spatial Location](https://reference.opcfoundation.org/specs/OPC-10000-210) | 1.00.1 | Full | - |
 | [OPC 10000-211: Global Positioning](https://reference.opcfoundation.org/specs/OPC-10000-211) | 1.0.0 | Full | - |
 | [OPC 10030: ISA-95 Common Object Model](https://reference.opcfoundation.org/specs/OPC-10030) | 1.00 | Full | - |
@@ -906,13 +979,13 @@ does not establish executable management, serialization or logging methods.
 | [OPC 11030: UA Modelling Best Practices](https://reference.opcfoundation.org/specs/OPC-11030) | 1.03.03 | Partial | Selected model-authoring/generator checks; no complete best-practices validator |
 | [OPC 30000: PLCs based on IEC 61131-3](https://reference.opcfoundation.org/specs/OPC-30000) | 1.02 | No | - |
 | [OPC 30001: Client Function Blocks for IEC 61131-3](https://reference.opcfoundation.org/specs/OPC-30001) | 1.02 | No | - |
-| [OPC 30010: AutoID Devices](https://reference.opcfoundation.org/specs/OPC-30010) | 1.01 | Partial | ScanActive control/RuntimeParameters missing; optical-verifier Scan has inconsistent upstream result type |
+| [OPC 30010: AutoID Devices](https://reference.opcfoundation.org/specs/OPC-30010) | 1.01 | Full | - |
 | [OPC 30020: MDIS](https://reference.opcfoundation.org/specs/OPC-30020) | 1.3 | No | - |
 | [OPC 30030: BACnet](https://reference.opcfoundation.org/specs/OPC-30030) | 2.00.1 | No | - |
 | [OPC 30040: AutomationML](https://reference.opcfoundation.org/specs/OPC-30040) | 1.00 | No | - |
-| [OPC 30050: PackML](https://reference.opcfoundation.org/specs/OPC-30050) | 1.01 | Partial | Generated model and Scales integration; not a standalone all-unit-mode runtime |
+| [OPC 30050: PackML](https://reference.opcfoundation.org/specs/OPC-30050) | 1.01 | Partial | The runtime does not advertise a PackML server profile URI; inherited facets require application and deployment configuration |
 | [OPC 30060: Tobacco Machine Communication](https://reference.opcfoundation.org/specs/OPC-30060) | 2.00.1 | No | - |
-| [OPC 30081: PA-DIM](https://reference.opcfoundation.org/specs/OPC-30081) | 1.02.0 | Partial | Generated model and Machinery process values; no complete standalone PA-DIM runtime |
+| [OPC 30081: PA-DIM](https://reference.opcfoundation.org/specs/OPC-30081) | 1.02.0 | Full | - |
 | [OPC 30090: Field Device Tool (FDT)](https://reference.opcfoundation.org/specs/OPC-30090) | 1.01 | No | - |
 | [OPC 30100: SERCOS Devices](https://reference.opcfoundation.org/specs/OPC-30100) | 1.2 | No | - |
 | [OPC 30110: POWERLINK](https://reference.opcfoundation.org/specs/OPC-30110) | 1.00 | No | - |
@@ -933,8 +1006,8 @@ does not establish executable management, serialization or logging methods.
 | [OPC 30400-1: Cloud Library - Architecture and Use Cases](https://reference.opcfoundation.org/specs/OPC-30400-1) | 1.00.1 | No | - |
 | [OPC 30400-2: Cloud Library - API Definition](https://reference.opcfoundation.org/specs/OPC-30400-2) | 1.00.0 | No | - |
 | [OPC 30450-1: Digital Product Passport - Information Model](https://reference.opcfoundation.org/specs/OPC-30450-1) | 1.0.0 | No | - |
-| [OPC 30500-1: Laboratory and Analytical Device Standard (LADS) - Basics](https://reference.opcfoundation.org/specs/OPC-30500-1) | 1.0.0 | Partial | Optional Hold/Unhold/Suspend/Unsuspend/Reset/ToComplete server methods and persistence missing |
-| [OPC 34100: Energy Consumption Management](https://reference.opcfoundation.org/specs/OPC-34100) | 1.0.1 | Partial | Generated model and Machinery energy bindings; no complete standalone ECM runtime |
+| [OPC 30500-1: Laboratory and Analytical Device Standard (LADS) - Basics](https://reference.opcfoundation.org/specs/OPC-30500-1) | 1.0.0 | Full | - |
+| [OPC 34100: Energy Consumption Management](https://reference.opcfoundation.org/specs/OPC-34100) | 1.0.1 | Full | - |
 | [OPC 40001-1: Machinery - Basic Building Blocks](https://reference.opcfoundation.org/specs/OPC-40001-1) | 1.04.2 | Full | - |
 | [OPC 40001-2: Machinery - Process Values](https://reference.opcfoundation.org/specs/OPC-40001-2) | 1.00 | Full | - |
 | [OPC 40001-3: Machinery - Job Management](https://reference.opcfoundation.org/specs/OPC-40001-3) | 1.0.1 | Full | - |
@@ -964,9 +1037,9 @@ does not establish executable management, serialization or logging methods.
 | [OPC 40092-1: Flexible PUR Foam - Cutting Machines](https://reference.opcfoundation.org/specs/OPC-40092-1) | 1.0.0 | No | - |
 | [OPC 40100-1: Machine Vision - Control, Configuration, Recipe and Result Management](https://reference.opcfoundation.org/specs/OPC-40100-1) | 1.0 | Full | - |
 | [OPC 40100-2: Machine Vision - Asset Management and Condition Monitoring](https://reference.opcfoundation.org/specs/OPC-40100-2) | 1.00.0 | Full | - |
-| [OPC 40200: Weighing Technology](https://reference.opcfoundation.org/specs/OPC-40200) | 2.00 | Partial | Catchweigher/price-labeler/hopper controllers and server recipe sleep-threshold evaluation missing |
-| [OPC 40210: Geometric Measurement Systems](https://reference.opcfoundation.org/specs/OPC-40210) | 1.0.1 | Partial | Production facet withheld: required GMS_ProductionStatisticsType undefined upstream |
-| [OPC 40223: Pumps and Vacuum Pumps](https://reference.opcfoundation.org/specs/OPC-40223) | 1.0 | Partial | Writable identification not retained; pump alarms, event notification and history missing |
+| [OPC 40200: Weighing Technology](https://reference.opcfoundation.org/specs/OPC-40200) | 2.00 | Partial | Mixed-category `Weighed` does not represent fixed category participation; ordinary notification reentry permits writes from overlapping callbacks |
+| [OPC 40210: Geometric Measurement Systems](https://reference.opcfoundation.org/specs/OPC-40210) | 1.0.1 | Partial | Table 63 names `GMS GMS_ProductionStatisticsType` as a mandatory Production conformance unit, but Table 56 does not define that unit; the Production facet remains withheld |
+| [OPC 40223: Pumps and Vacuum Pumps](https://reference.opcfoundation.org/specs/OPC-40223) | 1.0 | Full | - |
 | [OPC 40250-1: Compressed Air Systems - Main Control Systems](https://reference.opcfoundation.org/specs/OPC-40250-1) | 1.00.1 | No | - |
 | [OPC 40301: Flat Glass Processing](https://reference.opcfoundation.org/specs/OPC-40301) | 2.0 | No | - |
 | [OPC 40400-1: Powertrain - Asset Management](https://reference.opcfoundation.org/specs/OPC-40400-1) | 1.0 | No | - |

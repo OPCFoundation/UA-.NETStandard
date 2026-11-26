@@ -1,31 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System.Collections.Generic;
 using System.Linq;
@@ -45,6 +19,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
     /// behaviours required by the WoT Connectivity V2 runtime.
     /// </summary>
     [TestFixture]
+    [Category("Integration")]
     public sealed class WotMaterializationCoordinatorTests
     {
         private static readonly string[] s_tmTdSourceNames = ["tm-a", "td-a"];
@@ -360,7 +335,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
         [Test]
         public async Task VersionSwitchUsesImmediateReloadWhenConfigured()
         {
-            m_coordinator.RetirementPolicy = WotProjectionRetirementPolicy.Immediate;
+            m_coordinator.RetirementPolicy = WotProjectionRetirementPolicy.Invalidate;
             await RegisterTd("td-a", TestMaterialization.Td("urn:td-a", "v1")).ConfigureAwait(false);
             await m_coordinator.RefreshAsync(new WotRefreshRequest()).ConfigureAwait(false);
 
@@ -728,12 +703,9 @@ namespace Opc.Ua.WotCon.Tests.Materialization
         [Test]
         public async Task RootNodeIdIsRecordedFromGeneratedNodeSet()
         {
-            // The fake converter emits a NodeSet whose model namespace is
-            // urn:wot:{group}/{resource}; register it so the coordinator can
-            // resolve the recorded projection root into a server NodeId.
-            var namespaces = new NamespaceTable();
+            NamespaceTable namespaces = m_runtime!.Namespaces;
             string modelUri = $"urn:wot:{WotRegistryGroups.ThingDescriptions}/td-a";
-            namespaces.Append(modelUri);
+            Assert.That(namespaces.GetIndex(modelUri), Is.EqualTo(-1));
             m_coordinator.ServerNamespaceUris = namespaces;
             await RegisterTd("td-a", TestMaterialization.Td("urn:td-a")).ConfigureAwait(false);
 
@@ -746,7 +718,10 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 Is.EqualTo((ushort)namespaces.GetIndex(modelUri)));
             WotResource resource = m_registry.Current.FindResource(
                 WotRegistryGroups.ThingDescriptions, "td-a")!;
-            Assert.That(resource.RootNodeId.IsNull, Is.False);
+            Assert.That(resource.RootNodeId, Is.EqualTo(td.RootNodeId));
+            Assert.That(
+                await m_runtime!.Server.NodeManager.FindNodeInAddressSpaceAsync(td.RootNodeId).ConfigureAwait(false),
+                Is.Not.Null);
         }
 
         /// <summary>

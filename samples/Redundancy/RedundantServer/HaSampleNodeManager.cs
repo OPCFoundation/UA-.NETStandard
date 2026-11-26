@@ -1,31 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using System.Collections.Generic;
@@ -150,7 +124,7 @@ namespace RedundantServer
     /// <summary>
     /// Minimal <see cref="FluentNodeManagerBase"/> address space that participates in distributed replication.
     /// </summary>
-    public sealed class HaSampleNodeManager : FluentNodeManagerBase
+    public sealed class HaSampleNodeManager : FluentNodeManagerBase, INodeManagerReadinessNotification
     {
         private readonly ILeaderElection m_leaderElection;
         private readonly HaSampleReplicaInfo m_replicaInfo;
@@ -311,25 +285,25 @@ namespace RedundantServer
 
             if (m_historian != null)
             {
-#pragma warning disable CA2000 // ownership transfers to the server's historian-builder registry
-                HistorianBuilder historian = new HistorianBuilder(Server)
-                    .UseProvider(m_historian);
-#pragma warning restore CA2000
-                await historian.HistorizeAsync(
-                    m_counter,
-                    SystemContext,
-                    historyAccessLevel: AccessLevels.HistoryRead | AccessLevels.HistoryWrite,
-                    capabilities: HistorianNodeCapabilities.DataReadWrite,
-                    autoCapture: false,
-                    cancellationToken: cancellationToken).ConfigureAwait(false);
-                await historian.HistorizeEventsAsync(
-                    m_historyEvents,
-                    SystemContext,
-                    capabilities: HistorianNodeCapabilities.EventReadWrite with
-                    {
-                        EventTypes = [ObjectTypeIds.BaseEventType]
-                    },
-                    cancellationToken: cancellationToken).ConfigureAwait(false);
+                DeferPublishedAuthoringUntilReady(builder, async (published, ct) =>
+                {
+                    HistorianBuilder historian = published.UseHistorian().UseProvider(m_historian);
+                    await historian.HistorizeAsync(
+                        m_counter,
+                        SystemContext,
+                        historyAccessLevel: AccessLevels.HistoryRead | AccessLevels.HistoryWrite,
+                        capabilities: HistorianNodeCapabilities.DataReadWrite,
+                        autoCapture: false,
+                        cancellationToken: ct).ConfigureAwait(false);
+                    await historian.HistorizeEventsAsync(
+                        m_historyEvents,
+                        SystemContext,
+                        capabilities: HistorianNodeCapabilities.EventReadWrite with
+                        {
+                            EventTypes = [ObjectTypeIds.BaseEventType]
+                        },
+                        cancellationToken: ct).ConfigureAwait(false);
+                });
             }
 
             // Registering the staged subtree and re-running the reverse
@@ -339,6 +313,12 @@ namespace RedundantServer
             await CompleteConfigureAsync(externalReferences, cancellationToken)
                 .ConfigureAwait(false);
             await SealConfigurationAsync(builder, cancellationToken).ConfigureAwait(false);
+        }
+
+        /// <inheritdoc/>
+        ValueTask INodeManagerReadinessNotification.OnServerReadyAsync(CancellationToken cancellationToken)
+        {
+            return CompletePublishedConfigurationAsync(cancellationToken);
         }
 
         private void AddFactoryAssignedNodes(FolderState parent, ushort namespaceIndex)

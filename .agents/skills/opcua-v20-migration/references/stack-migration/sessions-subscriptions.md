@@ -1,3 +1,8 @@
+<!--
+SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+SPDX-License-Identifier: MIT
+-->
+
 # Sessions, GDS Client, and Subscriptions
 
 > **When to read this:** Read this for the move from caller-driven `Session`
@@ -18,10 +23,11 @@
   - [Service Call Behavior During Reconnect](#service-call-behavior-during-reconnect)
   - [Fluent Builder, V2 Subscriptions, and Dependency Injection](#fluent-builder-v2-subscriptions-and-dependency-injection)
 - [Server Session Activation and Subscription Transfer](#server-session-activation-and-subscription-transfer)
+  - [Session user identifiers](#session-user-identifiers)
 - [Subscriptions and Transports](#subscriptions-and-transports)
   - [Durable subscriptions and reshaped Subscription tree](#durable-subscriptions-and-reshaped-subscription-tree)
   - [Request completion is owned by `OperationContext`](#request-completion-is-owned-by-operationcontext)
-  - [`Opc.Ua.Server.ISession`: `IsClosing` and `InvalidateContinuationPoints`](#opcuaserverisession-isclosing-and-invalidatecontinuationpoints)
+  - [`Opc.Ua.Server.ISession`: `IsClosing`](#opcuaserverisession-isclosing)
   - [`Opc.Ua.Server.ISubscription`: the publish pipeline is server-internal](#opcuaserverisubscription-the-publish-pipeline-is-server-internal)
   - [`EventFilter.Validate` accepts partially valid select clauses](#eventfiltervalidate-accepts-partially-valid-select-clauses)
   - [PubSub](#pubsub)
@@ -226,10 +232,19 @@ ManagedSession session = await new ManagedSessionBuilder(configuration, telemetr
         MaxDelay = TimeSpan.FromSeconds(30)
     })
     .WithServerRedundancy()
+    .WithServerRedundancyOptions(new ServerRedundancyOptions
+    {
+        ExpectedServerApplicationUri = provisionedServerUri
+    })
     .ConnectAsync(ct);
 ```
 
 `Build()` returns an immutable `ManagedSessionOptions` snapshot; `ConnectAsync()` wraps `Build()` and `ManagedSession.CreateAsync(...)` so most callers can use the builder directly.
+
+When enabling server redundancy or token-reuse failover, provision
+`ServerRedundancyOptions.ExpectedServerApplicationUri` independently of
+discovery. A fully populated endpoint or a cached session handoff does not
+replace this configuration. Ordinary nonredundant connections do not need it.
 
 **New subscription API on `ISession`:**
 
@@ -380,6 +395,23 @@ Identity continuity across a SecureChannel transfer or a Subscription transfer i
 
 `SessionManager.OnSessionActivatedAsync` takes an additional `long activationSequence` parameter. The value increases with every successful activation of a Session and is stamped while the per-Session activation gate is still held. Because the callback itself runs after that gate is released, implementations that persist activation state outside the gate must use the sequence to discard writes that a newer concurrent activation has already superseded.
 
+### Session user identifiers
+
+Custom `ISessionOperationContext` implementations must provide `string? ClientUserId`.
+When decorating a standard request context, forward its captured value.
+The identifier is the user name for a UserName token, the certificate subject for
+an X.509 token, the issuer and subject for an issued token, or `null` for anonymous
+authentication. Do not substitute `IUserIdentity.DisplayName`.
+
+`SessionSystemContext.UserId` aliases `ClientUserId`. If the application needs a
+presentation label, read `UserIdentity.DisplayName` explicitly. Keep using the
+identity and role authorization APIs: the reported ClientUserId is not the encoded
+continuity key used for SecureChannel and Subscription transfers.
+
+For a stand-alone `SessionSystemContext` without an operation context or an
+assigned identifier, token or claims metadata takes precedence. `DisplayName`
+remains the compatibility fallback only when neither identifies the user.
+
 ## Subscriptions and Transports
 
 ### Durable subscriptions and reshaped Subscription tree
@@ -390,7 +422,7 @@ Consumers adopting the new shape may need to add a `using Opc.Ua.Client.Subscrip
 
 The server-side `ISubscriptionStore` definition-persistence methods are asynchronous: `StoreSubscriptions` is now `ValueTask<bool> StoreSubscriptionsAsync(IEnumerable<IStoredSubscription>, CancellationToken)`, `RestoreSubscriptions` is now `ValueTask<RestoreSubscriptionResult> RestoreSubscriptionsAsync(CancellationToken)`, and `OnSubscriptionRestoreComplete` is now `ValueTask OnSubscriptionRestoreCompleteAsync(Dictionary<uint, ArrayOf<uint>>, CancellationToken)`. This lets subscription definitions be persisted to an async network backend without a sync-over-async wrapper. Custom `ISubscriptionStore` implementations must adopt the async signatures; a synchronous body can simply return `new ValueTask<T>(result)`.
 
-`ISubscriptionStore` also adds asynchronous per-monitored-item queue-restore hooks - `ValueTask<IDataChangeMonitoredItemQueue?> RestoreDataChangeMonitoredItemQueueAsync(uint, CancellationToken)` and `ValueTask<IEventMonitoredItemQueue?> RestoreEventMonitoredItemQueueAsync(uint, CancellationToken)` - so a networked store can re-hydrate a monitored-item queue without blocking. The master node manager pre-fetches these queues asynchronously at the start of subscription restore and hands the pre-hydrated queue to the (still synchronous) `MonitoredItem` constructor via new runtime-only `IStoredMonitoredItem.RestoredDataChangeQueue`/`RestoredEventQueue` properties. Custom `ISubscriptionStore` implementations must add the two async members; a store that keeps queues locally can simply delegate to the existing synchronous `RestoreDataChangeMonitoredItemQueue`/`RestoreEventMonitoredItemQueue`, which remain as the fallback used when no pre-hydrated queue is supplied. Custom `IStoredMonitoredItem` implementations must add the two new properties (the built-in `StoredMonitoredItem` already does). The high-availability `SharedKeyValueMonitoredItemQueueFactory` uses these hooks to restore mirrored queue contents on failover (see [High Availability](https://github.com/OPCFoundation/UA-.NETStandard/blob/master/docs/HighAvailability.md)).
+`ISubscriptionStore` also adds asynchronous per-monitored-item queue-restore hooks - `ValueTask<IDataChangeMonitoredItemQueue?> RestoreDataChangeMonitoredItemQueueAsync(uint, CancellationToken)` and `ValueTask<IEventMonitoredItemQueue?> RestoreEventMonitoredItemQueueAsync(uint, CancellationToken)` - so a networked store can re-hydrate a monitored-item queue without blocking. The master node manager pre-fetches these queues asynchronously at the start of subscription restore and hands the pre-hydrated queue to the (still synchronous) `MonitoredItem` constructor via new runtime-only `IStoredMonitoredItem.RestoredDataChangeQueue`/`RestoredEventQueue` properties. Custom `ISubscriptionStore` implementations must add the two async members; a store that keeps queues locally can simply delegate to the existing synchronous `RestoreDataChangeMonitoredItemQueue`/`RestoreEventMonitoredItemQueue`, which remain as the fallback used when no pre-hydrated queue is supplied. Custom `IStoredMonitoredItem` implementations must add the two new properties (the built-in `StoredMonitoredItem` already does).
 
 ### Request completion is owned by `OperationContext`
 
@@ -407,20 +439,22 @@ after calling `base` left it registered forever, because the caller never receiv
 nothing disposed it. Override `protected virtual ValueTask OnRequestValidatedAsync(OperationContext)`
 instead; throwing from it rejects the request and completes it.
 
-### `Opc.Ua.Server.ISession`: `IsClosing` and `InvalidateContinuationPoints`
+<a id="opcuaserverisession-isclosing-and-invalidatecontinuationpoints"></a>
+
+### `Opc.Ua.Server.ISession`: `IsClosing`
 
 **Source-breaking for custom implementations.** This is the **server-side** `Opc.Ua.Server.ISession`,
 implemented by the server's `Session` — not the client-side `Opc.Ua.Client.ISession` discussed above.
-It gains `bool IsClosing` and `void InvalidateContinuationPoints(IAsyncNodeManager)`.
+It gains `bool IsClosing`.
 
 `IsClosing` reports that the Session is being torn down, so work that would create new state for it
 is rejected instead of started. It is one way: a Session that started closing never serves new work
-again, even if the close itself fails. `InvalidateContinuationPoints` drops the saved Browse and
-history continuation points that would otherwise keep a retired NodeManager reachable.
+again, even if the close itself fails. Custom implementations must report `IsClosing` as true when
+teardown starts and keep it true. The built-in server `Session` implements this behavior.
 
-Custom implementations must add both. Returning `false` from `IsClosing` and doing nothing in
-`InvalidateContinuationPoints` preserves the previous behaviour; the built-in server `Session`
-already implements them.
+The interface does not define an `InvalidateContinuationPoints` method. Retirement invalidates
+saved points in the built-in Session store, but the reclaimer does not notify custom continuation
+stores. See [NodeManager continuation points](https://github.com/OPCFoundation/UA-.NETStandard/blob/master/docs/NodeManagers.md#continuation-points).
 
 ### `Opc.Ua.Server.ISubscription`: the publish pipeline is server-internal
 
@@ -554,7 +588,7 @@ services
 > all ship in the `OPCFoundation.NetStandard.Opc.Ua.Bindings.Https`
 > package. Reference that package directly; Server and GDS packages do not
 > pull the optional binding transitively. The Kestrel-hosted `opc.tcp://` listener
-> (`AddKestrelOpcTcpTransport()`) is available on `net8.0`+ only; on the
+> (`AddKestrelOpcTcpTransport()`) is available on `net10.0`+ only; on the
 > .NET Framework targets keep the default raw-socket
 > `opc.tcp` listener that ships in `Opc.Ua.Core`.
 

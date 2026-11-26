@@ -15,10 +15,13 @@
     <PackageId>$(PackageId).Debug</PackageId>
   </PropertyGroup>
   <ItemGroup>
+    <InternalsVisibleTo Include="Opc.Ua.ECM.Server" />
+    <InternalsVisibleTo Include="Opc.Ua.ECM.Tests" />
     <InternalsVisibleTo Include="Opc.Ua.Machinery.Energy" />
     <InternalsVisibleTo Include="Opc.Ua.Machinery.Server" />
     <InternalsVisibleTo Include="Opc.Ua.Machinery.Client" />
     <InternalsVisibleTo Include="Opc.Ua.Machinery.Tests" />
+    <InternalsVisibleTo Include="Opc.Ua.IA.Server" />
   </ItemGroup>
   <!-- ECM binds DI (its LockingServices) and IA (EnergyMeasurementType
        implements an IA interface). DI is named explicitly rather than relied on
@@ -60,6 +63,8 @@
     <ModelSourceGeneratorVersion>v105</ModelSourceGeneratorVersion>
     <ModelSourceGeneratorUseAllowSubtypes>true</ModelSourceGeneratorUseAllowSubtypes>
     <ModelSourceGeneratorOmitFluentApi>true</ModelSourceGeneratorOmitFluentApi>
+    <ModelSourceGeneratorObjectTypeProxyMethodsWithStatus>true</ModelSourceGeneratorObjectTypeProxyMethodsWithStatus>
+    <ModelSourceGeneratorEcmFieldCopies>true</ModelSourceGeneratorEcmFieldCopies>
   </PropertyGroup>
   <ItemGroup>
     <None Include="NugetREADME.md" Pack="true" PackagePath="\" />

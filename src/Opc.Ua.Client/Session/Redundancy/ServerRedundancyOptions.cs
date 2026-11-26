@@ -1,34 +1,7 @@
-/* ========================================================================
- * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
-using System.Threading;
 
 namespace Opc.Ua.Client
 {
@@ -40,8 +13,11 @@ namespace Opc.Ua.Client
     /// Both bounds trade responsiveness against tolerance of a slow server.
     /// Raise them for a high-latency link, where the defaults can expire
     /// before a healthy server answers; lower them when a connect must not
-    /// stall. <see cref="Timeout.InfiniteTimeSpan"/> waits indefinitely and
-    /// is only safe when the caller already bounds the operation.
+    /// stall. All operation timeouts must be positive and finite.
+    /// Managed server redundancy requires a signed OPC UA SecureChannel that
+    /// authenticates the expected server application URI. Transparent sets use
+    /// their shared application URI. Discovery and reverse connection metadata
+    /// identify where to connect, not who authenticated the channel.
     /// </remarks>
     public sealed record ServerRedundancyOptions
     {
@@ -49,6 +25,11 @@ namespace Opc.Ua.Client
         /// Default bound applied to each redundancy operation.
         /// </summary>
         public static readonly TimeSpan DefaultTimeout = TimeSpan.FromSeconds(2);
+
+        /// <summary>
+        /// The default interval for checking the active member's service level.
+        /// </summary>
+        public static readonly TimeSpan DefaultMonitoringInterval = TimeSpan.FromSeconds(10);
 
         /// <summary>
         /// Bounds reading the active server's redundancy metadata at connect,
@@ -65,21 +46,68 @@ namespace Opc.Ua.Client
         public TimeSpan PeerDiscoveryTimeout { get; init; } = DefaultTimeout;
 
         /// <summary>
+        /// Default for <see cref="MaxRedundantServers"/>.
+        /// </summary>
+        public const int DefaultMaxRedundantServers = 32;
+
+        /// <summary>
+        /// Default for <see cref="MaxConcurrentPeerDiscoveries"/>.
+        /// </summary>
+        public const int DefaultMaxConcurrentPeerDiscoveries = 4;
+
+        /// <summary>
+        /// The maximum number of members of a redundant Server set the client
+        /// takes from <c>RedundantServerArray</c> and <c>ServerUriArray</c>,
+        /// after removing duplicate ServerUris. Members of
+        /// <c>RedundantServerArray</c> come first; further entries are
+        /// ignored. Range 1–256. Default <see cref="DefaultMaxRedundantServers"/>.
+        /// </summary>
+        public int MaxRedundantServers { get; init; } = DefaultMaxRedundantServers;
+
+        /// <summary>
+        /// The maximum number of members whose endpoints are discovered at the
+        /// same time. <see cref="PeerDiscoveryTimeout"/> applies to each member
+        /// from the moment its discovery starts. Range 1–32. Default
+        /// <see cref="DefaultMaxConcurrentPeerDiscoveries"/>.
+        /// </summary>
+        public int MaxConcurrentPeerDiscoveries { get; init; } = DefaultMaxConcurrentPeerDiscoveries;
+
+        /// <summary>
+        /// Maximum concurrent short-lived peer sessions used for probing. Range 1–32; defaults to four.
+        /// </summary>
+        public int MaxConcurrentPeerProbes { get; init; } = 4;
+
+        /// <summary>
+        /// A separate identity for reading peer ServiceLevel and ServerStatus.State. Configure
+        /// it with only the required read permissions on each peer. Never supply the active
+        /// session identity. The default uses anonymous and does not fall back to the active user.
+        /// </summary>
+        public IUserIdentity? ProbeIdentity { get; init; }
+
+        /// <summary>
+        /// Independently provisioned application URI of the first server (the shared URI for a
+        /// transparent set). Required when enabling managed server redundancy or failover token
+        /// reuse, even with a fully populated endpoint or a cached handoff. Do not copy it from
+        /// unauthenticated discovery. The URI is verified against the authenticated server certificate.
+        /// </summary>
+        public string? ExpectedServerApplicationUri { get; init; }
+
+        /// <summary>
         /// When <see langword="true"/>, a <see cref="ManagedSession"/> reads <c>Server.ServiceLevel</c> and
         /// <c>Server.ServerStatus.State</c> of every other member of a non-transparent redundant Server set
-        /// over a short session with a copy of the identity of the session in use, when a selection or
-        /// failover decision needs them: after the initial connect, for a failover, and during ServiceLevel
+        /// over a short session on a certificate-authenticated UA SecureChannel, when a selection or
+        /// failover decision needs them: when first connecting to a non-Healthy server, for a failover,
+        /// and during ServiceLevel
         /// monitoring once the Server in use is no longer Healthy. A member whose resolved endpoint does not
-        /// keep the security mode and policy of the session in use is not probed. The values replace those
+        /// keep the security mode and policy of the session in use, or whose channel certificate does not
+        /// identify that member, is not probed. The values replace those
         /// reported by the Server in use, so the initial connect, the
         /// failover target selection and the failover decision compare the members' current
-        /// <c>ServiceLevel</c> (OPC 10000-4 §6.6.2.4.5). After the initial connect the session switches to
-        /// the member with the highest <c>ServiceLevel</c> when it is higher than the <c>ServiceLevel</c> of
-        /// the Server it connected to. A member that cannot be probed keeps the values reported for it and
-        /// carries the failure in <see cref="RedundantServer.ResolutionError"/>. Each probe is bounded by
-        /// <see cref="PeerDiscoveryTimeout"/>. Default <see langword="false"/>.
+        /// <c>ServiceLevel</c> (OPC 10000-4 §6.6.2.4.5). A failed probe leaves the member's level unknown
+        /// and records the failure in <see cref="RedundantServer.ResolutionError"/>.
+        /// Each probe is bounded by <see cref="PeerDiscoveryTimeout"/>. Default <see langword="true"/>.
         /// </summary>
-        public bool ProbeMemberServiceLevel { get; init; }
+        public bool ProbeMemberServiceLevel { get; init; } = true;
 
         /// <summary>
         /// When set, a <see cref="ManagedSession"/> reads <c>Server.ServiceLevel</c> of the Server in use at
@@ -87,10 +115,10 @@ namespace Opc.Ua.Client
         /// <c>ServiceLevel</c> leaves the Healthy subrange (OPC 10000-4 §6.6.2.4.2) the redundancy snapshot is
         /// refreshed, including the member probe when <see cref="ProbeMemberServiceLevel"/> is set, and a
         /// failover decision that warrants it starts <see cref="ManagedSession.FailoverAsync"/> to the target
-        /// the redundancy handler selects. Default <see langword="null"/>: the session fails over only when
-        /// the reconnect policy gives up or the application calls <see cref="ManagedSession.FailoverAsync"/>.
+        /// the redundancy handler selects. Defaults to <see cref="DefaultMonitoringInterval"/>.
+        /// Set to <see langword="null"/> to disable ongoing monitoring.
         /// </summary>
-        public TimeSpan? ServiceLevelMonitoringInterval { get; init; }
+        public TimeSpan? ServiceLevelMonitoringInterval { get; init; } = DefaultMonitoringInterval;
 
         /// <summary>
         /// When set, the other members of a non-transparent redundant Server set are reached over the
@@ -112,33 +140,43 @@ namespace Opc.Ua.Client
         public IReverseConnectionAvailability? MemberConnections { get; init; }
 
         /// <summary>
-        /// Validates that both bounds and the monitoring interval are usable.
+        /// Validates that the bounds and the monitoring interval are usable.
         /// </summary>
         /// <exception cref="ArgumentOutOfRangeException">
-        /// Thrown when a bound is neither positive nor <see cref="Timeout.InfiniteTimeSpan"/>, or when
-        /// <see cref="ServiceLevelMonitoringInterval"/> is set and not positive.
+        /// Thrown when a configured timeout, member limit, or concurrency limit is out of range.
         /// </exception>
         public void Validate()
         {
             ValidateTimeout(RefreshTimeout, nameof(RefreshTimeout));
             ValidateTimeout(PeerDiscoveryTimeout, nameof(PeerDiscoveryTimeout));
-            if (ServiceLevelMonitoringInterval is TimeSpan interval && interval <= TimeSpan.Zero)
+            ValidateCount(MaxRedundantServers, 256, nameof(MaxRedundantServers));
+            ValidateCount(MaxConcurrentPeerDiscoveries, 32, nameof(MaxConcurrentPeerDiscoveries));
+            ValidateCount(MaxConcurrentPeerProbes, 32, nameof(MaxConcurrentPeerProbes));
+            if (ExpectedServerApplicationUri != null &&
+                !Uri.TryCreate(ExpectedServerApplicationUri, UriKind.Absolute, out _))
             {
-                throw new ArgumentOutOfRangeException(
-                    nameof(ServiceLevelMonitoringInterval),
-                    interval,
-                    "The ServiceLevel monitoring interval must be positive.");
+                throw new ArgumentException(
+                    "The expected server application URI must be absolute.", nameof(ExpectedServerApplicationUri));
+            }
+            if (ServiceLevelMonitoringInterval is TimeSpan interval)
+            {
+                ValidateTimeout(interval, nameof(ServiceLevelMonitoringInterval));
             }
         }
 
         private static void ValidateTimeout(TimeSpan value, string name)
         {
-            if (value != Timeout.InfiniteTimeSpan && value <= TimeSpan.Zero)
+            if (value <= TimeSpan.Zero || value > TimeSpan.FromMilliseconds(int.MaxValue))
             {
-                throw new ArgumentOutOfRangeException(
-                    name,
-                    value,
-                    "A redundancy timeout must be positive or Timeout.InfiniteTimeSpan.");
+                throw new ArgumentOutOfRangeException(name, value, "A redundancy timeout must be positive and finite.");
+            }
+        }
+
+        private static void ValidateCount(int value, int maximum, string name)
+        {
+            if (value < 1 || value > maximum)
+            {
+                throw new ArgumentOutOfRangeException(name, value, $"The limit must be between 1 and {maximum}.");
             }
         }
     }

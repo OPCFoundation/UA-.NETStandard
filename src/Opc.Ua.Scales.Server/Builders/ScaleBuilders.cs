@@ -1,31 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using System.Collections.Generic;
@@ -256,7 +230,7 @@ namespace Opc.Ua.Scales.Server.Builders
     /// <summary>
     /// The default <see cref="IScaleBuilder"/>.
     /// </summary>
-    internal sealed class ScaleBuilder : IScaleBuilder
+    internal sealed class ScaleBuilder : IScaleRuntimeBuilder
     {
         public ScaleBuilder(ScaleRuntimeServices services, ScaleDeviceState scale, ScaleKind kind)
         {
@@ -370,6 +344,18 @@ namespace Opc.Ua.Scales.Server.Builders
             Scale.AddProductionOutput(Context);
             AddStatisticMembers(Context, Scale.ProductionOutput!);
             return this;
+        }
+
+        /// <inheritdoc/>
+        public IScaleBuilder WithProductionOutput(ScaleStatisticsObservationMode observationMode)
+        {
+            if (observationMode is not (
+                ScaleStatisticsObservationMode.Sample or ScaleStatisticsObservationMode.FullCheck))
+            {
+                throw new ArgumentOutOfRangeException(nameof(observationMode));
+            }
+            m_statisticsObservationMode = observationMode;
+            return WithProductionOutput();
         }
 
         public IScaleBuilder WithPackMLState()
@@ -490,7 +476,71 @@ namespace Opc.Ua.Scales.Server.Builders
             {
                 throw new InvalidOperationException("Only recipe scales have recipe files.");
             }
+
             m_recipeFiles = true;
+            return this;
+        }
+
+        public IScaleBuilder WithItemProcessing(IScalePriceCalculator? priceCalculator = null)
+        {
+            if (Kind is not (ScaleKind.Catchweigher or ScaleKind.AutomaticWeightPriceLabeler) ||
+                (priceCalculator != null && Kind != ScaleKind.AutomaticWeightPriceLabeler))
+            {
+                throw new InvalidOperationException("Item processing requires a catchweigher or price labeler.");
+            }
+            m_itemProcessing = true;
+            m_priceCalculator = priceCalculator;
+            WithRegisterWeight();
+            WithProductionOutput();
+            return this;
+        }
+
+        public IScaleBuilder WithCompletedFills()
+        {
+            if (Kind != ScaleKind.TotalizingHopper)
+            {
+                throw new InvalidOperationException("Completed fills require a totalizing hopper.");
+            }
+            m_completedFills = true;
+            WithRegisterWeight();
+            WithProductionOutput();
+            return this;
+        }
+
+        public IScaleBuilder ConfigureRecipes(Action<RecipeController> configure)
+        {
+            if (Kind != ScaleKind.Recipe)
+            {
+                throw new InvalidOperationException("Recipe configuration requires a recipe scale.");
+            }
+            m_configureRecipes += configure ?? throw new ArgumentNullException(nameof(configure));
+            WithTypeFeatures();
+            return this;
+        }
+
+        /// <inheritdoc/>
+        public IScaleBuilder WithVehicleTotals(Func<string, VehicleWeightAggregation> aggregation)
+        {
+            aggregation.ThrowIfNull(nameof(aggregation));
+            if (Kind != ScaleKind.Vehicle)
+            {
+                throw new InvalidOperationException("Vehicle totals require a vehicle scale.");
+            }
+            m_vehicleAggregation = aggregation;
+            WithTypeFeatures();
+            return this;
+        }
+
+        /// <inheritdoc/>
+        public IScaleBuilder WithPieceCountingTotals()
+        {
+            if (Kind != ScaleKind.PieceCounting)
+            {
+                throw new InvalidOperationException("Piece-counting totals require a piece-counting scale.");
+            }
+            m_pieceCountingTotals = true;
+            WithRegisterWeight();
+            WithTypeFeatures();
             return this;
         }
 
@@ -625,6 +675,44 @@ namespace Opc.Ua.Scales.Server.Builders
             }
 
             m_preset?.Finish();
+            if (Kind == ScaleKind.Checkweigher && Scale.ProductionOutput != null &&
+                Scale.ProductionPreset?.Products is { } checkweigherProducts)
+            {
+                var products = new List<BaseInstanceState>();
+                checkweigherProducts.GetChildren(Context, products);
+                foreach (CheckweigherProductState product in products.OfType<CheckweigherProductState>())
+                {
+                    CheckweigherController.InitializeProduct(Context, product);
+                }
+            }
+            if (m_itemProcessing || m_completedFills || m_vehicleAggregation != null || m_pieceCountingTotals)
+            {
+                if (Scale.ProductionPreset?.Products == null)
+                {
+                    throw new InvalidOperationException("Equipment reporting requires a production preset.");
+                }
+                var products = new List<BaseInstanceState>();
+                Scale.ProductionPreset.Products.GetChildren(Context, products);
+                foreach (ProductState product in products.OfType<ProductState>())
+                {
+                    if (m_itemProcessing || m_completedFills)
+                    {
+                        ScaleItemPublisher.Initialize(Context, product);
+                    }
+                    if (m_vehicleAggregation != null && product is VehicleProductState vehicle)
+                    {
+                        VehicleController.InitializeTotals(Context, vehicle);
+                    }
+                    if (m_pieceCountingTotals && product is PieceCountingProductState pieceCounting)
+                    {
+                        PieceCountingController.InitializeProduct(Context, pieceCounting, true, m_unit);
+                    }
+                }
+                if (Scale.ProductionOutput?.LastItem is { } lastItem)
+                {
+                    ScaleItemPublisher.InitializeObservation(Context, lastItem);
+                }
+            }
             foreach (ScaleModuleBuilder module in m_modules)
             {
                 module.Finish();
@@ -646,7 +734,17 @@ namespace Opc.Ua.Scales.Server.Builders
                     m_legalForTrade,
                     m_preset?.Lockable ?? false,
                     m_preset?.SelectedProducts ?? [],
-                    m_recipeFiles));
+                    m_recipeFiles,
+                    m_itemProcessing,
+                    m_priceCalculator,
+                    m_completedFills,
+                    m_vehicleAggregation,
+                    m_pieceCountingTotals,
+                    m_statisticsObservationMode));
+            if (handle.Recipes != null)
+            {
+                m_configureRecipes?.Invoke(handle.Recipes);
+            }
             foreach (ScaleModuleBuilder module in m_modules)
             {
                 handle.AddModule(new ScaleModuleHandle(m_services, module.Module, handle));
@@ -774,6 +872,7 @@ namespace Opc.Ua.Scales.Server.Builders
                 counter.AddMaxValue(context);
                 counter.AddMeanValue(context);
                 counter.AddStandardDeviation(context);
+                counter.StandardDeviation!.StatusCode = StatusCodes.BadNoData;
                 ScaleValues.Set(context, counter.ItemCount, Variant.From(0UL));
                 ScaleValues.Set(context, counter.Weighed, counter == statistic.TotalPackagesWeighed);
             }
@@ -811,6 +910,29 @@ namespace Opc.Ua.Scales.Server.Builders
         private bool m_weightDetails;
         private bool m_minimalWeightSet;
         private bool m_recipeFiles;
+
+        /// <summary>Whether provider-reported items are enabled.</summary>
+        private bool m_itemProcessing;
+
+        /// <summary>Whether completed-fill reports are enabled.</summary>
+        private bool m_completedFills;
+
+        /// <summary>The injected calculation policy.</summary>
+        private IScalePriceCalculator? m_priceCalculator;
+
+        /// <summary>Post-construction recipe configuration.</summary>
+        private Action<RecipeController>? m_configureRecipes;
+
+        /// <summary>The application-selected aggregation rule for each vehicle.</summary>
+        private Func<string, VehicleWeightAggregation>? m_vehicleAggregation;
+
+        /// <summary>Whether optional per-product piece-count totals are enabled.</summary>
+        private bool m_pieceCountingTotals;
+
+        /// <summary>
+        /// The selected statistical observation mode.
+        /// </summary>
+        private ScaleStatisticsObservationMode m_statisticsObservationMode;
     }
 
     /// <summary>
@@ -1123,6 +1245,18 @@ namespace Opc.Ua.Scales.Server.Builders
             return this;
         }
 
+        /// <inheritdoc/>
+        public IScaleSystemBuilder WithProductionOutput(ScaleStatisticsObservationMode observationMode)
+        {
+            if (observationMode is not (
+                ScaleStatisticsObservationMode.Sample or ScaleStatisticsObservationMode.FullCheck))
+            {
+                throw new ArgumentOutOfRangeException(nameof(observationMode));
+            }
+            m_statisticsObservationMode = observationMode;
+            return WithProductionOutput();
+        }
+
         public IScaleSystemBuilder WithPackMLState()
         {
             System.AddSystemState(Context);
@@ -1182,7 +1316,7 @@ namespace Opc.Ua.Scales.Server.Builders
 
         public ScaleSystemHandle CreateHandle()
         {
-            var handle = new ScaleSystemHandle(m_services, System);
+            var handle = new ScaleSystemHandle(m_services, System, m_statisticsObservationMode);
             if (handle.ProductionPreset != null && m_preset != null)
             {
                 handle.ProductionPreset.Lockable = m_preset.Lockable;
@@ -1203,5 +1337,10 @@ namespace Opc.Ua.Scales.Server.Builders
         private ProductionPresetBuilder? m_preset;
         private bool m_identified;
         private bool m_processState;
+
+        /// <summary>
+        /// The selected system statistical observation mode.
+        /// </summary>
+        private ScaleStatisticsObservationMode m_statisticsObservationMode;
     }
 }

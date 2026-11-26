@@ -1,3 +1,8 @@
+<!--
+SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+SPDX-License-Identifier: MIT
+-->
+
 # Reverse Connect
 
 ## Overview
@@ -156,7 +161,11 @@ ManagedSession session = await new ManagedSessionBuilder(configuration, telemetr
     .UseEndpoint(endpoint)
     .UseReverseConnect(manager, new Uri("urn:example:server-a"))
     .WithServerRedundancy()
-    .WithServerRedundancyOptions(new ServerRedundancyOptions { MemberConnections = manager })
+    .WithServerRedundancyOptions(new ServerRedundancyOptions
+    {
+        ExpectedServerApplicationUri = "urn:example:server-a",
+        MemberConnections = manager
+    })
     .ConnectAsync(cancellationToken)
     .ConfigureAwait(false);
 ```
@@ -381,7 +390,7 @@ back-compat (opc.tcp consumers do not need the new overload).
 
 The `Opc.Ua.Bindings.Https` package serves the `opc.tcp`
 listener from a Kestrel `IHost` instead of raw `Socket` + SAEA (an
-opt-in alternative on `net8.0`+ to the default raw-socket listener that
+opt-in alternative on `net10.0`+ to the default raw-socket listener that
 ships in `Opc.Ua.Core`). It
 supports the full forward AND reverse-connect listener modes the
 raw-socket `TcpTransportListener` does. To use it, install the binding

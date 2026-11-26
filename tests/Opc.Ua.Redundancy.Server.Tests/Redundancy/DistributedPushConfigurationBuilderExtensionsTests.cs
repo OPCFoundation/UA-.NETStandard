@@ -1,36 +1,12 @@
-/* ========================================================================
- * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 // CA2007: tests run without a SynchronizationContext; ConfigureAwait(false)
 // adds noise without a behavioural benefit. Disabled file-level for the suite.
 #pragma warning disable CA2007
 
+using System;
+using System.Security.Cryptography;
 using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection;
 using NUnit.Framework;
@@ -67,8 +43,9 @@ namespace Opc.Ua.Server.Tests.Redundancy
         {
             var builder = new DiTestServerBuilder();
             builder.Services.AddSingleton(NUnitTelemetryContext.Create());
+            AddFreshnessStore(builder.Services);
 
-            IOpcUaServerBuilder result = builder.UseDistributedPushConfiguration();
+            IOpcUaServerBuilder result = builder.UseDistributedPushConfiguration(ConfigureMember);
 
             Assert.That(result, Is.SameAs(builder));
             await using ServiceProvider sp = builder.Services.BuildServiceProvider();
@@ -86,13 +63,44 @@ namespace Opc.Ua.Server.Tests.Redundancy
         {
             var builder = new DiTestServerBuilder();
             builder.Services.AddSingleton(NUnitTelemetryContext.Create());
-            builder.UseDistributedPushConfiguration(options => options.RequireLeadership = true);
+            AddFreshnessStore(builder.Services);
+            builder.UseDistributedPushConfiguration(options =>
+            {
+                ConfigureMember(options);
+                options.RequireLeadership = true;
+            });
 
             await using ServiceProvider sp = builder.Services.BuildServiceProvider();
 
             Assert.That(
                 () => sp.GetRequiredService<IPushConfigurationTransactionCoordinator>(),
                 Throws.InvalidOperationException);
+        }
+
+        [Test]
+        public async Task MissingFreshnessStoreDoesNotRegisterOrUseLocalFallbackAsync()
+        {
+            var builder = new DiTestServerBuilder();
+            builder.Services.AddSingleton(NUnitTelemetryContext.Create());
+            builder.UseDistributedPushConfiguration(ConfigureMember);
+
+            await using ServiceProvider sp = builder.Services.BuildServiceProvider();
+            Assert.That(sp.GetService<ISharedKeyValueStore>(), Is.Null);
+            Assert.That(() => sp.GetRequiredService<IPushConfigurationTransactionCoordinator>(),
+                Throws.InvalidOperationException);
+        }
+
+        [Test]
+        public async Task MissingMembershipRejectsProtectedLeaseRegistrationAsync()
+        {
+            var builder = new DiTestServerBuilder();
+            builder.Services.AddSingleton(NUnitTelemetryContext.Create());
+            AddFreshnessStore(builder.Services);
+            builder.UseDistributedPushConfiguration(options => options.ReplicaId = "A");
+
+            await using ServiceProvider sp = builder.Services.BuildServiceProvider();
+            Assert.That(() => sp.GetRequiredService<IPushConfigurationTransactionCoordinator>(),
+                Throws.ArgumentException);
         }
 
         [Test]
@@ -115,12 +123,34 @@ namespace Opc.Ua.Server.Tests.Redundancy
             var builder = new DiTestServerBuilder();
             builder.Services.AddSingleton(NUnitTelemetryContext.Create());
 
+            builder.Services.AddSingleton<ISharedKeyValueStore, InMemorySharedKeyValueStore>();
             builder.UseDistributedPushConfiguration();
 
             await using ServiceProvider sp = builder.Services.BuildServiceProvider();
             Assert.That(
                 sp.GetRequiredService<IPendingCertificateKeyStore>(),
                 Is.InstanceOf<SharedKeyValuePendingCertificateKeyStore>());
+        }
+
+        private static void ConfigureMember(DistributedPushConfigurationOptions options)
+        {
+            options.ReplicaId = "A";
+            options.LeaseMemberIds = ["A", "B"];
+        }
+
+        private static void AddFreshnessStore(IServiceCollection services)
+        {
+            services.AddSingleton<ISharedKeyValueStore, InMemorySharedKeyValueStore>();
+            services.AddSingleton<SimulatedSharedKeyValueStore>();
+            services.AddSingleton<IRecordProtector>(_ =>
+            {
+                using var random = RandomNumberGenerator.Create();
+                var key = new byte[32];
+                random.GetBytes(key);
+                return new AesCbcHmacRecordProtector(key);
+            });
+            services.AddSharedRecordFreshness(
+                sp => sp.GetRequiredService<SimulatedSharedKeyValueStore>(), Guid.NewGuid(), Guid.NewGuid());
         }
 
         [Test]

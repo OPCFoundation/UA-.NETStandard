@@ -1,31 +1,7 @@
-/* ========================================================================
- * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
+
+#pragma warning disable CS0618, UA0031 // Covers the deprecated synchronous node manager API on purpose.
 
 using System;
 using System.Collections.Concurrent;
@@ -721,6 +697,86 @@ namespace Opc.Ua.Server.Tests.Hosting
             fixture.Transport.Listener.VerifyNoOtherCalls();
             Assert.That(server.DisposeCount, Is.EqualTo(1),
                 "The constructed server must be disposed before ExecuteTask reports the startup failure.");
+        }
+
+        /// <summary>
+        /// Verifies direct hosted-service disposal detaches the lifecycle when server disposal throws,
+        /// the cancelled execution retries the server disposal, and a later disposal is a no-op.
+        /// </summary>
+        [Test]
+        public async Task HostedDisposeDetachesLifecycleWhenServerDisposeThrowsAsync()
+        {
+            var server = new ThrowOnceDisposalServer(NUnitTelemetryContext.Create(isServer: true), failOnAttempt: 1);
+            var serverFactory = new Mock<IOpcUaServerFactory>();
+            serverFactory.Setup(factory => factory.CreateServer(
+                It.IsAny<ITelemetryContext>(), It.IsAny<TimeProvider>())).Returns(server);
+            var fixture = HostedFixture.Create(builder =>
+                builder.Services.AddSingleton(serverFactory.Object));
+            await using ConfiguredAsyncDisposable cleanup = fixture.ConfigureAwait(false);
+            try
+            {
+                await fixture.StartAsync().ConfigureAwait(false);
+                var hostedService = fixture.Services.GetServices<IHostedService>()
+                    .OfType<BackgroundService>()
+                    .Single();
+                HostedNodeManagerLifecycle lifecycle =
+                    fixture.Services.GetRequiredService<HostedNodeManagerLifecycle>();
+
+                Assert.That(
+                    () => hostedService.Dispose(),
+                    Throws.TypeOf<InvalidOperationException>()
+                        .With.Message.EqualTo("The configured server disposal attempt failed."));
+                Assert.That(() => _ = lifecycle.Revision, Throws.InvalidOperationException);
+
+                await fixture.ExecuteTask.ConfigureAwait(false);
+                Assert.That(server.DisposeAttempts, Is.EqualTo(3));
+                hostedService.Dispose();
+                Assert.That(server.DisposeAttempts, Is.EqualTo(3));
+            }
+            finally
+            {
+                await server.DisposeAsync().ConfigureAwait(false);
+            }
+        }
+
+        /// <summary>
+        /// Verifies execution cleanup detaches the lifecycle when server disposal throws and keeps
+        /// the server for a disposal retry by the hosted service.
+        /// </summary>
+        [Test]
+        public async Task StopApplicationDetachesLifecycleWhenServerDisposeThrowsAsync()
+        {
+            var server = new ThrowOnceDisposalServer(NUnitTelemetryContext.Create(isServer: true), failOnAttempt: 2);
+            var serverFactory = new Mock<IOpcUaServerFactory>();
+            serverFactory.Setup(factory => factory.CreateServer(
+                It.IsAny<ITelemetryContext>(), It.IsAny<TimeProvider>())).Returns(server);
+            var fixture = HostedFixture.Create(builder =>
+                builder.Services.AddSingleton(serverFactory.Object));
+            await using ConfiguredAsyncDisposable cleanup = fixture.ConfigureAwait(false);
+            try
+            {
+                await fixture.StartAsync().ConfigureAwait(false);
+                var hostedService = fixture.Services.GetServices<IHostedService>()
+                    .OfType<BackgroundService>()
+                    .Single();
+                HostedNodeManagerLifecycle lifecycle =
+                    fixture.Services.GetRequiredService<HostedNodeManagerLifecycle>();
+
+                await hostedService.StopAsync(CancellationToken.None).ConfigureAwait(false);
+                InvalidOperationException? failure = await Assert.ThrowsAsync<InvalidOperationException>(
+                    async () => await fixture.ExecuteTask.ConfigureAwait(false)).ConfigureAwait(false);
+
+                Assert.That(failure!.Message, Is.EqualTo("The configured server disposal attempt failed."));
+                Assert.That(() => _ = lifecycle.Revision, Throws.InvalidOperationException);
+                Assert.That(server.DisposeAttempts, Is.EqualTo(2));
+
+                hostedService.Dispose();
+                Assert.That(server.DisposeAttempts, Is.EqualTo(3));
+            }
+            finally
+            {
+                await server.DisposeAsync().ConfigureAwait(false);
+            }
         }
 
         [Test]
@@ -1837,6 +1893,41 @@ namespace Opc.Ua.Server.Tests.Hosting
                 }
                 base.Dispose(disposing);
             }
+        }
+
+        /// <summary>
+        /// Server test double that fails its first synchronous disposal attempt.
+        /// </summary>
+        private sealed class ThrowOnceDisposalServer : StandardServer
+        {
+            public ThrowOnceDisposalServer(ITelemetryContext telemetry, int failOnAttempt)
+                : base(telemetry)
+            {
+                m_failOnAttempt = failOnAttempt;
+            }
+
+            /// <summary>
+            /// Gets the number of synchronous disposal attempts.
+            /// </summary>
+            public int DisposeAttempts { get; private set; }
+
+            protected override void Dispose(bool disposing)
+            {
+                if (disposing)
+                {
+                    DisposeAttempts++;
+                    if (DisposeAttempts == m_failOnAttempt)
+                    {
+                        throw new InvalidOperationException("The configured server disposal attempt failed.");
+                    }
+                }
+                base.Dispose(disposing);
+            }
+
+            /// <summary>
+            /// Gets the synchronous disposal attempt that fails.
+            /// </summary>
+            private readonly int m_failOnAttempt;
         }
 
         private sealed class HostedFixture : IAsyncDisposable

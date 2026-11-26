@@ -1,31 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using System.Collections.Generic;
@@ -36,9 +10,10 @@ namespace Opc.Ua.Server.AliasNames
 {
     /// <summary>
     /// Default <see cref="IAliasNameStoreRegistry"/> implementation —
-    /// thread-safe (via <see cref="SemaphoreSlim"/>) live dispatcher.
+    /// thread-safe live dispatcher.
     /// </summary>
-    public sealed class AliasNameStoreRegistry : IAliasNameStoreRegistry, IDisposable
+    public sealed class AliasNameStoreRegistry :
+        IAliasNameStoreRegistry, IAliasNameStoreRegistrationProvider, IDisposable
     {
         /// <summary>
         /// Initializes a new, empty registry.
@@ -52,14 +27,10 @@ namespace Opc.Ua.Server.AliasNames
         {
             get
             {
-                m_semaphore.Wait();
-                try
+                lock (m_lock)
                 {
+                    ThrowIfDisposed();
                     return [.. m_stores];
-                }
-                finally
-                {
-                    m_semaphore.Release();
                 }
             }
         }
@@ -75,11 +46,12 @@ namespace Opc.Ua.Server.AliasNames
                 throw new ArgumentNullException(nameof(store));
             }
 
-            m_semaphore.Wait();
-            try
+            lock (m_lock)
             {
+                ThrowIfDisposed();
                 if (m_stores.Contains(store))
                 {
+                    m_manualStores.Add(store);
                     return;
                 }
                 CollectCategoryIds(store, out HashSet<NodeId> categoryIds);
@@ -91,16 +63,49 @@ namespace Opc.Ua.Server.AliasNames
                             "Another alias-name store already owns category " + id);
                     }
                 }
+                m_manualStores.Add(store);
+                AddStore(store, categoryIds);
+            }
+        }
+
+        /// <inheritdoc />
+        public IDisposable AcquireRegistration(IAliasNameStore store, Guid ownerId)
+        {
+            if (store is null)
+            {
+                throw new ArgumentNullException(nameof(store));
+            }
+            if (ownerId == Guid.Empty)
+            {
+                throw new ArgumentException("An alias-store owner must have a stable identity.", nameof(ownerId));
+            }
+            lock (m_lock)
+            {
+                ThrowIfDisposed();
+                m_ownedRegistrations.TryGetValue(ownerId, out StoreRegistration? previous);
+                CollectCategoryIds(store, out HashSet<NodeId> categoryIds);
                 foreach (NodeId id in categoryIds)
                 {
-                    m_categoryToStore[id] = store;
+                    if (m_categoryToStore.TryGetValue(id, out IAliasNameStore? owner) &&
+                        !ReferenceEquals(owner, store) &&
+                        (previous is null || !ReferenceEquals(previous.Store, owner) ||
+                            IsClaimedByAnotherOwner(owner, ownerId)))
+                    {
+                        throw new InvalidOperationException(
+                            "Another alias-name store already owns category " + id);
+                    }
                 }
-                m_stores.Add(store);
-                store.Changed += OnStoreChanged;
-            }
-            finally
-            {
-                m_semaphore.Release();
+                var registration = new StoreRegistration(this, store, ownerId);
+                m_ownedRegistrations[ownerId] = registration;
+                if (previous is not null && !ReferenceEquals(previous.Store, store))
+                {
+                    RemoveStoreIfUnclaimed(previous.Store);
+                }
+                if (!m_stores.Contains(store))
+                {
+                    AddStore(store, categoryIds);
+                }
+                return registration;
             }
         }
 
@@ -112,27 +117,11 @@ namespace Opc.Ua.Server.AliasNames
                 return;
             }
 
-            m_semaphore.Wait();
-            try
+            lock (m_lock)
             {
-                if (!m_stores.Remove(store))
-                {
-                    return;
-                }
-                store.Changed -= OnStoreChanged;
-                CollectCategoryIds(store, out HashSet<NodeId> categoryIds);
-                foreach (NodeId id in categoryIds)
-                {
-                    if (m_categoryToStore.TryGetValue(id, out IAliasNameStore? owner) &&
-                        ReferenceEquals(owner, store))
-                    {
-                        m_categoryToStore.Remove(id);
-                    }
-                }
-            }
-            finally
-            {
-                m_semaphore.Release();
+                ThrowIfDisposed();
+                m_manualStores.Remove(store);
+                RemoveStoreIfUnclaimed(store);
             }
         }
 
@@ -144,19 +133,15 @@ namespace Opc.Ua.Server.AliasNames
                 throw new ArgumentNullException(nameof(store));
             }
 
-            m_semaphore.Wait();
-            try
+            lock (m_lock)
             {
+                ThrowIfDisposed();
                 if (m_contributors.Contains(store))
                 {
                     return;
                 }
                 m_contributors.Add(store);
                 store.Changed += OnStoreChanged;
-            }
-            finally
-            {
-                m_semaphore.Release();
             }
         }
 
@@ -168,17 +153,13 @@ namespace Opc.Ua.Server.AliasNames
                 return;
             }
 
-            m_semaphore.Wait();
-            try
+            lock (m_lock)
             {
+                ThrowIfDisposed();
                 if (m_contributors.Remove(store))
                 {
                     store.Changed -= OnStoreChanged;
                 }
-            }
-            finally
-            {
-                m_semaphore.Release();
             }
         }
 
@@ -189,15 +170,11 @@ namespace Opc.Ua.Server.AliasNames
             {
                 return null;
             }
-            m_semaphore.Wait();
-            try
+            lock (m_lock)
             {
+                ThrowIfDisposed();
                 m_categoryToStore.TryGetValue(categoryId, out IAliasNameStore? store);
                 return store;
-            }
-            finally
-            {
-                m_semaphore.Release();
             }
         }
 
@@ -336,14 +313,13 @@ namespace Opc.Ua.Server.AliasNames
         /// <inheritdoc/>
         public void Dispose()
         {
-            if (m_disposed)
+            lock (m_lock)
             {
-                return;
-            }
-            m_disposed = true;
-            m_semaphore.Wait();
-            try
-            {
+                if (m_disposed)
+                {
+                    return;
+                }
+                m_disposed = true;
                 foreach (IAliasNameStore store in m_stores)
                 {
                     store.Changed -= OnStoreChanged;
@@ -355,12 +331,9 @@ namespace Opc.Ua.Server.AliasNames
                 m_stores.Clear();
                 m_contributors.Clear();
                 m_categoryToStore.Clear();
+                m_manualStores.Clear();
+                m_ownedRegistrations.Clear();
             }
-            finally
-            {
-                m_semaphore.Release();
-            }
-            m_semaphore.Dispose();
         }
 
         /// <summary>
@@ -378,9 +351,9 @@ namespace Opc.Ua.Server.AliasNames
             {
                 return stores;
             }
-            m_semaphore.Wait();
-            try
+            lock (m_lock)
             {
+                ThrowIfDisposed();
                 if (m_categoryToStore.TryGetValue(categoryId, out IAliasNameStore? owner))
                 {
                     stores.Add(owner);
@@ -392,10 +365,6 @@ namespace Opc.Ua.Server.AliasNames
                         stores.Add(contributor);
                     }
                 }
-            }
-            finally
-            {
-                m_semaphore.Release();
             }
             return stores;
         }
@@ -435,10 +404,127 @@ namespace Opc.Ua.Server.AliasNames
             }
         }
 
+        /// <summary>
+        /// Adds one validated store and subscribes to its changes once.
+        /// </summary>
+        private void AddStore(IAliasNameStore store, HashSet<NodeId> categoryIds)
+        {
+            foreach (NodeId id in categoryIds)
+            {
+                m_categoryToStore[id] = store;
+            }
+            m_stores.Add(store);
+            store.Changed += OnStoreChanged;
+        }
+
+        /// <summary>
+        /// Determines whether a manual registration or another owner still claims a store.
+        /// </summary>
+        private bool IsClaimedByAnotherOwner(IAliasNameStore store, Guid ownerId)
+        {
+            if (m_manualStores.Contains(store))
+            {
+                return true;
+            }
+            foreach (KeyValuePair<Guid, StoreRegistration> entry in m_ownedRegistrations)
+            {
+                if (entry.Key != ownerId && ReferenceEquals(entry.Value.Store, store))
+                {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        /// <summary>
+        /// Removes a store only after its last current claim has been released.
+        /// </summary>
+        private void RemoveStoreIfUnclaimed(IAliasNameStore store)
+        {
+            if (IsClaimedByAnotherOwner(store, Guid.Empty) || !m_stores.Remove(store))
+            {
+                return;
+            }
+            store.Changed -= OnStoreChanged;
+            CollectCategoryIds(store, out HashSet<NodeId> categoryIds);
+            foreach (NodeId id in categoryIds)
+            {
+                if (m_categoryToStore.TryGetValue(id, out IAliasNameStore? owner) &&
+                    ReferenceEquals(owner, store))
+                {
+                    m_categoryToStore.Remove(id);
+                }
+            }
+        }
+
+        /// <summary>
+        /// Releases a current claim without disturbing a replacement or another owner.
+        /// </summary>
+        private void ReleaseRegistration(StoreRegistration registration)
+        {
+            lock (m_lock)
+            {
+                if (!m_disposed &&
+                    m_ownedRegistrations.TryGetValue(registration.OwnerId, out StoreRegistration? current) &&
+                    ReferenceEquals(current, registration))
+                {
+                    m_ownedRegistrations.Remove(registration.OwnerId);
+                    RemoveStoreIfUnclaimed(registration.Store);
+                }
+            }
+        }
+
+        /// <summary>
+        /// Rejects operations after the registry has released its stores.
+        /// </summary>
+        private void ThrowIfDisposed()
+        {
+            if (m_disposed)
+            {
+                throw new ObjectDisposedException(nameof(AliasNameStoreRegistry));
+            }
+        }
+
+        /// <summary>
+        /// Owns one registration claim, which can be superseded without retaining it in the registry.
+        /// </summary>
+        private sealed class StoreRegistration : IDisposable
+        {
+            /// <summary>
+            /// Initializes a registration owned by one stable identity.
+            /// </summary>
+            public StoreRegistration(AliasNameStoreRegistry registry, IAliasNameStore store, Guid ownerId)
+            {
+                m_registry = registry;
+                Store = store;
+                OwnerId = ownerId;
+            }
+
+            /// <summary>
+            /// Gets the store associated with this claim.
+            /// </summary>
+            public IAliasNameStore Store { get; }
+
+            /// <summary>
+            /// Gets the stable identity shared by successive registrations.
+            /// </summary>
+            public Guid OwnerId { get; }
+
+            /// <inheritdoc />
+            public void Dispose()
+            {
+                Interlocked.Exchange(ref m_registry, null)?.ReleaseRegistration(this);
+            }
+
+            private AliasNameStoreRegistry? m_registry;
+        }
+
         private readonly List<IAliasNameStore> m_stores = [];
         private readonly List<IAliasNameStore> m_contributors = [];
         private readonly Dictionary<NodeId, IAliasNameStore> m_categoryToStore = [];
-        private readonly SemaphoreSlim m_semaphore = new(1, 1);
+        private readonly HashSet<IAliasNameStore> m_manualStores = [];
+        private readonly Dictionary<Guid, StoreRegistration> m_ownedRegistrations = [];
+        private readonly Lock m_lock = new();
         private bool m_disposed;
     }
 }

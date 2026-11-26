@@ -1,31 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using System.Collections.Generic;
@@ -102,9 +76,15 @@ namespace Opc.Ua.Client
             m_redundancyHandler = redundancyHandler;
             ServerRedundancyOptions redundancyOptions = serverRedundancy ?? new ServerRedundancyOptions();
             redundancyOptions.Validate();
+            m_requireRedundancyPeerIdentity = redundancyHandler != null ||
+                enableTokenReuseFailover || redundancyOptions.ExpectedServerApplicationUri != null;
+            m_configuredRedundancyPeerUri = redundancyOptions.ExpectedServerApplicationUri;
             m_redundancyRefreshTimeout = redundancyOptions.RefreshTimeout;
             m_peerProbeTimeout = redundancyOptions.PeerDiscoveryTimeout;
-            m_probeMemberServiceLevel = redundancyOptions.ProbeMemberServiceLevel;
+            m_probeMemberServiceLevel = redundancyHandler != null && redundancyOptions.ProbeMemberServiceLevel;
+            m_maxConcurrentPeerProbes = redundancyOptions.MaxConcurrentPeerProbes;
+            m_maxProbedMembers = redundancyOptions.MaxRedundantServers;
+            m_probeIdentity = redundancyOptions.ProbeIdentity;
             m_memberConnections = redundancyOptions.MemberConnections;
             m_logger = logger
                 ?? throw new ArgumentNullException(nameof(logger));
@@ -142,6 +122,7 @@ namespace Opc.Ua.Client
             if (redundancyHandler != null &&
                 redundancyOptions.ServiceLevelMonitoringInterval is TimeSpan monitoringInterval)
             {
+                m_monitorServiceLevel = true;
                 m_backgroundWork.Run(
                     "MonitorServiceLevel",
                     shutdown => MonitorServiceLevelAsync(monitoringInterval, shutdown));
@@ -264,6 +245,7 @@ namespace Opc.Ua.Client
                 engineFactory,
                 transferSubscriptionsOnRecreate,
                 poolNotifications,
+                deferNotificationDecoding: true,
                 enableTokenReuseFailover,
                 identityProvider,
                 timeProvider,
@@ -388,6 +370,7 @@ namespace Opc.Ua.Client
                 options.SubscriptionEngineFactory,
                 options.TransferSubscriptionsOnRecreate,
                 options.PoolNotifications,
+                options.DeferNotificationDecoding,
                 options.EnableTokenReuseFailover,
                 options.IdentityProvider,
                 options.TimeProvider,
@@ -439,6 +422,7 @@ namespace Opc.Ua.Client
             ISubscriptionEngineFactory? engineFactory,
             bool transferSubscriptionsOnRecreate,
             bool poolNotifications,
+            bool deferNotificationDecoding,
             bool enableTokenReuseFailover,
             IClientIdentityProvider? identityProvider,
             TimeProvider? timeProvider,
@@ -465,6 +449,11 @@ namespace Opc.Ua.Client
             }
             telemetry ??= sessionFactory.Telemetry;
             ILogger<ManagedSession> logger = telemetry.CreateLogger<ManagedSession>();
+
+            if (redundancyHandler != null || enableTokenReuseFailover)
+            {
+                RequirePeerUri(serverRedundancy?.ExpectedServerApplicationUri);
+            }
 
             // Default the engine factory to V2 so callers get the new
             // ISubscriptionManager API by default. If the session factory has
@@ -503,6 +492,7 @@ namespace Opc.Ua.Client
                 channelManager,
                 connectGate)
             {
+                m_deferNotificationDecoding = deferNotificationDecoding,
                 m_engineFactory = engineFactory,
                 m_securityPolicies = ResolveSecurityPolicies(sessionFactory),
                 m_reverseConnectManager = reverseConnectManager,
@@ -522,8 +512,20 @@ namespace Opc.Ua.Client
                     ? new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously)
                     : null
             };
-            managed.m_takeoverFactory = async (handoff, options, token) =>
+            managed.m_takeoverFactory = async (handoff, options, requireIndependentPeerIdentity, token) =>
             {
+                ServerRedundancyOptions? successorRedundancy = serverRedundancy;
+                if (requireIndependentPeerIdentity || managed.m_requireRedundancyPeerIdentity)
+                {
+                    Session active = managed.InnerSession;
+                    string expectedPeerUri = RequirePeerUri(
+                        active.RedundantPeerUri ?? managed.m_configuredRedundancyPeerUri);
+                    ServerPeerIdentity.Validate(active.TransportChannel, active.ConfiguredEndpoint, expectedPeerUri);
+                    successorRedundancy = (serverRedundancy ?? new ServerRedundancyOptions()) with
+                    {
+                        ExpectedServerApplicationUri = expectedPeerUri
+                    };
+                }
                 ManagedSession successor = await CreateCoreAsync(
                     configuration,
                     CoreUtils.Clone(handoff.Session.ConfiguredEndpoint)!,
@@ -539,12 +541,13 @@ namespace Opc.Ua.Client
                     engineFactory,
                     transferSubscriptionsOnRecreate,
                     poolNotifications,
+                    deferNotificationDecoding,
                     enableTokenReuseFailover,
                     identityProvider,
                     timeProvider,
                     channelManager,
                     networkRedundancy,
-                    serverRedundancy,
+                    successorRedundancy,
                     reverseConnectManager,
                     reverseConnectionSource,
                     connectGate,
@@ -903,6 +906,12 @@ namespace Opc.Ua.Client
             get => m_enableTokenReuseFailover;
             set
             {
+                if (value && m_session is { RedundantPeerUri: null } session)
+                {
+                    string expectedUri = RequirePeerUri(m_configuredRedundancyPeerUri);
+                    ServerPeerIdentity.Validate(session.TransportChannel, session.ConfiguredEndpoint, expectedUri);
+                    session.BindRedundantPeerIdentity(expectedUri);
+                }
                 m_enableTokenReuseFailover = value;
                 m_session?.EnableTokenReuseFailover = value;
             }
@@ -1474,7 +1483,12 @@ namespace Opc.Ua.Client
         {
             StateMachine.ConnectAsync = ct => HandleConnectAsync(null, ct);
             StateMachine.ReconnectWithBudgetAsync = HandleReconnectAsync;
-            StateMachine.FailoverWithBudgetAsync = HandleFailoverAsync;
+            if (m_redundancyHandler != null)
+            {
+                // Without server redundancy there is no peer to fail over to, so an
+                // exhausted reconnect goes straight to Disconnected.
+                StateMachine.FailoverWithBudgetAsync = HandleFailoverAsync;
+            }
             StateMachine.CompleteRecoveryAsync = HandleCompleteRecoveryAsync;
             StateMachine.CloseSessionAsync = HandleCloseSessionAsync;
             StateMachine.StateChanged += OnStateChanged;
@@ -1588,6 +1602,8 @@ namespace Opc.Ua.Client
                     !Profiles.IsHttpsOpenApi(profile) &&
                     !Profiles.IsWssOpenApi(profile);
                 bool refreshBeforeConnect = updateBeforeConnect;
+                bool bindPeerIdentity = m_requireRedundancyPeerIdentity || m_enableTokenReuseFailover;
+                string? expectedPeerUri = bindPeerIdentity ? RequirePeerUri(m_configuredRedundancyPeerUri) : null;
 
                 IDisposable? connectLease = null;
                 // A connection the session owns but no channel has adopted yet.
@@ -1737,6 +1753,7 @@ namespace Opc.Ua.Client
                             endpoint,
                             waitingConnection,
                             initialIdentity,
+                            expectedPeerUri,
                             ct).ConfigureAwait(false);
                         if (taken != null)
                         {
@@ -1770,7 +1787,21 @@ namespace Opc.Ua.Client
                     {
                         IUserIdentity? connectIdentity =
                             Volatile.Read(ref m_takeoverFallbackIdentity) ?? initialIdentity;
-                        if (waitingConnection != null)
+                        if (bindPeerIdentity)
+                        {
+                            if (updateBeforeConnect && waitingConnection == null)
+                            {
+                                await UpdateEndpointFromServerAsync(endpoint, budget, ct).ConfigureAwait(false);
+                            }
+                            session = await CreatePeerBoundSessionAsync(
+                                endpoint,
+                                waitingConnection,
+                                expectedPeerUri!,
+                                connectIdentity,
+                                ct).ConfigureAwait(false);
+                            unadopted = null;
+                        }
+                        else if (waitingConnection != null)
                         {
                             ISessionFactory reverseFactory = CreateChannelManagerFactory() ?? SessionFactory;
                             session = (Session)await reverseFactory.CreateAsync(
@@ -1851,6 +1882,10 @@ namespace Opc.Ua.Client
                     {
                         m_initialServerUri = session.ConfiguredEndpoint.Description?.Server?.ApplicationUri;
                     }
+                    else if (ReferenceEquals(source, m_configuredEndpoint) && session.RedundantPeerUri != null)
+                    {
+                        m_initialServerUri = session.RedundantPeerUri;
+                    }
                     m_initialServerEndpoint ??= DetachEndpoint(session.ConfiguredEndpoint);
                 }
                 finally
@@ -1893,6 +1928,10 @@ namespace Opc.Ua.Client
                     // session instead of creating a new one.
                     session.EnableTokenReuseFailover = m_enableTokenReuseFailover;
 
+                    // Both engines drop each body after its dispatch: the V2 engine
+                    // releases it, a classic subscription keeps only its bytes.
+                    session.DeferNotificationDecoding = m_deferNotificationDecoding;
+
                     // Apply opt-in V2 transfer-on-recreate. The V2 engine
                     // and SubscriptionManager survive in-place re-creates
                     // (failover via Session.RecreateInPlaceAsync), so this
@@ -1919,7 +1958,7 @@ namespace Opc.Ua.Client
                     await RecreateHandoffSubscriptionsAsync(session, ct).ConfigureAwait(false);
 
                     await RefreshRedundancyInfoBestEffortAsync(ct).ConfigureAwait(false);
-                    if (m_probeMemberServiceLevel)
+                    if (m_probeMemberServiceLevel || m_monitorServiceLevel)
                     {
                         await SelectInitialRedundantServerAsync(ct).ConfigureAwait(false);
                     }
@@ -2071,6 +2110,7 @@ namespace Opc.Ua.Client
                     // down the freshly reactivated channel. An explicit reconnect
                     // that is still outstanding always runs.
                     if (explicitRequests <= Interlocked.Read(ref m_explicitReconnectsServed) &&
+                        Volatile.Read(ref m_suspendedMaintenanceUri) == null &&
                         ChannelReactivatedSinceReconnectTrigger(session))
                     {
                         Interlocked.Exchange(ref m_reconnectTriggerMark, NoReconnectTrigger);
@@ -2155,6 +2195,23 @@ namespace Opc.Ua.Client
 
                 await RefreshRedundancyInfoBestEffortAsync(ct).ConfigureAwait(false);
 
+                if (m_monitorServiceLevel && IsCurrentMemberInMaintenance(m_redundancyInfo))
+                {
+                    await RefreshRedundancyInfoBestEffortAsync(ct, resolveCachedEndpoints: true)
+                        .ConfigureAwait(false);
+                    ConfiguredEndpoint? target = SelectEligibleFailoverTarget(m_redundancyHandler!, m_redundancyInfo);
+                    if (target == null)
+                    {
+                        return SuspendForMaintenance(m_redundancyInfo);
+                    }
+
+                    await SwitchToRedundantServerAsync(
+                        target, GetFailoverPeerUri(target, configured: false), budget, retirePreviousSession: true, ct)
+                        .ConfigureAwait(false);
+                    await RefreshRedundancyInfoBestEffortAsync(ct).ConfigureAwait(false);
+                }
+
+                Volatile.Write(ref m_suspendedMaintenanceUri, null);
                 CompleteReconnect(explicitRequests);
                 m_reconnectPolicy.Reset();
 
@@ -2315,6 +2372,8 @@ namespace Opc.Ua.Client
                 .ConfigureAwait(false))
             {
                 Session session = InnerSession;
+                ThrowIfSecurityConfigurationMismatch(session.ConfiguredEndpoint.Description, endpoint.Description);
+                string expectedPeerUri = GetFailoverPeerUri(endpoint, configured: true);
                 await SwitchEndpointAsync(
                     session,
                     endpoint,
@@ -2323,10 +2382,22 @@ namespace Opc.Ua.Client
                         IManagedTransportChannel? previousChannel = session.ManagedChannel;
                         try
                         {
+                            ServerPeerIdentity.ValidateEndpoint(target, expectedPeerUri);
                             ITransportWaitingConnection? connection = await WaitForRecoveryConnectionAsync(
                                 target, null, ct).ConfigureAwait(false);
-                            await session.ReactivateMirroredSessionAsync(target, connection, ct)
-                                .ConfigureAwait(false);
+                            try
+                            {
+                                await session.ReactivateMirroredSessionAsync(target, connection, ct, expectedPeerUri)
+                                    .ConfigureAwait(false);
+                            }
+                            catch
+                            {
+                                if (connection != null)
+                                {
+                                    CloseUnusedConnection(connection);
+                                }
+                                throw;
+                            }
                         }
                         finally
                         {
@@ -2394,7 +2465,14 @@ namespace Opc.Ua.Client
             ConfiguredEndpoint validated = await RefreshAndValidateEndpointAsync(
                 session.ConfiguredEndpoint,
                 publicationTarget,
-                update,
+                async (candidate, token) =>
+                {
+                    await update(candidate, token).ConfigureAwait(false);
+                    if (session.RedundantPeerUri is string expectedUri)
+                    {
+                        ServerPeerIdentity.ValidateEndpoint(candidate, expectedUri);
+                    }
+                },
                 ValidateRediscoveredEndpoint,
                 ct).ConfigureAwait(false);
             RecordAcceptedTarget(publicationTarget, validated);
@@ -2664,18 +2742,27 @@ namespace Opc.Ua.Client
                 ConfiguredEndpoint currentEndpoint = m_session?.ConfiguredEndpoint
                     ?? ConfiguredEndpoint;
                 await RefreshRedundancyInfoBestEffortAsync(ct, resolveCachedEndpoints: true).ConfigureAwait(false);
-                failoverEndpoint = m_redundancyHandler.SelectFailoverTarget(m_redundancyInfo, currentEndpoint);
+                failoverEndpoint = SelectEligibleFailoverTarget(m_redundancyHandler, m_redundancyInfo);
 
                 if (failoverEndpoint == null)
                 {
+                    if (m_monitorServiceLevel && IsCurrentMemberInMaintenance(m_redundancyInfo))
+                    {
+                        return SuspendForMaintenance(m_redundancyInfo);
+                    }
                     return new ServiceResult(
                         StatusCodes.BadNothingToDo);
                 }
 
                 m_logger.ManagedSessionFailingOverEndpoint(failoverEndpoint.EndpointUrl);
 
+                ThrowIfSecurityConfigurationMismatch(currentEndpoint.Description, failoverEndpoint.Description);
                 ServiceResult switched = await SwitchToRedundantServerAsync(
-                        failoverEndpoint, budget, retirePreviousSession: false, ct)
+                        failoverEndpoint,
+                        GetFailoverPeerUri(failoverEndpoint, configured: false),
+                        budget,
+                        retirePreviousSession: false,
+                        ct)
                     .ConfigureAwait(false);
                 if (ServiceResult.IsBad(switched))
                 {
@@ -2948,7 +3035,8 @@ namespace Opc.Ua.Client
             ConfiguredEndpoint? endpoint,
             IRetryBudget budget,
             CancellationToken ct,
-            bool retirePreviousSession = false)
+            bool retirePreviousSession = false,
+            string? expectedPeerUri = null)
         {
             if (endpoint == null)
             {
@@ -2960,7 +3048,8 @@ namespace Opc.Ua.Client
             await SwitchEndpointAsync(
                 session,
                 endpoint,
-                target => RecreateInPlaceCoreAndRebindAsync(session, target, budget, ct, retirePreviousSession),
+                target => RecreateInPlaceCoreAndRebindAsync(
+                    session, target, budget, ct, retirePreviousSession, expectedPeerUri),
                 ct).ConfigureAwait(false);
         }
 
@@ -2975,16 +3064,33 @@ namespace Opc.Ua.Client
             ConfiguredEndpoint? endpoint,
             IRetryBudget budget,
             CancellationToken ct,
-            bool retirePreviousSession = false)
+            bool retirePreviousSession = false,
+            string? expectedPeerUri = null)
         {
             IManagedTransportChannel? previousChannel = session.ManagedChannel;
             try
             {
+                if (endpoint != null && expectedPeerUri != null)
+                {
+                    ServerPeerIdentity.ValidateEndpoint(endpoint, expectedPeerUri);
+                }
                 ITransportWaitingConnection? connection = await WaitForRecoveryConnectionAsync(
                     endpoint ?? session.ConfiguredEndpoint, budget, switching: endpoint != null, ct)
                     .ConfigureAwait(false);
-                await session.RecreateInPlaceAsync(endpoint, budget, connection, ct, retirePreviousSession)
-                    .ConfigureAwait(false);
+                try
+                {
+                    await session.RecreateInPlaceAsync(
+                        endpoint, budget, connection, ct, retirePreviousSession, expectedPeerUri)
+                        .ConfigureAwait(false);
+                }
+                catch
+                {
+                    if (connection != null && (expectedPeerUri != null || session.RedundantPeerUri != null))
+                    {
+                        CloseUnusedConnection(connection);
+                    }
+                    throw;
+                }
             }
             finally
             {
@@ -3999,6 +4105,8 @@ namespace Opc.Ua.Client
         private readonly AsyncReaderWriterLock m_serviceLock = new();
         private readonly ApplicationConfiguration m_configuration;
         private readonly ConfiguredEndpoint m_configuredEndpoint;
+        private readonly string? m_configuredRedundancyPeerUri;
+        private readonly bool m_requireRedundancyPeerIdentity;
         private volatile ConfiguredEndpoint m_publicationTarget;
         private readonly ConditionalWeakTable<ConfiguredEndpoint, ConfiguredEndpoint> m_acceptedTargets = new();
         private readonly IReconnectPolicy m_reconnectPolicy;
@@ -4031,6 +4139,7 @@ namespace Opc.Ua.Client
         private readonly bool m_checkDomain;
         private readonly bool m_transferSubscriptionsOnRecreate;
         private readonly bool m_poolNotifications;
+        private bool m_deferNotificationDecoding = true;
         private bool m_enableTokenReuseFailover;
         private readonly NetworkRedundancyEndpointSelector? m_networkEndpointSelector;
         private readonly IClientChannelManager? m_channelManager;

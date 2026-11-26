@@ -1,31 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 extern alias boilersample;
 
@@ -113,6 +87,57 @@ namespace Opc.Ua.Aot.Tests
             double value = dv.GetValue(double.NaN);
             // Configure-wired typed OnRead returns 50 + 10*cos(t*0.05).
             await Assert.That(value).IsBetween(40.0 - 1e-9, 60.0 + 1e-9);
+        }
+
+        /// <summary>
+        /// Verifies published readiness enables the measurement's historian and wire-level history access.
+        /// </summary>
+        [Test]
+        public async Task PublishedReadinessEnablesMeasurementHistory()
+        {
+            NodeId measurement = await ResolveBoilerVariableAsync(
+                "LCX001", "Measurement").ConfigureAwait(false);
+
+            ReadResponse attributes = await fixture.Session.ReadAsync(
+                null,
+                0,
+                TimestampsToReturn.Neither,
+                [
+                    new ReadValueId { NodeId = measurement, AttributeId = Attributes.Historizing },
+                    new ReadValueId { NodeId = measurement, AttributeId = Attributes.AccessLevel },
+                    new ReadValueId { NodeId = measurement, AttributeId = Attributes.UserAccessLevel }
+                ],
+                CancellationToken.None).ConfigureAwait(false);
+
+            await Assert.That(attributes.Results.Count).IsEqualTo(3);
+            for (int ii = 0; ii < attributes.Results.Count; ii++)
+            {
+                await Assert.That(StatusCode.IsGood(attributes.Results[ii].StatusCode)).IsTrue();
+            }
+            await Assert.That(attributes.Results[0].GetValue(false)).IsTrue();
+            await Assert.That(attributes.Results[1].GetValue((byte)0) & AccessLevels.HistoryRead)
+                .IsEqualTo((int)AccessLevels.HistoryRead);
+            await Assert.That(attributes.Results[2].GetValue((byte)0) & AccessLevels.HistoryRead)
+                .IsEqualTo((int)AccessLevels.HistoryRead);
+
+            var details = new ReadRawModifiedDetails
+            {
+                StartTime = DateTime.UtcNow.AddMinutes(-1),
+                EndTime = DateTime.UtcNow,
+                NumValuesPerNode = 1,
+                IsReadModified = false,
+                ReturnBounds = false
+            };
+            HistoryReadResponse history = await fixture.Session.HistoryReadAsync(
+                null,
+                new ExtensionObject(details),
+                TimestampsToReturn.Source,
+                false,
+                [new HistoryReadValueId { NodeId = measurement }],
+                CancellationToken.None).ConfigureAwait(false);
+
+            await Assert.That(history.Results.Count).IsEqualTo(1);
+            await Assert.That(StatusCode.IsGood(history.Results[0].StatusCode)).IsTrue();
         }
 
         [Test]

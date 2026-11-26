@@ -1,31 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 // Archie - December 17 2024
 // Requires discussion with Part 9 Editor
@@ -940,7 +914,7 @@ namespace Opc.Ua.Server.Tests
             alarm.SetLimitState(systemContext, LimitAlarmStates.Inactive);
             monitoredItem.QueueEvent(CreateSnapshot(alarm, telemetry));
 
-            var notifications = new Queue<EventFieldList>();
+            var notifications = new Queue<QueuedEvent>();
             _ = monitoredItem.Publish(
                 new OperationContext(monitoredItem),
                 notifications,
@@ -1051,9 +1025,8 @@ namespace Opc.Ua.Server.Tests
         }
 
         /// <summary>
-        /// Published field lists go back to a process wide pool. A recycled instance that
-        /// once carried a trailing event must not hand its Retain override on to the event
-        /// it carries next.
+        /// A trailing event published earlier must not hand its Retain override on to the
+        /// event queued next.
         /// </summary>
         [Test]
         public void RecycledFieldListDoesNotInheritRetainOverride()
@@ -1076,12 +1049,12 @@ namespace Opc.Ua.Server.Tests
             alarm.SetLimitState(systemContext, LimitAlarmStates.Inactive);
             alarm.Retain.Value = true;
             monitoredItem.QueueEvent(CreateSnapshot(alarm, telemetry));
-            var notifications = new Queue<EventFieldList>();
+            var notifications = new Queue<QueuedEvent>();
             _ = monitoredItem.Publish(new OperationContext(monitoredItem), notifications, 10);
             Assert.That(notifications, Has.Count.EqualTo(1));
 
-            // the acknowledged trailing event goes back to the pool.
-            notifications.Dequeue().Reuse();
+            // the trailing event is published and dropped.
+            _ = notifications.Dequeue();
 
             alarm.SetLimitState(systemContext, LimitAlarmStates.High);
             alarm.Retain.Value = true;
@@ -1125,7 +1098,7 @@ namespace Opc.Ua.Server.Tests
 
         private static bool PublishRetainAt(MonitoredItem monitoredItem, int index)
         {
-            var notifications = new Queue<EventFieldList>();
+            var notifications = new Queue<QueuedEvent>();
             _ = monitoredItem.Publish(new OperationContext(monitoredItem), notifications, 10);
 
             Assert.That(notifications, Has.Count.EqualTo(1));
@@ -1188,11 +1161,11 @@ namespace Opc.Ua.Server.Tests
         /// </summary>
         private static bool PublishRetain(MonitoredItem monitoredItem)
         {
-            var notifications = new Queue<EventFieldList>();
+            var notifications = new Queue<QueuedEvent>();
             _ = monitoredItem.Publish(new OperationContext(monitoredItem), notifications, 10);
 
             Assert.That(notifications, Has.Count.EqualTo(1));
-            EventFieldList fields = notifications.Dequeue();
+            QueuedEvent fields = notifications.Dequeue();
             Assert.That(
                 fields.EventFields[kRetainFieldIndex].TryGetValue(out bool retain),
                 Is.True,

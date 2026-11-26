@@ -1,3 +1,8 @@
+<!--
+SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+SPDX-License-Identifier: MIT
+-->
+
 # UaLens
 
 UaLens is an Avalonia desktop application for exploring OPC UA address spaces,
@@ -56,7 +61,7 @@ $env:CustomTestTarget = 'net10.0'
 dotnet run --project tools\Opc.Ua.Lens\Opc.Ua.Lens.csproj -c Release -f net10.0
 ```
 
-The application supports .NET 8, .NET 9 and .NET 10. For managed tool installation
+The application supports .NET 10 and .NET 11. For managed tool installation
 and supported package platforms, see the
 [package README](../tools/Opc.Ua.Lens/NugetREADME.md#install).
 Contributor setup, the optional Aspire AppHost, packaging and artifact
@@ -139,6 +144,9 @@ Permanently**. Accept Once applies only to the selected endpoint and certificate
 disconnecting or changing the target clears it. Permanent trust is written to
 the certificate store. Invalid or revoked certificates cannot be accepted through
 the untrusted-certificate prompt.
+
+Ordinary Lens connections reconnect to the selected endpoint. Lens does not
+automatically fail over to another server using that endpoint's trust decision.
 
 ### Automatic connection
 
@@ -934,7 +942,7 @@ On Linux hosts intentionally using Mesa llvmpipe, `ualens --allow-software-gl`
 permits that software OpenGL driver instead of Avalonia's default blacklist.
 This opt-in does not enable other blacklisted drivers, change normal startup
 defaults, or promise hardware acceleration. Vulkan rendering requires a working
-Vulkan device. OpenUSD 0.16.6-alpha prefers shared GPU surfaces; when Avalonia cannot
+Vulkan device. OpenUSD 0.17.0-alpha prefers shared GPU surfaces; when Avalonia cannot
 import external images or semaphores, it reads completed Vulkan frames into host
 memory and presents them through an Avalonia bitmap. This adds a frame copy,
 not a replacement renderer or a placeholder surface.

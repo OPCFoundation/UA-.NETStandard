@@ -1,35 +1,10 @@
-/* ========================================================================
- * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using System.Diagnostics.CodeAnalysis;
 using System.Reflection;
+using System.Runtime.CompilerServices;
 using System.Runtime.Serialization;
 
 namespace Opc.Ua.Client.ComplexTypes
@@ -670,18 +645,34 @@ namespace Opc.Ua.Client.ComplexTypes
         /// <exception cref="InvalidOperationException">The property type is not an array type.</exception>
         public ExpandedNodeId GetDataTypeId(NamespaceTable namespaceTable)
         {
+            // The property is shared by all values of its type and the id is
+            // needed for every value that is encoded or decoded, so the
+            // attributes are read once.
+            StrongBox<ExpandedNodeId>? declared = m_declaredDataTypeId;
+            if (declared != null)
+            {
+                return declared.Value;
+            }
+
             // For arrays, GetElementType is non-null because PropertyType.IsArray is true.
             Type type = PropertyInfo.PropertyType.IsArray ?
                 (PropertyInfo.PropertyType.GetElementType()
                     ?? throw new InvalidOperationException("PropertyType is not an array type.")) :
                 PropertyInfo.PropertyType;
+            if (m_dataTypeIdFromNamespaceTable)
+            {
+                return TypeInfo.GetDataTypeId(type, namespaceTable);
+            }
             StructureTypeIdAttribute? typeAttribute = type
                 .GetCustomAttribute<StructureTypeIdAttribute>();
             if (typeAttribute != null)
             {
                 // ComplexTypeId is populated unconditionally when the dynamic type is built;
                 // a null here would produce the same NRE/format error as before.
-                return ExpandedNodeId.Parse(typeAttribute.ComplexTypeId!);
+                declared = new StrongBox<ExpandedNodeId>(
+                    ExpandedNodeId.Parse(typeAttribute.ComplexTypeId!));
+                m_declaredDataTypeId = declared;
+                return declared.Value;
             }
             if (!string.IsNullOrEmpty(FieldAttribute.DataTypeId))
             {
@@ -689,9 +680,19 @@ namespace Opc.Ua.Client.ComplexTypes
                 // (e.g. an OptionSet subtype) does not identify the DataType. The
                 // id is stored with its namespace uri, independent of the namespace
                 // table of the session that built the type.
-                return ExpandedNodeId.Parse(FieldAttribute.DataTypeId!);
+                declared = new StrongBox<ExpandedNodeId>(
+                    ExpandedNodeId.Parse(FieldAttribute.DataTypeId!));
+                m_declaredDataTypeId = declared;
+                return declared.Value;
             }
+
+            // Only this id depends on the namespace table of the caller.
+            m_dataTypeIdFromNamespaceTable = true;
             return TypeInfo.GetDataTypeId(type, namespaceTable);
         }
+
+        // Published as a whole: an ExpandedNodeId is not written atomically.
+        private volatile StrongBox<ExpandedNodeId>? m_declaredDataTypeId;
+        private volatile bool m_dataTypeIdFromNamespaceTable;
     }
 }

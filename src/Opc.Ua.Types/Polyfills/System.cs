@@ -1,31 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 #if NETSTANDARD2_0 || NETFRAMEWORK
 using System;
@@ -331,6 +305,124 @@ namespace System
             params string[] values)
         {
             return target.Append(string.Join(separator.ToString(), values));
+        }
+#endif
+
+#if NETSTANDARD2_0 || NETFRAMEWORK
+        /// <summary>
+        /// Writes a line asynchronously, observing a cancellation token before
+        /// the write starts.
+        /// </summary>
+        public static System.Threading.Tasks.Task WriteLineAsync(
+            this IO.TextWriter target,
+            ReadOnlyMemory<char> buffer,
+            Threading.CancellationToken cancellationToken)
+        {
+            if (cancellationToken.IsCancellationRequested)
+            {
+                return System.Threading.Tasks.Task.FromCanceled(cancellationToken);
+            }
+            return target.WriteLineAsync(buffer.ToString());
+        }
+#endif
+
+#if !NET11_0_OR_GREATER
+        /// <summary>
+        /// Index of a character in a string, starting at the specified position,
+        /// using a specified comparison type (.NET 11 overload).
+        /// </summary>
+        public static int IndexOf(
+            this string target,
+            char value,
+            int startIndex,
+            StringComparison comparisonType)
+        {
+            return comparisonType == StringComparison.Ordinal
+                ? target.IndexOf(value, startIndex)
+                : target.IndexOf(value.ToString(), startIndex, comparisonType);
+        }
+
+        /// <summary>
+        /// Index of a character in a range of a string using a specified
+        /// comparison type (.NET 11 overload).
+        /// </summary>
+        public static int IndexOf(
+            this string target,
+            char value,
+            int startIndex,
+            int count,
+            StringComparison comparisonType)
+        {
+            return comparisonType == StringComparison.Ordinal
+                ? target.IndexOf(value, startIndex, count)
+                : target.IndexOf(value.ToString(), startIndex, count, comparisonType);
+        }
+
+        /// <summary>
+        /// Last index of a character in a string using a specified comparison
+        /// type (.NET 11 overload).
+        /// </summary>
+        public static int LastIndexOf(
+            this string target,
+            char value,
+            StringComparison comparisonType)
+        {
+            return comparisonType == StringComparison.Ordinal
+                ? target.LastIndexOf(value)
+                : target.LastIndexOf(value.ToString(), comparisonType);
+        }
+
+        /// <summary>
+        /// Last index of a character in a string, searching backward from the
+        /// specified position, using a specified comparison type (.NET 11 overload).
+        /// </summary>
+        public static int LastIndexOf(
+            this string target,
+            char value,
+            int startIndex,
+            StringComparison comparisonType)
+        {
+            return comparisonType == StringComparison.Ordinal
+                ? target.LastIndexOf(value, startIndex)
+                : target.LastIndexOf(value.ToString(), startIndex, comparisonType);
+        }
+
+        /// <summary>
+        /// Last index of a character in a range of a string using a specified
+        /// comparison type (.NET 11 overload).
+        /// </summary>
+        public static int LastIndexOf(
+            this string target,
+            char value,
+            int startIndex,
+            int count,
+            StringComparison comparisonType)
+        {
+            return comparisonType == StringComparison.Ordinal
+                ? target.LastIndexOf(value, startIndex, count)
+                : target.LastIndexOf(value.ToString(), startIndex, count, comparisonType);
+        }
+
+        /// <summary>
+        /// Whether a string starts with a character using a specified comparison
+        /// type (.NET 11 overload).
+        /// </summary>
+        public static bool StartsWith(this string target, char value, StringComparison comparisonType)
+        {
+            return comparisonType == StringComparison.Ordinal
+                ? target.Length != 0 && target[0] == value
+                : target.StartsWith(value.ToString(), comparisonType);
+        }
+
+        /// <summary>
+        /// Whether a string ends with a character using a specified comparison
+        /// type (.NET 11 overload).
+        /// </summary>
+        public static bool EndsWith(this string target, char value, StringComparison comparisonType)
+        {
+            return comparisonType == StringComparison.Ordinal
+                ? target.Length != 0 && target[target.Length - 1] == value
+                : target.EndsWith(value.ToString(), comparisonType);
         }
 #endif
     }

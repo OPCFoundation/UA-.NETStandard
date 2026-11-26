@@ -3,6 +3,7 @@
     "https://www.w3.org/2022/wot/td/v1.1",
     {
       "ns1": "http://opcfoundation.org/UA/DI/",
+      "qudt": "http://qudt.org/schema/qudt/",
       "ua": "http://opcfoundation.org/UA/",
       "uav": "http://opcfoundation.org/UA/WoT-Binding/"
     },
@@ -20,12 +21,6 @@
   ],
   "actions": {
     "Add": {
-      "@context": {
-        "title": {
-          "@id": "https://www.w3.org/2019/wot/td#title",
-          "@language": null
-        }
-      },
       "@type": "uav:method",
       "input": {
         "properties": {
@@ -57,16 +52,11 @@
       "uav:modellingRule": "Mandatory"
     },
     "Delete": {
-      "@context": {
-        "title": {
-          "@id": "https://www.w3.org/2019/wot/td#title",
-          "@language": null
-        }
-      },
       "@type": "uav:method",
       "input": {
         "properties": {
           "ObjectToDelete": {
+            "type": "string",
             "uav:mapToType": "i=17",
             "uav:valueRank": -1
           }
@@ -116,6 +106,7 @@
       "observable": true,
       "readOnly": true,
       "title": "SoftwareClass",
+      "type": "integer",
       "uav:browseName": "ns1:SoftwareClass",
       "uav:id": "nsu=http://opcfoundation.org/UA/DI/;i=365",
       "uav:mapToType": "nsu=http://opcfoundation.org/UA/DI/;i=408",
@@ -368,6 +359,7 @@
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "SoftwareFolderType"
           }
         ],
@@ -396,10 +388,12 @@
         "superType": "i=61"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:SoftwareClass",
         "dataType": "ns=1;i=408",
         "displayName": [
           {
+            "locale": "",
             "value": "SoftwareClass"
           }
         ],
@@ -431,6 +425,7 @@
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "Add"
           }
         ],
@@ -461,6 +456,7 @@
         "dataType": "i=296",
         "displayName": [
           {
+            "locale": "",
             "value": "InputArguments"
           }
         ],
@@ -494,6 +490,7 @@
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "Delete"
           }
         ],
@@ -524,6 +521,7 @@
         "dataType": "i=296",
         "displayName": [
           {
+            "locale": "",
             "value": "InputArguments"
           }
         ],

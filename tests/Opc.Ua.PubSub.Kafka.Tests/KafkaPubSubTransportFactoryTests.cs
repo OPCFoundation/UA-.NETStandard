@@ -1,31 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using Microsoft.Extensions.Options;
@@ -144,7 +118,8 @@ namespace Opc.Ua.PubSub.Kafka.Tests
             {
                 AuthenticationProfileUri = "default-profile",
                 ResourceUri = "default-resource",
-                UserName = "configured"
+                UserName = "configured",
+                Endpoint = KafkaTestHelper.EndpointUrl
             };
             KafkaPubSubTransportFactory factory = KafkaTestHelper.NewFactory(options: options);
             PubSubConnectionDataType connection = KafkaTestHelper.NewConnection();
@@ -174,7 +149,11 @@ namespace Opc.Ua.PubSub.Kafka.Tests
                     id.StoreType == InMemorySecretStore.DefaultStoreType && id.Name == "kafka-password")))
                 .Returns(secret);
             KafkaPubSubTransportFactory factory = KafkaTestHelper.NewFactory(
-                options: new KafkaConnectionOptions { PasswordSecretId = "InMemory:kafka-password" },
+                options: new KafkaConnectionOptions
+                {
+                    PasswordSecretId = "InMemory:kafka-password",
+                    Endpoint = KafkaTestHelper.EndpointUrl
+                },
                 secretRegistry: registry.Object);
 
             var transport = (KafkaBrokerTransport)factory.Create(
@@ -192,12 +171,17 @@ namespace Opc.Ua.PubSub.Kafka.Tests
         {
             KafkaPubSubTransportFactory noRegistry = KafkaTestHelper.NewFactory(options: new KafkaConnectionOptions
             {
-                PasswordSecretId = "InMemory:kafka-password"
+                PasswordSecretId = "InMemory:kafka-password",
+                Endpoint = KafkaTestHelper.EndpointUrl
             });
             var registry = new Mock<ISecretRegistry>(MockBehavior.Strict);
             registry.Setup(r => r.TryGet(It.IsAny<SecretIdentifier>())).Returns((ISecret?)null);
             KafkaPubSubTransportFactory missingSecret = KafkaTestHelper.NewFactory(
-                options: new KafkaConnectionOptions { PasswordSecretId = "missing-secret" },
+                options: new KafkaConnectionOptions
+                {
+                    PasswordSecretId = "missing-secret",
+                    Endpoint = KafkaTestHelper.EndpointUrl
+                },
                 secretRegistry: registry.Object);
 
             Assert.That(
@@ -209,6 +193,51 @@ namespace Opc.Ua.PubSub.Kafka.Tests
                     NUnitTelemetryContext.Create(),
                     TimeProvider.System),
                 Throws.TypeOf<InvalidOperationException>());
+        }
+
+        [TestCase("kafkas://attacker.example.com:9093")]
+        [TestCase("kafkas://broker1.example.com:9093,attacker.example.com:9093")]
+        [TestCase("kafkas://broker1.example.com:9094")]
+        public void CreateRefusesHostCredentialsForOtherBrokers(string url)
+        {
+            var options = new KafkaConnectionOptions
+            {
+                Endpoint = "kafkas://broker1.example.com:9093,broker2.example.com:9093",
+                UserName = "pubsub",
+                PasswordSecretId = "InMemory:kafka-password"
+            };
+            var registry = new Mock<ISecretRegistry>(MockBehavior.Strict);
+            KafkaPubSubTransportFactory factory = KafkaTestHelper.NewFactory(
+                options: options,
+                secretRegistry: registry.Object);
+
+            Assert.That(
+                () => factory.Create(
+                    KafkaTestHelper.NewConnection(url),
+                    NUnitTelemetryContext.Create(),
+                    TimeProvider.System),
+                Throws.TypeOf<InvalidOperationException>().With.Message.Contains("CredentialEndpoints"));
+        }
+
+        [TestCase("kafkas://BROKER2.example.com:9093")]
+        [TestCase("kafkas://broker1.example.com:9093,broker2.example.com:9093")]
+        [TestCase("kafkas://extra.example.com")]
+        public void CreateAllowsHostCredentialsForNamedBrokers(string url)
+        {
+            var options = new KafkaConnectionOptions
+            {
+                Endpoint = "kafkas://broker1.example.com:9093,broker2.example.com:9093",
+                UserName = "pubsub"
+            };
+            options.CredentialEndpoints.Add("extra.example.com:9092");
+            KafkaPubSubTransportFactory factory = KafkaTestHelper.NewFactory(options: options);
+
+            var transport = (KafkaBrokerTransport)factory.Create(
+                KafkaTestHelper.NewConnection(url),
+                NUnitTelemetryContext.Create(),
+                TimeProvider.System);
+
+            Assert.That(transport.Options.UserName, Is.EqualTo("pubsub"));
         }
 
         [Test]

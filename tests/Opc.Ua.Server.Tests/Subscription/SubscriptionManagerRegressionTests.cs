@@ -1,31 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using System.Collections.Generic;
@@ -468,6 +442,55 @@ namespace Opc.Ua.Server.Tests
         }
 
         /// <summary>
+        /// A session that never publishes collects a Good_SubscriptionTransferred status
+        /// message for every subscription transferred away from it. A create, transfer and
+        /// delete loop used to grow that queue without bound (audit finding #41); it now
+        /// keeps the newest messages up to the server's subscription limit.
+        /// </summary>
+        [Test]
+        public async Task StatusMessagesOfASessionThatDoesNotPublishAreBoundedAsync()
+        {
+            var configuration = new ServerConfiguration { MaxSubscriptionCount = 20 };
+            using SubscriptionManager manager = CreateManager(configuration);
+            TestSession source = CreateSession("urn:client:a");
+            TestSession destination = CreateSession("urn:client:a");
+            using var destinationContext = new OperationContext(destination.Mock.Object, DiagnosticsMasks.None);
+
+            const int cycles = 100;
+            uint lastSubscriptionId = 0;
+            for (int ii = 0; ii < cycles; ii++)
+            {
+                Subscription subscription = await CreateSubscriptionAsync(manager, source).ConfigureAwait(false);
+                TransferSubscriptionsResponse response = await manager.TransferSubscriptionsAsync(
+                    destinationContext,
+                    [subscription.Id],
+                    sendInitialValues: false).ConfigureAwait(false);
+                Assert.That(response.Results[0].StatusCode, Is.EqualTo(StatusCodes.Good));
+                Assert.That(
+                    await manager.DeleteSubscriptionAsync(destinationContext, subscription.Id).ConfigureAwait(false),
+                    Is.EqualTo(StatusCodes.Good));
+                lastSubscriptionId = subscription.Id;
+            }
+
+            System.Collections.IDictionary statusMessages =
+                GetPrivateField<System.Collections.IDictionary>(manager, "m_statusMessages");
+            var sourceQueue = (System.Collections.ICollection)statusMessages[source.Id]!;
+            int bound = Math.Max(configuration.MaxSubscriptionCount, SubscriptionManager.kMinStatusMessagesPerSession);
+            Assert.That(sourceQueue, Has.Count.EqualTo(bound),
+                "the status queue of a session that does not publish keeps only the newest messages");
+
+            // the newest message is still delivered.
+            object? newest = null;
+            foreach (object message in sourceQueue)
+            {
+                newest = message;
+            }
+            Assert.That(
+                (uint)newest!.GetType().GetField("SubscriptionId")!.GetValue(newest)!,
+                Is.EqualTo(lastSubscriptionId));
+        }
+
+        /// <summary>
         /// A queued ConditionRefresh or ConditionRefresh2 of a subscription blocks any
         /// further refresh of the same subscription with Bad_RefreshInProgress, whatever
         /// the monitored item (review U14, Part 9 5.5.7/5.5.8).
@@ -700,6 +723,7 @@ namespace Opc.Ua.Server.Tests
                         uint id = (uint)Interlocked.Increment(ref nextId);
                         var item = new Mock<IMonitoredItem>();
                         item.SetupGet(value => value.Id).Returns(id);
+                        item.SetupGet(value => value.NodeManager).Returns(new Mock<IAsyncNodeManager>().Object);
                         var created = new MonitoredItemCreateResult
                         {
                             MonitoredItemId = id,
@@ -736,7 +760,11 @@ namespace Opc.Ua.Server.Tests
             {
                 var item = new Mock<IMonitoredItem>();
                 item.SetupGet(value => value.Id).Returns(ii);
+                item.SetupGet(value => value.NodeManager).Returns(new Mock<IAsyncNodeManager>().Object);
                 monitoredItems.Add(ii, new LinkedListNode<IMonitoredItem>(item.Object));
+                typeof(Subscription)
+                    .GetMethod("OnMonitoredItemAdded", BindingFlags.NonPublic | BindingFlags.Instance)!
+                    .Invoke(subscription, [item.Object]);
             }
         }
 

@@ -1,31 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using System.Collections.Generic;
@@ -220,6 +194,83 @@ namespace Opc.Ua
             return p == m_tokens.Length;
         }
 
+        /// <summary>
+        /// Matches the whole target string within a budget of matching steps shared by
+        /// the caller across several matches.
+        /// </summary>
+        /// <param name="target">The target string; a null target never matches.</param>
+        /// <param name="budget">The steps left; reduced by the steps this match took.</param>
+        /// <param name="isMatch">Whether the whole target matches this pattern.</param>
+        /// <returns><c>false</c> when the budget ran out before the match was decided;
+        /// <paramref name="isMatch"/> is then <c>false</c> and the budget is zero.</returns>
+        /// <remarks>
+        /// A step is one comparison of a target character with a pattern token (each range
+        /// of a character list counts) or one retry from a wildcard. Most patterns decide
+        /// in about one step per target character; patterns that retry many wildcard
+        /// positions over long targets take up to the product of both lengths.
+        /// </remarks>
+        internal bool TryMatch(string? target, ref int budget, out bool isMatch)
+        {
+            isMatch = false;
+            if (target == null)
+            {
+                return true;
+            }
+
+            // the same walk as IsMatch, counting steps.
+            int steps = budget;
+            int t = 0;
+            int p = 0;
+            int starToken = -1;
+            int starTarget = 0;
+            while (t < target.Length)
+            {
+                if (--steps < 0)
+                {
+                    budget = 0;
+                    return false;
+                }
+                if (p < m_tokens.Length && m_tokens[p].Kind == TokenKind.AnyString)
+                {
+                    starToken = p++;
+                    starTarget = t;
+                    continue;
+                }
+
+                bool matched = p < m_tokens.Length && m_tokens[p].Matches(target[t], ref steps);
+                if (steps < 0)
+                {
+                    budget = 0;
+                    return false;
+                }
+                if (matched)
+                {
+                    p++;
+                    t++;
+                }
+                else if (starToken >= 0)
+                {
+                    p = starToken + 1;
+                    t = ++starTarget;
+                }
+                else
+                {
+                    budget = steps;
+                    return true;
+                }
+            }
+
+            // trailing wildcards are bounded by the pattern length, which the caller pays
+            // for when the pattern is parsed.
+            while (p < m_tokens.Length && m_tokens[p].Kind == TokenKind.AnyString)
+            {
+                p++;
+            }
+            budget = steps;
+            isMatch = p == m_tokens.Length;
+            return true;
+        }
+
         /// <inheritdoc/>
         public override string ToString()
         {
@@ -370,6 +421,36 @@ namespace Opc.Ua
                         foreach ((char first, char last) in m_ranges!)
                         {
                             CheckTimeout(stopwatch, matchTimeout);
+                            if (ch >= first && ch <= last)
+                            {
+                                return !m_negated;
+                            }
+                        }
+                        return m_negated;
+                    default:
+                        return false;
+                }
+            }
+
+            /// <summary>
+            /// Matches one character, counting each range of a character list it compares
+            /// as a step. When the steps run out the scan stops, leaving them negative.
+            /// </summary>
+            public bool Matches(char ch, ref int steps)
+            {
+                switch (Kind)
+                {
+                    case TokenKind.Literal:
+                        return ch == m_literal;
+                    case TokenKind.AnyCharacter:
+                        return true;
+                    case TokenKind.List:
+                        foreach ((char first, char last) in m_ranges!)
+                        {
+                            if (--steps < 0)
+                            {
+                                return false;
+                            }
                             if (ch >= first && ch <= last)
                             {
                                 return !m_negated;

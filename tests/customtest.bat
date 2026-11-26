@@ -2,19 +2,19 @@
 setlocal enabledelayedexpansion
 
 echo This script is used to run custom platform tests for the UA Core Library
-echo Supported parameters: net48, net8.0, net9.0, net10.0
+echo Supported parameters: net48, net10.0, net11.0
 
 REM Check if the target framework parameter is provided
 if "%1"=="" (
     echo Usage: %0 [TargetFramework]
-    echo Allowed values for TargetFramework: net48, net8.0, net9.0, net10.0, default
+    echo Allowed values for TargetFramework: net48, net10.0, net11.0, default
     goto :eof
 )
 
 REM Check if the provided TargetFramework is valid
-set "validFrameworks= default net48 net8.0 net9.0 net10.0 "
+set "validFrameworks= default net48 net10.0 net11.0 "
 if "!validFrameworks: %1 =!"=="%validFrameworks%" (
-    echo Invalid TargetFramework specified. Allowed values are: net48, net8.0, net9.0, net10.0, default
+    echo Invalid TargetFramework specified. Allowed values are: net48, net10.0, net11.0, default
     goto :eof
 )
 

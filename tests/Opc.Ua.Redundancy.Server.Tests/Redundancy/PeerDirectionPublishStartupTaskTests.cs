@@ -1,37 +1,12 @@
-/* ========================================================================
- * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 // CA2007: tests run without a SynchronizationContext; ConfigureAwait(false)
 // adds noise without a behavioural benefit. Disabled file-level for the suite.
 #pragma warning disable CA2007
 
 using System;
+using System.Security.Cryptography;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Time.Testing;
 using Moq;
@@ -159,7 +134,7 @@ namespace Opc.Ua.Server.Tests.Redundancy
         public async Task OnServerStartedNoOpsWhenLocalServerUriMissingAsync()
         {
             using var store = new InMemorySharedKeyValueStore();
-            var options = new LoadDirectionOptions();
+            var options = new LoadDirectionOptions { PeerApplicationUris = [LocalServerUri] };
             var time = new FakeTimeProvider();
             using var task = new PeerDirectionPublishStartupTask(
                 store,
@@ -183,7 +158,7 @@ namespace Opc.Ua.Server.Tests.Redundancy
         public async Task OnServerStartedPublishesInitialServiceLevelAndLoadAsync()
         {
             using var store = new InMemorySharedKeyValueStore();
-            var options = new LoadDirectionOptions();
+            var options = new LoadDirectionOptions { PeerApplicationUris = [LocalServerUri] };
             var time = new FakeTimeProvider();
             using var task = new PeerDirectionPublishStartupTask(
                 store,
@@ -212,7 +187,7 @@ namespace Opc.Ua.Server.Tests.Redundancy
         public async Task ServiceLevelChangeRepublishesHealthSignalAsync()
         {
             using var store = new InMemorySharedKeyValueStore();
-            var options = new LoadDirectionOptions();
+            var options = new LoadDirectionOptions { PeerApplicationUris = [LocalServerUri] };
             var time = new FakeTimeProvider();
             var serviceLevel = new TriggerableServiceLevelProvider(200);
             using var task = new PeerDirectionPublishStartupTask(
@@ -237,7 +212,11 @@ namespace Opc.Ua.Server.Tests.Redundancy
         public async Task LoadWeightChangeIsCoalescedAndPublishedOnTimerAsync()
         {
             using var store = new InMemorySharedKeyValueStore();
-            var options = new LoadDirectionOptions { LoadPublishInterval = TimeSpan.FromMilliseconds(25) };
+            var options = new LoadDirectionOptions
+            {
+                LoadPublishInterval = TimeSpan.FromMilliseconds(25),
+                PeerApplicationUris = [LocalServerUri]
+            };
             var time = new FakeTimeProvider();
             var loadWeight = new TriggerableLoadWeightProvider(30);
             using var task = new PeerDirectionPublishStartupTask(
@@ -252,6 +231,7 @@ namespace Opc.Ua.Server.Tests.Redundancy
             await task.OnServerStartedAsync(server.Object).ConfigureAwait(false);
 
             loadWeight.Raise(99);
+            time.Advance(options.LoadPublishInterval);
 
             var view = new SharedPeerDirectionView(store, context, NullRecordProtector.Instance, options, time);
             PeerDirectionRecord peer = await WaitForPeerAsync(view, p => p.LoadWeight == 99).ConfigureAwait(false);
@@ -262,7 +242,11 @@ namespace Opc.Ua.Server.Tests.Redundancy
         public async Task DisposeUnsubscribesAndStopsPublishingAsync()
         {
             using var store = new InMemorySharedKeyValueStore();
-            var options = new LoadDirectionOptions { LoadPublishInterval = TimeSpan.FromMilliseconds(25) };
+            var options = new LoadDirectionOptions
+            {
+                LoadPublishInterval = TimeSpan.FromMilliseconds(25),
+                PeerApplicationUris = [LocalServerUri]
+            };
             var time = new FakeTimeProvider();
             var serviceLevel = new TriggerableServiceLevelProvider(200);
             var task = new PeerDirectionPublishStartupTask(
@@ -293,11 +277,15 @@ namespace Opc.Ua.Server.Tests.Redundancy
         {
             using var inner = new InMemorySharedKeyValueStore();
             using var store = new ThrowingSharedKeyValueStore(inner, throwOnSet: true);
-            var options = new LoadDirectionOptions();
+            using var random = RandomNumberGenerator.Create();
+            byte[] key = new byte[32];
+            random.GetBytes(key);
+            using var protector = new AesCbcHmacRecordProtector(key);
+            var options = new LoadDirectionOptions { PeerApplicationUris = [LocalServerUri] };
             var time = new FakeTimeProvider();
             using var task = new PeerDirectionPublishStartupTask(
                 store,
-                NullRecordProtector.Instance,
+                protector,
                 options,
                 new TriggerableServiceLevelProvider(200),
                 new TriggerableLoadWeightProvider(30),
@@ -308,7 +296,7 @@ namespace Opc.Ua.Server.Tests.Redundancy
             // Both the ServiceLevel and load publishes fail against the store; the task must swallow them.
             Assert.That(async () => await task.OnServerStartedAsync(server.Object).ConfigureAwait(false), Throws.Nothing);
 
-            var view = new SharedPeerDirectionView(inner, context, NullRecordProtector.Instance, options, time);
+            var view = new SharedPeerDirectionView(inner, context, protector, options, time);
             ArrayOf<PeerDirectionRecord> peers = await view.GetPeersAsync().ConfigureAwait(false);
             Assert.That(peers.Count, Is.Zero, "a failed publish must not surface a record");
         }
@@ -317,7 +305,11 @@ namespace Opc.Ua.Server.Tests.Redundancy
         public async Task LoadTimerWithoutChangeDoesNotRepublishAsync()
         {
             using var store = new InMemorySharedKeyValueStore();
-            var options = new LoadDirectionOptions { LoadPublishInterval = TimeSpan.FromMilliseconds(25) };
+            var options = new LoadDirectionOptions
+            {
+                LoadPublishInterval = TimeSpan.FromMilliseconds(25),
+                PeerApplicationUris = [LocalServerUri]
+            };
             var time = new FakeTimeProvider();
             using var task = new PeerDirectionPublishStartupTask(
                 store,
@@ -330,8 +322,7 @@ namespace Opc.Ua.Server.Tests.Redundancy
             Mock<IServerInternal> server = CreateServer(hasServerUri: true, out IServiceMessageContext context);
             await task.OnServerStartedAsync(server.Object).ConfigureAwait(false);
 
-            // Let the coalescing timer tick several times without any load change: each tick must be a no-op.
-            await Task.Delay(150).ConfigureAwait(false);
+            time.Advance(TimeSpan.FromTicks(options.LoadPublishInterval.Ticks * 3));
 
             var view = new SharedPeerDirectionView(store, context, NullRecordProtector.Instance, options, time);
             ArrayOf<PeerDirectionRecord> peers = await view.GetPeersAsync().ConfigureAwait(false);

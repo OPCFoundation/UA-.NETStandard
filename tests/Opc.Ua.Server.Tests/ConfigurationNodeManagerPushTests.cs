@@ -1,31 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using System.IO;
@@ -2024,25 +1998,6 @@ namespace Opc.Ua.Server.Tests
                 .ConfigureAwait(false);
         }
 
-        // NOTE: A test that drives UpdateCertificate + ApplyChanges through a
-        // full, completed rotation (i.e. awaiting DrainPendingApplyChangesAsync)
-        // is intentionally NOT included. ScheduleDeferredApplyChanges calls
-        // CertificateManager.UpdateAsync, which notifies every registered
-        // ITransportListener; TcpTransportListener.CertificateUpdate then
-        // calls CertificateManager.AcquireApplicationCertificateBySecurityPolicy,
-        // which AddRef()s a CertificateEntry that is never released. That is
-        // a genuine, pre-existing resource leak several layers below
-        // ConfigurationNodeManager (in Opc.Ua.Core's TcpTransportListener /
-        // CertificateManager), reproducible deterministically as soon as a
-        // real ApplyChanges rotation completes against a running TCP
-        // listener. It trips the assembly-wide
-        // Opc.Ua.Server.Tests.LeakDetectionSetup certificate-leak assertion.
-        // Fixing it is out of scope for this test-only change (it lives
-        // outside ConfigurationNodeManager.cs entirely). ApplyChanges' own
-        // request-building/staging logic (lines up to the deferred
-        // scheduling call) is still covered by the tests below and by
-        // UpdateCertificate's own success/failure staging tests.
-
         [Test]
         public async Task ApplyChangesWithNoPendingUpdatesReturnsBadNothingToDoAsync()
         {
@@ -2089,6 +2044,40 @@ namespace Opc.Ua.Server.Tests
                 .ConfigureAwait(false);
             await m_configManager.DrainPendingApplyChangesAsync()
                 .ConfigureAwait(false);
+            using var cancellation = new CancellationTokenSource();
+            await cancellation.CancelAsync().ConfigureAwait(false);
+            await m_configManager.DrainPendingApplyChangesAsync(cancellation.Token).ConfigureAwait(false);
+        }
+
+        [Test]
+        public async Task DrainPendingApplyChangesAsyncPropagatesCompletedFailureAsync()
+        {
+            FieldInfo pendingApplyChangesTaskField = typeof(ConfigurationNodeManager).GetField(
+                "m_pendingApplyChangesTask",
+                BindingFlags.NonPublic | BindingFlags.Instance)
+                ?? throw new InvalidOperationException("Field m_pendingApplyChangesTask not found.");
+            var failure = new InvalidOperationException("Deferred apply failed.");
+            var pending = Task.FromException(failure);
+            pendingApplyChangesTaskField.SetValue(m_configManager, pending);
+
+            try
+            {
+                InvalidOperationException actual = await Assert.ThrowsAsync<InvalidOperationException>(
+                    async () => await m_configManager.DrainPendingApplyChangesAsync().ConfigureAwait(false));
+
+                Assert.That(actual, Is.SameAs(failure));
+                using var cancellation = new CancellationTokenSource();
+                await cancellation.CancelAsync().ConfigureAwait(false);
+                Task repeated = m_configManager.DrainPendingApplyChangesAsync(cancellation.Token);
+                Assert.That(repeated, Is.SameAs(pending));
+                InvalidOperationException? repeatedFailure = await Assert.ThrowsAsync<InvalidOperationException>(
+                    async () => await repeated.ConfigureAwait(false)).ConfigureAwait(false);
+                Assert.That(repeatedFailure, Is.SameAs(failure));
+            }
+            finally
+            {
+                pendingApplyChangesTaskField.SetValue(m_configManager, Task.CompletedTask);
+            }
         }
 
         [Test]
@@ -2185,9 +2174,9 @@ namespace Opc.Ua.Server.Tests
             // CreateNamespaceMetadataStateAsync does not itself register a brand
             // new namespace URI in that table.
             string namespaceUri = m_server.CurrentInstance.NamespaceUris.GetString(1)!;
-            NamespaceMetadataState created = await m_configManager
+            NamespaceMetadataState created = (await m_configManager
                 .CreateNamespaceMetadataStateAsync(namespaceUri!)
-                .ConfigureAwait(false);
+                .ConfigureAwait(false))!;
             Assert.That(created, Is.Not.Null);
 
             ushort namespaceIndex = (ushort)m_server.CurrentInstance.NamespaceUris.GetIndex(namespaceUri);
@@ -2208,9 +2197,9 @@ namespace Opc.Ua.Server.Tests
         public async Task GetNamespaceMetadataStateCachedReturnsSameInstanceAsync()
         {
             const string namespaceUri = "http://test.org/UA/CachedLookupTest";
-            NamespaceMetadataState created = await m_configManager
+            NamespaceMetadataState created = (await m_configManager
                 .CreateNamespaceMetadataStateAsync(namespaceUri)
-                .ConfigureAwait(false);
+                .ConfigureAwait(false))!;
 
             NamespaceMetadataState first = (await m_configManager
                 .GetNamespaceMetadataStateAsync(namespaceUri)
@@ -3439,6 +3428,113 @@ namespace Opc.Ua.Server.Tests
             }
         }
 
+        /// <summary>
+        /// A rotation can be retained during its apply callback, but not by work captured after that callback ends.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task CertificateRotationCollectorExpiresAfterApplyAsync(bool escaped)
+        {
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+            IServerInternal serverInternal = m_server.CurrentInstance;
+            var coordinator = new PushConfigurationTransactionCoordinator(serverInternal.Telemetry);
+            using var manager = new ConfigurationNodeManager(
+                serverInternal, m_fixture.Config, serverInternal.Telemetry.CreateLogger<ConfigurationNodeManager>(),
+                timeProvider: null, coordinator, pendingKeyStore: null);
+            var sessionId = new NodeId(Guid.NewGuid(), 1);
+            ISystemContext context = CreateAdminContextForSession(sessionId);
+            var certificateType = new NodeId(Guid.NewGuid(), 1);
+            using Certificate certificate = CertificateBuilder
+                .Create("CN=ScopedRotation " + Guid.NewGuid().ToString("N")[..8])
+                .SetRSAKeySize(2048)
+                .CreateForRSA();
+            var started = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var release = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var captured = new TaskCompletionSource<Task<long>>(TaskCreationOptions.RunContinuationsAsynchronously);
+            coordinator.Stage(sessionId, new PushConfigurationOperation
+            {
+                AffectedCertificateType = certificateType,
+                CommitAsync = async _ =>
+                {
+                    Task<long> worker = Task.Run(async () =>
+                    {
+                        started.TrySetResult(true);
+                        await release.Task.WaitAsync(timeout.Token).ConfigureAwait(false);
+                        long before = Certificate.InstancesCreated;
+                        InvokeRegisterPendingRotation(manager, certificateType, certificate);
+                        return Certificate.InstancesCreated - before;
+                    });
+                    captured.TrySetResult(worker);
+                    await started.Task.WaitAsync(timeout.Token).ConfigureAwait(false);
+                    if (!escaped)
+                    {
+                        release.TrySetResult(true);
+                        await worker.WaitAsync(timeout.Token).ConfigureAwait(false);
+                    }
+                }
+            });
+            try
+            {
+                ServiceResult result = await InvokeApplyChangesAsync(manager, context).ConfigureAwait(false);
+                Assert.That(ServiceResult.IsGood(result), Is.True);
+                await manager.DrainPendingApplyChangesAsync(timeout.Token).ConfigureAwait(false);
+                release.TrySetResult(true);
+                Task<long> worker = await captured.Task.WaitAsync(timeout.Token).ConfigureAwait(false);
+                long allocated = await worker.WaitAsync(timeout.Token).ConfigureAwait(false);
+                Assert.That(allocated, Is.EqualTo(escaped ? 0 : 1));
+            }
+            finally
+            {
+                release.TrySetResult(true);
+                if (captured.Task.Status == TaskStatus.RanToCompletion)
+                {
+                    Task<long> worker = await captured.Task.ConfigureAwait(false);
+                    await worker.WaitAsync(timeout.Token).ConfigureAwait(false);
+                }
+                await manager.DrainPendingApplyChangesAsync(timeout.Token).ConfigureAwait(false);
+            }
+        }
+
+        /// <summary>
+        /// A coordinator failure releases provisional certificate handles and preserves the original outcome.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task ApplyChangesCoordinatorFailureReleasesProvisionalRotationsAsync(bool cancellation)
+        {
+            long outstanding = Certificate.InstancesLeaked;
+            IServerInternal serverInternal = m_server.CurrentInstance;
+            var coordinator = new Mock<IPushConfigurationTransactionCoordinator>();
+            using (var manager = new ConfigurationNodeManager(
+                serverInternal, m_fixture.Config, serverInternal.Telemetry.CreateLogger<ConfigurationNodeManager>(),
+                timeProvider: null, coordinator.Object, pendingKeyStore: null))
+            using (Certificate certificate = CertificateBuilder
+                .Create("CN=FailedRotation " + Guid.NewGuid().ToString("N")[..8])
+                .SetRSAKeySize(2048)
+                .CreateForRSA())
+            {
+                var sessionId = new NodeId(Guid.NewGuid(), 1);
+                var certificateType = new NodeId(Guid.NewGuid(), 1);
+                ISystemContext context = CreateAdminContextForSession(sessionId);
+                Exception failure = cancellation
+                    ? new OperationCanceledException("Apply coordinator canceled.")
+                    : new InvalidOperationException("Apply coordinator failed.");
+                coordinator.Setup(value => value.ApplyChangesAsync(
+                    sessionId, It.IsAny<PushConfigurationApplyEffects>(), It.IsAny<CancellationToken>()))
+                    .Callback(() => InvokeRegisterPendingRotation(manager, certificateType, certificate))
+                    .Returns(new ValueTask<ServiceResult>(Task.FromException<ServiceResult>(failure)));
+
+                Exception? actual = await Assert.CatchAsync<Exception>(
+                    async () => await InvokeApplyChangesAsync(manager, context).ConfigureAwait(false))
+                    .ConfigureAwait(false);
+                Assert.That(actual, Is.SameAs(failure));
+                coordinator.Verify(value => value.ApplyChangesAsync(
+                    sessionId, It.IsAny<PushConfigurationApplyEffects>(), It.IsAny<CancellationToken>()), Times.Once);
+                await manager.DrainPendingApplyChangesAsync().ConfigureAwait(false);
+            }
+            Assert.That(Certificate.InstancesLeaked, Is.EqualTo(outstanding));
+        }
+
         [Test]
         public async Task ConcurrentApplyChangesDoesNotDropTheSuccessfulCommitsRotationBookkeepingAsync()
         {
@@ -4075,7 +4171,10 @@ namespace Opc.Ua.Server.Tests
             Assert.That(result.CertificateRequest.Length, Is.GreaterThan(0));
         }
 
-        private static SessionSystemContext CreateAdminContext()
+        /// <summary>
+        /// Creates an administrative request using the running server's metadata.
+        /// </summary>
+        private ServerSystemContext CreateAdminContext()
         {
             return CreateContext(
                 UserTokenType.UserName,
@@ -4083,12 +4182,18 @@ namespace Opc.Ua.Server.Tests
                 ObjectIds.WellKnownRole_SecurityAdmin);
         }
 
-        private static SessionSystemContext CreateAnonymousContext()
+        /// <summary>
+        /// Creates an anonymous request using the running server's metadata.
+        /// </summary>
+        private ServerSystemContext CreateAnonymousContext()
         {
             return CreateContext(UserTokenType.Anonymous, MessageSecurityMode.SignAndEncrypt);
         }
 
-        private static SessionSystemContext CreateContext(
+        /// <summary>
+        /// Creates a request with the selected identity and the server's real audit type tables.
+        /// </summary>
+        private ServerSystemContext CreateContext(
             UserTokenType tokenType,
             MessageSecurityMode securityMode,
             params NodeId[] grantedRoles)
@@ -4105,11 +4210,7 @@ namespace Opc.Ua.Server.Tests
                 RequestType.Call,
                 RequestLifetime.None,
                 identity.Object);
-            return new SessionSystemContext(operationContext, s_telemetry)
-            {
-                NamespaceUris = new NamespaceTable(),
-                ServerUris = new StringTable()
-            };
+            return new ServerSystemContext(m_server.CurrentInstance, operationContext);
         }
 
         /// <summary>
@@ -4118,7 +4219,7 @@ namespace Opc.Ua.Server.Tests
         /// always resolves to <see cref="NodeId.Null"/>) so cross-Session
         /// PushManagement transaction ownership can be exercised.
         /// </summary>
-        private static SessionSystemContext CreateAdminContextForSession(NodeId sessionId)
+        private ServerSystemContext CreateAdminContextForSession(NodeId sessionId)
         {
             var identity = new Mock<IUserIdentity>();
             identity.Setup(i => i.TokenType).Returns(UserTokenType.UserName);
@@ -4138,11 +4239,7 @@ namespace Opc.Ua.Server.Tests
                 RequestType.Call,
                 RequestLifetime.None,
                 session.Object);
-            return new SessionSystemContext(operationContext, s_telemetry)
-            {
-                NamespaceUris = new NamespaceTable(),
-                ServerUris = new StringTable()
-            };
+            return new ServerSystemContext(m_server.CurrentInstance, operationContext);
         }
     }
 }

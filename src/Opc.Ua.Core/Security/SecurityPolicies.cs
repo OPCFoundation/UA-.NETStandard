@@ -1,31 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using System.Collections.Generic;
@@ -375,41 +349,19 @@ namespace Opc.Ua
             }
 
             // check if asymmetric encryption is possible.
-            if (info.AsymmetricEncryptionAlgorithm != AsymmetricEncryptionAlgorithm.None)
+            if (info.AsymmetricEncryptionAlgorithm != AsymmetricEncryptionAlgorithm.None &&
+                TryGetDecryptionPadding(
+                    info.AsymmetricEncryptionAlgorithm,
+                    dataToDecrypt.Algorithm,
+                    out RsaUtils.Padding padding))
             {
-                switch (info.AsymmetricEncryptionAlgorithm)
-                {
-                    case AsymmetricEncryptionAlgorithm.RsaOaepSha1:
-                        if (dataToDecrypt.Algorithm == SecurityAlgorithms.RsaOaep)
-                        {
-                            return RsaUtils.Decrypt(
-                                new ArraySegment<byte>(dataToDecrypt.Data!),
-                                certificate,
-                                RsaUtils.Padding.OaepSHA1,
-                                m_logger);
-                        }
-                        break;
-                    case AsymmetricEncryptionAlgorithm.RsaPkcs15Sha1:
-                        if (dataToDecrypt.Algorithm == SecurityAlgorithms.Rsa15)
-                        {
-                            return RsaUtils.Decrypt(
-                                new ArraySegment<byte>(dataToDecrypt.Data!),
-                                certificate,
-                                RsaUtils.Padding.Pkcs1,
-                                m_logger);
-                        }
-                        break;
-                    default:
-                        if (dataToDecrypt.Algorithm == SecurityAlgorithms.RsaOaepSha256)
-                        {
-                            return RsaUtils.Decrypt(
-                                new ArraySegment<byte>(dataToDecrypt.Data!),
-                                certificate,
-                                RsaUtils.Padding.OaepSHA256,
-                                m_logger);
-                        }
-                        break;
-                }
+                // the RSA blocks are bounded before the first one is decrypted.
+                return RsaUtils.Decrypt(
+                    new ArraySegment<byte>(dataToDecrypt.Data!),
+                    certificate,
+                    padding,
+                    m_logger,
+                    IdentityTokenLimits.MaxLegacyPlainTextLength);
             }
 
             if (string.IsNullOrEmpty(dataToDecrypt.Algorithm))
@@ -450,6 +402,39 @@ namespace Opc.Ua
             EncryptedData? dataToDecrypt,
             CancellationToken ct = default)
         {
+            return DecryptAsync(
+                certificate,
+                securityPolicyUri,
+                dataToDecrypt,
+                IdentityTokenLimits.MaxLegacyPlainTextLength,
+                ct);
+        }
+
+        /// <summary>
+        /// Decrypts a legacy RSA encrypted token secret whose plaintext may be
+        /// at most <paramref name="maxPlainTextLength"/> bytes long.
+        /// </summary>
+        /// <param name="certificate">
+        /// The certificate whose private key decrypts.
+        /// </param>
+        /// <param name="securityPolicyUri">The security policy in play.</param>
+        /// <param name="dataToDecrypt">The data to decrypt.</param>
+        /// <param name="maxPlainTextLength">
+        /// The longest legitimate plaintext, including the length prefix and the
+        /// server nonce. A cipher text with more RSA blocks than that needs is
+        /// rejected with Bad_IdentityTokenInvalid before the first private-key
+        /// operation.
+        /// </param>
+        /// <param name="ct">Cancels the operation.</param>
+        /// <returns>The plain text.</returns>
+        /// <exception cref="ServiceResultException"></exception>
+        internal ValueTask<byte[]?> DecryptAsync(
+            Certificate certificate,
+            string securityPolicyUri,
+            EncryptedData? dataToDecrypt,
+            int maxPlainTextLength,
+            CancellationToken ct)
+        {
             if (dataToDecrypt == null)
             {
                 return new ValueTask<byte[]?>((byte[]?)null);
@@ -477,11 +462,13 @@ namespace Opc.Ua
                     dataToDecrypt.Algorithm,
                     out RsaUtils.Padding padding))
             {
+                // the RSA blocks are bounded before the first one is decrypted.
                 return RsaUtils.DecryptAsync(
                     new ArraySegment<byte>(dataToDecrypt.Data!),
                     certificate,
                     padding,
                     m_logger,
+                    maxPlainTextLength,
                     ct)!;
             }
 

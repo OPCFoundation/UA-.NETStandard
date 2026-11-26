@@ -1,31 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using System.Collections.Generic;
@@ -269,6 +243,7 @@ namespace Opc.Ua
                 }
 
                 settings.NamespaceUris = messageContext.NamespaceUris;
+                settings.ServerUris = messageContext.ServerUris;
                 settings.Factory = messageContext.Factory;
 
                 await secureChannel.OpenAsync(connection, settings, ct).ConfigureAwait(false);
@@ -370,6 +345,7 @@ namespace Opc.Ua
                 }
 
                 settings.NamespaceUris = messageContext.NamespaceUris;
+                settings.ServerUris = messageContext.ServerUris;
                 settings.Factory = messageContext.Factory;
 
                 await secureChannel.OpenAsync(endpointUrl, settings, ct).ConfigureAwait(false);
@@ -936,7 +912,12 @@ namespace Opc.Ua
                         ThrowIfMaxChannelsReached();
                     }
 
-                    fresh = new ChannelEntry(this, lease.Key, lease.Endpoint, lease.ReverseConnection);
+                    fresh = new ChannelEntry(
+                        this,
+                        lease.Key,
+                        lease.Endpoint,
+                        lease.ReverseConnection,
+                        GetEntryContextLocked(lease.Key, original.MessageContext));
                     m_entries[lease.Key] = fresh;
                     created = true;
                 }
@@ -1043,7 +1024,12 @@ namespace Opc.Ua
                             ThrowIfMaxChannelsReached();
                         }
 
-                        existing = new ChannelEntry(this, key, endpoint, reverseConnection);
+                        existing = new ChannelEntry(
+                            this,
+                            key,
+                            endpoint,
+                            reverseConnection,
+                            GetEntryContextLocked(key, found ? existing!.MessageContext : null));
                         m_entries[key] = existing;
                         created = true;
                     }
@@ -1129,11 +1115,65 @@ namespace Opc.Ua
         }
 
         /// <summary>
+        /// Returns the message context a new entry for <paramref name="key"/> opens
+        /// its transports with. Must be called while holding the registry lock.
+        /// </summary>
+        /// <remarks>
+        /// Participants adopt the namespace table, server table and encodeable
+        /// factory of the entry they first attach to and keep refreshing those
+        /// tables in place. A replacement entry - a swap after the reconnect
+        /// budget, or a lookup while the previous entry closes - therefore keeps
+        /// the context of the entry it replaces (<paramref name="inherited"/>, or
+        /// the context still referenced by a live participant of this key), so
+        /// every transport of a key encodes with the participants' tables.
+        /// </remarks>
+        private IServiceMessageContext GetEntryContextLocked(
+            ManagedChannelKey key,
+            IServiceMessageContext? inherited)
+        {
+            if (inherited == null &&
+                m_entryContexts.TryGetValue(key, out WeakReference<IServiceMessageContext>? weak) &&
+                weak.TryGetTarget(out IServiceMessageContext? alive))
+            {
+                inherited = alive;
+            }
+
+            IServiceMessageContext context = inherited ?? Configuration.CreateMessageContext();
+
+            // Drop contexts no participant references any more before adding.
+            List<ManagedChannelKey>? dead = null;
+            foreach (KeyValuePair<ManagedChannelKey, WeakReference<IServiceMessageContext>> pair in m_entryContexts)
+            {
+                if (!pair.Value.TryGetTarget(out _))
+                {
+                    (dead ??= []).Add(pair.Key);
+                }
+            }
+            if (dead != null)
+            {
+                foreach (ManagedChannelKey deadKey in dead)
+                {
+                    m_entryContexts.Remove(deadKey);
+                }
+            }
+
+            m_entryContexts[key] = new WeakReference<IServiceMessageContext>(context);
+            return context;
+        }
+
+        /// <summary>
         /// Per-instance state for the managed (sharing/refcount) path.
         /// Legacy single-shot CreateChannelAsync path uses the existing
         /// ClientChannel wrapper and is independent of this state.
         /// </summary>
         private readonly Dictionary<ManagedChannelKey, ChannelEntry> m_entries = [];
+
+        /// <summary>
+        /// Message context of the latest entry per key, guarded by the
+        /// <see cref="m_entries"/> lock; weak so a key nobody uses any more
+        /// does not keep its tables alive.
+        /// </summary>
+        private readonly Dictionary<ManagedChannelKey, WeakReference<IServiceMessageContext>> m_entryContexts = [];
         private readonly Lock m_certLock = new();
         private readonly Dictionary<NodeId, ClientChannelCertificateSnapshot> m_certificatesByType = [];
         private readonly ChannelManagerOptions m_options;
@@ -1174,6 +1214,7 @@ namespace Opc.Ua
             {
                 snapshot = [.. m_entries.Values];
                 m_entries.Clear();
+                m_entryContexts.Clear();
             }
 
             foreach (ChannelEntry entry in snapshot)

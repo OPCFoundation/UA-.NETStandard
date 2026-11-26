@@ -1,32 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using System.Collections.Generic;
@@ -881,7 +854,7 @@ namespace Opc.Ua.Wot
         /// </summary>
         private static string SourceAffordanceName(string reference)
         {
-            int separator = reference.LastIndexOf('/');
+            int separator = reference.LastIndexOf('/', StringComparison.Ordinal);
             return separator >= 0 && separator + 1 < reference.Length
                 ? reference[(separator + 1)..]
                 : reference;
@@ -896,7 +869,7 @@ namespace Opc.Ua.Wot
             string pointer = SplitPointer(reference.Reference);
             string prefix = "/" + MapName(reference.AffordanceKind) + "/";
             if (!pointer.StartsWith(prefix, StringComparison.Ordinal) ||
-                pointer.IndexOf('/', prefix.Length) >= 0 ||
+                pointer.IndexOf('/', prefix.Length, StringComparison.Ordinal) >= 0 ||
                 !WotDocument.TryEvaluatePointer(
                     source.Document.RootElement, pointer, out JsonElement definition) ||
                 definition.ValueKind != JsonValueKind.Object)
@@ -1474,7 +1447,7 @@ namespace Opc.Ua.Wot
                 pathNode is not JsonValue pathValue ||
                 !pathValue.TryGetValue(out string? path) ||
                 path is null ||
-                path.StartsWith('/'))
+                path.StartsWith('/', StringComparison.Ordinal))
             {
                 return;
             }
@@ -2171,7 +2144,7 @@ namespace Opc.Ua.Wot
             SplitUriSuffix(href, out string referencePath, out string? query, out string? fragment);
             if (referencePath.StartsWith("//", StringComparison.Ordinal))
             {
-                int slash = referencePath.IndexOf('/', 2);
+                int slash = referencePath.IndexOf('/', 2, StringComparison.Ordinal);
                 string networkAuthority = slash < 0 ? referencePath : referencePath[..slash];
                 string networkPath = slash < 0 ? string.Empty : referencePath[slash..];
                 return scheme + ":" + networkAuthority + RemoveDotSegments(networkPath) + query + fragment;
@@ -2257,7 +2230,7 @@ namespace Opc.Ua.Wot
             {
                 return "/" + reference;
             }
-            int lastSlash = basePath.LastIndexOf('/');
+            int lastSlash = basePath.LastIndexOf('/', StringComparison.Ordinal);
             return lastSlash < 0
                 ? reference
                 : basePath[..(lastSlash + 1)] + reference;
@@ -2302,8 +2275,8 @@ namespace Opc.Ua.Wot
                 }
                 else
                 {
-                    int start = input.StartsWith('/') ? 1 : 0;
-                    int next = input.IndexOf('/', start);
+                    int start = input.StartsWith('/', StringComparison.Ordinal) ? 1 : 0;
+                    int next = input.IndexOf('/', start, StringComparison.Ordinal);
                     if (next < 0)
                     {
                         output.Append(input);

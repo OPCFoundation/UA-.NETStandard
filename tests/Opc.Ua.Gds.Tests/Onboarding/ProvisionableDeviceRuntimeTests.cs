@@ -1,29 +1,10 @@
-/* ========================================================================
- * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person obtaining a
- * copy of this software and associated documentation files (the "Software"),
- * to deal in the Software without restriction, including without limitation
- * the rights to use, copy, modify, merge, publish, distribute, sublicense,
- * and/or sell copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following conditions:
- *
- * The above copyright notice and this permission notice shall be included
- * in all copies or substantial portions of the Software.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
- * OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL
- * THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR
- * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
- * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- ========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using System.Collections.Generic;
+using System.Globalization;
+using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading;
@@ -31,11 +12,17 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection;
 using Moq;
 using NUnit.Framework;
+using Opc.Ua.Client;
+using Opc.Ua.Client.TestFramework;
 using Opc.Ua.Gds.Server;
 using Opc.Ua.Gds.Server.Onboarding;
 using Opc.Ua.Onboarding;
 using Opc.Ua.Server;
+using Opc.Ua.Server.Network;
+using Opc.Ua.Server.TestFramework;
 using Opc.Ua.Tests;
+using Quickstarts.ReferenceServer;
+using ISession = Opc.Ua.Client.ISession;
 
 namespace Opc.Ua.Gds.Tests.Onboarding
 {
@@ -311,6 +298,206 @@ namespace Opc.Ua.Gds.Tests.Onboarding
         }
 
         /// <summary>
+        /// The optional configuration interface owns publication instead of claiming the engineering client.
+        /// </summary>
+        [Test]
+        public async Task SetRegistrarEndpointsDispatchesToRegistrarConfigurationWithoutLegacyClaim()
+        {
+            var security = new Mock<IProvisionableDeviceSecurity>(MockBehavior.Strict);
+            Mock<IProvisionableDeviceRegistrarConfiguration> configuration =
+                security.As<IProvisionableDeviceRegistrarConfiguration>();
+            var store = new Mock<IProvisionableDeviceRegistrarStore>(MockBehavior.Strict);
+            SessionSystemContext context = Context();
+            using var cancellation = new CancellationTokenSource();
+            ApplicationDescription candidate = Registrar();
+            ArrayOf<ApplicationDescription> captured = default;
+            configuration.Setup(value => value.ReplaceRegistrarEndpointsAsync(
+                    context, store.Object, It.IsAny<ArrayOf<ApplicationDescription>>(), cancellation.Token))
+                .Callback<ISystemContext, IProvisionableDeviceRegistrarStore, ArrayOf<ApplicationDescription>,
+                    CancellationToken>((_, _, values, _) =>
+                {
+                    captured = values;
+                    candidate.ApplicationUri = "urn:mutated:registrar";
+                    candidate.DiscoveryUrls = ["opc.tcp://mutated:4840"];
+                })
+                .Returns(default(ValueTask));
+            var runtime = new ProvisionableDeviceRuntime(
+                false, [], Mock.Of<ITicketStore>(), Mock.Of<IOnboardingTicketValidator>(),
+                store.Object, security.Object);
+
+            await runtime.SetRegistrarEndpointsAsync(context, [candidate], cancellation.Token).ConfigureAwait(false);
+
+            Assert.That(captured.Count, Is.EqualTo(1));
+            Assert.That(captured[0], Is.Not.SameAs(candidate));
+            Assert.That(captured[0].ApplicationUri, Is.EqualTo("urn:registrar:one"));
+            Assert.That(captured[0].DiscoveryUrls.ToArray(), Is.EqualTo(s_expectedRegistrarDiscoveryUrls));
+            configuration.Verify(value => value.ReplaceRegistrarEndpointsAsync(
+                context, store.Object, It.IsAny<ArrayOf<ApplicationDescription>>(), cancellation.Token), Times.Once);
+            security.Verify(value => value.RequireRegistrarAsync(
+                It.IsAny<ISystemContext>(), It.IsAny<CancellationToken>()), Times.Never);
+            store.VerifyNoOtherCalls();
+        }
+
+        /// <summary>
+        /// Separate coordinators are resolved by DI and direct construction without invoking the legacy registrar claim.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task SeparateRegistrarCoordinatorUsesSelectedSecurityOwnerAsync(bool dependencyInjection)
+        {
+            var security = new Mock<IProvisionableDeviceSecurity>(MockBehavior.Strict);
+            var coordinator = new Mock<IProvisionableDeviceRegistrarConfiguration>(MockBehavior.Strict);
+            coordinator.SetupGet(value => value.Security).Returns(security.Object);
+            var store = new Mock<IProvisionableDeviceRegistrarStore>(MockBehavior.Strict);
+            SessionSystemContext context = Context();
+            ApplicationDescription candidate = Registrar();
+            ArrayOf<ApplicationDescription> captured = default;
+            coordinator.Setup(value => value.ReplaceRegistrarEndpointsAsync(
+                    context, store.Object, It.IsAny<ArrayOf<ApplicationDescription>>(), It.IsAny<CancellationToken>()))
+                .Callback<ISystemContext, IProvisionableDeviceRegistrarStore, ArrayOf<ApplicationDescription>,
+                    CancellationToken>((_, _, values, _) => captured = values)
+                .Returns(default(ValueTask));
+            var services = new ServiceCollection();
+            services.AddSingleton(Mock.Of<ITicketStore>());
+            services.AddSingleton(Mock.Of<IOnboardingTicketValidator>());
+            services.AddSingleton(store.Object);
+            services.AddSingleton(security.Object);
+            services.AddSingleton(coordinator.Object);
+            services.AddProvisionableDeviceRuntime(false, []);
+            using ServiceProvider provider = services.BuildServiceProvider();
+            IProvisionableDeviceRuntime runtime = dependencyInjection
+                ? provider.GetRequiredService<IProvisionableDeviceRuntime>()
+                : new ProvisionableDeviceRuntime(
+                    false, [], Mock.Of<ITicketStore>(), Mock.Of<IOnboardingTicketValidator>(),
+                    store.Object, security.Object, coordinator.Object);
+
+            await runtime.SetRegistrarEndpointsAsync(context, [candidate]).ConfigureAwait(false);
+
+            Assert.That(captured.Count, Is.EqualTo(1));
+            Assert.That(captured[0], Is.Not.SameAs(candidate));
+            Assert.That(captured[0].ApplicationUri, Is.EqualTo(candidate.ApplicationUri));
+            coordinator.Verify(value => value.ReplaceRegistrarEndpointsAsync(
+                context, store.Object, It.IsAny<ArrayOf<ApplicationDescription>>(), It.IsAny<CancellationToken>()),
+                Times.Once);
+            security.VerifyNoOtherCalls();
+            store.VerifyNoOtherCalls();
+        }
+
+        /// <summary>
+        /// A coordinator for another security owner cannot replace candidates for this runtime.
+        /// </summary>
+        [TestCase(false, false)]
+        [TestCase(true, false)]
+        [TestCase(false, true)]
+        [TestCase(true, true)]
+        public void SeparateRegistrarCoordinatorRejectsDifferentSecurityOwner(
+            bool dependencyInjection,
+            bool missingSecurity)
+        {
+            var security = new Mock<IProvisionableDeviceSecurity>(MockBehavior.Strict);
+            var coordinator = new Mock<IProvisionableDeviceRegistrarConfiguration>(MockBehavior.Strict);
+            coordinator.SetupGet(value => value.Security).Returns(Mock.Of<IProvisionableDeviceSecurity>());
+            var services = new ServiceCollection();
+            services.AddSingleton(Mock.Of<ITicketStore>());
+            services.AddSingleton(Mock.Of<IOnboardingTicketValidator>());
+            services.AddSingleton(Mock.Of<IProvisionableDeviceRegistrarStore>());
+            if (!missingSecurity)
+            {
+                services.AddSingleton(security.Object);
+            }
+            services.AddSingleton(coordinator.Object);
+            services.AddProvisionableDeviceRuntime(false, []);
+            using ServiceProvider provider = services.BuildServiceProvider();
+
+            Assert.That(() =>
+            {
+                if (dependencyInjection)
+                {
+                    return provider.GetRequiredService<IProvisionableDeviceRuntime>();
+                }
+                return new ProvisionableDeviceRuntime(
+                    false, [], Mock.Of<ITicketStore>(), Mock.Of<IOnboardingTicketValidator>(),
+                    Mock.Of<IProvisionableDeviceRegistrarStore>(),
+                    missingSecurity ? null : security.Object, coordinator.Object);
+            }, Throws.ArgumentException.With.Property(nameof(ArgumentException.ParamName))
+                .EqualTo("registrarConfiguration"));
+            security.VerifyNoOtherCalls();
+        }
+
+        /// <summary>
+        /// Custom security providers without the optional interface retain the previous ordered fallback.
+        /// </summary>
+        [Test]
+        public async Task SetRegistrarEndpointsFallsBackToLegacyProviderBeforePublishing()
+        {
+            var security = new Mock<IProvisionableDeviceSecurity>(MockBehavior.Strict);
+            var store = new Mock<IProvisionableDeviceRegistrarStore>(MockBehavior.Strict);
+            var calls = new List<string>();
+            var entered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var release = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var authorized = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            SessionSystemContext context = Context();
+            using var cancellation = new CancellationTokenSource();
+            ArrayOf<ApplicationDescription> captured = default;
+            security.Setup(value => value.RequireRegistrarAsync(context, cancellation.Token))
+                .Returns(async (ISystemContext _, CancellationToken token) =>
+                {
+                    calls.Add("authorize");
+                    entered.TrySetResult(true);
+                    await release.Task.ConfigureAwait(false);
+                    token.ThrowIfCancellationRequested();
+                    calls.Add("authorized");
+                    authorized.TrySetResult(true);
+                });
+            store.Setup(value => value.ReplaceAsync(
+                    It.IsAny<ArrayOf<ApplicationDescription>>(), cancellation.Token))
+                .Callback<ArrayOf<ApplicationDescription>, CancellationToken>((values, _) =>
+                {
+                    calls.Add("replace");
+                    captured = values;
+                })
+                .Returns(default(ValueTask));
+            var runtime = new ProvisionableDeviceRuntime(
+                false, [], Mock.Of<ITicketStore>(), Mock.Of<IOnboardingTicketValidator>(),
+                store.Object, security.Object);
+            ApplicationDescription candidate = Registrar();
+
+            Task operation = runtime.SetRegistrarEndpointsAsync(
+                context, [candidate], cancellation.Token).AsTask();
+            Task completed = await Task.WhenAny(entered.Task, operation).ConfigureAwait(false);
+            if (completed == operation && !entered.Task.IsCompleted)
+            {
+                await operation.ConfigureAwait(false);
+                throw new AssertionException("Legacy authorization was not invoked.");
+            }
+            bool operationWaited;
+            bool storeCalledBeforeAuthorization;
+            try
+            {
+                operationWaited = !operation.IsCompleted;
+                storeCalledBeforeAuthorization = calls.Contains("replace");
+            }
+            finally
+            {
+                release.TrySetResult(true);
+            }
+            await authorized.Task.ConfigureAwait(false);
+            await operation.ConfigureAwait(false);
+
+            Assert.That(security.Object, Is.Not.InstanceOf<IProvisionableDeviceRegistrarConfiguration>());
+            Assert.That(operationWaited, Is.True);
+            Assert.That(storeCalledBeforeAuthorization, Is.False);
+            Assert.That(calls, Is.EqualTo(s_expectedLegacyPublicationCalls));
+            Assert.That(captured.Count, Is.EqualTo(1));
+            Assert.That(captured[0], Is.Not.SameAs(candidate));
+            Assert.That(captured[0].ApplicationUri, Is.EqualTo("urn:registrar:one"));
+            Assert.That(captured[0].DiscoveryUrls.ToArray(), Is.EqualTo(s_expectedRegistrarDiscoveryUrls));
+            security.Verify(value => value.RequireRegistrarAsync(context, cancellation.Token), Times.Once);
+            store.Verify(value => value.ReplaceAsync(
+                It.IsAny<ArrayOf<ApplicationDescription>>(), cancellation.Token), Times.Once);
+        }
+
+        /// <summary>
         /// Direct and fluent runtimes consult the selected device security provider before changing candidates.
         /// </summary>
         [TestCase(false)]
@@ -394,9 +581,9 @@ namespace Opc.Ua.Gds.Tests.Onboarding
             ProvisionableDeviceState device =
                 ProvisionableDeviceNodeManagerFactory.CreateProvisionableDevice(context, runtime);
             Assert.That(device.BrowseName, Is.EqualTo(new QualifiedName("ProvisionableDevice", 0)));
-            ushort namespaceIndex = checked((ushort)context.NamespaceUris.GetIndex(
-                ProvisionableDeviceNodeManagerFactory.NamespaceUri));
-            Assert.That(device.NodeId, Is.EqualTo(new NodeId("ProvisionableDevice", namespaceIndex)));
+            Assert.That(device.NodeId, Is.EqualTo(new NodeId(29878)));
+            Assert.That(device.IsSingleton!.NodeId, Is.EqualTo(new NodeId(29879)));
+            Assert.That(device.RequestTickets!.NodeId, Is.EqualTo(new NodeId(29880)));
             Assert.That(device.IsSingleton!.Value, Is.True);
             var references = new List<IReference>();
             device.GetReferences(context, references);
@@ -404,6 +591,167 @@ namespace Opc.Ua.Gds.Tests.Onboarding
                 reference.ReferenceTypeId == ReferenceTypeIds.Organizes &&
                 reference.IsInverse &&
                 reference.TargetId == global::Opc.Ua.ObjectIds.Resources), Is.True);
+        }
+
+        /// <summary>
+        /// The device and Part 22 network manager share one hosted Resources address-space entry point.
+        /// </summary>
+        [Test]
+        [CancelAfter(60_000)]
+        public async Task HostedDeviceAndNetworkModelsShareResourcesAsync(CancellationToken cancellationToken)
+        {
+            string pkiRoot = Path.Combine(
+                Path.GetTempPath(),
+                "OpcUaOnboardingResources",
+                Guid.NewGuid().ToString("N"));
+            byte[] password = Encoding.UTF8.GetBytes(Guid.NewGuid().ToString("N"));
+            var provider = new ReferenceNetworkModelProvider(new NetworkModelSnapshot
+            {
+                Timestamp = new DateTime(1970, 1, 1, 0, 0, 0, DateTimeKind.Utc),
+                StatusCode = StatusCodes.Good,
+                Interfaces =
+                [
+                    new NetworkInterfaceSnapshot("interface-1", "eth0")
+                    {
+                        AdminStatus = InterfaceAdminStatus.Up,
+                        OperStatus = InterfaceOperStatus.Up,
+                        Speed = 1_000_000_000,
+                        LowerLayerIds = [],
+                        SrClasses = []
+                    }
+                ],
+                MappingTables = [],
+                Streams = []
+            });
+            var runtime = new ProvisionableDeviceRuntime(
+                false,
+                ["device"],
+                Mock.Of<ITicketStore>(),
+                Mock.Of<IOnboardingTicketValidator>(),
+                Mock.Of<IProvisionableDeviceRegistrarStore>());
+            var server = new ServerFixture<ReferenceServer>(telemetry =>
+            {
+                var referenceServer = new ReferenceServer(telemetry);
+                Assert.That(
+                    referenceServer.UserDatabase.ResetPassword(
+                        "user1", password, global::Opc.Ua.UserConfigurationMask.None, string.Empty),
+                    Is.True);
+                referenceServer.AddNodeManager(new NetworkModelNodeManagerFactory(provider, _ => false));
+                referenceServer.AddNodeManager(new ProvisionableDeviceNodeManagerFactory(runtime));
+                return referenceServer;
+            })
+            {
+                SecurityNone = true,
+                AutoAccept = true
+            };
+            ClientFixture? clientFixture = null;
+            ISession? session = null;
+
+            try
+            {
+                await server.LoadConfigurationAsync(pkiRoot).ConfigureAwait(false);
+                server.Config.ServerConfiguration!.UserTokenPolicies =
+                [
+                    new UserTokenPolicy(UserTokenType.Anonymous),
+                    new UserTokenPolicy(UserTokenType.UserName)
+                ];
+                await server.StartAsync(pkiRoot).ConfigureAwait(false);
+                clientFixture = new ClientFixture(NUnitTelemetryContext.Create());
+                await clientFixture.LoadClientConfigurationAsync(pkiRoot).ConfigureAwait(false);
+                ConfiguredEndpoint endpoint = await clientFixture.GetEndpointAsync(
+                    new Uri("opc.tcp://localhost:" + server.Port.ToString(CultureInfo.InvariantCulture)),
+                    SecurityPolicies.Basic256Sha256).ConfigureAwait(false);
+                session = await clientFixture.ConnectAsync(
+                    endpoint,
+                    userIdentity: new UserIdentity("user1", password)).ConfigureAwait(false);
+
+                BrowseResponse resources = await session.BrowseAsync(
+                    null,
+                    null,
+                    0,
+                    [
+                        new BrowseDescription
+                        {
+                            NodeId = global::Opc.Ua.ObjectIds.Resources,
+                            ReferenceTypeId = ReferenceTypeIds.HierarchicalReferences,
+                            BrowseDirection = BrowseDirection.Forward,
+                            IncludeSubtypes = true,
+                            ResultMask = (uint)BrowseResultMask.All
+                        }
+                    ],
+                    cancellationToken).ConfigureAwait(false);
+                Assert.That(resources.Results[0].StatusCode, Is.EqualTo(StatusCodes.Good));
+                NodeId[] resourceChildren = resources.Results[0].References
+                    .ToList()
+                    .Select(reference => ExpandedNodeId.ToNodeId(reference.NodeId, session.NamespaceUris))
+                    .ToArray();
+                Assert.That(resourceChildren, Does.Contain(global::Opc.Ua.ObjectIds.Communication));
+                Assert.That(resourceChildren, Does.Contain(new NodeId(29878u)));
+
+                BrowseResponse networkInterfaces = await session.BrowseAsync(
+                    null,
+                    null,
+                    0,
+                    [
+                        new BrowseDescription
+                        {
+                            NodeId = global::Opc.Ua.ObjectIds.Communication,
+                            ReferenceTypeId = ReferenceTypeIds.HierarchicalReferences,
+                            BrowseDirection = BrowseDirection.Forward,
+                            IncludeSubtypes = true,
+                            ResultMask = (uint)BrowseResultMask.All
+                        }
+                    ],
+                    cancellationToken).ConfigureAwait(false);
+                Assert.That(networkInterfaces.Results[0].StatusCode, Is.EqualTo(StatusCodes.Good));
+                NodeId[] networkChildren = networkInterfaces.Results[0].References
+                    .ToList()
+                    .Select(reference => ExpandedNodeId.ToNodeId(reference.NodeId, session.NamespaceUris))
+                    .ToArray();
+                Assert.That(networkChildren, Does.Contain(global::Opc.Ua.ObjectIds.NetworkInterfaces));
+
+                BrowseResponse interfaces = await session.BrowseAsync(
+                    null,
+                    null,
+                    0,
+                    [
+                        new BrowseDescription
+                        {
+                            NodeId = global::Opc.Ua.ObjectIds.NetworkInterfaces,
+                            ReferenceTypeId = ReferenceTypeIds.HierarchicalReferences,
+                            BrowseDirection = BrowseDirection.Forward,
+                            IncludeSubtypes = true,
+                            ResultMask = (uint)BrowseResultMask.All
+                        }
+                    ],
+                    cancellationToken).ConfigureAwait(false);
+                Assert.That(interfaces.Results[0].StatusCode, Is.EqualTo(StatusCodes.Good));
+                NodeId[] interfaceChildren = interfaces.Results[0].References
+                    .ToList()
+                    .Select(reference => ExpandedNodeId.ToNodeId(reference.NodeId, session.NamespaceUris))
+                    .ToArray();
+                Assert.That(interfaceChildren, Does.Contain(
+                    new NodeId(
+                        "interface/interface-1",
+                        checked((ushort)session.NamespaceUris.GetIndex(NetworkModelNodeManager.NamespaceUri)))));
+            }
+            finally
+            {
+                if (session is not null)
+                {
+                    await session.CloseAsync(CancellationToken.None).ConfigureAwait(false);
+                    await session.DisposeAsync().ConfigureAwait(false);
+                }
+                if (clientFixture is not null)
+                {
+                    await clientFixture.DisposeAsync().ConfigureAwait(false);
+                }
+                await server.StopAsync().ConfigureAwait(false);
+                if (Directory.Exists(pkiRoot))
+                {
+                    Directory.Delete(pkiRoot, recursive: true);
+                }
+            }
         }
 
         /// <summary>
@@ -621,6 +969,9 @@ namespace Opc.Ua.Gds.Tests.Onboarding
         /// The discovery URL expected on the copied registrar description.
         /// </summary>
         private static readonly string[] s_expectedRegistrarDiscoveryUrls = ["opc.tcp://registrar:4840"];
+
+        /// <summary>The authorization sequence preceding legacy candidate publication.</summary>
+        private static readonly string[] s_expectedLegacyPublicationCalls = ["authorize", "authorized", "replace"];
         /// <summary>
         /// The ticket identifier returned by the generated request-tickets method.
         /// </summary>

@@ -1,31 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using System.Threading;
@@ -72,7 +46,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
         {
             return new WotProjectionChange(
                 null, document ?? throw new ArgumentNullException(nameof(document)),
-                WotProjectionRetirementPolicy.Graceful);
+                WotProjectionRetirementPolicy.Migrate);
         }
 
         /// <summary>
@@ -84,7 +58,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
         public static WotProjectionChange Replace(
             WotProjectionHandle current,
             WotProjectionDocument document,
-            WotProjectionRetirementPolicy retirementPolicy = WotProjectionRetirementPolicy.Graceful)
+            WotProjectionRetirementPolicy retirementPolicy = WotProjectionRetirementPolicy.Migrate)
         {
             return new WotProjectionChange(
                 current ?? throw new ArgumentNullException(nameof(current)),
@@ -98,7 +72,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
         /// <param name="retirementPolicy">The retirement policy.</param>
         public static WotProjectionChange Remove(
             WotProjectionHandle current,
-            WotProjectionRetirementPolicy retirementPolicy = WotProjectionRetirementPolicy.Graceful)
+            WotProjectionRetirementPolicy retirementPolicy = WotProjectionRetirementPolicy.Invalidate)
         {
             return new WotProjectionChange(
                 current ?? throw new ArgumentNullException(nameof(current)), null, retirementPolicy);
@@ -123,6 +97,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
         /// <param name="views">The WoT prepared view publication.</param>
         /// <param name="callerContext">
         /// The executing request's context, or <c>null</c> for an external or background caller.
+        /// The default lifecycle host uses context-free preparation and ignores this compatibility parameter.
         /// </param>
         /// <param name="cancellationToken">The cancellation token supplied by the caller.</param>
         ValueTask<IWotPreparedProjectionPublication> PrepareAsync(
@@ -149,6 +124,19 @@ namespace Opc.Ua.WotCon.Server.Materialization
     }
 
     /// <summary>
+    /// Captures a projection publication authorized by an active server initializer.
+    /// </summary>
+    public interface IWotReadinessProjectionHost : IWotInvocationProjectionHost
+    {
+        /// <summary>
+        /// Carries readiness through the captured publication without extending its lifetime.
+        /// </summary>
+        /// <param name="readiness">The initializer's context.</param>
+        /// <returns>The captured publication.</returns>
+        IWotProjectionPublicationCapture CapturePublication(NodeManagerReadinessContext readiness);
+    }
+
+    /// <summary>
     /// Captured source-owner revisions, not another publication decision.
     /// </summary>
     public interface IWotProjectionPublicationCapture
@@ -157,8 +145,9 @@ namespace Opc.Ua.WotCon.Server.Materialization
         /// Reserves publication admission and reports whether preparation is still current.
         /// </summary>
         /// <param name="callerContext">
-        /// The executing request's context, so the post-commit request drain excludes that request,
-        /// or <c>null</c> for an external caller that does not run inside a server request.
+        /// The executing request's context, or <c>null</c> for an external or background caller.
+        /// The default lifecycle host ignores this compatibility parameter. Commit does not wait for
+        /// the executing request's generation admission to drain.
         /// </param>
         /// <param name="cancellationToken">The cancellation token supplied by the caller.</param>
         ValueTask<IWotProjectionPublication> BeginAsync(
@@ -255,6 +244,19 @@ namespace Opc.Ua.WotCon.Server.Materialization
     }
 
     /// <summary>
+    /// Supplies an explicit namespace mapping for privately prepared native projections.
+    /// </summary>
+    public interface IWotPreparedProjectionNamespaceSource
+    {
+        /// <summary>
+        /// Gets the explicit candidate namespace mapping, including unpublished additions.
+        /// Empty means that the provider uses only already-published namespaces.
+        /// Decorators must forward this mapping without appending it to the serving table.
+        /// </summary>
+        ArrayOf<string> CapturedNamespaceUris { get; }
+    }
+
+    /// <summary>
     /// The private source/View routing candidate for one coordinator-owned publication decision.
     /// </summary>
     public interface IWotPreparedProjectionPublication : IAsyncDisposable
@@ -275,9 +277,15 @@ namespace Opc.Ua.WotCon.Server.Materialization
         bool IsCommitted { get; }
 
         /// <summary>
-        /// Gets a post-publication readiness/retirement reconciliation failure.
+        /// Gets a post-publication reconciliation failure. Physical retirement is observed through
+        /// <see cref="Retired"/> and does not delay publication.
         /// </summary>
         Exception? CleanupFailure { get; }
+
+        /// <summary>
+        /// Gets independent physical retirement after commit. Publication does not wait for generation drain.
+        /// </summary>
+        Task Retired { get; }
 
         /// <summary>
         /// Binds native metadata to the same captured routing image before the publication decision.

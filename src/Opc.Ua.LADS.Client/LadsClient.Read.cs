@@ -1,31 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using System.Collections.Generic;
@@ -338,14 +312,16 @@ namespace Opc.Ua.LADS.Client
                         mode.BrowseName,
                         Lads(BrowseNames.CurrentValue)
                     ]);
-                    modeNames.Add($"{BrowseNames.ControllerModeSet}/{modeName}/{BrowseNames.CurrentValue}");
+                    modeNames.Add(
+                        $"{BrowseNames.ControllerModeSet}/{Uri.EscapeDataString(modeName)}/{BrowseNames.CurrentValue}");
                     modePaths.Add(
                     [
                         Lads(BrowseNames.ControllerModeSet),
                         mode.BrowseName,
                         Lads(BrowseNames.TargetValue)
                     ]);
-                    modeNames.Add($"{BrowseNames.ControllerModeSet}/{modeName}/{BrowseNames.TargetValue}");
+                    modeNames.Add(
+                        $"{BrowseNames.ControllerModeSet}/{Uri.EscapeDataString(modeName)}/{BrowseNames.TargetValue}");
                 }
                 NodeId[] modeNodes = await ResolveAsync(functionId, modePaths, cancellationToken).ConfigureAwait(false);
                 for (int ii = 0; ii < modeNodes.Length; ii++)
@@ -353,6 +329,28 @@ namespace Opc.Ua.LADS.Client
                     if (!modeNodes[ii].IsNull)
                     {
                         resolved.Add((modeNames[ii], modeNodes[ii]));
+                    }
+                }
+            }
+            NodeId targetSet = await ResolveAsync(
+                functionId, cancellationToken, Lads(BrowseNames.TargetValueSet)).ConfigureAwait(false);
+            if (!targetSet.IsNull)
+            {
+                List<ReferenceDescription> targets = await BrowseAsync(
+                    targetSet, Ua.ReferenceTypeIds.HasComponent, NodeClass.Variable, cancellationToken)
+                    .ConfigureAwait(false);
+                foreach (ReferenceDescription target in targets)
+                {
+                    if (target.BrowseName.Name is { Length: > 0 } name)
+                    {
+                        NodeId targetId = ToNodeId(target.NodeId);
+                        if (targetId.IsNull)
+                        {
+                            throw new ServiceResultException(
+                                StatusCodes.BadNodeIdUnknown, "The composed target has no local NodeId.");
+                        }
+                        resolved.Add(($"{BrowseNames.TargetValueSet}/{Uri.EscapeDataString(name)}",
+                            targetId));
                     }
                 }
             }

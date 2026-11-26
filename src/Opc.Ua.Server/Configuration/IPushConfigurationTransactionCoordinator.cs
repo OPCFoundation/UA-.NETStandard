@@ -1,31 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using System.Threading;
@@ -71,17 +45,17 @@ namespace Opc.Ua.Server
         bool IsTransactionActive { get; }
 
         /// <summary>
-        /// <see langword="true"/> when at least one <see cref="TrustList"/>
-        /// tracked by this coordinator is currently open for writing.
+        /// <see langword="true"/> when a TrustList or ConfigurationFile
+        /// tracked by this coordinator is open for writing or applying.
         /// </summary>
         bool HasOpenTrustListWriter { get; }
 
         /// <summary>
         /// Validates that <paramref name="sessionId"/> may participate in
         /// the active transaction, without starting one. Used by
-        /// operations (such as opening a <see cref="TrustList"/> for
-        /// writing) that must reject a conflicting Session but should not
-        /// themselves be considered a staged change.
+        /// operations (such as opening a <see cref="TrustList"/> or
+        /// ConfigurationFile for writing) that must reject a conflicting
+        /// Session but should not themselves be considered a staged change.
         /// </summary>
         /// <exception cref="ServiceResultException">
         /// Thrown with <see cref="StatusCodes.BadTransactionPending"/> when
@@ -96,7 +70,8 @@ namespace Opc.Ua.Server
         /// </summary>
         /// <exception cref="ServiceResultException">
         /// Thrown with <see cref="StatusCodes.BadTransactionPending"/> when
-        /// another Session already owns the active transaction, or with
+        /// another Session already owns the active transaction, or while a
+        /// tracked file is open for writing; thrown with
         /// <see cref="StatusCodes.BadInvalidState"/> when the owning
         /// Session's own <see cref="ApplyChangesAsync(NodeId, CancellationToken)"/> commit is still in
         /// flight.
@@ -104,8 +79,8 @@ namespace Opc.Ua.Server
         void Stage(NodeId sessionId, PushConfigurationOperation operation);
 
         /// <summary>
-        /// Records that a <see cref="TrustList"/> identified by
-        /// <paramref name="trustListId"/> is now open for writing (
+        /// Records that a <see cref="TrustList"/> or ConfigurationFile
+        /// identified by <paramref name="trustListId"/> is now open for writing (
         /// <paramref name="isOpen"/> is <see langword="true"/>) or has been
         /// closed (<see langword="false"/>).
         /// </summary>
@@ -147,7 +122,8 @@ namespace Opc.Ua.Server
         /// </remarks>
         /// <returns>
         /// <see cref="StatusCodes.BadInvalidState"/> when a
-        /// <see cref="TrustList"/> is still open for writing (§7.10.9) - this
+        /// <see cref="TrustList"/> is still open for writing (§7.10.9), or a
+        /// ConfigurationFile update is in progress (§7.10.20) - this
         /// takes precedence over every other result, including when no
         /// transaction is active, so the caller learns to close the writer
         /// and retry rather than receiving <see cref="StatusCodes.BadNothingToDo"/>;
@@ -234,6 +210,25 @@ namespace Opc.Ua.Server
     }
 
     /// <summary>
+    /// Provides atomic ConfigurationFile writer reservation for a PushManagement coordinator.
+    /// </summary>
+    public interface IPushConfigurationFileWriteCoordinator
+    {
+        /// <summary>
+        /// Reserves a ConfigurationFile writer for <paramref name="sessionId"/>
+        /// and checks transaction ownership under the same synchronization as
+        /// <see cref="IPushConfigurationTransactionCoordinator.Stage(NodeId, PushConfigurationOperation)"/>.
+        /// </summary>
+        /// <exception cref="ServiceResultException">
+        /// Thrown with <see cref="StatusCodes.BadTransactionPending"/> when
+        /// another Session owns the active transaction, or with
+        /// <see cref="StatusCodes.BadInvalidState"/> when the owning Session's
+        /// transaction is being committed.
+        /// </exception>
+        void OpenConfigurationFileWrite(NodeId configurationFileId, NodeId sessionId);
+    }
+
+    /// <summary>
     /// A single staged store/registry mutation participating in the active
     /// PushManagement transaction. Instances are created by
     /// <see cref="ConfigurationNodeManager"/> certificate handlers and by
@@ -280,6 +275,13 @@ namespace Opc.Ua.Server
         /// TrustList.
         /// </summary>
         public NodeId AffectedTrustList { get; init; } = NodeId.Null;
+
+        /// <summary>
+        /// Whether the commit or rollback can write to a trusted or issuer certificate or CRL store
+        /// without a fence. Set this even when the operation has no affected TrustList NodeId,
+        /// such as an issuer-chain import during certificate replacement.
+        /// </summary>
+        public bool WritesUnfencedTrustStore { get; init; }
 
         /// <summary>
         /// Optional validation run before <b>any</b> operation in the

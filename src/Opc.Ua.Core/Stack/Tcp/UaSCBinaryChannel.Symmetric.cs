@@ -1,31 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using System.Buffers.Binary;
@@ -90,7 +64,18 @@ namespace Opc.Ua.Bindings
         {
             const string coreAssemblyName = "Opc.Ua.Core";
             const string diagnosticsAssemblyName = "Opc.Ua.Core.Diagnostics";
-            var stackTrace = new System.Diagnostics.StackTrace(skipFrames: 1, fNeedFileInfo: false);
+            System.Diagnostics.StackTrace stackTrace;
+            try
+            {
+                stackTrace = new System.Diagnostics.StackTrace(skipFrames: 1, fNeedFileInfo: false);
+            }
+            catch (NotSupportedException)
+            {
+                // Without stack trace support (trimmed, .NET 11) the caller cannot
+                // be verified; earlier runtimes returned no frames and failed below.
+                throw new InvalidOperationException(
+                    "LoadTokensForOfflineDecode may only be called from the Opc.Ua.Core.Diagnostics assembly.");
+            }
 
             for (int ii = 0; ii < stackTrace.FrameCount; ii++)
             {
@@ -688,7 +673,12 @@ namespace Opc.Ua.Bindings
                     TcpMessageLimits.SequenceHeaderSize;
 
                 // write the body to chunks.
-                chunksToProcess = EncodeMessageBody(messageBody, sendBufferSize, headerSize, maxPayloadSize);
+                chunksToProcess = EncodeMessageBody(
+                    messageBody,
+                    sendBufferSize,
+                    headerSize,
+                    maxPayloadSize,
+                    isRequest);
 
                 // ensure there is at least one chunk.
                 if (chunksToProcess.Count == 0)
@@ -806,12 +796,22 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// Encodes the body of a symmetric message to the message stream of the thread.
         /// </summary>
+        /// <remarks>
+        /// The stream takes at most the chunks that a body within the size and chunk
+        /// limits fills, plus one: a larger body stops being encoded as soon as it passes
+        /// a limit. A body past the limits of the channel returns the chunks written so
+        /// far, and the caller ends the message with an abort chunk as for any body past
+        /// those limits. A body past only the <see cref="IServiceMessageContext.MaxMessageSize"/>
+        /// of the encoder fails with <see cref="StatusCodes.BadEncodingLimitsExceeded"/>,
+        /// as the size check of the encoder does.
+        /// </remarks>
         /// <returns>The chunks holding the body. The caller owns them.</returns>
         private BufferCollection EncodeMessageBody(
             object messageBody,
             int sendBufferSize,
             int headerSize,
-            int maxPayloadSize)
+            int maxPayloadSize,
+            bool isRequest)
         {
             var messageStream = MessageStream.Rent(
                 BufferManager,
@@ -819,6 +819,8 @@ namespace Opc.Ua.Bindings
                 headerSize,
                 maxPayloadSize);
             ArraySegmentStream ostrm = messageStream.Stream;
+            int maxChunkCount = GetMaxBodyChunkCount(isRequest, maxPayloadSize);
+            ostrm.MaxBufferCount = maxChunkCount;
             BufferCollection chunks;
             try
             {
@@ -844,6 +846,13 @@ namespace Opc.Ua.Bindings
 
                 chunks = ostrm.GetBuffers("WriteSymmetricMessage");
             }
+            catch (ServiceResultException) when (
+                ostrm.BufferLimitExceeded &&
+                MessageLimitsExceeded(isRequest, maxChunkCount * maxPayloadSize, maxChunkCount))
+            {
+                // the full chunks written so far exceed the limits of the channel.
+                chunks = ostrm.GetBuffers("WriteSymmetricMessage");
+            }
             catch
             {
                 // a body that failed to encode returns the buffers the stream holds, and the
@@ -855,6 +864,36 @@ namespace Opc.Ua.Bindings
             // the stream is empty again: the next message of the thread can use it.
             messageStream.Return();
             return chunks;
+        }
+
+        /// <summary>
+        /// The chunks a message body can fill before it certainly exceeds the chunk count
+        /// or message size limit of the channel or the message size limit of the encoder;
+        /// zero when no limit applies.
+        /// </summary>
+        /// <param name="isRequest">Whether the limits of a request apply.</param>
+        /// <param name="maxPayloadSize">The body bytes a chunk holds.</param>
+        private int GetMaxBodyChunkCount(bool isRequest, int maxPayloadSize)
+        {
+            int maxChunkCount = isRequest ? MaxRequestChunkCount : MaxResponseChunkCount;
+            int maxMessageSize = isRequest ? MaxRequestMessageSize : MaxResponseMessageSize;
+            int maxEncoderSize = Quotas.MessageContext.MaxMessageSize;
+
+            // one chunk more than the limit holds: a body that needs another chunk is
+            // larger than the limit.
+            long limit = maxChunkCount > 0 ? maxChunkCount + 1L : long.MaxValue;
+            if (maxPayloadSize > 0)
+            {
+                if (maxMessageSize > 0)
+                {
+                    limit = Math.Min(limit, (maxMessageSize / maxPayloadSize) + 1L);
+                }
+                if (maxEncoderSize > 0)
+                {
+                    limit = Math.Min(limit, (maxEncoderSize / maxPayloadSize) + 1L);
+                }
+            }
+            return limit >= int.MaxValue / Math.Max(1, maxPayloadSize) ? 0 : (int)limit;
         }
 
         /// <summary>

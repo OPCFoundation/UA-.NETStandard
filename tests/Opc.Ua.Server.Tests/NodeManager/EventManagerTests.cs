@@ -1,31 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using System.Collections.Generic;
@@ -328,7 +302,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 });
             }
 
-            var notifications = new Queue<EventFieldList>();
+            var notifications = new Queue<QueuedEvent>();
             ((MonitoredItem)item).Publish(NewContext(), notifications, 100);
 
             // an overflowing queue would drop events and append an
@@ -342,8 +316,9 @@ namespace Opc.Ua.Server.Tests.NodeManager
         /// A durable event queue persisted with the literal size 1 must be resized
         /// to the revised size when the monitored item is restored.
         /// </summary>
-        [Test]
-        public void RestoreMonitoredItemResizesRestoredEventQueue()
+        [TestCase(false)]
+        [TestCase(true)]
+        public void RestoreMonitoredItemResizesRestoredEventQueue(bool wasUnbound)
         {
             Mock<IServerInternal> server = DeterministicServerMock.Create(
                 out MonitoredItemQueueFactory queueFactory);
@@ -375,15 +350,27 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 FilterToUse = new EventFilter(),
                 IndexRange = string.Empty,
                 ParsedIndexRange = NumericRange.Null,
-                RestoredEventQueue = persisted
+                RestoredEventQueue = persisted,
+                IsDetached = wasUnbound,
+                IsDeleted = wasUnbound
             };
 
+            var nodeManager = new Mock<IAsyncNodeManager>().Object;
+            var handle = new object();
             var item = (MonitoredItem)manager.RestoreMonitoredItem(
-                new Mock<IAsyncNodeManager>().Object,
-                null!,
+                nodeManager,
+                handle,
                 stored);
 
-            Assert.That(item.QueueSize, Is.EqualTo(EventManager.DefaultEventQueueSize));
+            Assert.Multiple(() =>
+            {
+                Assert.That(item.QueueSize, Is.EqualTo(EventManager.DefaultEventQueueSize));
+                Assert.That(item.NodeManager, Is.SameAs(nodeManager));
+                Assert.That(item.ManagerHandle, Is.SameAs(handle));
+                Assert.That(item.Generation, Is.Not.Null);
+                Assert.That(item.ToStorableMonitoredItem().IsDeleted, Is.False);
+                Assert.That(item.ToStorableMonitoredItem().IsDetached, Is.False);
+            });
 
             for (int ii = 1; ii < 3; ii++)
             {
@@ -394,7 +381,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 });
             }
 
-            var notifications = new Queue<EventFieldList>();
+            var notifications = new Queue<QueuedEvent>();
             item.Publish(NewContext(), notifications, 100);
 
             Assert.That(

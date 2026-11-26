@@ -1,35 +1,10 @@
-/* ========================================================================
- * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Linq;
 using System.Threading;
 using Opc.Ua.Types;
 
@@ -105,10 +80,6 @@ namespace Opc.Ua
         {
             get
             {
-                if (m_privateView?.Value is { } view)
-                {
-                    return view.Version;
-                }
                 lock (m_syncRoot)
                 {
                     return m_version;
@@ -128,11 +99,6 @@ namespace Opc.Ua
                 throw new ArgumentNullException(nameof(strings));
             }
 
-            if (m_privateView?.Value is { } view)
-            {
-                view.Update(strings);
-                return;
-            }
             // same bound as Append (see ThrowIfFull), so the (ushort) index casts cannot wrap.
             List<string> updated = [.. strings];
 
@@ -146,7 +112,9 @@ namespace Opc.Ua
 
             lock (m_syncRoot)
             {
-                m_strings = updated;
+                EnsureMutable();
+                m_strings.Clear();
+                m_strings.AddRange(updated);
                 Interlocked.Increment(ref m_version);
 
 #if DEBUG
@@ -175,10 +143,6 @@ namespace Opc.Ua
                 throw new ArgumentNullException(nameof(value));
             }
 
-            if (m_privateView?.Value is { } view)
-            {
-                return view.Append(value);
-            }
 #if DEBUG
             if (m_shared)
             {
@@ -191,6 +155,7 @@ namespace Opc.Ua
 
             lock (m_syncRoot)
             {
+                EnsureMutable();
                 ThrowIfFull();
                 m_strings.Add(value);
                 Interlocked.Increment(ref m_version);
@@ -220,10 +185,6 @@ namespace Opc.Ua
         /// </summary>
         public string? GetString(uint index)
         {
-            if (m_privateView?.Value is { } view)
-            {
-                return view.GetString(index);
-            }
             lock (m_syncRoot)
             {
                 if (index < m_strings.Count)
@@ -254,16 +215,13 @@ namespace Opc.Ua
                 throw new ArgumentNullException(nameof(value));
             }
 
-            if (m_privateView?.Value is { } view)
-            {
-                return view.GetIndexOrAppend(value);
-            }
             lock (m_syncRoot)
             {
                 int index = m_strings.IndexOf(value);
 
                 if (index == -1)
                 {
+                    EnsureMutable();
 #if DEBUG
                     if (m_shared)
                     {
@@ -289,10 +247,6 @@ namespace Opc.Ua
         /// </summary>
         public string[] ToArray()
         {
-            if (m_privateView?.Value is { } view)
-            {
-                return view.ToArray();
-            }
             lock (m_syncRoot)
             {
                 return [.. m_strings];
@@ -304,10 +258,6 @@ namespace Opc.Ua
         /// </summary>
         public ArrayOf<string> ToArrayOf()
         {
-            if (m_privateView?.Value is { } view)
-            {
-                return view.ToArrayOf();
-            }
             lock (m_syncRoot)
             {
                 return [.. m_strings];
@@ -319,10 +269,6 @@ namespace Opc.Ua
         /// </summary>
         public ArrayOf<string> GetSnapshot(out long version)
         {
-            if (m_privateView?.Value is { } view)
-            {
-                return view.GetSnapshot(out version);
-            }
             lock (m_syncRoot)
             {
                 version = m_version;
@@ -337,10 +283,6 @@ namespace Opc.Ua
         {
             get
             {
-                if (m_privateView?.Value is { } view)
-                {
-                    return view.Count;
-                }
                 lock (m_syncRoot)
                 {
                     return m_strings.Count;
@@ -408,33 +350,16 @@ namespace Opc.Ua
             return mapping;
         }
 
-        internal IDisposable UsePrivateCopy()
-        {
-            ArrayOf<string> values = GetSnapshot(out long version);
-            var copy = new StringTable(values.ToArray()!)
-            {
-                m_version = version
-            };
-            AsyncLocal<StringTable?> slot = LazyInitializer.EnsureInitialized(ref m_privateView)!;
-            StringTable? previous = slot.Value;
-            slot.Value = copy;
-            return new PrivateScope(slot, previous);
-        }
-
         /// <summary>
         /// Reserves a local-only slot without relaxing public URI validation or replacing live entries.
         /// </summary>
         private void EnsureLocalServerSlot()
         {
-            if (m_privateView?.Value is { } view)
-            {
-                view.EnsureLocalServerSlot();
-                return;
-            }
             lock (m_syncRoot)
             {
                 if (m_strings.Count == 0)
                 {
+                    EnsureMutable();
                     m_strings.Add(string.Empty);
                     Interlocked.Increment(ref m_version);
                 }
@@ -443,10 +368,6 @@ namespace Opc.Ua
 
         private int GetIndex(string value, int startIndex)
         {
-            if (m_privateView?.Value is { } view)
-            {
-                return view.GetIndex(value, startIndex);
-            }
             lock (m_syncRoot)
             {
                 if (string.IsNullOrEmpty(value))
@@ -462,9 +383,9 @@ namespace Opc.Ua
         /// Access the string table from sub classes
         /// </summary>
         protected List<string> m_strings;
-        private readonly Lock m_syncRoot = new();
-        private long m_version;
-        private AsyncLocal<StringTable?>? m_privateView;
+        private Lock m_syncRoot => m_storage.Gate;
+        private ref long m_version => ref m_storage.Version;
+        private Storage m_storage = new();
 
 #if DEBUG
         /// <summary>
@@ -474,15 +395,179 @@ namespace Opc.Ua
         private static int s_globalInstanceCount;
 #endif
 
-        private sealed class PrivateScope(AsyncLocal<StringTable?> slot, StringTable? previous) : IDisposable
+        /// <summary>
+        /// Rebinds a staging table while preserving the protected list field for external subclasses.
+        /// </summary>
+        internal void BindTo(StringTable canonical)
         {
-            public void Dispose()
+            m_strings = canonical.m_strings;
+            m_storage = canonical.m_storage;
+        }
+
+        /// <summary>
+        /// Detaches a cached table before an unpublished or retired manager is cleaned up.
+        /// </summary>
+        internal void Detach()
+        {
+            ArrayOf<string> entries = GetSnapshot(out long version);
+            m_strings = [.. entries];
+            m_storage = new Storage { Version = version };
+        }
+
+        /// <summary>
+        /// Captures explicit private namespace storage and its source revision without ambient selection.
+        /// </summary>
+        internal StringTable CaptureSnapshot()
+        {
+            string[] entries = GetSnapshot(out long version).ToArray()!;
+            StringTable copy = this is NamespaceTable ? new NamespaceTable(entries) : new StringTable(entries);
+            copy.m_version = version;
+            return copy;
+        }
+
+        /// <summary>
+        /// Reserves an unchanged namespace prefix and preallocates additions before the decision callback.
+        /// </summary>
+        /// <exception cref="OptimisticPublicationConflictException">
+        /// The serving namespace prefix changed after preparation.
+        /// </exception>
+        /// <exception cref="InvalidOperationException">
+        /// Another publication already reserves the namespace prefix.
+        /// </exception>
+        internal Publication BeginPublication(StringTable additions, long revision)
+        {
+            string[] proposed = additions.ToArray();
+            lock (m_syncRoot)
             {
-                AsyncLocal<StringTable?>? current = Interlocked.Exchange(ref m_slot, null);
-                current?.Value = previous;
+                EnsureMutable();
+                if (m_version != revision || proposed.Length < m_strings.Count ||
+                    !m_strings.SequenceEqual(proposed.Take(m_strings.Count)))
+                {
+                    throw new OptimisticPublicationConflictException("The string table changed after preparation.");
+                }
+                if (m_strings.Capacity < proposed.Length)
+                {
+                    m_strings.Capacity = proposed.Length;
+                }
+                var publication = new Publication(this, proposed);
+                m_storage.PublicationPending = publication;
+                return publication;
+            }
+        }
+
+        /// <summary>
+        /// Rejects changes while a lifecycle decision reserves the namespace prefix.
+        /// </summary>
+        /// <exception cref="InvalidOperationException">
+        /// A publication reserves the namespace prefix.
+        /// </exception>
+        private void EnsureMutable()
+        {
+            if (m_storage.PublicationPending is not null)
+            {
+                throw new InvalidOperationException("The string table has a pending publication.");
+            }
+        }
+
+        /// <summary>
+        /// Shares synchronization and version state between cached namespace handles.
+        /// </summary>
+        private sealed class Storage
+        {
+            /// <summary>Serializes access through every bound table.</summary>
+            internal readonly Lock Gate = new();
+
+            /// <summary>Identifies the current string mapping revision.</summary>
+            internal long Version;
+
+            /// <summary>Reserves the captured namespace prefix during a decision.</summary>
+            internal Publication? PublicationPending;
+        }
+
+        /// <summary>
+        /// Holds a prevalidated append-only namespace publication.
+        /// </summary>
+        internal sealed class Publication(StringTable owner, string[] proposed) : IDisposable
+        {
+            /// <summary>
+            /// Appends an unrelated URI under this exact reservation, preserving every staged index.
+            /// Reserved URI entries become permanent if needed to reach the unrelated entry's index.
+            /// </summary>
+            /// <exception cref="ArgumentNullException">
+            /// <paramref name="value"/> is null or empty.
+            /// </exception>
+            /// <exception cref="InvalidOperationException">
+            /// This publication no longer owns the reservation.
+            /// </exception>
+            /// <exception cref="ServiceResultException">
+            /// Appending the URI would exceed the namespace index limit.
+            /// </exception>
+            internal ushort GetIndexOrAppend(string value)
+            {
+                if (string.IsNullOrEmpty(value))
+                {
+                    throw new ArgumentNullException(nameof(value));
+                }
+                lock (owner.m_syncRoot)
+                {
+                    if (m_disposed || !ReferenceEquals(owner.m_storage.PublicationPending, this))
+                    {
+                        throw new InvalidOperationException("The string table publication is no longer reserved.");
+                    }
+                    int existing = owner.m_strings.IndexOf(value);
+                    if (existing >= 0)
+                    {
+                        return (ushort)existing;
+                    }
+                    int nextIndex = Math.Max(owner.m_strings.Count, proposed.Length);
+                    if (nextIndex >= ushort.MaxValue)
+                    {
+                        throw ServiceResultException.Create(
+                            StatusCodes.BadEncodingLimitsExceeded,
+                            "The string table cannot hold more than {0} entries.",
+                            ushort.MaxValue);
+                    }
+                    if (owner.m_strings.Capacity <= nextIndex)
+                    {
+                        owner.m_strings.Capacity = nextIndex + 1;
+                    }
+                    Complete();
+                    owner.m_strings.Add(value);
+                    owner.m_version++;
+                    return (ushort)nextIndex;
+                }
             }
 
-            private AsyncLocal<StringTable?>? m_slot = slot;
+            /// <summary>
+            /// Appends the reserved entries without renumbering any published namespace.
+            /// </summary>
+            internal void Complete()
+            {
+                lock (owner.m_syncRoot)
+                {
+                    for (int index = owner.m_strings.Count; index < proposed.Length; index++)
+                    {
+                        owner.m_strings.Add(proposed[index]);
+                        owner.m_version++;
+                    }
+                }
+            }
+
+            /// <inheritdoc/>
+            public void Dispose()
+            {
+                lock (owner.m_syncRoot)
+                {
+                    if (m_disposed)
+                    {
+                        return;
+                    }
+                    owner.m_storage.PublicationPending = null;
+                    m_disposed = true;
+                }
+            }
+
+            private bool m_disposed;
         }
     }
 

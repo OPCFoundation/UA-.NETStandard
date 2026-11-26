@@ -1,34 +1,9 @@
-/* ========================================================================
- * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using System.Globalization;
+using System.Runtime.ExceptionServices;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
@@ -132,11 +107,49 @@ namespace LadsSample.Client
         private static async Task RunIncubationAsync(LadsClient client, CancellationToken ct)
         {
             LadsDevice device = await client.GetFirstDeviceAsync(ct).ConfigureAwait(false);
+            Opc.Ua.Di.Client.DiLockClient deviceLock = await device.GetLockAsync(ct).ConfigureAwait(false);
+            int acquired = await deviceLock.InitLockAsync("Sample incubation", ct).ConfigureAwait(false);
+            if (acquired != 0)
+            {
+                throw new ServiceResultException(StatusCodes.BadLocked, $"DI InitLock returned {acquired}.");
+            }
+            ExceptionDispatchInfo? runFailure = null;
+            try
+            {
+                await RunLockedIncubationAsync(device, ct).ConfigureAwait(false);
+            }
+            catch (Exception error)
+            {
+                runFailure = ExceptionDispatchInfo.Capture(error);
+            }
+            try
+            {
+                int released = await deviceLock.ExitLockAsync(CancellationToken.None).ConfigureAwait(false);
+                if (released != 0)
+                {
+                    throw new ServiceResultException(
+                        StatusCodes.BadInvalidState, $"DI ExitLock returned {released}.");
+                }
+            }
+            catch (Exception cleanupFailure) when (runFailure != null)
+            {
+                throw new AggregateException(runFailure.SourceException, cleanupFailure);
+            }
+            runFailure?.Throw();
+        }
+
+        /// <summary>
+        /// Runs the sample while its UA session owns the device lock.
+        /// </summary>
+        private static async Task RunLockedIncubationAsync(LadsDevice device, CancellationToken ct)
+        {
+            LadsClient client = device.Client;
             LadsDeviceSnapshot snapshot = await device.ReadAsync(ct).ConfigureAwait(false);
             Console.WriteLine(
                 $"Device {snapshot.DisplayName}: {snapshot.Identification.Manufacturer} " +
                 $"{snapshot.Identification.Model} ({snapshot.Identification.SerialNumber}), " +
-                $"state {snapshot.DeviceState}");
+                $"state {snapshot.DeviceState}, asset {snapshot.Identification.AssetId}, " +
+                $"health {snapshot.DeviceHealth}");
 
             LadsFunctionalUnit chamber = await device
                 .GetFunctionalUnitAsync(snapshot.FunctionalUnitNames[0], ct)
@@ -151,8 +164,26 @@ namespace LadsSample.Client
             {
                 Console.WriteLine($"  Program template {template.Name}: {template.Description}");
             }
+            ArrayOf<LadsResult> retained = await chamber.GetResultsAsync(ct).ConfigureAwait(false);
+            Console.WriteLine($"Retained results: {retained.Count}");
+            if (retained.Count > 0)
+            {
+                LadsResult previous = retained[retained.Count - 1];
+                for (int index = 0; index < previous.Files.Count; index++)
+                {
+                    LadsResultFile file = previous.Files[index];
+                    ByteString content = await client.ReadResultFileAsync(file, ct).ConfigureAwait(false);
+                    Console.WriteLine(
+                        $"  Retained run {previous.DeviceProgramRunId}: " +
+                        $"{file.FileName}, {content.Length} readable bytes");
+                }
+            }
 
             LadsFunction door = await chamber.GetFunctionAsync("Door", ct).ConfigureAwait(false);
+            LadsFunction temperature = await chamber.GetFunctionAsync("Temperature", ct).ConfigureAwait(false);
+            await temperature.SetParameterAsync(LadsFunctionMembers.CtrlP, 1.5, ct).ConfigureAwait(false);
+            LadsFunctionSnapshot tuning = await temperature.ReadAsync(ct).ConfigureAwait(false);
+            Console.WriteLine($"Temperature CtrlP: {tuning.ValueOf(LadsFunctionMembers.CtrlP)}");
             await door.LockAsync(ct).ConfigureAwait(false);
             Console.WriteLine($"Door: {(await door.ReadAsync(ct).ConfigureAwait(false)).State}");
 
@@ -169,8 +200,19 @@ namespace LadsSample.Client
             Console.WriteLine($"Started program run {runId}");
             await chamber.WaitForStateAsync("Running", TimeSpan.FromSeconds(10), cancellationToken: ct)
                 .ConfigureAwait(false);
-            await chamber.WaitForStateAsync("Stopped", TimeSpan.FromSeconds(60), cancellationToken: ct)
+            await chamber.HoldAsync(ct).ConfigureAwait(false);
+            Console.WriteLine("Held: the executor has acknowledged the processing pause.");
+            await Task.Delay(500, ct).ConfigureAwait(false);
+            await chamber.UnholdAsync(ct).ConfigureAwait(false);
+            await chamber.SuspendAsync(ct).ConfigureAwait(false);
+            Console.WriteLine("Suspended: sample-preservation simulation continues without processing.");
+            await Task.Delay(500, ct).ConfigureAwait(false);
+            await chamber.UnsuspendAsync(ct).ConfigureAwait(false);
+            await chamber.ToCompleteAsync(ct).ConfigureAwait(false);
+            await chamber.WaitForRunningStateAsync("Complete", TimeSpan.FromSeconds(60), cancellationToken: ct)
                 .ConfigureAwait(false);
+            await chamber.ResetAsync(ct).ConfigureAwait(false);
+            await chamber.StopAsync(ct).ConfigureAwait(false);
             watching.Cancel();
             await watch.ConfigureAwait(false);
             await door.UnlockAsync(ct).ConfigureAwait(false);

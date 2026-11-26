@@ -1,31 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using System.Threading;
@@ -34,8 +8,8 @@ using System.Threading.Tasks;
 namespace Opc.Ua.Server
 {
     /// <summary>
-    /// Resolves a <see cref="NamespaceMetadataState"/> without awaiting, so synchronous node
-    /// managers can read namespace defaults without blocking on asynchronous lookups.
+    /// Resolves the namespace metadata Object, typed or untyped, without awaiting, so synchronous
+    /// node managers can read namespace defaults without blocking on asynchronous lookups.
     /// </summary>
     internal interface INamespaceMetadataSnapshot
     {
@@ -44,16 +18,36 @@ namespace Opc.Ua.Server
         /// definitive absence (<paramref name="state"/> is <c>null</c>), is known without awaiting.
         /// Returns <c>false</c> when the answer requires an asynchronous lookup.
         /// </summary>
-        bool TryGetNamespaceMetadataState(ushort namespaceIndex, out NamespaceMetadataState? state);
+        bool TryGetNamespaceMetadataState(ushort namespaceIndex, out NamespaceMetadataNode? state);
+    }
+
+    /// <summary>
+    /// Resolves the namespace metadata Object, typed or untyped, for the asynchronous reads of
+    /// <see cref="NamespaceDefaultPermissionReader"/>. A configuration node manager without it
+    /// only provides <see cref="NamespaceMetadataState"/> Objects through
+    /// <see cref="IConfigurationNodeManager.GetNamespaceMetadataStateAsync(ushort, CancellationToken)"/>.
+    /// </summary>
+    internal interface INamespaceMetadataSource
+    {
+        /// <summary>
+        /// Gets the metadata Object of <paramref name="namespaceIndex"/>, typed or untyped, or
+        /// <c>null</c> when the namespace has none.
+        /// </summary>
+        ValueTask<NamespaceMetadataNode?> GetNamespaceMetadataNodeAsync(
+            ushort namespaceIndex,
+            CancellationToken cancellationToken);
     }
 
     /// <summary>
     /// The single reader of the namespace defaults (<c>DefaultAccessRestrictions</c>,
     /// <c>DefaultRolePermissions</c> and <c>DefaultUserRolePermissions</c>, OPC 10000-5 6.3.13)
     /// used by permission checks. Values are read with the caller's system context, so
-    /// <c>OnReadValue</c>/<c>OnSimpleReadValue</c> callbacks see the caller. A missing property
-    /// or a null value is reported as absent, a configured zero/empty value as present. A failed
-    /// read, a callback exception, a wrong type or unknown restriction bits produce a Bad
+    /// <c>OnReadValue</c>/<c>OnSimpleReadValue</c> callbacks see the caller. A missing property,
+    /// a null value or a stored property that was never initialized (declared without a value,
+    /// reporting <c>BadWaitingForInitialData</c>) is reported as absent, a configured zero/empty
+    /// value as present. A failed
+    /// read, a callback exception, a wrong type, unknown restriction bits or untyped metadata
+    /// whose default properties are not resolved yet produce a Bad
     /// <see cref="NamespaceDefaultPermissions.Status"/>, which callers must treat as a denial and
     /// which is never cached.
     /// </summary>
@@ -104,21 +98,26 @@ namespace Opc.Ua.Server
             }
 
             OperationContext? operationContext = callerContext.OperationContext;
-            if (operationContext != null &&
-                operationContext.TryGetDefaultPermissions(namespaceIndex, out NamespaceDefaultPermissions cached))
+            IConfigurationNodeManager? configuration = server.NodeManager?.ConfigurationNodeManager;
+            if (TryGetCached(operationContext, configuration, namespaceIndex, out NamespaceDefaultPermissions cached))
             {
                 return cached;
             }
 
             long generation = Generation;
-            NamespaceMetadataState? state = null;
-            IConfigurationNodeManager? configuration = server.NodeManager?.ConfigurationNodeManager;
+            NamespaceMetadataNode? state = null;
             if (configuration != null)
             {
                 try
                 {
-                    state = await configuration.GetNamespaceMetadataStateAsync(namespaceIndex, cancellationToken)
-                        .ConfigureAwait(false);
+                    // a configuration node manager that is a metadata source also resolves untyped
+                    // metadata Objects.
+                    state = configuration is INamespaceMetadataSource source
+                        ? await source.GetNamespaceMetadataNodeAsync(namespaceIndex, cancellationToken)
+                            .ConfigureAwait(false)
+                        : NamespaceMetadataNode.From(await configuration
+                            .GetNamespaceMetadataStateAsync(namespaceIndex, cancellationToken)
+                            .ConfigureAwait(false));
                 }
                 catch (OperationCanceledException)
                 {
@@ -130,9 +129,7 @@ namespace Opc.Ua.Server
                 }
             }
 
-            NamespaceDefaultPermissions result = Decode(callerContext, state, namespaceIndex, generation);
-            operationContext?.SetDefaultPermissions(result);
-            return result;
+            return DecodeAndRemember(callerContext, operationContext, configuration, state, namespaceIndex, generation);
         }
 
         /// <summary>
@@ -156,15 +153,14 @@ namespace Opc.Ua.Server
             }
 
             OperationContext? operationContext = callerContext.OperationContext;
-            if (operationContext != null &&
-                operationContext.TryGetDefaultPermissions(namespaceIndex, out NamespaceDefaultPermissions cached))
+            IConfigurationNodeManager? configuration = server.NodeManager?.ConfigurationNodeManager;
+            if (TryGetCached(operationContext, configuration, namespaceIndex, out NamespaceDefaultPermissions cached))
             {
                 return cached;
             }
 
             long generation = Generation;
-            NamespaceMetadataState? state = null;
-            IConfigurationNodeManager? configuration = server.NodeManager?.ConfigurationNodeManager;
+            NamespaceMetadataNode? state = null;
             if (configuration != null)
             {
                 if (configuration is not INamespaceMetadataSnapshot snapshot)
@@ -185,7 +181,69 @@ namespace Opc.Ua.Server
                 }
             }
 
+            return DecodeAndRemember(callerContext, operationContext, configuration, state, namespaceIndex, generation);
+        }
+
+        /// <summary>
+        /// Looks the defaults up in the request cache of <paramref name="operationContext"/>, then
+        /// in the server-wide cache of <paramref name="configuration"/>.
+        /// </summary>
+        private static bool TryGetCached(
+            OperationContext? operationContext,
+            IConfigurationNodeManager? configuration,
+            ushort namespaceIndex,
+            out NamespaceDefaultPermissions permissions)
+        {
+            if (operationContext != null &&
+                operationContext.TryGetDefaultPermissions(namespaceIndex, out permissions))
+            {
+                return true;
+            }
+
+            if (configuration is INamespaceDefaultPermissionCacheProvider provider &&
+                provider.DefaultPermissionCache.TryGet(namespaceIndex, out permissions))
+            {
+                // the hit is a private copy: share it with the rest of this request only.
+                operationContext?.SetDefaultPermissions(permissions);
+                return true;
+            }
+
+            permissions = default;
+            return false;
+        }
+
+        /// <summary>
+        /// Decodes the defaults, remembers them server-wide when they are static and for the
+        /// rest of the service request of <paramref name="operationContext"/>.
+        /// </summary>
+        private static NamespaceDefaultPermissions DecodeAndRemember(
+            ServerSystemContext callerContext,
+            OperationContext? operationContext,
+            IConfigurationNodeManager? configuration,
+            NamespaceMetadataNode? state,
+            ushort namespaceIndex,
+            long generation)
+        {
+            // capture the properties before reading them: a typed state reads its slots live.
+            BaseVariableState? accessRestrictions = state?.DefaultAccessRestrictions;
+            BaseVariableState? rolePermissions = state?.DefaultRolePermissions;
+            BaseVariableState? userRolePermissions = state?.DefaultUserRolePermissions;
+            // a callback that removes itself while it runs must not make its result look static.
+            bool staticBeforeDecode = IsStatic(accessRestrictions) &&
+                IsStatic(rolePermissions) &&
+                IsStatic(userRolePermissions);
+            // any assignment from here on, reported or not, makes the entry stale at once.
+            DefaultPropertyVersions versions = DefaultPropertyVersions.Capture(
+                accessRestrictions, rolePermissions, userRolePermissions);
             NamespaceDefaultPermissions result = Decode(callerContext, state, namespaceIndex, generation);
+            if (configuration is INamespaceDefaultPermissionCacheProvider provider)
+            {
+                provider.DefaultPermissionCache.TryAdd(
+                    state, accessRestrictions, rolePermissions, userRolePermissions, result,
+                    staticBeforeDecode,
+                    versions);
+            }
+
             operationContext?.SetDefaultPermissions(result);
             return result;
         }
@@ -204,7 +262,7 @@ namespace Opc.Ua.Server
                 throw new ArgumentNullException(nameof(callerContext));
             }
 
-            return Decode(callerContext, state, namespaceIndex, Generation);
+            return Decode(callerContext, NamespaceMetadataNode.From(state), namespaceIndex, Generation);
         }
 
         /// <summary>
@@ -212,7 +270,7 @@ namespace Opc.Ua.Server
         /// </summary>
         private static NamespaceDefaultPermissions Decode(
             ServerSystemContext callerContext,
-            NamespaceMetadataState? state,
+            NamespaceMetadataNode? state,
             ushort namespaceIndex,
             long generation)
         {
@@ -220,6 +278,12 @@ namespace Opc.Ua.Server
             {
                 return new NamespaceDefaultPermissions(
                     namespaceIndex, AccessRestrictionType.None, default, default, generation);
+            }
+
+            if (state.IsIncomplete)
+            {
+                // an unresolved property could be a default that must be enforced.
+                return Failed(namespaceIndex, StatusCodes.BadResourceUnavailable, generation);
             }
 
             StatusCode status = ReadValue(callerContext, state.DefaultAccessRestrictions, out Variant restrictionsValue);
@@ -333,6 +397,80 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
+        /// Resolves the metadata node of <paramref name="namespaceIndex"/> without awaiting and
+        /// reports whether its defaults are static (see <see cref="AreDefaultsStatic"/>). Only a
+        /// change of a default value moves <see cref="Generation"/>, so callers that remember a
+        /// verdict derived from dynamic defaults must re-read them on every use.
+        /// </summary>
+        /// <param name="server">The server.</param>
+        /// <param name="namespaceIndex">The namespace index.</param>
+        /// <param name="state">The metadata node, or <c>null</c> when the namespace has none.</param>
+        /// <returns>
+        /// <c>true</c> when the node (or its absence) is known without awaiting and its defaults
+        /// are static.
+        /// </returns>
+        internal static bool TryGetStaticDefaults(
+            IServerInternal server,
+            ushort namespaceIndex,
+            out NamespaceMetadataNode? state)
+        {
+            state = null;
+            IConfigurationNodeManager? configuration = server.NodeManager?.ConfigurationNodeManager;
+            if (configuration == null)
+            {
+                return true;
+            }
+            try
+            {
+                return configuration is INamespaceMetadataSnapshot snapshot &&
+                    snapshot.TryGetNamespaceMetadataState(namespaceIndex, out state) &&
+                    AreDefaultsStatic(state);
+            }
+            catch (Exception)
+            {
+                return false;
+            }
+        }
+
+        /// <summary>
+        /// Returns <c>true</c> when every default property of the metadata node is a stored value
+        /// that is readable without a callback: no value read callback and no user access level
+        /// callback, and current read access in both access levels. Anything else can change the
+        /// outcome of a read (a callback's answer, a revoked read access) without changing a
+        /// default value, which is all <see cref="Generation"/> observes.
+        /// </summary>
+        /// <param name="state">The metadata node, or <c>null</c>.</param>
+        internal static bool AreDefaultsStatic(NamespaceMetadataNode? state)
+        {
+            return state == null ||
+                (!state.IsIncomplete &&
+                    IsStatic(state.DefaultAccessRestrictions) &&
+                    IsStatic(state.DefaultRolePermissions) &&
+                    IsStatic(state.DefaultUserRolePermissions));
+        }
+
+        internal static bool IsStatic(BaseVariableState? property)
+        {
+            return property == null ||
+                (IsWithoutReadCallbacks(property) &&
+                    property.OnReadUserAccessLevel == null &&
+                    (property.AccessLevel & AccessLevels.CurrentRead) != 0 &&
+                    (property.UserAccessLevel & AccessLevels.CurrentRead) != 0);
+        }
+
+        /// <summary>
+        /// Returns <c>true</c> when the value of the property is its stored value, read without a
+        /// value read callback.
+        /// </summary>
+        private static bool IsWithoutReadCallbacks(BaseVariableState property)
+        {
+            return property.OnReadValue == null &&
+                property.OnSimpleReadValue == null &&
+                property.OnReadValueAsync == null &&
+                property.OnSimpleReadValueAsync == null;
+        }
+
+        /// <summary>
         /// Reads a property value with the caller's context; a missing property is a null value.
         /// </summary>
         private static StatusCode ReadValue(
@@ -357,6 +495,16 @@ namespace Opc.Ua.Server
                 if (ServiceResult.IsBad(result))
                 {
                     value = default;
+                    // A property declared without a value (e.g. by a NodeSet that only
+                    // declares the optional default) was never initialized: not configured.
+                    // A configured value, or any callback outcome, still fails closed.
+                    if (result.StatusCode == StatusCodes.BadWaitingForInitialData &&
+                        property.Value.IsNull &&
+                        IsWithoutReadCallbacks(property))
+                    {
+                        return StatusCodes.Good;
+                    }
+
                     return result.StatusCode;
                 }
 

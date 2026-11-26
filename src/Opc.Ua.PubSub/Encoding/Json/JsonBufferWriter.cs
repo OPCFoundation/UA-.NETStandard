@@ -1,32 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using System.Buffers;
@@ -152,13 +125,26 @@ namespace Opc.Ua.PubSub.Encoding.Json
             {
                 return;
             }
-            int needed = m_written + sizeHint;
-            int newSize = Math.Max(m_buffer.Length * 2, needed);
+            // Computed in 64 bits: doubling a buffer above 1 GiB overflows an int.
+            long needed = (long)m_written + sizeHint;
+            if (needed > MaxBufferLength)
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadEncodingLimitsExceeded,
+                    "The JSON buffer would exceed the maximum array length.");
+            }
+            int newSize = (int)Math.Min(Math.Max((long)m_buffer.Length * 2, needed), MaxBufferLength);
             byte[] rented = ArrayPool<byte>.Shared.Rent(newSize);
             Buffer.BlockCopy(m_buffer, 0, rented, 0, m_written);
             ArrayPool<byte>.Shared.Return(m_buffer, clearArray: false);
             m_buffer = rented;
         }
+
+        /// <summary>
+        /// Largest byte array the runtime allocates (<c>Array.MaxLength</c>,
+        /// which net48 does not have).
+        /// </summary>
+        private const int MaxBufferLength = 0x7FFFFFC7;
 
         private byte[] m_buffer;
         private int m_written;

@@ -1,0 +1,75 @@
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
+
+using System;
+using Opc.Ua.Server.Historian;
+
+namespace Opc.Ua.AMB.Server
+{
+    /// <summary>
+    /// Selects asset history captured through the shared Part 11 historian.
+    /// </summary>
+    [Flags]
+    public enum AssetHistoryKinds
+    {
+        /// <summary>
+        /// No AMB history capture.
+        /// </summary>
+        None = 0,
+
+        /// <summary>
+        /// Raw DeviceHealth changes with source timestamps.
+        /// </summary>
+        DeviceHealth = 1,
+
+        /// <summary>
+        /// Health alarm transitions and details.
+        /// </summary>
+        HealthEvents = 2,
+
+        /// <summary>
+        /// Maintenance transitions and planned or actual details.
+        /// </summary>
+        MaintenanceEvents = 4,
+
+        /// <summary>
+        /// All asset history.
+        /// </summary>
+        All = DeviceHealth | HealthEvents | MaintenanceEvents
+    }
+
+    /// <summary>
+    /// Configures capture, not retention: storage and retention remain provider policy.
+    /// The server historian registry owns a registered provider's lifetime.
+    /// </summary>
+    public sealed class AssetHistoryOptions
+    {
+        /// <summary>
+        /// Creates history configuration using an existing Part 11 provider.
+        /// </summary>
+        public AssetHistoryOptions(IHistorianProvider provider, AssetHistoryKinds kinds = AssetHistoryKinds.All)
+        {
+            Provider = provider ?? throw new ArgumentNullException(nameof(provider));
+            if ((kinds & ~AssetHistoryKinds.All) != 0)
+            {
+                throw new ArgumentOutOfRangeException(nameof(kinds));
+            }
+            Kinds = kinds;
+        }
+
+        /// <summary>
+        /// Gets the provider; custom providers must provision the asset's node identifiers before registration.
+        /// </summary>
+        public IHistorianProvider Provider { get; }
+
+        /// <summary>
+        /// Gets the requested capture kinds. Missing asset features are not created implicitly.
+        /// </summary>
+        public AssetHistoryKinds Kinds { get; }
+
+        /// <summary>
+        /// Gets or sets the shared capture queue and batching policy.
+        /// </summary>
+        public HistorianCaptureOptions? Capture { get; set; }
+    }
+}

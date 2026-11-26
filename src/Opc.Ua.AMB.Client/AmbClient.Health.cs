@@ -1,31 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using System.Collections.Generic;
@@ -270,9 +244,12 @@ namespace Opc.Ua.AMB.Client
         private async ValueTask<HashSet<NodeId>> MaintenanceClassesWithBudgetAsync(
             BrowseBudget budget,
             bool tolerateBrowseFailure,
-            CancellationToken cancellationToken)
+            CancellationToken cancellationToken,
+            bool requireComplete = false)
         {
-            HashSet<NodeId>? known = Volatile.Read(ref m_maintenanceClasses);
+            HashSet<NodeId>? known = requireComplete
+                ? null
+                : Volatile.Read(ref m_maintenanceClasses);
             if (known != null)
             {
                 return known;
@@ -287,7 +264,7 @@ namespace Opc.Ua.AMB.Client
                 while (pending.Count > 0)
                 {
                     (NodeId type, int depth) = pending.Dequeue();
-                    if (depth >= MaxDepth && m_options is null)
+                    if (depth >= MaxDepth && m_options is null && !requireComplete)
                     {
                         continue;
                     }
@@ -297,11 +274,12 @@ namespace Opc.Ua.AMB.Client
                         BrowseDirection.Forward,
                         NodeClass.ObjectType,
                         budget,
-                        cancellationToken).ConfigureAwait(false))
+                        cancellationToken,
+                        requireComplete: requireComplete).ConfigureAwait(false))
                     {
-                        NodeId subtypeId = ToNodeId(subtype.NodeId);
+                        NodeId subtypeId = ToNodeId(subtype.NodeId, requireLocal: requireComplete);
                         if (!subtypeId.IsNull &&
-                            (m_options is null ? classes.Add(subtypeId) : seen.Add(subtypeId)))
+                            (m_options is null && !requireComplete ? classes.Add(subtypeId) : seen.Add(subtypeId)))
                         {
                             if (depth >= MaxDepth)
                             {
@@ -313,12 +291,15 @@ namespace Opc.Ua.AMB.Client
                     }
                 }
             }
-            catch (ServiceResultException) when (m_options is null || tolerateBrowseFailure)
+            catch (ServiceResultException) when (!requireComplete && (m_options is null || tolerateBrowseFailure))
             {
                 // Observation can use the classes found so far, but a later strict read must retry discovery.
                 return classes;
             }
-            Volatile.Write(ref m_maintenanceClasses, classes);
+            if (!requireComplete)
+            {
+                Volatile.Write(ref m_maintenanceClasses, classes);
+            }
             return classes;
         }
 

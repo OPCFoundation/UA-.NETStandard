@@ -1,31 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using System.Collections.Generic;
@@ -37,9 +11,11 @@ using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using Opc.Ua.Client;
+using Opc.Ua.Server;
 using Opc.Ua.WotCon.Server;
 using Opc.Ua.WotCon.Server.Materialization;
 using Opc.Ua.WotCon.Server.Registry;
+using ISession = Opc.Ua.Client.ISession;
 
 namespace Opc.Ua.WotCon.Tests.Materialization
 {
@@ -146,7 +122,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                     ByteString.From(Encoding.UTF8.GetBytes(graph.ToJsonString())));
             }
             await m_store.CommitAsync(damaged).ConfigureAwait(false);
-            await using PreparedWotTestRuntime restarted = await PreparedWotTestRuntime.StartAsync()
+            await using PreparedWotTestRuntime restarted = await StartRestartedServerAsync()
                 .ConfigureAwait(false);
             restarted.Namespaces.GetIndexOrAppend(kStockViewNamespace);
             using FileWotRegistryStore store = m_storage.OpenStore();
@@ -159,10 +135,12 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             coordinator.Event += (_, change) => events.Add(change);
             int owners = restarted.Lifecycle.Registrations.Count;
 
-            await Assert.ThatAsync(async () => await restarted.Lifecycle.AddAsync(new WotRegistryNodeManagerFactory(
-                new WotRegistryServerOptions { AutoRefresh = false }, registry, coordinator),
-                callerContext: null).ConfigureAwait(false),
-                Throws.TypeOf<InvalidOperationException>()).ConfigureAwait(false);
+            LifecycleResult recovery = await restarted.Lifecycle.ApplyAsync(
+                [LifecycleChange.Add(new WotRegistryNodeManagerFactory(
+                    new WotRegistryServerOptions { AutoRefresh = false }, registry, coordinator))])
+                .ConfigureAwait(false);
+            Assert.That(recovery.CleanupFailure, Is.Not.Null);
+            Assert.That(recovery.Registrations.Count, Is.EqualTo(1));
 
             Assert.That(restarted.Lifecycle.Registrations.Count, Is.EqualTo(owners + 1),
                 "Only the already-committed parent registry remains; recovery candidates must be aborted.");
@@ -228,7 +206,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             }
             WotRegistrySnapshot expected = m_registry.Current;
             Assert.That(expected.CanonicalViewGraphState.IsNull, Is.EqualTo(!emptyMap));
-            await using PreparedWotTestRuntime restarted = await PreparedWotTestRuntime.StartAsync()
+            await using PreparedWotTestRuntime restarted = await StartRestartedServerAsync()
                 .ConfigureAwait(false);
             restarted.Namespaces.GetIndexOrAppend("urn:c1:ordinary-padding");
             using FileWotRegistryStore store = m_storage.OpenStore();
@@ -239,9 +217,8 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             var events = new List<WotMaterializationEventArgs>();
             coordinator.Event += (_, change) => events.Add(change);
 
-            await restarted.Lifecycle.AddAsync(new WotRegistryNodeManagerFactory(
-                new WotRegistryServerOptions { AutoRefresh = false }, registry, coordinator),
-                callerContext: null).ConfigureAwait(false);
+            await restarted.Lifecycle.ApplyAsync([LifecycleChange.Add(new WotRegistryNodeManagerFactory(
+                new WotRegistryServerOptions { AutoRefresh = false }, registry, coordinator))]).ConfigureAwait(false);
 
             Assert.That(coordinator.Generation, Is.EqualTo(1u));
             Assert.That(registry.Current.Generation, Is.EqualTo(expected.Generation));
@@ -283,15 +260,14 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 publication.Publish();
             }
             WotRegistrySnapshot expected = m_registry.Current;
-            await using PreparedWotTestRuntime restarted = await PreparedWotTestRuntime.StartAsync()
+            await using PreparedWotTestRuntime restarted = await StartRestartedServerAsync()
                 .ConfigureAwait(false);
             using FileWotRegistryStore store = m_storage.OpenStore();
             using var registry = new WotRegistryService(store);
             using var coordinator = new WotMaterializationCoordinator(registry, restarted.Host);
 
-            await restarted.Lifecycle.AddAsync(new WotRegistryNodeManagerFactory(
-                new WotRegistryServerOptions { AutoRefresh = false }, registry, coordinator),
-                callerContext: null).ConfigureAwait(false);
+            await restarted.Lifecycle.ApplyAsync([LifecycleChange.Add(new WotRegistryNodeManagerFactory(
+                new WotRegistryServerOptions { AutoRefresh = false }, registry, coordinator))]).ConfigureAwait(false);
 
             Assert.That(coordinator.Generation, Is.EqualTo(5u));
             Assert.That(coordinator.CommittedPublication.RefreshGeneration, Is.EqualTo(5u));
@@ -343,7 +319,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             ByteString expectedDigest = expectedGraph.Views.ToList()
                 .Single(view => view.ResourceXid == child.Xid).MembershipDigest;
 
-            await using PreparedWotTestRuntime restarted = await PreparedWotTestRuntime.StartAsync()
+            await using PreparedWotTestRuntime restarted = await StartRestartedServerAsync()
                 .ConfigureAwait(false);
             restarted.Namespaces.GetIndexOrAppend("urn:c1:restart-padding");
             restarted.Namespaces.GetIndexOrAppend(kStockViewNamespace);
@@ -356,10 +332,12 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             var events = new List<WotMaterializationEventArgs>();
             restoredCoordinator.Event += (_, change) => events.Add(change);
 
-            await restarted.Lifecycle.AddAsync(new WotRegistryNodeManagerFactory(
-                new WotRegistryServerOptions { AutoRefresh = false }, restoredRegistry, restoredCoordinator),
-                callerContext: null).ConfigureAwait(false);
+            LifecycleResult result = await restarted.Lifecycle.ApplyAsync(
+                [LifecycleChange.Add(new WotRegistryNodeManagerFactory(
+                new WotRegistryServerOptions { AutoRefresh = false }, restoredRegistry, restoredCoordinator))])
+                .ConfigureAwait(false);
 
+            Assert.That(result.CleanupFailure, Is.Null, () => result.CleanupFailure?.ToString() ?? string.Empty);
             Assert.That(restoredCoordinator.Generation, Is.EqualTo(1u));
             Assert.That(restoredRegistry.Current.Generation, Is.EqualTo(committed.Generation));
             Assert.That(restoredRegistry.Current.RefreshGeneration, Is.EqualTo(committed.RefreshGeneration));

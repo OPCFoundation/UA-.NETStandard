@@ -1,31 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using Opc.Ua.Machinery.Server.StateMachines;
@@ -114,6 +88,17 @@ namespace Opc.Ua.LADS.Server
     public sealed class LadsAnalogControlOptions
     {
         /// <summary>
+        /// Gets or sets optional PID tuning parameters. Null omits the tuning object.
+        /// </summary>
+        public LadsPidOptions? Pid { get; set; }
+
+        /// <summary>
+        /// Gets or sets whether to add the optional running state machine and its operations.
+        /// The function provider must implement <see cref="ILadsControlFunctionRunningProvider"/>.
+        /// </summary>
+        public bool EnableRunningOperations { get; set; }
+
+        /// <summary>
         /// Gets or sets the variant of the analog control function type.
         /// </summary>
         public LadsAnalogControlKind Kind { get; set; } = LadsAnalogControlKind.Plain;
@@ -160,6 +145,17 @@ namespace Opc.Ua.LADS.Server
     public sealed class LadsMultiModeAnalogControlOptions
     {
         /// <summary>
+        /// Gets or sets optional PID tuning parameters. Null omits the tuning object.
+        /// </summary>
+        public LadsPidOptions? Pid { get; set; }
+
+        /// <summary>
+        /// Gets or sets whether to add the optional running state machine and its operations.
+        /// The function provider must implement <see cref="ILadsControlFunctionRunningProvider"/>.
+        /// </summary>
+        public bool EnableRunningOperations { get; set; }
+
+        /// <summary>
         /// Gets or sets the names of the controller modes; at least one is required.
         /// </summary>
         public ArrayOf<string> Modes { get; set; }
@@ -186,6 +182,18 @@ namespace Opc.Ua.LADS.Server
     public sealed class LadsTwoStateDiscreteOptions
     {
         /// <summary>
+        /// Gets or sets optional PID tuning parameters for a control function.
+        /// Sensor functions do not expose controller tuning.
+        /// </summary>
+        public LadsPidOptions? Pid { get; set; }
+
+        /// <summary>
+        /// Gets or sets whether to add the optional running state machine and its operations.
+        /// The function provider must implement <see cref="ILadsControlFunctionRunningProvider"/>.
+        /// </summary>
+        public bool EnableRunningOperations { get; set; }
+
+        /// <summary>
         /// Gets or sets the text of the true state.
         /// </summary>
         public LocalizedText TrueState { get; set; } = new("On");
@@ -207,6 +215,18 @@ namespace Opc.Ua.LADS.Server
     public sealed class LadsMultiStateDiscreteOptions
     {
         /// <summary>
+        /// Gets or sets optional PID tuning parameters for a control function.
+        /// Sensor functions do not expose controller tuning.
+        /// </summary>
+        public LadsPidOptions? Pid { get; set; }
+
+        /// <summary>
+        /// Gets or sets whether to add the optional running state machine and its operations.
+        /// The function provider must implement <see cref="ILadsControlFunctionRunningProvider"/>.
+        /// </summary>
+        public bool EnableRunningOperations { get; set; }
+
+        /// <summary>
         /// Gets or sets the texts of the states; at least one is required.
         /// </summary>
         public ArrayOf<LocalizedText> States { get; set; }
@@ -223,6 +243,17 @@ namespace Opc.Ua.LADS.Server
     public sealed class LadsTimerOptions
     {
         /// <summary>
+        /// Gets or sets optional PID tuning parameters. Null omits the tuning object.
+        /// </summary>
+        public LadsPidOptions? Pid { get; set; }
+
+        /// <summary>
+        /// Gets or sets whether to add the optional running state machine and its operations.
+        /// The function provider must implement <see cref="ILadsControlFunctionRunningProvider"/>.
+        /// </summary>
+        public bool EnableRunningOperations { get; set; }
+
+        /// <summary>
         /// Gets or sets the engineering units, milliseconds by default.
         /// </summary>
         public EUInformation? EngineeringUnits { get; set; }
@@ -236,6 +267,27 @@ namespace Opc.Ua.LADS.Server
         /// Gets or sets the initial target duration in milliseconds.
         /// </summary>
         public double InitialTargetValue { get; set; }
+    }
+
+    /// <summary>
+    /// Selects the published PID tuning members without prescribing a controller algorithm.
+    /// </summary>
+    public sealed class LadsPidOptions
+    {
+        /// <summary>
+        /// Gets or sets the initial CtrlP value. Null omits this optional member.
+        /// </summary>
+        public double? CtrlP { get; set; }
+
+        /// <summary>
+        /// Gets or sets the initial CtrlTi value. Null omits this optional member.
+        /// </summary>
+        public double? CtrlTi { get; set; }
+
+        /// <summary>
+        /// Gets or sets the initial CtrlTd value. Null omits this optional member.
+        /// </summary>
+        public double? CtrlTd { get; set; }
     }
 
     /// <summary>
@@ -270,6 +322,38 @@ namespace Opc.Ua.LADS.Server
     }
 
     /// <summary>
+    /// Optional client template-transfer operations exposed by a program manager.
+    /// </summary>
+    [Flags]
+    public enum LadsTemplateOperations
+    {
+        /// <summary>
+        /// Templates are supplied by the application without client transfer methods.
+        /// </summary>
+        None = 0,
+
+        /// <summary>
+        /// Clients can download a published template.
+        /// </summary>
+        Download = 1,
+
+        /// <summary>
+        /// Clients can upload a template.
+        /// </summary>
+        Upload = 2,
+
+        /// <summary>
+        /// Clients can remove a template.
+        /// </summary>
+        Remove = 4,
+
+        /// <summary>
+        /// Exposes all template-transfer methods, preserving the default behavior.
+        /// </summary>
+        All = Download | Upload | Remove
+    }
+
+    /// <summary>
     /// The configuration of a cover function.
     /// </summary>
     public sealed class LadsCoverOptions
@@ -283,6 +367,11 @@ namespace Opc.Ua.LADS.Server
         /// Gets or sets whether the cover can be locked.
         /// </summary>
         public bool Lockable { get; set; } = true;
+
+        /// <summary>
+        /// Gets or sets whether to expose cover commands. A passive cover only reports hardware state.
+        /// </summary>
+        public bool Controllable { get; set; } = true;
     }
 
     /// <summary>

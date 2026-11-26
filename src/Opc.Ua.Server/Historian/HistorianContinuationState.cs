@@ -1,31 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using System.Threading;
@@ -41,9 +15,9 @@ namespace Opc.Ua.Server.Historian
     /// The dispatcher retains one instance per outstanding paginated
     /// read in the session's continuation-point cache
     /// (<see cref="ISessionContinuationPoints.SaveHistory"/>).
-    /// On the next page request the dispatcher restores the state
-    /// (which checks it out without releasing its generation owners), calls the same
-    /// provider with the saved <see cref="ResumeToken"/>, and either
+    /// On the next page request the dispatcher restores the state and admits it only while
+    /// its issuing generation remains live, calls the same provider with the saved
+    /// <see cref="ResumeToken"/>, and either
     /// retires the continuation (final page → <see cref="Dispose"/>) or
     /// re-saves it with the new resume token under a fresh <see cref="Id"/>.
     /// This makes every issued continuation point single-use.
@@ -53,9 +27,9 @@ namespace Opc.Ua.Server.Historian
     /// session for as long as the client keeps the continuation point
     /// active. The session disposes available entries on eviction or close. Checked-out
     /// entries remain owned until their request completes, fails, or is cancelled.
-    /// Successor and restoration copies share their exact source and dependency lease until
-    /// the last copy is disposed. Portable native cursors can be durably mirrored, but captured
-    /// generation owners and their provider tokens remain process-local.
+    /// Successor and restoration copies share the weak issuing-generation identity until the
+    /// last copy is disposed. Portable native cursors can be durably mirrored; restoration captures
+    /// the receiving server's owning generation rather than serializing a process-local generation identity.
     /// </para>
     /// </remarks>
     internal sealed class HistorianContinuationState : IHistoryContinuationPoint
@@ -253,7 +227,15 @@ namespace Opc.Ua.Server.Historian
         /// </summary>
         public void Dispose()
         {
-            DisposeCore(null);
+            DisposeCore(null, delegateToSession: true);
+        }
+
+        /// <summary>
+        /// Disposes this copy through the session that already owns its cleanup.
+        /// </summary>
+        internal void DisposeForSession()
+        {
+            DisposeCore(null, delegateToSession: false);
         }
 
         /// <summary>
@@ -262,7 +244,7 @@ namespace Opc.Ua.Server.Historian
         /// <param name="attemptedOwner">The session continuation points that attempts to dispose the state.</param>
         internal void DisposeUnlessOwnedByAnotherSession(ISessionContinuationPoints attemptedOwner)
         {
-            DisposeCore(attemptedOwner);
+            DisposeCore(attemptedOwner, delegateToSession: false);
         }
 
         /// <summary>
@@ -327,9 +309,11 @@ namespace Opc.Ua.Server.Historian
         /// unless another session owns the continuation.
         /// </summary>
         /// <param name="attemptedOwner">The disposing session, or null to dispose unconditionally.</param>
-        private void DisposeCore(ISessionContinuationPoints? attemptedOwner)
+        /// <param name="delegateToSession">Whether a session owner must arbitrate an external disposal.</param>
+        private void DisposeCore(ISessionContinuationPoints? attemptedOwner, bool delegateToSession)
         {
             Action? releaseOwner;
+            SessionContinuationPoints? session = null;
             lock (m_lock)
             {
                 if (m_disposed ||
@@ -338,12 +322,28 @@ namespace Opc.Ua.Server.Historian
                 {
                     return;
                 }
-                m_disposed = true;
-                releaseOwner = m_ownerRelease;
-                m_ownerRelease = null;
-                m_sessionOwner = null;
-                Saved = false;
-                BufferedProcessedOutputs = null;
+                if (delegateToSession && m_sessionOwner is SessionContinuationPoints owner)
+                {
+                    session = owner;
+                    releaseOwner = null;
+                }
+                else
+                {
+                    m_disposed = true;
+                    releaseOwner = m_ownerRelease;
+                    m_ownerRelease = null;
+                    m_sessionOwner = null;
+                    Saved = false;
+                    BufferedProcessedOutputs = null;
+                }
+            }
+            if (session is not null)
+            {
+                if (!session.TryDisposeHistorianState(this))
+                {
+                    DisposeCore(session, delegateToSession: false);
+                }
+                return;
             }
             try
             {
@@ -387,11 +387,8 @@ namespace Opc.Ua.Server.Historian
                 };
             HistorianEventReadRequest? eventRequest = EventRequest is null
                 ? null
-                : EventRequest with
-                {
-                    Filter = CoreUtils.Clone(EventRequest.Filter) ??
-                        throw new InvalidOperationException("The event request filter could not be cloned.")
-                };
+                // the event filter is read-only and shared with the predecessor.
+                : EventRequest with { };
             return new HistorianContinuationState(m_ownership)
             {
                 Id = id,
@@ -430,7 +427,7 @@ namespace Opc.Ua.Server.Historian
         private sealed class SharedOwnership : IDisposable
         {
             /// <summary>
-            /// Gets the continuation point that carries the retained manager, dependency owners and routing snapshot.
+            /// Gets the continuation point that carries the weak issuing-generation identity.
             /// </summary>
             public ContinuationPoint Point { get; } = new();
 

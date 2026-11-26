@@ -1,31 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using System.Collections.Generic;
@@ -86,7 +60,9 @@ namespace UaLens.Plugins.PubSub
             IPubSubRuntimeFactory factory,
             ITelemetryContext telemetry,
             TimeProvider? clock = null,
-            Func<TimeSpan, CancellationToken, Task>? delay = null)
+            Func<TimeSpan, CancellationToken, Task>? delay = null,
+            Func<Task>? runCompletionBarrier = null,
+            Func<Task>? teardownCompleted = null)
         {
             m_factory = factory ?? throw new ArgumentNullException(nameof(factory));
             ArgumentNullException.ThrowIfNull(telemetry);
@@ -94,6 +70,8 @@ namespace UaLens.Plugins.PubSub
             m_logger = telemetry.CreateLogger<PubSubWorkspace>();
             m_clock = clock ?? TimeProvider.System;
             m_delay = delay ?? ((duration, token) => Task.Delay(duration, m_clock, token));
+            m_runCompletionBarrier = runCompletionBarrier;
+            m_teardownCompleted = teardownCompleted;
             m_observations = CreateObservationStore(m_configuration);
         }
 
@@ -225,11 +203,17 @@ namespace UaLens.Plugins.PubSub
             lock (m_gate)
             {
                 run = m_run;
-                if (!run.IsCompleted)
+                // m_lifetime, not run.IsCompleted: the run task completes only after
+                // teardown has published its final phase and cleared m_lifetime, and
+                // nothing would move the phase on from Stopping in that window.
+                if (m_lifetime is not null)
                 {
-                    m_phase = PubSubDocumentPhase.Stopping;
-                    m_status = "Stopping and awaiting document-owned network resources…";
-                    cancellation = m_lifetime?.CancelAsync() ?? Task.CompletedTask;
+                    if (m_phase is PubSubDocumentPhase.Starting or PubSubDocumentPhase.Running)
+                    {
+                        m_phase = PubSubDocumentPhase.Stopping;
+                        m_status = "Stopping and awaiting document-owned network resources…";
+                    }
+                    cancellation = m_lifetime.CancelAsync();
                 }
             }
             try
@@ -264,9 +248,9 @@ namespace UaLens.Plugins.PubSub
                     {
                         detach = m_active;
                     }
-                    else if (!m_run.IsCompleted)
+                    else if (m_lifetime is not null)
                     {
-                        stoppingCancellation = m_lifetime?.CancelAsync() ?? Task.CompletedTask;
+                        stoppingCancellation = m_lifetime.CancelAsync();
                         stop = m_run;
                     }
                 }
@@ -628,7 +612,15 @@ namespace UaLens.Plugins.PubSub
                                     "Stopped. Retained evidence is local; a new workload requires explicit Start.";
                             }
                         }
+                        if (m_teardownCompleted is not null)
+                        {
+                            await m_teardownCompleted().ConfigureAwait(false);
+                        }
                     }
+                }
+                if (m_runCompletionBarrier is { } runCompletionBarrier)
+                {
+                    await runCompletionBarrier().ConfigureAwait(false);
                 }
             }
         }
@@ -796,6 +788,8 @@ namespace UaLens.Plugins.PubSub
         private readonly ILogger m_logger;
         private readonly TimeProvider m_clock;
         private readonly Func<TimeSpan, CancellationToken, Task> m_delay;
+        private readonly Func<Task>? m_runCompletionBarrier;
+        private readonly Func<Task>? m_teardownCompleted;
         private readonly SemaphoreSlim m_operations = new(1, 1);
         private PubSubConfiguration m_configuration = new();
         private PubSubObservationStore m_observations;

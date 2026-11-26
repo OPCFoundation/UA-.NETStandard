@@ -1,37 +1,12 @@
-/* ========================================================================
- * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using System.Collections.Generic;
 using System.IO;
 using System.IO.Compression;
 using System.Text;
+using System.Threading;
 using System.Xml;
 using Opc.Ua.Schema.Model;
 
@@ -568,10 +543,15 @@ namespace Opc.Ua.SourceGeneration.Dependency
         /// </summary>
         public string ToBase64Payload()
         {
-            using var raw = new MemoryStream();
-            WriteUncompressed(raw);
-            raw.Position = 0;
+            return ToBase64Payload(CancellationToken.None);
+        }
 
+        /// <summary>
+        /// Serializes a payload within one generator run's cancellation scope.
+        /// </summary>
+        internal string ToBase64Payload(CancellationToken cancellationToken)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
             using var output = new MemoryStream();
             // Header is uncompressed; payload below is Deflate-compressed.
             output.WriteByte(Magic[0]);
@@ -581,9 +561,9 @@ namespace Opc.Ua.SourceGeneration.Dependency
 
             using (var deflate = new DeflateStream(output, CompressionLevel.Optimal, leaveOpen: true))
             {
-                raw.CopyTo(deflate);
+                WriteUncompressed(deflate, cancellationToken);
             }
-            return Convert.ToBase64String(output.ToArray());
+            return Convert.ToBase64String(output.GetBuffer(), 0, checked((int)output.Length));
         }
 
         /// <summary>
@@ -593,6 +573,15 @@ namespace Opc.Ua.SourceGeneration.Dependency
         /// magic does not match.</returns>
         public static ModelDependencyV1? FromBase64Payload(string base64)
         {
+            return FromBase64Payload(base64, CancellationToken.None);
+        }
+
+        /// <summary>
+        /// Reads a dependency while allowing a generator run to cancel long payload reads.
+        /// </summary>
+        internal static ModelDependencyV1? FromBase64Payload(string base64, CancellationToken cancellationToken)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
             if (string.IsNullOrEmpty(base64))
             {
                 return null;
@@ -624,14 +613,28 @@ namespace Opc.Ua.SourceGeneration.Dependency
             }
             using var input = new MemoryStream(bytes, index: 4, count: bytes.Length - 4, writable: false);
             using var deflate = new DeflateStream(input, CompressionMode.Decompress, leaveOpen: false);
-            using var inflated = new MemoryStream();
-            deflate.CopyTo(inflated);
-            inflated.Position = 0;
+            using var storage = new VirtualFileSystem();
+            byte[] buffer = System.Buffers.ArrayPool<byte>.Shared.Rent(81920);
+            try
+            {
+                using Stream destination = storage.OpenWrite("dependency");
+                int count;
+                while ((count = deflate.Read(buffer, 0, buffer.Length)) != 0)
+                {
+                    cancellationToken.ThrowIfCancellationRequested();
+                    destination.Write(buffer, 0, count);
+                }
+            }
+            finally
+            {
+                System.Buffers.ArrayPool<byte>.Shared.Return(buffer);
+            }
+            using Stream inflated = storage.OpenRead("dependency");
 
             var result = new ModelDependencyV1();
             try
             {
-                result.ReadUncompressed(inflated);
+                result.ReadUncompressed(inflated, cancellationToken);
             }
             catch (Exception ex) when (result.m_requiresSecurityTrailer &&
                 (ex is InvalidDataException or IOException or ArgumentException or OverflowException or FormatException))
@@ -641,14 +644,15 @@ namespace Opc.Ua.SourceGeneration.Dependency
             return result;
         }
 
-        private void WriteUncompressed(Stream destination)
+        private void WriteUncompressed(Stream destination, CancellationToken cancellationToken)
         {
-            using var writer = new BinaryWriter(destination, Encoding.UTF8, leaveOpen: true);
+            using var writer = new BinaryWriter(destination, Encoding.UTF8);
             bool hasSecurityTrailer = HasSecurityTrailer();
             WriteString(writer, ModelUri);
             writer.Write(Nodes.Count);
             foreach (DependencyNode node in Nodes)
             {
+                cancellationToken.ThrowIfCancellationRequested();
                 WriteString(writer, node.SymbolicName);
                 WriteString(writer, node.SymbolicNamespace);
                 WriteString(writer, node.ClassName);
@@ -674,6 +678,7 @@ namespace Opc.Ua.SourceGeneration.Dependency
                 writer.Write(node.Fields.Count);
                 foreach (DependencyDataField field in node.Fields)
                 {
+                    cancellationToken.ThrowIfCancellationRequested();
                     WriteString(writer, field.Name);
                     WriteString(writer, field.DataTypeName);
                     WriteString(writer, field.DataTypeNamespace);
@@ -682,6 +687,7 @@ namespace Opc.Ua.SourceGeneration.Dependency
                 writer.Write(node.Children.Count);
                 foreach (DependencyChild child in node.Children)
                 {
+                    cancellationToken.ThrowIfCancellationRequested();
                     WriteChild(writer, child);
                 }
             }
@@ -773,9 +779,9 @@ namespace Opc.Ua.SourceGeneration.Dependency
             }
         }
 
-        private void ReadUncompressed(Stream source)
+        private void ReadUncompressed(Stream source, CancellationToken cancellationToken)
         {
-            using var reader = new BinaryReader(source, Encoding.UTF8, leaveOpen: true);
+            using var reader = new DependencyBinaryReader(source, cancellationToken);
             ModelUri = ReadString(reader);
             int typeCount = reader.ReadInt32();
             if (typeCount is < 0 or > 1_000_000)
@@ -1082,7 +1088,7 @@ namespace Opc.Ua.SourceGeneration.Dependency
                     throw new InvalidDataException("Invalid security trailer length.");
                 }
                 using var body = new MemoryStream(reader.ReadBytes(length), writable: false);
-                using var securityReader = new BinaryReader(body, Encoding.UTF8, leaveOpen: false);
+                using BinaryReader securityReader = CreateNestedReader(reader, body);
                 if (securityReader.ReadInt32() != Nodes.Count)
                 {
                     throw new InvalidDataException("Invalid security node count.");
@@ -1433,7 +1439,7 @@ namespace Opc.Ua.SourceGeneration.Dependency
                 return;
             }
             using var body = new MemoryStream(reader.ReadBytes(length), writable: false);
-            using var nested = new BinaryReader(body, Encoding.UTF8, leaveOpen: false);
+            using BinaryReader nested = CreateNestedReader(reader, body);
             int nodeCount = nested.ReadInt32();
             if (nodeCount != Nodes.Count)
             {
@@ -2087,6 +2093,16 @@ namespace Opc.Ua.SourceGeneration.Dependency
         private static string ReadString(BinaryReader reader)
         {
             return reader.ReadString();
+        }
+
+        /// <summary>
+        /// Carries decode cancellation and string reuse into bounded trailer bodies.
+        /// </summary>
+        private static BinaryReader CreateNestedReader(BinaryReader parent, Stream body)
+        {
+            return parent is DependencyBinaryReader reader
+                ? reader.CreateNested(body)
+                : new BinaryReader(body, Encoding.UTF8, leaveOpen: true);
         }
 
         private static string? ReadNullableString(BinaryReader reader)

@@ -6,6 +6,7 @@
       "ns2": "http://opcfoundation.org/UA/Pumps/",
       "ns3": "http://opcfoundation.org/UA/Machinery/",
       "ns4": "http://opcfoundation.org/UA/DI/",
+      "qudt": "http://qudt.org/schema/qudt/",
       "ua": "http://opcfoundation.org/UA/",
       "uav": "http://opcfoundation.org/UA/WoT-Binding/"
     },
@@ -24,12 +25,6 @@
   "@type": "uav:object",
   "actions": {
     "CavitationAcknowledge": {
-      "@context": {
-        "title": {
-          "@id": "https://www.w3.org/2019/wot/td#title",
-          "@language": null
-        }
-      },
       "@type": "uav:method",
       "forms": [
         {
@@ -51,6 +46,7 @@
               }
             },
             "description": "Optional operator comment.",
+            "type": "string",
             "uav:mapToType": "i=21",
             "uav:valueRank": -1
           },
@@ -85,12 +81,6 @@
       "uav:id": "nsu=urn:opcfoundation.org:UA:WotAggregation:PumpInstance;s=Pump1.CavitationAcknowledge"
     },
     "CavitationConfirm": {
-      "@context": {
-        "title": {
-          "@id": "https://www.w3.org/2019/wot/td#title",
-          "@language": null
-        }
-      },
       "@type": "uav:method",
       "forms": [
         {
@@ -112,6 +102,7 @@
               }
             },
             "description": "Optional operator comment.",
+            "type": "string",
             "uav:mapToType": "i=21",
             "uav:valueRank": -1
           },
@@ -146,12 +137,6 @@
       "uav:id": "nsu=urn:opcfoundation.org:UA:WotAggregation:PumpInstance;s=Pump1.CavitationConfirm"
     },
     "MotorOverheatAcknowledge": {
-      "@context": {
-        "title": {
-          "@id": "https://www.w3.org/2019/wot/td#title",
-          "@language": null
-        }
-      },
       "@type": "uav:method",
       "forms": [
         {
@@ -173,6 +158,7 @@
               }
             },
             "description": "Optional operator comment.",
+            "type": "string",
             "uav:mapToType": "i=21",
             "uav:valueRank": -1
           },
@@ -207,12 +193,6 @@
       "uav:id": "nsu=urn:opcfoundation.org:UA:WotAggregation:PumpInstance;s=Pump1.MotorOverheatAcknowledge"
     },
     "MotorOverheatConfirm": {
-      "@context": {
-        "title": {
-          "@id": "https://www.w3.org/2019/wot/td#title",
-          "@language": null
-        }
-      },
       "@type": "uav:method",
       "forms": [
         {
@@ -234,6 +214,7 @@
               }
             },
             "description": "Optional operator comment.",
+            "type": "string",
             "uav:mapToType": "i=21",
             "uav:valueRank": -1
           },
@@ -268,12 +249,6 @@
       "uav:id": "nsu=urn:opcfoundation.org:UA:WotAggregation:PumpInstance;s=Pump1.MotorOverheatConfirm"
     },
     "SourceAReset": {
-      "@context": {
-        "title": {
-          "@id": "https://www.w3.org/2019/wot/td#title",
-          "@language": null
-        }
-      },
       "@type": "uav:method",
       "forms": [
         {
@@ -290,12 +265,6 @@
       "uav:id": "nsu=urn:opcfoundation.org:UA:WotAggregation:PumpInstance;s=Pump1.SourceAReset"
     },
     "SourceAStart": {
-      "@context": {
-        "title": {
-          "@id": "https://www.w3.org/2019/wot/td#title",
-          "@language": null
-        }
-      },
       "@type": "uav:method",
       "forms": [
         {
@@ -312,12 +281,6 @@
       "uav:id": "nsu=urn:opcfoundation.org:UA:WotAggregation:PumpInstance;s=Pump1.SourceAStart"
     },
     "SourceAStop": {
-      "@context": {
-        "title": {
-          "@id": "https://www.w3.org/2019/wot/td#title",
-          "@language": null
-        }
-      },
       "@type": "uav:method",
       "forms": [
         {
@@ -334,12 +297,6 @@
       "uav:id": "nsu=urn:opcfoundation.org:UA:WotAggregation:PumpInstance;s=Pump1.SourceAStop"
     },
     "SourceBReset": {
-      "@context": {
-        "title": {
-          "@id": "https://www.w3.org/2019/wot/td#title",
-          "@language": null
-        }
-      },
       "@type": "uav:method",
       "forms": [
         {
@@ -356,12 +313,6 @@
       "uav:id": "nsu=urn:opcfoundation.org:UA:WotAggregation:PumpInstance;s=Pump1.SourceBReset"
     },
     "SourceBStart": {
-      "@context": {
-        "title": {
-          "@id": "https://www.w3.org/2019/wot/td#title",
-          "@language": null
-        }
-      },
       "@type": "uav:method",
       "forms": [
         {
@@ -378,12 +329,6 @@
       "uav:id": "nsu=urn:opcfoundation.org:UA:WotAggregation:PumpInstance;s=Pump1.SourceBStart"
     },
     "SourceBStop": {
-      "@context": {
-        "title": {
-          "@id": "https://www.w3.org/2019/wot/td#title",
-          "@language": null
-        }
-      },
       "@type": "uav:method",
       "forms": [
         {
@@ -403,16 +348,6 @@
   "description": "Sample-owned aggregate pump projected from two upstream OPC UA servers.",
   "events": {
     "CavitationAlarm": {
-      "@context": {
-        "description": {
-          "@id": "https://www.w3.org/2019/wot/td#description",
-          "@language": null
-        },
-        "title": {
-          "@id": "https://www.w3.org/2019/wot/td#title",
-          "@language": null
-        }
-      },
       "@type": "uav:eventType",
       "data": {
         "properties": {
@@ -726,16 +661,6 @@
       "uav:id": "nsu=urn:opcfoundation.org:UA:WotAggregation:PumpInstance;s=Pump1.CavitationAlarm"
     },
     "MotorOverheatAlarm": {
-      "@context": {
-        "description": {
-          "@id": "https://www.w3.org/2019/wot/td#description",
-          "@language": null
-        },
-        "title": {
-          "@id": "https://www.w3.org/2019/wot/td#title",
-          "@language": null
-        }
-      },
       "@type": "uav:eventType",
       "data": {
         "properties": {
@@ -1654,11 +1579,13 @@
         "browseName": "1:Pump_1",
         "description": [
           {
+            "locale": "",
             "value": "Sample-owned aggregate pump projected from two upstream OPC UA servers."
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "Pump #1"
           }
         ],
@@ -1743,10 +1670,12 @@
         "typeDefinition": "ns=1;s=Pump1.Type"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:SourceARunning",
         "dataType": "Boolean",
         "displayName": [
           {
+            "locale": "",
             "value": "SourceARunning"
           }
         ],
@@ -1770,6 +1699,7 @@
         "browseName": "1:SourceAStart",
         "displayName": [
           {
+            "locale": "",
             "value": "SourceAStart"
           }
         ],
@@ -1788,6 +1718,7 @@
         "browseName": "1:SourceAStop",
         "displayName": [
           {
+            "locale": "",
             "value": "SourceAStop"
           }
         ],
@@ -1806,6 +1737,7 @@
         "browseName": "1:SourceAReset",
         "displayName": [
           {
+            "locale": "",
             "value": "SourceAReset"
           }
         ],
@@ -1821,10 +1753,12 @@
         ]
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:SourceBRunning",
         "dataType": "Boolean",
         "displayName": [
           {
+            "locale": "",
             "value": "SourceBRunning"
           }
         ],
@@ -1848,6 +1782,7 @@
         "browseName": "1:SourceBStart",
         "displayName": [
           {
+            "locale": "",
             "value": "SourceBStart"
           }
         ],
@@ -1866,6 +1801,7 @@
         "browseName": "1:SourceBStop",
         "displayName": [
           {
+            "locale": "",
             "value": "SourceBStop"
           }
         ],
@@ -1884,6 +1820,7 @@
         "browseName": "1:SourceBReset",
         "displayName": [
           {
+            "locale": "",
             "value": "SourceBReset"
           }
         ],
@@ -1904,6 +1841,7 @@
         "dataType": "Argument",
         "displayName": [
           {
+            "locale": "",
             "value": "InputArguments"
           }
         ],
@@ -1929,6 +1867,7 @@
         "browseName": "1:CavitationAcknowledge",
         "displayName": [
           {
+            "locale": "",
             "value": "CavitationAcknowledge"
           }
         ],
@@ -1954,6 +1893,7 @@
         "dataType": "Argument",
         "displayName": [
           {
+            "locale": "",
             "value": "InputArguments"
           }
         ],
@@ -1979,6 +1919,7 @@
         "browseName": "1:CavitationConfirm",
         "displayName": [
           {
+            "locale": "",
             "value": "CavitationConfirm"
           }
         ],
@@ -2004,6 +1945,7 @@
         "dataType": "Argument",
         "displayName": [
           {
+            "locale": "",
             "value": "InputArguments"
           }
         ],
@@ -2029,6 +1971,7 @@
         "browseName": "1:MotorOverheatAcknowledge",
         "displayName": [
           {
+            "locale": "",
             "value": "MotorOverheatAcknowledge"
           }
         ],
@@ -2054,6 +1997,7 @@
         "dataType": "Argument",
         "displayName": [
           {
+            "locale": "",
             "value": "InputArguments"
           }
         ],
@@ -2079,6 +2023,7 @@
         "browseName": "1:MotorOverheatConfirm",
         "displayName": [
           {
+            "locale": "",
             "value": "MotorOverheatConfirm"
           }
         ],

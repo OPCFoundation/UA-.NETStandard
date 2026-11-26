@@ -1,31 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System.Collections.Generic;
 
@@ -43,15 +17,36 @@ namespace Opc.Ua
         public object? Handle { get; set; }
 
         /// <summary>
+        /// Gets the condition EventId captured with the snapshot.
+        /// </summary>
+        internal ByteString ConditionEventId { get; private set; }
+
+        /// <summary>
+        /// Gets the condition method state captured before publication.
+        /// </summary>
+        internal ConditionState.ReportedConditionEvent? ConditionEvent { get; private set; }
+
+        /// <summary>
         /// Initializes the snapshot from an instance.
         /// </summary>
         /// <param name="context">The context.</param>
         /// <param name="state">The state.</param>
+        /// <remarks>
+        /// Serialize initialization with mutations of the source state. Condition EventId and method state
+        /// are captured together so publication may occur after releasing the caller's serialization gate.
+        /// Do not change the snapshot's EventId or Handle after initialization.
+        /// </remarks>
         public void Initialize(ISystemContext context, BaseInstanceState state)
         {
             m_typeDefinitionId = state.TypeDefinitionId;
             m_snapshot = CreateChildNode(context, state);
             Handle = state;
+            ConditionEventId = default;
+            ConditionEvent = null;
+            if (state is ConditionState condition)
+            {
+                (ConditionEventId, ConditionEvent) = condition.CaptureReportedEvent();
+            }
         }
 
         /// <summary>

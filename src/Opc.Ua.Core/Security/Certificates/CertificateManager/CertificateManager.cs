@@ -1,35 +1,11 @@
-/* ========================================================================
- * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
+using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
@@ -605,6 +581,17 @@ namespace Opc.Ua
         /// <summary>
         /// Loads application certificates from the security configuration.
         /// </summary>
+        /// <remarks>
+        /// A private key loaded from a directory store is reused instead of
+        /// decrypted again when the same identifier is loaded again (for
+        /// example by configuration validation and then by server start) and
+        /// no file in that store changed since: same names, sizes and last
+        /// write times, checked on every call, for at most 30 seconds after
+        /// the key was read. Keys from other store types are
+        /// always reloaded, and so are all keys in
+        /// <see cref="ReloadApplicationCertificatesAsync"/> and
+        /// <see cref="UpdateAsync"/>. Issuer chains are always resolved again.
+        /// </remarks>
         /// <param name="securityConfiguration">
         /// The security configuration containing the application certificates.
         /// </param>
@@ -612,10 +599,27 @@ namespace Opc.Ua
         /// The application URI used to match certificates.
         /// </param>
         /// <param name="ct">Cancellation token.</param>
-        public async Task LoadApplicationCertificatesAsync(
+        public Task LoadApplicationCertificatesAsync(
             SecurityConfiguration securityConfiguration,
             string? applicationUri = null,
             CancellationToken ct = default)
+        {
+            return LoadApplicationCertificatesCoreAsync(
+                securityConfiguration,
+                applicationUri,
+                reuseLoadedKeys: true,
+                ct);
+        }
+
+        /// <summary>
+        /// Loads the application certificates, optionally reusing private keys
+        /// loaded earlier from an unchanged directory store.
+        /// </summary>
+        private async Task LoadApplicationCertificatesCoreAsync(
+            SecurityConfiguration securityConfiguration,
+            string? applicationUri,
+            bool reuseLoadedKeys,
+            CancellationToken ct)
         {
             ThrowIfDisposed();
             // Build the new entries OUTSIDE the lock (resolution is async and
@@ -624,25 +628,83 @@ namespace Opc.Ua
             ICertificatePasswordProvider? passwordProvider = securityConfiguration
                 .CertificatePasswordProvider;
             var newEntries = new List<CertificateEntry>(appCerts.Count);
+            var newLoadedKeys = new List<LoadedApplicationKey>(appCerts.Count);
+            // Own-store snapshots taken before the first key of a store is
+            // loaded; a key is only remembered for reuse when its store is
+            // still unchanged after all keys were loaded.
+            var storeSnapshots = new Dictionary<string, (CertificateIdentifier Id, CertificateStoreFileSnapshot? Snapshot)>(
+                StringComparer.Ordinal);
+            // Stores from which at least one key was reused.
+            var reusedStores = new HashSet<string>(StringComparer.Ordinal);
+            // Keys loaded before a certificate update completes must not be
+            // remembered after it (see UpdateApplicationCertificateAsync).
+            int keyGeneration;
+            lock (m_certificatesLock)
+            {
+                keyGeneration = m_loadedKeysGeneration;
+            }
             try
             {
                 for (int i = 0; i < appCerts.Count; i++)
                 {
                     CertificateIdentifier certId = appCerts[i];
-                    // The resolver opens the identifier's store and applies
-                    // post-rotation fallbacks (subject-null, then
-                    // thumbprint-null, by applicationUri) so a freshly-pushed
-                    // certificate is picked up even when the configured
-                    // identifier's thumbprint still references the old cert.
-                    using Certificate? certificate = await CertificateIdentifierResolver
-                        .LoadPrivateKeyCoreAsync(
-                            certId,
-                            passwordProvider,
-                            applicationUri,
-                            m_telemetry,
-                            this,
-                            ct)
-                        .ConfigureAwait(false);
+                    string? storeKey = GetLoadedKeyStoreKey(certId);
+                    CertificateStoreFileSnapshot? snapshot = null;
+                    if (storeKey != null)
+                    {
+                        if (storeSnapshots.TryGetValue(storeKey, out (CertificateIdentifier Id, CertificateStoreFileSnapshot? Snapshot) known))
+                        {
+                            snapshot = known.Snapshot;
+                        }
+                        else
+                        {
+                            snapshot = CaptureOwnStoreSnapshot(certId);
+                            storeSnapshots[storeKey] = (certId, snapshot);
+                        }
+                    }
+
+                    string loadedKeyId = GetLoadedKeyId(certId, applicationUri);
+                    LoadedApplicationKey? reused = reuseLoadedKeys && snapshot != null
+                        ? TryAcquireLoadedKey(loadedKeyId, certId.Thumbprint, passwordProvider, snapshot)
+                        : null;
+
+                    Certificate? loaded;
+                    if (reused != null)
+                    {
+                        reusedStores.Add(storeKey!);
+                        newLoadedKeys.Add(reused);
+                        loaded = reused.Certificate.AddRef();
+                    }
+                    else
+                    {
+                        // The resolver opens the identifier's store and applies
+                        // post-rotation fallbacks (subject-null, then
+                        // thumbprint-null, by applicationUri) so a freshly-pushed
+                        // certificate is picked up even when the configured
+                        // identifier's thumbprint still references the old cert.
+                        loaded = await CertificateIdentifierResolver
+                            .LoadPrivateKeyCoreAsync(
+                                certId,
+                                passwordProvider,
+                                applicationUri,
+                                m_telemetry,
+                                this,
+                                ct)
+                            .ConfigureAwait(false);
+                        if (loaded != null && storeKey != null && snapshot != null)
+                        {
+                            newLoadedKeys.Add(new LoadedApplicationKey(
+                                loadedKeyId,
+                                certId.Thumbprint,
+                                storeKey,
+                                passwordProvider,
+                                snapshot,
+                                m_timeProvider.GetUtcNow(),
+                                loaded.AddRef()));
+                        }
+                    }
+
+                    using Certificate? certificate = loaded;
                     if (certificate != null)
                     {
                         // Resolve the issuer chain so that servers configured
@@ -659,7 +721,40 @@ namespace Opc.Ua
                     }
                 }
 
+                // Forget keys whose store changed while they were loaded.
+                foreach (KeyValuePair<string, (CertificateIdentifier Id, CertificateStoreFileSnapshot? Snapshot)> store
+                    in storeSnapshots)
+                {
+                    if (store.Value.Snapshot != null &&
+                        !store.Value.Snapshot.Equals(CaptureOwnStoreSnapshot(store.Value.Id)))
+                    {
+                        if (reusedStores.Contains(store.Key))
+                        {
+                            // A key of this store was reused against the
+                            // snapshot taken before the change, so the loaded
+                            // set can mix old and new certificates. Load all
+                            // keys from the stores again; the pending entries
+                            // are disposed below.
+                            await LoadApplicationCertificatesCoreAsync(
+                                securityConfiguration,
+                                applicationUri,
+                                reuseLoadedKeys: false,
+                                ct).ConfigureAwait(false);
+                            return;
+                        }
+                        for (int i = newLoadedKeys.Count - 1; i >= 0; i--)
+                        {
+                            if (newLoadedKeys[i].StoreKey == store.Key)
+                            {
+                                newLoadedKeys[i].Dispose();
+                                newLoadedKeys.RemoveAt(i);
+                            }
+                        }
+                    }
+                }
+
                 List<CertificateEntry> oldEntries;
+                List<LoadedApplicationKey> oldLoadedKeys;
                 lock (m_certificatesLock)
                 {
                     ThrowIfDisposed();
@@ -667,6 +762,13 @@ namespace Opc.Ua
                     m_applicationCertificates.Clear();
                     m_applicationCertificates.AddRange(newEntries);
                     newEntries.Clear();
+                    oldLoadedKeys = [.. m_loadedApplicationKeys];
+                    m_loadedApplicationKeys.Clear();
+                    if (keyGeneration == m_loadedKeysGeneration)
+                    {
+                        m_loadedApplicationKeys.AddRange(newLoadedKeys);
+                        newLoadedKeys.Clear();
+                    }
                 }
 
                 // Dispose the manager's own old entries OUTSIDE the lock.
@@ -677,6 +779,10 @@ namespace Opc.Ua
                 {
                     oldEntry.Dispose();
                 }
+                foreach (LoadedApplicationKey oldLoadedKey in oldLoadedKeys)
+                {
+                    oldLoadedKey.Dispose();
+                }
             }
             finally
             {
@@ -686,6 +792,240 @@ namespace Opc.Ua
                 {
                     pending.Dispose();
                 }
+                foreach (LoadedApplicationKey pending in newLoadedKeys)
+                {
+                    pending.Dispose();
+                }
+            }
+        }
+
+        /// <summary>
+        /// Returns the private-key certificate this manager loaded for
+        /// <paramref name="identifier"/> when its directory store did not
+        /// change since, or <see langword="null"/> when the key must be
+        /// loaded from the store.
+        /// </summary>
+        /// <remarks>
+        /// Lets the application certificate check reuse the keys that
+        /// configuration validation loaded instead of decrypting them again.
+        /// The result equals what
+        /// <see cref="CertificateIdentifierResolver.LoadPrivateKeyWithStoreResolverAsync"/>
+        /// would load with the same arguments and this manager as resolver.
+        /// </remarks>
+        /// <param name="identifier">The application certificate identifier.</param>
+        /// <param name="passwordProvider">The private-key password provider.</param>
+        /// <param name="applicationUri">The application URI used for rotation fallbacks.</param>
+        /// <returns>An owned certificate reference, or <see langword="null"/>.</returns>
+        internal Certificate? TryAcquireLoadedApplicationKey(
+            CertificateIdentifier identifier,
+            ICertificatePasswordProvider? passwordProvider,
+            string? applicationUri)
+        {
+            if (identifier == null || GetLoadedKeyStoreKey(identifier) == null)
+            {
+                return null;
+            }
+
+            lock (m_certificatesLock)
+            {
+                if (m_disposed || m_loadedApplicationKeys.Count == 0)
+                {
+                    return null;
+                }
+            }
+
+            CertificateStoreFileSnapshot? snapshot = CaptureOwnStoreSnapshot(identifier);
+            if (snapshot == null)
+            {
+                return null;
+            }
+
+            using LoadedApplicationKey? loaded = TryAcquireLoadedKey(
+                GetLoadedKeyId(identifier, applicationUri),
+                identifier.Thumbprint,
+                passwordProvider,
+                snapshot);
+            return loaded?.Certificate.AddRef();
+        }
+
+        /// <summary>
+        /// Finds a remembered key for the lookup, password provider and
+        /// unchanged store snapshot, and returns an owned copy of the record.
+        /// </summary>
+        /// <remarks>
+        /// A lookup without a thumbprint only matches a key that was looked up
+        /// without one. A lookup with a thumbprint matches a key whose
+        /// certificate has that thumbprint: in an unchanged store every
+        /// resolver pass that filters by the thumbprint can only return that
+        /// certificate, and the same subject, application URI and type found
+        /// it before. This covers the identifiers whose thumbprint the
+        /// application certificate check fills in after the first load.
+        /// </remarks>
+        private LoadedApplicationKey? TryAcquireLoadedKey(
+            string loadedKeyId,
+            string? lookupThumbprint,
+            ICertificatePasswordProvider? passwordProvider,
+            CertificateStoreFileSnapshot currentSnapshot)
+        {
+            DateTimeOffset now = m_timeProvider.GetUtcNow();
+            lock (m_certificatesLock)
+            {
+                if (m_disposed)
+                {
+                    return null;
+                }
+                foreach (LoadedApplicationKey loaded in m_loadedApplicationKeys)
+                {
+                    bool thumbprintMatches = string.IsNullOrEmpty(lookupThumbprint)
+                        ? string.IsNullOrEmpty(loaded.LookupThumbprint)
+                        : string.Equals(
+                            loaded.Certificate.Thumbprint,
+                            lookupThumbprint,
+                            StringComparison.OrdinalIgnoreCase);
+                    if (thumbprintMatches &&
+                        string.Equals(loaded.Id, loadedKeyId, StringComparison.Ordinal) &&
+                        ReferenceEquals(loaded.PasswordProvider, passwordProvider) &&
+                        now - loaded.LoadedAt <= kLoadedKeyMaxAge &&
+                        now >= loaded.LoadedAt &&
+                        loaded.Snapshot.Equals(currentSnapshot))
+                    {
+                        return loaded.AddRef();
+                    }
+                }
+            }
+            return null;
+        }
+
+        /// <summary>
+        /// Drops every remembered private key, so the next load reads the
+        /// stores again.
+        /// </summary>
+        private void ForgetLoadedApplicationKeys()
+        {
+            List<LoadedApplicationKey> old;
+            lock (m_certificatesLock)
+            {
+                old = DetachLoadedApplicationKeys();
+            }
+            foreach (LoadedApplicationKey loaded in old)
+            {
+                loaded.Dispose();
+            }
+        }
+
+        /// <summary>
+        /// Removes every remembered private key and makes loads that are
+        /// still running not remember theirs. The caller holds
+        /// <see cref="m_certificatesLock"/> and disposes the returned keys
+        /// outside it.
+        /// </summary>
+        private List<LoadedApplicationKey> DetachLoadedApplicationKeys()
+        {
+            List<LoadedApplicationKey> old = [.. m_loadedApplicationKeys];
+            m_loadedApplicationKeys.Clear();
+            m_loadedKeysGeneration++;
+            return old;
+        }
+
+        /// <summary>
+        /// Identifies the store of an application certificate for key reuse,
+        /// or returns <see langword="null"/> when keys from it are never
+        /// reused (X509Store, no store path).
+        /// </summary>
+        private static string? GetLoadedKeyStoreKey(CertificateIdentifier identifier)
+        {
+            if (string.IsNullOrEmpty(identifier.StorePath) ||
+                identifier.StoreType == CertificateStoreType.X509Store)
+            {
+                return null;
+            }
+            return ComposeKey(identifier.StoreType, identifier.StorePath);
+        }
+
+        /// <summary>
+        /// Identifies a private-key lookup by everything the resolver uses
+        /// except the thumbprint, which <see cref="TryAcquireLoadedKey"/>
+        /// matches separately.
+        /// </summary>
+        private static string GetLoadedKeyId(CertificateIdentifier identifier, string? applicationUri)
+        {
+            return ComposeKey(
+                identifier.StoreType,
+                identifier.StorePath,
+                identifier.SubjectName,
+                identifier.CertificateType.ToString(),
+                applicationUri);
+        }
+
+        /// <summary>
+        /// Joins the parts so that different parts always give different
+        /// keys: each part is prefixed with its length, so a separator inside
+        /// a part (a subject name or path may contain any character) cannot
+        /// make two lookups collide. A null part differs from an empty one.
+        /// </summary>
+        private static string ComposeKey(params string?[] parts)
+        {
+            var builder = new StringBuilder();
+            foreach (string? part in parts)
+            {
+                if (part == null)
+                {
+                    builder.Append("-;");
+                }
+                else
+                {
+                    builder
+                        .Append(part.Length.ToString(CultureInfo.InvariantCulture))
+                        .Append(':')
+                        .Append(part)
+                        .Append(';');
+                }
+            }
+            return builder.ToString();
+        }
+
+        /// <summary>
+        /// Captures the file snapshot of the identifier's own store when it
+        /// is a directory store served by the built-in
+        /// <see cref="DirectoryStoreProvider"/>, without opening the store.
+        /// Any other store (X509Store, PKCS#11, custom providers) returns
+        /// <see langword="null"/>, so its keys are always loaded from the store.
+        /// </summary>
+        private CertificateStoreFileSnapshot? CaptureOwnStoreSnapshot(CertificateIdentifier identifier)
+        {
+            if (GetLoadedKeyStoreKey(identifier) == null)
+            {
+                return null;
+            }
+            try
+            {
+                string storeType = string.IsNullOrEmpty(identifier.StoreType)
+                    ? ResolveStoreType(identifier.StorePath!)
+                    : identifier.StoreType!;
+                if (storeType != CertificateStoreType.Directory)
+                {
+                    return null;
+                }
+
+                // CertificateStoreIdentifier.CreateStore uses the first
+                // provider registered for the type name.
+                ICertificateStoreProvider? provider = m_storeProviders.FirstOrDefault(
+                    static p => p.StoreTypeName == CertificateStoreType.Directory);
+                if (provider != null && provider is not DirectoryStoreProvider)
+                {
+                    return null;
+                }
+
+                string? path = Utils.ReplaceSpecialFolderNames(identifier.StorePath);
+                if (string.IsNullOrEmpty(path))
+                {
+                    return null;
+                }
+                return CertificateStoreFileSnapshot.TryCapture(new System.IO.DirectoryInfo(path));
+            }
+            catch (Exception ex) when (ex is not OperationCanceledException)
+            {
+                return null;
             }
         }
 
@@ -971,6 +1311,7 @@ namespace Opc.Ua
             CertificateCollection effectiveChain = issuerChain ?? resolvedChain!;
 
             CertificateEntry? oldEntry = null;
+            List<LoadedApplicationKey> forgottenKeys;
             CertificateValidationCore? oldPeer;
             CertificateValidationCore? oldUser;
             CertificateValidationCore? oldHttps;
@@ -978,6 +1319,12 @@ namespace Opc.Ua
             lock (m_certificatesLock)
             {
                 ThrowIfDisposed();
+                // A replaced certificate invalidates every remembered key, in
+                // the same critical section, so no load can make a key
+                // available again after the replacement: the next load reads
+                // the stores again.
+                forgottenKeys = DetachLoadedApplicationKeys();
+
                 // Find and replace the existing entry.
                 for (int i = 0; i < m_applicationCertificates.Count; i++)
                 {
@@ -1020,6 +1367,11 @@ namespace Opc.Ua
             oldPeer?.Dispose();
             oldUser?.Dispose();
             oldHttps?.Dispose();
+            // Dispose the forgotten keys OUTSIDE the lock.
+            foreach (LoadedApplicationKey forgotten in forgottenKeys)
+            {
+                forgotten.Dispose();
+            }
 
             m_lifecycleMonitor?.Reset();
 
@@ -1058,7 +1410,12 @@ namespace Opc.Ua
             CertificateValidationCore? oldHttps;
             using CertificateEntry? oldPrimary = AcquirePrimaryCertificate();
 
-            await LoadApplicationCertificatesAsync(securityConfiguration, applicationUri, ct)
+            // An explicit reload always reads every key from its store.
+            await LoadApplicationCertificatesCoreAsync(
+                    securityConfiguration,
+                    applicationUri,
+                    reuseLoadedKeys: false,
+                    ct)
                 .ConfigureAwait(false);
 
             lock (m_certificatesLock)
@@ -1204,92 +1561,93 @@ namespace Opc.Ua
             bool trustChanged = false;
             bool crlChanged = false;
 
-            if (((int)masks &
-                ((int)TrustListMasks.TrustedCertificates | (int)TrustListMasks.TrustedCrls)) != 0)
+            try
             {
-                using ICertificateStore store = OpenTrustedStore(trustList);
-
-                if (((int)masks & (int)TrustListMasks.TrustedCertificates) != 0)
+                if (((int)masks &
+                    ((int)TrustListMasks.TrustedCertificates | (int)TrustListMasks.TrustedCrls)) != 0)
                 {
-                    await ClearCertificatesAsync(store, ct)
-                        .ConfigureAwait(false);
+                    using ICertificateStore store = OpenTrustedStore(trustList);
 
-                    foreach (Certificate cert in data.TrustedCertificates)
+                    if (((int)masks & (int)TrustListMasks.TrustedCertificates) != 0)
                     {
-                        await store.AddAsync(cert, ct: ct)
+                        trustChanged = true;
+                        await ClearCertificatesAsync(store, ct)
                             .ConfigureAwait(false);
-                    }
 
-                    trustChanged = true;
-                }
-
-                if (((int)masks & (int)TrustListMasks.TrustedCrls) != 0 &&
-                    store.SupportsCRLs)
-                {
-                    await ClearCrlsAsync(store, ct).ConfigureAwait(false);
-
-                    foreach (X509CRL crl in data.TrustedCrls)
-                    {
-                        await store.AddCRLAsync(crl, ct)
-                            .ConfigureAwait(false);
-                    }
-
-                    crlChanged = true;
-                }
-            }
-
-            if (((int)masks &
-                ((int)TrustListMasks.IssuerCertificates | (int)TrustListMasks.IssuerCrls)) != 0)
-            {
-                ICertificateStore? issuerStore = OpenIssuerStore(trustList);
-                if (issuerStore != null)
-                {
-                    using (issuerStore)
-                    {
-                        if (((int)masks & (int)TrustListMasks.IssuerCertificates) != 0)
+                        foreach (Certificate cert in data.TrustedCertificates)
                         {
-                            await ClearCertificatesAsync(issuerStore, ct)
+                            await store.AddAsync(cert, ct: ct)
                                 .ConfigureAwait(false);
-
-                            foreach (Certificate cert in data.IssuerCertificates)
-                            {
-                                await issuerStore.AddAsync(cert, ct: ct)
-                                    .ConfigureAwait(false);
-                            }
-
-                            trustChanged = true;
                         }
+                    }
 
-                        if (((int)masks & (int)TrustListMasks.IssuerCrls) != 0 &&
-                            issuerStore.SupportsCRLs)
+                    if (((int)masks & (int)TrustListMasks.TrustedCrls) != 0 &&
+                        store.SupportsCRLs)
+                    {
+                        crlChanged = true;
+                        await ClearCrlsAsync(store, ct).ConfigureAwait(false);
+
+                        foreach (X509CRL crl in data.TrustedCrls)
                         {
-                            await ClearCrlsAsync(issuerStore, ct)
+                            await store.AddCRLAsync(crl, ct)
                                 .ConfigureAwait(false);
-
-                            foreach (X509CRL crl in data.IssuerCrls)
-                            {
-                                await issuerStore.AddCRLAsync(crl, ct)
-                                    .ConfigureAwait(false);
-                            }
-
-                            crlChanged = true;
                         }
                     }
                 }
-            }
 
-            NotifyTrustListChanged(trustList, trustChanged, crlChanged);
+                if (((int)masks &
+                    ((int)TrustListMasks.IssuerCertificates | (int)TrustListMasks.IssuerCrls)) != 0)
+                {
+                    ICertificateStore? issuerStore = OpenIssuerStore(trustList);
+                    if (issuerStore != null)
+                    {
+                        using (issuerStore)
+                        {
+                            if (((int)masks & (int)TrustListMasks.IssuerCertificates) != 0)
+                            {
+                                trustChanged = true;
+                                await ClearCertificatesAsync(issuerStore, ct)
+                                    .ConfigureAwait(false);
+
+                                foreach (Certificate cert in data.IssuerCertificates)
+                                {
+                                    await issuerStore.AddAsync(cert, ct: ct)
+                                        .ConfigureAwait(false);
+                                }
+                            }
+
+                            if (((int)masks & (int)TrustListMasks.IssuerCrls) != 0 &&
+                                issuerStore.SupportsCRLs)
+                            {
+                                crlChanged = true;
+                                await ClearCrlsAsync(issuerStore, ct)
+                                    .ConfigureAwait(false);
+
+                                foreach (X509CRL crl in data.IssuerCrls)
+                                {
+                                    await issuerStore.AddCRLAsync(crl, ct)
+                                        .ConfigureAwait(false);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            finally
+            {
+                NotifyTrustListChanged(trustList, trustChanged, crlChanged);
+            }
         }
 
         /// <summary>
         /// Invalidates cached validation cores for the affected trust
         /// list and dispatches <see cref="CertificateChangeKind.TrustListUpdated"/>
         /// and/or <see cref="CertificateChangeKind.CrlUpdated"/> events.
-        /// Called by <see cref="WriteTrustListAsync"/>, by
-        /// <see cref="TrustListTransaction.CommitAsync"/> after a
-        /// successful apply, and by writers that modify the backing stores
-        /// directly (e.g. the server's GDS push TrustList after
-        /// <c>ApplyChanges</c> commits). No-op when no change kind is set.
+        /// Called by <see cref="WriteTrustListAsync"/>,
+        /// <see cref="TrustListTransaction.CommitAsync"/>, and writers that
+        /// modify backing stores directly. A failed write can also trigger a
+        /// notification if it may have changed a store. No-op when no change
+        /// kind is set.
         /// </summary>
         public void NotifyTrustListChanged(
             TrustListIdentifier trustList,
@@ -1426,15 +1784,22 @@ namespace Opc.Ua
 
             m_certificateProvider.Dispose();
             CertificateEntry[] certificates;
+            LoadedApplicationKey[] loadedKeys;
             lock (m_certificatesLock)
             {
                 certificates = [.. m_applicationCertificates];
                 m_applicationCertificates.Clear();
+                loadedKeys = [.. m_loadedApplicationKeys];
+                m_loadedApplicationKeys.Clear();
                 m_trustLists.Clear();
             }
             foreach (CertificateEntry entry in certificates)
             {
                 entry.Dispose();
+            }
+            foreach (LoadedApplicationKey loadedKey in loadedKeys)
+            {
+                loadedKey.Dispose();
             }
         }
 
@@ -1700,6 +2065,20 @@ namespace Opc.Ua
         private readonly Dictionary<TrustListIdentifier, TrustListEntry> m_trustLists = [];
         private readonly Dictionary<TrustListIdentifier, CertificateValidationCore> m_customCores = [];
         private readonly List<CertificateEntry> m_applicationCertificates = [];
+
+        /// <summary>
+        /// Private keys loaded from directory stores, with the store snapshot
+        /// they were loaded from; guarded by m_certificatesLock.
+        /// </summary>
+        private readonly List<LoadedApplicationKey> m_loadedApplicationKeys = [];
+        private int m_loadedKeysGeneration;
+
+        /// <summary>
+        /// How long a loaded private key may be reused from an unchanged store.
+        /// Bounds the window in which a same-name, same-size, same-timestamp
+        /// replacement of a key file could go unnoticed.
+        /// </summary>
+        private static readonly TimeSpan kLoadedKeyMaxAge = TimeSpan.FromSeconds(30);
         private readonly List<ICertificateStoreProvider> m_storeProviders;
         private readonly CertificateChangeSubject m_changeSubject;
         private readonly ITelemetryContext m_telemetry;
@@ -1728,6 +2107,60 @@ namespace Opc.Ua
         private Func<Certificate, ServiceResult, bool>? m_acceptError;
         private readonly CertificateProvider m_certificateProvider;
         private bool m_disposed;
+
+        /// <summary>
+        /// A private-key certificate loaded from a directory store, with the
+        /// lookup it answered and the store snapshot taken before the load.
+        /// Owns one reference to the certificate.
+        /// </summary>
+        private sealed class LoadedApplicationKey : IDisposable
+        {
+            public LoadedApplicationKey(
+                string id,
+                string? lookupThumbprint,
+                string storeKey,
+                ICertificatePasswordProvider? passwordProvider,
+                CertificateStoreFileSnapshot snapshot,
+                DateTimeOffset loadedAt,
+                Certificate certificate)
+            {
+                Id = id;
+                LookupThumbprint = lookupThumbprint;
+                StoreKey = storeKey;
+                PasswordProvider = passwordProvider;
+                Snapshot = snapshot;
+                LoadedAt = loadedAt;
+                Certificate = certificate;
+            }
+
+            public string Id { get; }
+            public string? LookupThumbprint { get; }
+            public string StoreKey { get; }
+            public ICertificatePasswordProvider? PasswordProvider { get; }
+            public CertificateStoreFileSnapshot Snapshot { get; }
+            public DateTimeOffset LoadedAt { get; }
+            public Certificate Certificate { get; }
+
+            /// <summary>
+            /// Returns a copy that owns its own certificate reference.
+            /// </summary>
+            public LoadedApplicationKey AddRef()
+            {
+                return new LoadedApplicationKey(
+                    Id,
+                    LookupThumbprint,
+                    StoreKey,
+                    PasswordProvider,
+                    Snapshot,
+                    LoadedAt,
+                    Certificate.AddRef());
+            }
+
+            public void Dispose()
+            {
+                Certificate.Dispose();
+            }
+        }
     }
 
     /// <summary>

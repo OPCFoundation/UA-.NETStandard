@@ -1,39 +1,16 @@
-/* ========================================================================
- * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Runtime.InteropServices;
+using System.Threading;
 using System.Threading.Tasks;
+using Moq;
 using NUnit.Framework;
+using Opc.Ua.Security.Certificates;
 using Opc.Ua.Tests;
 
 #pragma warning disable CA2007 // Consider calling ConfigureAwait on the awaited task
@@ -2011,6 +1988,132 @@ namespace Opc.Ua.Configuration.Tests
                 Assert.That(config.ClientConfiguration, Is.Not.Null);
                 Assert.That(config.SecurityConfiguration, Is.Not.Null);
             }
+        }
+
+        /// <summary>
+        /// Verifies that a manager created during cancelled validation remains owned by the application instance.
+        /// </summary>
+        [Test]
+        public async Task CreateAsyncTracksManagerWhenValidationIsCancelledAsync()
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
+            CertificateManager createdManager;
+            SecurityConfiguration securityConfiguration;
+
+            await using (appInstance.ConfigureAwait(false))
+            {
+                ArrayOf<CertificateIdentifier> certs =
+                    ApplicationConfigurationBuilder.CreateDefaultApplicationCertificates(
+                        SubjectName,
+                        CertificateStoreType.Directory,
+                        m_pkiRoot);
+                var builder = appInstance.Build(ApplicationUri, ProductUri)
+                    .AsClient()
+                    .AddSecurityConfiguration(certs, m_pkiRoot);
+                ApplicationConfiguration config = appInstance.ApplicationConfiguration!;
+                securityConfiguration = config.SecurityConfiguration;
+                var passwordProvider = new Mock<ICertificatePasswordProvider>(MockBehavior.Strict);
+                passwordProvider
+                    .Setup(provider => provider.GetPassword(It.IsAny<CertificateIdentifier>()))
+                    .Throws(new OperationCanceledException());
+                securityConfiguration.CertificatePasswordProvider = passwordProvider.Object;
+
+                await Assert.CatchAsync<OperationCanceledException>(
+                    async () => await builder.CreateAsync(new CancellationToken(canceled: true))
+                        .ConfigureAwait(false)).ConfigureAwait(false);
+
+                createdManager = config.CertificateManager as CertificateManager ??
+                    throw new InvalidOperationException("Configuration validation did not create a certificate manager.");
+                Assert.That(appInstance.CertificateManager, Is.SameAs(createdManager));
+            }
+
+            await Assert.ThrowsAsync<ObjectDisposedException>(
+                () => createdManager.LoadApplicationCertificatesAsync(securityConfiguration)).ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// Verifies that a borrowed concrete manager remains open when validation is cancelled.
+        /// </summary>
+        [Test]
+        public async Task CreateAsyncDoesNotDisposeBorrowedManagerWhenValidationIsCancelledAsync()
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
+            await using var suppliedManager = new CertificateManager(telemetry);
+            string storePath;
+
+            await using (appInstance.ConfigureAwait(false))
+            {
+                ArrayOf<CertificateIdentifier> certs =
+                    ApplicationConfigurationBuilder.CreateDefaultApplicationCertificates(
+                        SubjectName,
+                        CertificateStoreType.Directory,
+                        m_pkiRoot);
+                var builder = appInstance.Build(ApplicationUri, ProductUri)
+                    .AsClient()
+                    .AddSecurityConfiguration(certs, m_pkiRoot);
+                ApplicationConfiguration config = appInstance.ApplicationConfiguration!;
+                config.CertificateManager = suppliedManager;
+                appInstance.MarkCertificateManagerBorrowed();
+                storePath = certs[0].StorePath!;
+                var passwordProvider = new Mock<ICertificatePasswordProvider>(MockBehavior.Strict);
+                passwordProvider
+                    .Setup(provider => provider.GetPassword(It.IsAny<CertificateIdentifier>()))
+                    .Throws(new OperationCanceledException());
+                config.SecurityConfiguration.CertificatePasswordProvider = passwordProvider.Object;
+
+                await Assert.CatchAsync<OperationCanceledException>(
+                    async () => await builder.CreateAsync(new CancellationToken(canceled: true))
+                        .ConfigureAwait(false)).ConfigureAwait(false);
+
+                Assert.That(appInstance.CertificateManager, Is.SameAs(suppliedManager));
+            }
+
+            using ICertificateStore store = suppliedManager.OpenCertificateStore(
+                storePath,
+                CertificateStoreType.Directory);
+        }
+
+        /// <summary>
+        /// Verifies that a manager created during failed validation remains owned by the application instance.
+        /// </summary>
+        [Test]
+        public async Task CreateAsyncTracksManagerWhenCertificateLoadingThrowsAsync()
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
+            CertificateManager createdManager;
+            SecurityConfiguration securityConfiguration;
+
+            await using (appInstance.ConfigureAwait(false))
+            {
+                ArrayOf<CertificateIdentifier> certs =
+                    ApplicationConfigurationBuilder.CreateDefaultApplicationCertificates(
+                        SubjectName,
+                        CertificateStoreType.Directory,
+                        m_pkiRoot);
+                var builder = appInstance.Build(ApplicationUri, ProductUri)
+                    .AsClient()
+                    .AddSecurityConfiguration(certs, m_pkiRoot);
+                ApplicationConfiguration config = appInstance.ApplicationConfiguration!;
+                securityConfiguration = config.SecurityConfiguration;
+                var passwordProvider = new Mock<ICertificatePasswordProvider>(MockBehavior.Strict);
+                passwordProvider
+                    .Setup(provider => provider.GetPassword(It.IsAny<CertificateIdentifier>()))
+                    .Throws(new InvalidOperationException("Certificate loading failed."));
+                securityConfiguration.CertificatePasswordProvider = passwordProvider.Object;
+
+                await Assert.ThrowsAsync<InvalidOperationException>(
+                    async () => await builder.CreateAsync().ConfigureAwait(false)).ConfigureAwait(false);
+
+                createdManager = config.CertificateManager as CertificateManager ??
+                    throw new InvalidOperationException("Configuration validation did not create a certificate manager.");
+                Assert.That(appInstance.CertificateManager, Is.SameAs(createdManager));
+            }
+
+            await Assert.ThrowsAsync<ObjectDisposedException>(
+                () => createdManager.LoadApplicationCertificatesAsync(securityConfiguration)).ConfigureAwait(false);
         }
 
         [Test]

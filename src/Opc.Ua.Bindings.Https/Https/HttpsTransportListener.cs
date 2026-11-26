@@ -1,37 +1,12 @@
-/* ========================================================================
- * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
+using System.Linq;
 using System.Net;
 using System.Net.Security;
 using System.Net.WebSockets;
@@ -46,6 +21,7 @@ using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Connections;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Http.Features;
 using Microsoft.AspNetCore.Server.Kestrel.Core;
 using Microsoft.AspNetCore.Server.Kestrel.Https;
 using Microsoft.Extensions.DependencyInjection;
@@ -200,11 +176,8 @@ namespace Opc.Ua.Bindings
             // Enable WebSocket upgrades so the WSS handler added in p2-wss-listener-handler
             // can accept opcua+uacp / opcua+uajson sub-protocols.
             appBuilder.UseWebSockets();
-            appBuilder.Use((context, next) =>
-            {
-                HttpsTransportListener.CompleteHttpHandshake(context);
-                return next();
-            });
+            appBuilder.Use(HttpsTransportListener.RunHttpRequestAsync);
+            UseAcceptGate(appBuilder, listener);
 
             // Invoke companion-binding startup contributors (e.g. the
             // REST MVC pipeline from Opc.Ua.Bindings.WebApi) so their
@@ -266,6 +239,23 @@ namespace Opc.Ua.Bindings
             return listener.SendBinaryAsync(context);
         }
 
+        /// <summary>
+        /// Holds requests that arrive while the server is still starting
+        /// until the listener serves connections.
+        /// </summary>
+        internal static void UseAcceptGate(IApplicationBuilder appBuilder, HttpsTransportListener listener)
+        {
+            appBuilder.Use(async (context, next) =>
+            {
+                if (!await listener.WaitUntilAcceptingAsync(context.RequestAborted).ConfigureAwait(false))
+                {
+                    context.Abort();
+                    return;
+                }
+                await next().ConfigureAwait(false);
+            });
+        }
+
         private const string kHttpsContentType = "text/plain";
     }
 
@@ -296,11 +286,7 @@ namespace Opc.Ua.Bindings
                 throw new ArgumentNullException(nameof(accessor));
             }
             appBuilder.UseWebSockets();
-            appBuilder.Use((context, next) =>
-            {
-                HttpsTransportListener.CompleteHttpHandshake(context);
-                return next();
-            });
+            appBuilder.Use(HttpsTransportListener.RunHttpRequestAsync);
             appBuilder.Run(context =>
             {
                 SharedKestrelHost? sharedHost = accessor.Instance;
@@ -327,6 +313,7 @@ namespace Opc.Ua.Bindings
             HttpsTransportListener listener)
         {
             IApplicationBuilder branch = appBuilder.New();
+            Startup.UseAcceptGate(branch, listener);
             foreach (IHttpsListenerStartupContributor contributor in listener.StartupContributors)
             {
                 contributor.Configure(branch, listener);
@@ -344,6 +331,7 @@ namespace Opc.Ua.Bindings
     /// </summary>
     public class HttpsTransportListener :
         ITransportListener,
+        ITransportListenerAcceptControl,
         ITransportListenerCertificateRotation,
         ITransportListenerPeerCertificateChainRotation
     {
@@ -519,6 +507,14 @@ namespace Opc.Ua.Bindings
 
             m_mutualTlsEnabled = settings.HttpsMutualTls;
 
+            // Kestrel accepts as soon as it is bound, so a deferred listener
+            // holds the requests at the gate until it is opened.
+            lock (m_acceptLock)
+            {
+                m_acceptRequested = !settings.DeferAccept;
+                m_acceptGate = CreateAcceptGate(m_acceptRequested);
+            }
+
             // reverse-connect listener mode dispatches accepted WSS
             // upgrades to TcpReverseConnectChannels and fires the
             // listener's ConnectionWaiting event when the server's
@@ -535,6 +531,13 @@ namespace Opc.Ua.Bindings
                 m_quotas.HandshakeTimeout,
                 telemetry: m_telemetry,
                 limitPendingHandshakesOnly: m_reverseConnectListener);
+            if (!m_reverseConnectListener)
+            {
+                // The connection capacity of the resource isolation provider is
+                // shared with the other listeners of the server, which may need
+                // to reclaim an idle connection of this one.
+                m_admission.SetSharedCapacityReclaimer(TryReclaimConnectionCapacity);
+            }
 
             // The settings a shared Kestrel host takes from the listener that
             // builds it; listeners that differ in them must not share a host.
@@ -554,6 +557,56 @@ namespace Opc.Ua.Bindings
                     m_quotas.MaxBufferSize,
                     m_telemetry));
 
+        }
+
+        /// <inheritdoc/>
+        public bool IsAccepting => Volatile.Read(ref m_admissionStopped) == 0 &&
+            m_acceptGate.Task.Status == TaskStatus.RanToCompletion &&
+            m_acceptGate.Task.Result;
+
+        /// <inheritdoc/>
+        public ValueTask StartAcceptingAsync(CancellationToken ct = default)
+        {
+            ct.ThrowIfCancellationRequested();
+            // synchronized with the gate replacement of a restart, so the
+            // activation always opens the gate that requests wait on.
+            lock (m_acceptLock)
+            {
+                m_acceptRequested = true;
+                m_acceptGate.TrySetResult(true);
+            }
+            return default;
+        }
+
+        /// <summary>
+        /// Waits until the listener serves requests. Returns <c>false</c>
+        /// when the listener stops first or the request is aborted.
+        /// </summary>
+        internal async ValueTask<bool> WaitUntilAcceptingAsync(CancellationToken ct)
+        {
+            Task<bool> gate = m_acceptGate.Task;
+            if (gate.Status == TaskStatus.RanToCompletion)
+            {
+                return gate.Result;
+            }
+            try
+            {
+                return await gate.WaitAsync(ct).ConfigureAwait(false);
+            }
+            catch (OperationCanceledException) when (ct.IsCancellationRequested)
+            {
+                return false;
+            }
+        }
+
+        private static TaskCompletionSource<bool> CreateAcceptGate(bool accepting)
+        {
+            var gate = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            if (accepting)
+            {
+                gate.TrySetResult(true);
+            }
+            return gate;
         }
 
         /// <summary>
@@ -637,7 +690,22 @@ namespace Opc.Ua.Bindings
         /// <inheritdoc/>
         public void UpdateChannelLastActiveTime(string globalChannelId)
         {
-            // intentionally not implemented
+            if (globalChannelId == null)
+            {
+                return;
+            }
+            foreach (TcpListenerChannel channel in m_wssChannels.Values)
+            {
+                if (channel.GlobalChannelId == globalChannelId)
+                {
+                    channel.UpdateLastActiveTime();
+                    return;
+                }
+            }
+            if (m_jsonWebSocketActivity.TryGetValue(globalChannelId, out WebSocketActivity? activity))
+            {
+                activity.Touch();
+            }
         }
 
         /// <summary>
@@ -674,6 +742,15 @@ namespace Opc.Ua.Bindings
 
         private async ValueTask StartCoreAsync(CancellationToken ct)
         {
+            // a stop released the gate with false; a restart (for example
+            // after a certificate update) needs a new one in the same state.
+            lock (m_acceptLock)
+            {
+                if (m_acceptGate.Task.IsCompleted && !m_acceptGate.Task.Result)
+                {
+                    m_acceptGate = CreateAcceptGate(m_acceptRequested);
+                }
+            }
             Volatile.Write(ref m_admissionStopped, 0);
             m_admission?.Start();
             // 1) Prepare the TLS certificate up front so the registry can
@@ -727,9 +804,8 @@ namespace Opc.Ua.Bindings
         public async Task SendBinaryAsync(HttpContext context)
         {
             context.Features.Get<IHttpsTransportAdmissionFeature>()?.Lease.CompleteHandshake();
-            bool admitted = TryAdmitHttpBody(context, out IDisposable? bodyLease);
-            using IDisposable? retainedBody = bodyLease;
-            if (!admitted)
+            using HttpBodyAdmission? admission = TryAdmitHttpBody(context);
+            if (admission == null)
             {
                 await WriteAdmissionRejectedAsync(context).ConfigureAwait(false);
                 return;
@@ -761,27 +837,15 @@ namespace Opc.Ua.Bindings
                 // it reads.
                 long? contentLength = context.Request.ContentLength;
                 int maxMessageSize = m_quotas.MessageContext.MaxMessageSize;
-                byte[]? buffer = null;
-                if (maxMessageSize <= 0 || !(contentLength > maxMessageSize))
+                byte[] buffer;
+                try
                 {
-                    try
-                    {
-                        buffer = await ReadBodyAsync(context.Request, maxMessageSize, ct)
-                            .ConfigureAwait(false);
-                    }
-                    catch (ServiceResultException sre) when (sre.StatusCode == StatusCodes.BadRequestTooLarge)
-                    {
-                        buffer = null;
-                    }
+                    buffer = await ReadAdmittedBodyAsync(context.Request, maxMessageSize, admission, ct)
+                        .ConfigureAwait(false);
                 }
-
-                if (buffer == null)
+                catch (ServiceResultException sre) when (GetBodyReadFailureStatus(sre) is HttpStatusCode status)
                 {
-                    message = "HTTPSLISTENER - Request body exceeds MaxMessageSize.";
-                    await WriteResponseAsync(
-                        context.Response,
-                        message,
-                        HttpStatusCode.RequestEntityTooLarge).ConfigureAwait(false);
+                    await WriteBodyReadFailureAsync(context, status).ConfigureAwait(false);
                     return;
                 }
 
@@ -814,6 +878,10 @@ namespace Opc.Ua.Bindings
                     await WriteServiceResponseAsync(context, decodeFault, ct).ConfigureAwait(false);
                     return;
                 }
+
+                // The body is decoded: its buffers no longer hold reassembly capacity
+                // while the request is processed.
+                admission.Release();
 
                 // extract the JWT token from the HTTP headers.
                 input.RequestHeader ??= new RequestHeader();
@@ -952,9 +1020,8 @@ namespace Opc.Ua.Bindings
         public async Task SendJsonAsync(HttpContext context)
         {
             context.Features.Get<IHttpsTransportAdmissionFeature>()?.Lease.CompleteHandshake();
-            bool admitted = TryAdmitHttpBody(context, out IDisposable? bodyLease);
-            using IDisposable? retainedBody = bodyLease;
-            if (!admitted)
+            using HttpBodyAdmission? admission = TryAdmitHttpBody(context);
+            if (admission == null)
             {
                 await WriteAdmissionRejectedAsync(context).ConfigureAwait(false);
                 return;
@@ -994,10 +1061,22 @@ namespace Opc.Ua.Bindings
                 byte[]? payload = null;
                 try
                 {
-                    payload = await JsonRequestMapper
-                        .ReadAllBoundedAsync(context.Request.Body, m_quotas.MessageContext.MaxMessageSize, ct)
-                        .ConfigureAwait(false);
+                    payload = await ReadAdmittedBodyAsync(
+                        context.Request,
+                        m_quotas.MessageContext.MaxMessageSize,
+                        admission,
+                        ct).ConfigureAwait(false);
                     input = JsonRequestMapper.DecodeRequest(payload, m_quotas.MessageContext);
+                }
+                catch (ServiceResultException sre) when (
+                    payload == null &&
+                    sre.StatusCode != StatusCodes.BadRequestTooLarge &&
+                    GetBodyReadFailureStatus(sre) is HttpStatusCode status)
+                {
+                    // An oversized body keeps its JSON fault; capacity and deadline
+                    // failures are transport failures.
+                    await WriteBodyReadFailureAsync(context, status).ConfigureAwait(false);
+                    return;
                 }
                 catch (ServiceResultException sre)
                 {
@@ -1005,6 +1084,10 @@ namespace Opc.Ua.Bindings
                     await WriteJsonResponseAsync(context, fault, ct).ConfigureAwait(false);
                     return;
                 }
+
+                // The body is decoded: its buffers no longer hold reassembly capacity
+                // while the request is processed.
+                admission.Release();
 
                 input.RequestHeader ??= new RequestHeader();
                 if (input.RequestHeader.AuthenticationToken.IsNull &&
@@ -1161,11 +1244,30 @@ namespace Opc.Ua.Bindings
             IHttpsTransportAdmissionFeature? physical = context.Features.Get<IHttpsTransportAdmissionFeature>();
             if (physical != null)
             {
-                await AcceptAdmittedWebSocketAsync(context, selected, physical.Lease).ConfigureAwait(false);
-                return;
+                if (context.Request.Protocol.StartsWith("HTTP/1.", StringComparison.Ordinal))
+                {
+                    // The upgrade takes over the connection, so the socket is
+                    // what the connection's lease accounts for.
+                    await AcceptAdmittedWebSocketAsync(context, selected, physical.Lease).ConfigureAwait(false);
+                    return;
+                }
+                // An HTTP/2 connection carries many streams. Each WebSocket is
+                // admitted, counted, reclaimed and aborted on its own lease:
+                // sharing the connection's lease would count a hundred sockets
+                // as one and let its close end only the last of them.
+                physical.Lease.CompleteHandshake();
             }
-            if (m_admission == null ||
-                !m_admission.TryAcquire(remoteEndpoint, out UaScConnectionAdmission.Lease? lease))
+            // The stream is counted in the scope that counts its connection.
+            // On a shared host that is the scope of the host, where the
+            // HTTP/1.1 WebSockets of all its listeners are counted too: a
+            // scope of its own would admit MaxChannelCount sockets a second time.
+            UaScConnectionAdmission? admission = physical?.Lease.Owner ?? m_admission;
+            Func<bool>? reclaim = physical?.SharedReclaimCapacity ?? GetReclaimCallback();
+            Func<bool, bool>? reclaimIdle = GetIdleConnectionReclaimer(
+                physical != null ? physical.Connections : m_reverseConnectListener ? null : m_httpConnections);
+            if (admission == null ||
+                !admission.TryAcquire(
+                    remoteEndpoint, out UaScConnectionAdmission.Lease? lease, reclaim, reclaimIdle))
             {
                 await WriteAdmissionRejectedAsync(context).ConfigureAwait(false);
                 return;
@@ -1328,6 +1430,11 @@ namespace Opc.Ua.Bindings
         /// </summary>
         protected virtual async ValueTask DisposeAsyncCore()
         {
+            // release requests held at the gate of a listener that never opened.
+            lock (m_acceptLock)
+            {
+                m_acceptGate.TrySetResult(false);
+            }
             Volatile.Write(ref m_admissionStopped, 1);
             try
             {
@@ -1522,7 +1629,10 @@ namespace Opc.Ua.Bindings
         internal static async Task RunHttpsConnectionAsync(
             ConnectionContext connection,
             ConnectionDelegate next,
-            UaScConnectionAdmission? admission)
+            UaScConnectionAdmission? admission,
+            Func<bool>? tryReclaimCapacity = null,
+            Func<bool>? sharedReclaimCapacity = null,
+            HttpConnectionActivityRegistry? httpConnections = null)
         {
             if (connection == null)
             {
@@ -1544,21 +1654,35 @@ namespace Opc.Ua.Bindings
                 connection.Abort();
                 return;
             }
-            bool admitted = admission.TryAcquire(remote, out UaScConnectionAdmission.Lease? lease);
+            bool admitted = admission.TryAcquire(
+                remote,
+                out UaScConnectionAdmission.Lease? lease,
+                tryReclaimCapacity,
+                GetIdleConnectionReclaimer(httpConnections));
             using UaScConnectionAdmission.Lease? retainedConnection = lease;
             if (!admitted || lease == null)
             {
                 connection.Abort();
                 return;
             }
+            HttpConnectionActivity? activity = null;
             try
             {
                 lease.SetAbortAction(connection.Abort);
-                connection.Features.Set<IHttpsTransportAdmissionFeature>(new HttpsTransportAdmissionFeature(lease));
+                // Tracked so that the connection can be reclaimed while it has
+                // no request in flight, including the TLS handshake and the
+                // keep-alive time between requests.
+                activity = httpConnections?.Register(lease);
+                connection.Features.Set<IHttpsTransportAdmissionFeature>(
+                    new HttpsTransportAdmissionFeature(lease, sharedReclaimCapacity, activity, httpConnections));
                 await next(connection).ConfigureAwait(false);
             }
             finally
             {
+                if (activity != null)
+                {
+                    httpConnections!.Unregister(activity);
+                }
                 lease.ReleaseAfterTransportClosed();
                 await lease.WaitForCloseAsync(CancellationToken.None).ConfigureAwait(false);
             }
@@ -1573,6 +1697,90 @@ namespace Opc.Ua.Bindings
             {
                 context.Features.Get<IHttpsTransportAdmissionFeature>()?.Lease.CompleteHandshake();
             }
+        }
+
+        /// <summary>
+        /// First middleware of every request: completes the HTTP startup
+        /// handshake and keeps the connection from being reclaimed while the
+        /// request, or the WebSocket it upgrades to, is in flight.
+        /// </summary>
+        internal static Task RunHttpRequestAsync(HttpContext context, Func<Task> next)
+        {
+            CompleteHttpHandshake(context);
+            HttpConnectionActivity? activity = context.Features.Get<IHttpsTransportAdmissionFeature>()?.Activity;
+            if (activity == null)
+            {
+                return next();
+            }
+            if (!activity.TryBeginRequest())
+            {
+                // The connection was reclaimed while the request headers arrived.
+                context.Abort();
+                return Task.CompletedTask;
+            }
+            return RunTrackedHttpRequestAsync(context, activity, next);
+        }
+
+        /// <summary>
+        /// Runs a request counted as in flight on its connection until its
+        /// response is complete.
+        /// </summary>
+        /// <remarks>
+        /// The pipeline returning does not complete the response: the host
+        /// still writes its end (the HTTP/1.1 chunk terminator, the HTTP/2
+        /// END_STREAM). Reclaiming the connection before that would truncate
+        /// the response of a request that was executed.
+        /// </remarks>
+        private static async Task RunTrackedHttpRequestAsync(
+            HttpContext context,
+            HttpConnectionActivity activity,
+            Func<Task> next)
+        {
+            var request = new TrackedHttpRequest(activity);
+            IHttpResponseFeature? response = context.Features.Get<IHttpResponseFeature>();
+            response?.OnCompleted(TrackedHttpRequest.EndAsync, request);
+            try
+            {
+                await next().ConfigureAwait(false);
+            }
+            finally
+            {
+                // Without a response feature nothing reports completion, and an
+                // aborted request may not complete its response.
+                if (response == null || context.RequestAborted.IsCancellationRequested)
+                {
+                    request.End();
+                }
+            }
+        }
+
+        /// <summary>
+        /// Ends a tracked request exactly once, from the response completion
+        /// or from an aborted pipeline.
+        /// </summary>
+        private sealed class TrackedHttpRequest(HttpConnectionActivity activity)
+        {
+            /// <summary>
+            /// Response completion callback.
+            /// </summary>
+            public static Task EndAsync(object state)
+            {
+                ((TrackedHttpRequest)state).End();
+                return Task.CompletedTask;
+            }
+
+            /// <summary>
+            /// Marks the request ended on its connection once.
+            /// </summary>
+            public void End()
+            {
+                if (Interlocked.Exchange(ref m_ended, 1) == 0)
+                {
+                    activity.EndRequest();
+                }
+            }
+
+            private int m_ended;
         }
 
         internal static bool ValidateClientCertificateWithUaValidator(
@@ -1744,6 +1952,13 @@ namespace Opc.Ua.Bindings
 #pragma warning restore CA1859
         {
             UaScConnectionAdmission physicalAdmission = m_admission!.CreateIndependentScope();
+            // The host's connections share the server's connection capacity with
+            // the other listeners, which may need to reclaim one of them. The
+            // reclaimer is registered when the host starts, so that a host whose
+            // construction fails leaves no registration behind.
+            Func<bool>? sharedCapacityReclaimer = m_reverseConnectListener
+                ? null
+                : () => TryReclaimSharedCapacity(accessor);
 
             // The shared host owns its own copy of the TLS certificate: it can
             // outlive this listener (other listeners keep it alive), so it must
@@ -1779,7 +1994,12 @@ namespace Opc.Ua.Bindings
                 webHostBuilder.UseKestrel(options =>
                     options.ListenAnyIP(
                         EndpointUrl.Port,
-                        listenOptions => ConfigureHttpsAdmission(listenOptions, httpsOptions, physicalAdmission)));
+                        listenOptions => ConfigureHttpsAdmission(
+                            listenOptions,
+                            httpsOptions,
+                            physicalAdmission,
+                            () => TryReclaimSharedWebSocket(accessor),
+                            accessor.Instance!.HttpConnections)));
             }
             else
             {
@@ -1788,14 +2008,20 @@ namespace Opc.Ua.Bindings
                     options.Listen(
                         ipAddress,
                         EndpointUrl.Port,
-                        listenOptions => ConfigureHttpsAdmission(listenOptions, httpsOptions, physicalAdmission)));
+                        listenOptions => ConfigureHttpsAdmission(
+                            listenOptions,
+                            httpsOptions,
+                            physicalAdmission,
+                            () => TryReclaimSharedWebSocket(accessor),
+                            accessor.Instance!.HttpConnections)));
             }
 
             webHostBuilder.UseContentRoot(Directory.GetCurrentDirectory())
                 .ConfigureServices(services =>
             {
                 services.AddSingleton(accessor);
-                services.AddSingleton<IHostedService>(new AdmissionHostLifetime(physicalAdmission, m_logger));
+                services.AddSingleton<IHostedService>(
+                    new AdmissionHostLifetime(physicalAdmission, m_logger, sharedCapacityReclaimer));
                 ConfigureContributorServices(services);
             });
             webHostBuilder.UseStartup<SharedHostStartup>();
@@ -1982,11 +2208,83 @@ namespace Opc.Ua.Bindings
         private void ConfigureHttpsAdmission(
             ListenOptions options,
             HttpsConnectionAdapterOptions httpsOptions,
-            UaScConnectionAdmission? physicalAdmission = null)
+            UaScConnectionAdmission? physicalAdmission = null,
+            Func<bool>? sharedReclaimCapacity = null,
+            HttpConnectionActivityRegistry? httpConnections = null)
         {
             UaScConnectionAdmission? admission = physicalAdmission ?? m_admission;
-            options.Use(next => connection => RunHttpsConnectionAsync(connection, next, admission));
+            HttpConnectionActivityRegistry? connections =
+                m_reverseConnectListener ? null : httpConnections ?? m_httpConnections;
+            options.Use(next => connection =>
+                RunHttpsConnectionAsync(
+                    connection,
+                    next,
+                    admission,
+                    sharedReclaimCapacity ?? GetReclaimCallback(),
+                    sharedReclaimCapacity,
+                    connections));
             options.UseHttps(httpsOptions);
+        }
+
+        /// <summary>
+        /// Reclaims an idle WebSocket from any listener currently registered on the shared host,
+        /// or else the host's HTTP connection that has been idle longest.
+        /// </summary>
+        internal static bool TryReclaimSharedCapacity(SharedHostAccessor accessor)
+        {
+            return TryReclaimSharedWebSocket(accessor, sharedCapacityOnly: true) ||
+                accessor.Instance?.HttpConnections.TryReclaimIdle() == true;
+        }
+
+        /// <summary>
+        /// Reclaims an idle WebSocket from any listener currently registered on the shared host,
+        /// when <paramref name="sharedCapacityOnly"/> only one that holds shared capacity.
+        /// </summary>
+        internal static bool TryReclaimSharedWebSocket(SharedHostAccessor accessor, bool sharedCapacityOnly = false)
+        {
+            SharedKestrelHost? sharedHost = accessor.Instance;
+            if (sharedHost == null)
+            {
+                return false;
+            }
+            foreach (KeyValuePair<string, HttpsTransportListener> entry in sharedHost.GetListeners())
+            {
+                if (sharedCapacityOnly
+                    ? entry.Value.TryReclaimWebSocketForSharedCapacity()
+                    : entry.Value.GetReclaimCallback()?.Invoke() == true)
+                {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        /// <summary>
+        /// The callback that closes the tracked HTTP connection idle longest,
+        /// or null when none is tracked, so that admission then refuses
+        /// without consuming a rate limiter token.
+        /// </summary>
+        private static Func<bool, bool>? GetIdleConnectionReclaimer(HttpConnectionActivityRegistry? connections)
+        {
+            return connections is { Count: > 0 } ? connections.TryReclaimIdle : null;
+        }
+
+        /// <summary>
+        /// Reclaims connection capacity of a listener that owns its host for
+        /// another listener: an unused WebSocket first, else the HTTP
+        /// connection idle longest, each only when it holds shared capacity.
+        /// </summary>
+        /// <remarks>
+        /// Not used for request body memory: closing an idle connection frees
+        /// no body bytes.
+        /// </remarks>
+        private bool TryReclaimConnectionCapacity()
+        {
+            if (m_reverseConnectListener)
+            {
+                return false;
+            }
+            return TryReclaimWebSocketForSharedCapacity() || m_httpConnections.TryReclaimIdle();
         }
 
         /// <summary>
@@ -2246,7 +2544,8 @@ namespace Opc.Ua.Bindings
                             m_bufferManager,
                             m_quotas,
                             m_descriptions,
-                            m_telemetry)
+                            m_telemetry,
+                            TimeProvider)
                         : new TcpServerChannel(
                             ListenerId,
                             perWsListener,
@@ -2254,7 +2553,8 @@ namespace Opc.Ua.Bindings
                             m_quotas,
                             m_serverCertProvider,
                             m_descriptions,
-                            m_telemetry);
+                            m_telemetry,
+                            TimeProvider);
 
                     if (channel is TcpServerChannel forwardChannel)
                     {
@@ -2271,7 +2571,8 @@ namespace Opc.Ua.Bindings
                     perWsListener.AttachChannel(channelId, channel);
                     channel.Attach(channelId, lease);
 
-                    await lease.WaitForCloseAsync(context.RequestAborted).ConfigureAwait(false);
+                    await WaitForCloseOrInactivityAsync(lease, channel, context.RequestAborted)
+                        .ConfigureAwait(false);
                 }
                 catch (OperationCanceledException) when (context.RequestAborted.IsCancellationRequested)
                 {
@@ -2293,32 +2594,256 @@ namespace Opc.Ua.Bindings
         }
 
         /// <summary>
-        /// Reserves the bounded reader and decoded-body footprint before allocation, rejecting unlimited bodies.
+        /// Waits until the binary WebSocket channel closes. Every half channel lifetime it also
+        /// checks inactivity and stalled sends, as the TCP listeners do. Session keepalives update
+        /// channel activity but do not protect a stalled writer.
         /// </summary>
-        private bool TryAdmitHttpBody(HttpContext context, out IDisposable? lease)
+        private async Task WaitForCloseOrInactivityAsync(
+            UaScConnectionAdmission.Lease lease,
+            TcpListenerChannel channel,
+            CancellationToken ct)
         {
-            lease = null;
-            IServerResourceIsolationProvider? provider = m_quotas?.ResourceIsolationProvider;
-            if (provider == null)
+            Task closed = lease.WaitForCloseAsync(ct);
+            int lifetime = m_quotas.ChannelLifetime;
+            if (lifetime <= 0 || closed.IsCompleted)
             {
-                return true;
+                await closed.ConfigureAwait(false);
+                return;
             }
-            int maximum = m_quotas!.MessageContext.MaxMessageSize;
+            TimeSpan period = TimeSpan.FromMilliseconds(Math.Max(1, lifetime / 2));
+            using var stop = CancellationTokenSource.CreateLinkedTokenSource(ct);
+            try
+            {
+                while (!closed.IsCompleted)
+                {
+#if NET8_0_OR_GREATER
+                    Task check = Task.Delay(period, TimeProvider, stop.Token);
+#else
+                    Task check = TimeProvider.Delay(period, stop.Token);
+#endif
+                    if (await Task.WhenAny(closed, check).ConfigureAwait(false) == closed)
+                    {
+                        break;
+                    }
+                    TimeSpan stalled = channel.GetWriteStallTime();
+                    if (stalled.TotalMilliseconds > lifetime)
+                    {
+                        m_logger.WssChannelWriteStalled(
+                            channel.Id,
+                            (long)stalled.TotalMilliseconds,
+                            channel.QueuedWriteBytes);
+                        channel.IdleCleanup();
+                        break;
+                    }
+                    if (!m_reverseConnectListener &&
+                        channel.ElapsedSinceLastActiveTime > lifetime &&
+                        channel.TryIdleCleanupForInactivity(lifetime))
+                    {
+                        m_logger.WssChannelInactive(channel.Id);
+                        break;
+                    }
+                }
+            }
+            finally
+            {
+                stop.Cancel();
+            }
+            await closed.ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// Preserves pending reverse handoffs and skips reclamation policy work when no forward WebSocket exists.
+        /// </summary>
+        private Func<bool>? GetReclaimCallback()
+        {
+            return m_reverseConnectListener || (m_wssChannels.IsEmpty && m_jsonWebSocketActivity.IsEmpty)
+                ? null
+                : TryReclaimUnusedChannel;
+        }
+
+        /// <summary>
+        /// Reclaims an unused binary or JSON WebSocket outside admission locks. The channel's
+        /// cleanup gate rechecks session bindings, partial messages and pending requests.
+        /// </summary>
+        private bool TryReclaimUnusedChannel()
+        {
+            return TryReclaimUnusedChannel(sharedCapacityOnly: false);
+        }
+
+        /// <summary>
+        /// Reclaims an unused WebSocket for another listener whose new connection
+        /// found the shared connection capacity exhausted.
+        /// </summary>
+        internal bool TryReclaimWebSocketForSharedCapacity()
+        {
+            return GetReclaimCallback() != null && TryReclaimUnusedChannel(sharedCapacityOnly: true);
+        }
+
+        /// <summary>
+        /// Reclaims an unused binary or JSON WebSocket, when
+        /// <paramref name="sharedCapacityOnly"/> only one whose connection holds
+        /// shared capacity, which a connection of a protected floor does not.
+        /// </summary>
+        private bool TryReclaimUnusedChannel(bool sharedCapacityOnly)
+        {
+            foreach (TcpListenerChannel channel in m_wssChannels.Values
+                .OrderBy(channel => channel.HoldsPartialMessage)
+                .ThenByDescending(channel => channel.ElapsedSinceLastActiveTime))
+            {
+                if (sharedCapacityOnly && !UaScConnectionAdmission.Lease.CanRelieveSharedCapacity(channel.Transport))
+                {
+                    continue;
+                }
+                if (channel.TryIdleCleanupForAdmission())
+                {
+                    m_logger.WssChannelReclaimed();
+                    return true;
+                }
+            }
+            foreach (WebSocketActivity activity in m_jsonWebSocketActivity.Values.OrderByDescending(
+                activity => activity.Elapsed))
+            {
+                if (sharedCapacityOnly && !activity.UsesSharedCapacity)
+                {
+                    continue;
+                }
+                if (activity.TryReclaim())
+                {
+                    m_logger.WssChannelReclaimed();
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        /// <summary>
+        /// Creates the admission that charges a request body or WebSocket message to the
+        /// reassembly pool and the peer's ceiling as its bytes arrive, charging
+        /// <paramref name="initialCharge"/> straight away. Returns null when that charge is
+        /// refused, or when the pool is finite and the message size unlimited, since an
+        /// unlimited body cannot be charged safely.
+        /// </summary>
+        /// <param name="context">The request or upgrade.</param>
+        /// <param name="initialCharge">The bytes charged straight away.</param>
+        /// <param name="peerCeiling">
+        /// Whether the charge counts against the peer's ceiling. A WebSocket's receive
+        /// buffer does not: it is bounded by connection admission and reclaimed when the
+        /// pool refuses a charge, and peers behind one proxy address would otherwise be
+        /// limited to a few hundred sockets.
+        /// </param>
+        internal HttpBodyAdmission? TryAdmitHttpBody(
+            HttpContext context,
+            long initialCharge = 0,
+            bool peerCeiling = true)
+        {
+            IServerResourceIsolationProvider? provider = m_quotas?.ResourceIsolationProvider;
+            int maximum = m_quotas?.MessageContext.MaxMessageSize ?? 0;
+            if (provider != null && maximum <= 0)
+            {
+                return null;
+            }
+            IPAddress? peer = context.Connection.RemoteIpAddress;
+            ResourceIsolationOwner? owner = provider?.ClassifyConnection(
+                MakeEndpoint(peer, context.Connection.RemotePort));
+            var admission = new HttpBodyAdmission(
+                provider,
+                owner,
+                peerCeiling ? GetPeerBodyLedger() : null,
+                peer,
+                GetReclaimCallback());
+            if (!admission.TryCharge(initialCharge))
+            {
+                admission.Dispose();
+                return null;
+            }
+            return admission;
+        }
+
+        /// <summary>
+        /// Reads a request body, charging what it buffers to <paramref name="admission"/>
+        /// and ending the read after the message assembly lifetime, as opc.tcp ends an
+        /// unfinished message.
+        /// </summary>
+        internal ValueTask<byte[]> ReadAdmittedBodyAsync(
+            HttpRequest request,
+            int maxLength,
+            HttpBodyAdmission admission,
+            CancellationToken ct)
+        {
+            return HttpBodyAdmission.ReadBodyAsync(
+                request.Body,
+                request.ContentLength,
+                maxLength,
+                admission,
+                TimeSpan.FromMilliseconds(m_quotas.MessageAssemblyLifetime),
+                TimeProvider,
+                HttpBodyAdmission.CancelPendingBodyRead,
+                request.HttpContext,
+                ct);
+        }
+
+        /// <summary>
+        /// Maps a failed body read to the HTTP status it is answered with, or null when
+        /// the failure is not a body admission failure.
+        /// </summary>
+        internal static HttpStatusCode? GetBodyReadFailureStatus(ServiceResultException sre)
+        {
+            StatusCode code = sre.StatusCode;
+            if (code == StatusCodes.BadServerTooBusy)
+            {
+                return HttpStatusCode.ServiceUnavailable;
+            }
+            if (code == StatusCodes.BadRequestTooLarge)
+            {
+                return HttpStatusCode.RequestEntityTooLarge;
+            }
+            if (code == StatusCodes.BadTimeout)
+            {
+                return HttpStatusCode.RequestTimeout;
+            }
+            return null;
+        }
+
+        /// <summary>
+        /// The per-peer body ceiling for the current message size: twice the largest
+        /// reservation a single body used to take before any byte arrived.
+        /// </summary>
+        private PeerBodyLedger? GetPeerBodyLedger()
+        {
+            int maximum = m_quotas?.MessageContext.MaxMessageSize ?? 0;
             if (maximum <= 0)
             {
-                // An unlimited decoder body cannot be charged safely to a finite runtime pool.
-                return false;
+                return null;
             }
-            ResourceIsolationOwner owner = provider.ClassifyConnection(
-                MakeEndpoint(context.Connection.RemoteIpAddress, context.Connection.RemotePort));
-            // Readers retain their growth buffer and decoded payload concurrently. Reserve the
-            // upper bound before allocation; HTTP requests are not physical UASC connections.
-            return provider.TryAcquire(
-                ResourceIsolationStage.ReassemblyBytes,
-                owner,
-                (kRetainedBodyBufferMultiplicity * maximum) + m_quotas.MaxBufferSize,
-                out lease,
-                out _);
+            long ceiling = kPeerBodyCeilingMultiplicity *
+                ((kRetainedBodyBufferMultiplicity * maximum) + m_quotas!.MaxBufferSize);
+            PeerBodyLedger? ledger = Volatile.Read(ref m_peerBodyLedger);
+            if (ledger?.Ceiling == ceiling)
+            {
+                return ledger;
+            }
+            var created = new PeerBodyLedger(ceiling);
+            PeerBodyLedger? raced = Interlocked.CompareExchange(ref m_peerBodyLedger, created, ledger);
+            return ReferenceEquals(raced, ledger) ? created : raced;
+        }
+
+        /// <summary>
+        /// Answers a body that could not be admitted, was too large or did not arrive in time.
+        /// </summary>
+        private static Task WriteBodyReadFailureAsync(HttpContext context, HttpStatusCode status)
+        {
+            return status switch
+            {
+                HttpStatusCode.ServiceUnavailable => WriteAdmissionRejectedAsync(context),
+                HttpStatusCode.RequestEntityTooLarge => WriteResponseAsync(
+                    context.Response,
+                    "HTTPSLISTENER - Request body exceeds MaxMessageSize.",
+                    HttpStatusCode.RequestEntityTooLarge),
+                _ => WriteResponseAsync(
+                    context.Response,
+                    "HTTPSLISTENER - The request body did not arrive in time.",
+                    status)
+            };
         }
 
         /// <summary>
@@ -2363,6 +2888,7 @@ namespace Opc.Ua.Bindings
                     return;
                 }
 
+                using TcpListenerChannel.PendingRequestScope usage = channel.TrackPendingRequest();
                 var context = new SecureChannelContext(
                     channel.GlobalChannelId,
                     channel.EndpointDescription,
@@ -2485,9 +3011,10 @@ namespace Opc.Ua.Bindings
             HttpContext context,
             UaScConnectionAdmission.Lease lease)
         {
-            bool admitted = TryAdmitHttpBody(context, out IDisposable? bodyLease);
-            using IDisposable? retainedBody = bodyLease;
-            if (!admitted)
+            // The socket holds its receive buffer for its life; each message copy is
+            // charged separately until it is decoded.
+            using HttpBodyAdmission? admission = TryAdmitHttpBody(context, m_quotas.MaxBufferSize, peerCeiling: false);
+            if (admission == null)
             {
                 await WriteAdmissionRejectedAsync(context).ConfigureAwait(false);
                 return;
@@ -2497,6 +3024,8 @@ namespace Opc.Ua.Bindings
                 .ConfigureAwait(false);
             lease.SetAbortAction(ws.Abort);
             lease.CompleteHandshake();
+            using var activity = new WebSocketActivity(this, lease);
+            m_jsonWebSocketActivity.TryAdd(activity.ChannelId, activity);
 
             CancellationToken ct = context.RequestAborted;
 
@@ -2513,7 +3042,7 @@ namespace Opc.Ua.Bindings
             }
 
             var channelContext = new SecureChannelContext(
-                ListenerId,
+                activity.ChannelId,
                 endpoint,
                 RequestEncoding.Json,
                 context.Connection.ClientCertificate?.RawData,
@@ -2560,6 +3089,7 @@ namespace Opc.Ua.Bindings
                             return;
                         }
                         completed = result.EndOfMessage;
+                        activity.BeginMessage();
 
                         // Guard against zero-progress / buffer-filling continuation
                         // frames that never terminate the message (CPU DoS); the
@@ -2576,14 +3106,36 @@ namespace Opc.Ua.Bindings
                     }
                     while (!completed);
 
+                    if (!activity.TryTrackRequest(out WebSocketActivity.RequestActivity requestActivity))
+                    {
+                        return;
+                    }
+                    using var usage = requestActivity;
+                    using HttpBodyAdmission? messageAdmission = TryAdmitHttpBody(context, Math.Max(1, totalRead));
+                    if (messageAdmission == null)
+                    {
+                        await ws.CloseAsync(
+                            kWebSocketTryAgainLater,
+                            "Server request capacity is exhausted.",
+                            ct).ConfigureAwait(false);
+                        return;
+                    }
                     IServiceResponse responseToSend;
                     byte[] messageBytes = new byte[totalRead];
                     Buffer.BlockCopy(receiveBuffer, 0, messageBytes, 0, totalRead);
                     try
                     {
-                        IServiceRequest request = JsonDecoder.DecodeMessage<IServiceRequest>(
-                            messageBytes,
-                            m_quotas.MessageContext);
+                        IServiceRequest request;
+                        try
+                        {
+                            request = JsonDecoder.DecodeMessage<IServiceRequest>(
+                                messageBytes,
+                                m_quotas.MessageContext);
+                        }
+                        finally
+                        {
+                            messageAdmission.Release();
+                        }
                         request.RequestHeader ??= new RequestHeader();
 
                         if (endpoint == null && !IsDiscoveryRequest(request.TypeId))
@@ -2645,6 +3197,7 @@ namespace Opc.Ua.Bindings
             }
             finally
             {
+                m_jsonWebSocketActivity.TryRemove(activity.ChannelId, out _);
                 if (receiveBuffer != null)
                 {
                     m_bufferManager.ReturnBuffer(receiveBuffer, nameof(AcceptWebSocketJsonAsync));
@@ -2695,9 +3248,10 @@ namespace Opc.Ua.Bindings
             UaScConnectionAdmission.Lease lease,
             string? accessToken)
         {
-            bool admitted = TryAdmitHttpBody(context, out IDisposable? bodyLease);
-            using IDisposable? retainedBody = bodyLease;
-            if (!admitted)
+            // The socket holds its receive buffer for its life; each message is charged
+            // to the request queue stages when it is admitted.
+            using HttpBodyAdmission? admission = TryAdmitHttpBody(context, m_quotas.MaxBufferSize, peerCeiling: false);
+            if (admission == null)
             {
                 await WriteAdmissionRejectedAsync(context).ConfigureAwait(false);
                 return;
@@ -2745,6 +3299,8 @@ namespace Opc.Ua.Bindings
                 .ConfigureAwait(false);
             lease.SetAbortAction(ws.Abort);
             lease.CompleteHandshake();
+            using var activity = new WebSocketActivity(this, lease);
+            m_jsonWebSocketActivity.TryAdd(activity.ChannelId, activity);
 
             CancellationToken ct = context.RequestAborted;
 
@@ -2775,7 +3331,7 @@ namespace Opc.Ua.Bindings
             }
 
             var channelContext = new SecureChannelContext(
-                ListenerId,
+                activity.ChannelId,
                 endpoint,
                 RequestEncoding.Json,
                 context.Connection.ClientCertificate?.RawData,
@@ -2801,10 +3357,12 @@ namespace Opc.Ua.Bindings
                     ws,
                     channelContext,
                     MakeEndpoint(context.Connection.RemoteIpAddress, context.Connection.RemotePort),
+                    activity,
                     ct).ConfigureAwait(false);
             }
             finally
             {
+                m_jsonWebSocketActivity.TryRemove(activity.ChannelId, out _);
                 try
                 {
                     expiryWatch.Cancel();
@@ -2889,10 +3447,23 @@ namespace Opc.Ua.Bindings
         /// maximum-frame slot within the connection's message-size quota. Unlimited message
         /// sizes use the transport default. The default chunk-count quota also caps tiny frames.
         /// </summary>
-        internal async Task ReceiveOpenApiWebSocketMessagesAsync(
+        internal Task ReceiveOpenApiWebSocketMessagesAsync(
             WebSocket ws,
             SecureChannelContext channelContext,
             IPEndPoint? remoteEndpoint,
+            CancellationToken ct)
+        {
+            return ReceiveOpenApiWebSocketMessagesAsync(ws, channelContext, remoteEndpoint, null, ct);
+        }
+
+        /// <summary>
+        /// Receives OpenAPI messages while tracking partial messages and in-flight requests for idle cleanup.
+        /// </summary>
+        private async Task ReceiveOpenApiWebSocketMessagesAsync(
+            WebSocket ws,
+            SecureChannelContext channelContext,
+            IPEndPoint? remoteEndpoint,
+            WebSocketActivity? activity,
             CancellationToken ct)
         {
             int retainedLimit = m_quotas.MaxMessageSize > 0
@@ -2940,6 +3511,7 @@ namespace Opc.Ua.Bindings
                             return;
                         }
                         completed = result.EndOfMessage;
+                        activity?.BeginMessage();
                         if (!completed && result.Count == 0)
                         {
                             // Zero-progress continuation-frame guard. A peer
@@ -2983,8 +3555,18 @@ namespace Opc.Ua.Bindings
                     // The connection's existing body lease continues to cover its receive buffer.
                     byte[] messageBytes = new byte[totalRead];
                     Buffer.BlockCopy(receiveBuffer, 0, messageBytes, 0, totalRead);
+                    IDisposable? requestActivity = null;
+                    if (activity != null)
+                    {
+                        if (!activity.TryTrackRequest(out WebSocketActivity.RequestActivity trackedActivity))
+                        {
+                            return;
+                        }
+                        requestActivity = trackedActivity;
+                    }
                     Task request = admission.RunAsync(async () => await ProcessAdmittedOpenApiWebSocketRequestAsync(
-                            ws, sendGate, channelContext, messageBytes, requestCancellation).ConfigureAwait(false));
+                            ws, sendGate, channelContext, messageBytes, requestCancellation).ConfigureAwait(false),
+                        requestActivity);
                     requests.Add(request);
                 }
             }
@@ -3052,8 +3634,9 @@ namespace Opc.Ua.Bindings
             /// Transfers leases synchronously into the task's scopes before scheduling any work.
             /// Scheduling is not cancellable, so even a late worker enters and releases its leases.
             /// </summary>
-            public async Task RunAsync(Func<Task> process)
+            public async Task RunAsync(Func<Task> process, IDisposable? activity = null)
             {
+                using IDisposable? retainedActivity = activity;
                 using IDisposable? requestLease = Interlocked.Exchange(ref m_requestLease, null);
                 using IDisposable? bodyLease = Interlocked.Exchange(ref m_bodyLease, null);
                 await Task.Run(process, CancellationToken.None).ConfigureAwait(false);
@@ -3076,6 +3659,188 @@ namespace Opc.Ua.Bindings
 
             private IDisposable? m_requestLease;
             private IDisposable? m_bodyLease;
+        }
+
+        /// <summary>
+        /// Tracks complete-message activity independently of WebSocket control frames. Active
+        /// requests cannot be reclaimed; partial messages do not extend the inactivity deadline.
+        /// </summary>
+        private sealed class WebSocketActivity : IDisposable
+        {
+            /// <summary>
+            /// Starts a per-connection sweep using the listener's monotonic clock.
+            /// </summary>
+            public WebSocketActivity(HttpsTransportListener owner, UaScConnectionAdmission.Lease lease)
+            {
+                m_owner = owner;
+                m_lease = lease;
+                ChannelId = Utils.Format("{0}-{1}", owner.ListenerId, Interlocked.Increment(ref owner.m_nextChannelId));
+                Touch();
+                if (owner.m_quotas.ChannelLifetime > 0)
+                {
+                    TimeSpan period = TimeSpan.FromMilliseconds(Math.Max(1, owner.m_quotas.ChannelLifetime / 2));
+                    m_timer = owner.TimeProvider.CreateTimer(CheckInactive, null, period, period);
+                }
+            }
+
+            /// <summary>
+            /// Gets the physical connection's unique session-binding identity.
+            /// </summary>
+            public string ChannelId { get; }
+
+            /// <summary>
+            /// Gets elapsed milliseconds since complete-message or session activity.
+            /// </summary>
+            public double Elapsed =>
+                m_owner.TimeProvider.GetElapsedTime(Volatile.Read(ref m_lastActive)).TotalMilliseconds;
+
+            /// <summary>
+            /// Keeps a decoded request and its response protected until processing finishes.
+            /// </summary>
+            public bool TryTrackRequest(out RequestActivity requestActivity)
+            {
+                lock (m_lock)
+                {
+                    if (m_closed)
+                    {
+                        requestActivity = default;
+                        return false;
+                    }
+                    m_pendingRequests++;
+                    m_partialMessage = false;
+                    Touch();
+                    requestActivity = new RequestActivity(this);
+                    return true;
+                }
+            }
+
+            /// <summary>
+            /// Protects a received message until it is complete and its request is tracked.
+            /// </summary>
+            public void BeginMessage()
+            {
+                lock (m_lock)
+                {
+                    m_partialMessage = true;
+                }
+            }
+
+            /// <summary>
+            /// Records complete-message or server-session activity.
+            /// </summary>
+            public void Touch()
+            {
+                Volatile.Write(ref m_lastActive, m_owner.TimeProvider.GetTimestamp());
+            }
+
+            /// <summary>
+            /// Whether closing the WebSocket frees shared connection capacity.
+            /// </summary>
+            public bool UsesSharedCapacity => m_lease.UsesSharedConnectionCapacity;
+
+            /// <summary>
+            /// Closes a connection with no committed session, partial message or pending request.
+            /// </summary>
+            public bool TryReclaim()
+            {
+                lock (m_lock)
+                {
+                    if (m_closed || m_pendingRequests != 0 || m_partialMessage ||
+                        m_owner.m_quotas.SessionBindingProvider?.HasSession(ChannelId) == true)
+                    {
+                        return false;
+                    }
+                    m_closed = true;
+                }
+                m_lease.Close();
+                return true;
+            }
+
+            /// <summary>
+            /// Stops monitoring after the receive loop ends.
+            /// </summary>
+            public void Dispose()
+            {
+                lock (m_lock)
+                {
+                    m_closed = true;
+                }
+                m_timer?.Dispose();
+            }
+
+            /// <summary>
+            /// Closes silent peers even if they send only fragments or WebSocket control frames.
+            /// </summary>
+            private void CheckInactive(object? state)
+            {
+                try
+                {
+                    lock (m_lock)
+                    {
+                        if (m_closed || m_pendingRequests != 0 || Elapsed <= m_owner.m_quotas.ChannelLifetime)
+                        {
+                            return;
+                        }
+                        m_closed = true;
+                    }
+                    m_owner.m_logger.WssJsonChannelInactive();
+                    m_lease.Close();
+                }
+                catch (Exception exception)
+                {
+                    m_owner.m_logger.UnexpectedJsonWebSocketError(exception);
+                }
+            }
+
+            /// <summary>
+            /// Releases in-flight protection and starts a fresh idle interval after the response.
+            /// </summary>
+            private void CompleteRequest()
+            {
+                lock (m_lock)
+                {
+                    m_pendingRequests--;
+                    Touch();
+                }
+            }
+
+            /// <summary>
+            /// Owns in-flight protection for one admitted request.
+            /// </summary>
+            public readonly struct RequestActivity(WebSocketActivity owner) : IDisposable
+            {
+                /// <inheritdoc/>
+                public void Dispose()
+                {
+                    owner.CompleteRequest();
+                }
+            }
+
+            /// <summary>
+            /// Listener providing quotas, logging and the monotonic clock.
+            /// </summary>
+            private readonly HttpsTransportListener m_owner;
+
+            /// <summary>Physical reservation released on idle closure.</summary>
+            private readonly UaScConnectionAdmission.Lease m_lease;
+
+            /// <summary>Periodic idle sweep, absent when the lifetime is disabled.</summary>
+            private readonly ITimer? m_timer;
+
+            /// <summary>Serializes activity claims against reclamation.</summary>
+            private readonly Lock m_lock = new();
+
+            /// <summary>Last complete-message or session activity timestamp.</summary>
+            private long m_lastActive;
+
+            /// <summary>Requests still processing or sending a response.</summary>
+            private int m_pendingRequests;
+
+            /// <summary>Whether a fragmented message is being assembled.</summary>
+            private bool m_partialMessage;
+
+            /// <summary>Whether cleanup has claimed this connection.</summary>
+            private bool m_closed;
         }
 
         /// <summary>
@@ -3293,19 +4058,6 @@ namespace Opc.Ua.Bindings
         }
 
         /// <summary>
-        /// Reads the request body through the shared bounded reader before decoding.
-        /// </summary>
-        private static async Task<byte[]> ReadBodyAsync(
-            HttpRequest req,
-            int maxLength,
-            CancellationToken ct)
-        {
-            return await JsonRequestMapper
-                .ReadAllBoundedAsync(req.Body, maxLength, ct)
-                .ConfigureAwait(false);
-        }
-
-        /// <summary>
         /// Validate TLS client certificate at TLS handshake.
         /// </summary>
         /// <param name="clientCertificate">Client certificate</param>
@@ -3416,15 +4168,49 @@ namespace Opc.Ua.Bindings
             /// Gets the physical connection lease shared by requests on this transport.
             /// </summary>
             UaScConnectionAdmission.Lease Lease { get; }
+
+            /// <summary>
+            /// Gets the reclaim callback of a shared host, which looks at all its listeners,
+            /// or null when the listener owns the host.
+            /// </summary>
+            Func<bool>? SharedReclaimCapacity { get; }
+
+            /// <summary>
+            /// Gets the request activity that makes the connection reclaimable
+            /// while it has no request in flight, or null when it is not tracked.
+            /// </summary>
+            HttpConnectionActivity? Activity { get; }
+
+            /// <summary>
+            /// Gets the tracked HTTP connections of the admission scope that
+            /// counts this connection, or null when they are not tracked.
+            /// </summary>
+            HttpConnectionActivityRegistry? Connections { get; }
         }
 
         /// <summary>
         /// Exposes a borrowed physical lease without transferring ownership to individual HTTP requests.
         /// </summary>
         /// <param name="lease">Lease retained by the physical connection pipeline.</param>
-        private sealed class HttpsTransportAdmissionFeature(UaScConnectionAdmission.Lease lease)
+        /// <param name="sharedReclaimCapacity">Reclaim callback of a shared host.</param>
+        /// <param name="activity">Request activity of the connection.</param>
+        /// <param name="connections">Tracked HTTP connections of the admission scope.</param>
+        private sealed class HttpsTransportAdmissionFeature(
+            UaScConnectionAdmission.Lease lease,
+            Func<bool>? sharedReclaimCapacity,
+            HttpConnectionActivity? activity,
+            HttpConnectionActivityRegistry? connections)
             : IHttpsTransportAdmissionFeature
         {
+            /// <inheritdoc/>
+            public Func<bool>? SharedReclaimCapacity { get; } = sharedReclaimCapacity;
+
+            /// <inheritdoc/>
+            public HttpConnectionActivity? Activity { get; } = activity;
+
+            /// <inheritdoc/>
+            public HttpConnectionActivityRegistry? Connections { get; } = connections;
+
             /// <summary>
             /// Gets the physical reservation rather than a separate per-request admission.
             /// </summary>
@@ -3436,7 +4222,14 @@ namespace Opc.Ua.Bindings
         /// </summary>
         /// <param name="admission">Admission scope owned by the shared host.</param>
         /// <param name="logger">Reports connection cleanup failures during host shutdown.</param>
-        private sealed class AdmissionHostLifetime(UaScConnectionAdmission admission, ILogger logger) : IHostedService
+        /// <param name="sharedCapacityReclaimer">
+        /// Lets the other listeners reclaim the host's connections, registered
+        /// once the host exists; null for a reverse-connect host.
+        /// </param>
+        private sealed class AdmissionHostLifetime(
+            UaScConnectionAdmission admission,
+            ILogger logger,
+            Func<bool>? sharedCapacityReclaimer) : IHostedService
         {
             /// <summary>
             /// Enables physical admission when the shared host starts.
@@ -3444,6 +4237,10 @@ namespace Opc.Ua.Bindings
             public Task StartAsync(CancellationToken cancellationToken)
             {
                 admission.Start();
+                if (sharedCapacityReclaimer != null)
+                {
+                    admission.SetSharedCapacityReclaimer(sharedCapacityReclaimer);
+                }
                 return Task.CompletedTask;
             }
 
@@ -3593,15 +4390,31 @@ namespace Opc.Ua.Bindings
         /// Budgets two body-size units for reader growth storage and one for the retained payload copy.
         /// </summary>
         private const long kRetainedBodyBufferMultiplicity = 3L;
+        private const long kPeerBodyCeilingMultiplicity = 2L;
+        private PeerBodyLedger? m_peerBodyLedger;
 
         private List<EndpointDescription> m_descriptions = null!;
         private ChannelQuotas m_quotas = null!;
         private UaScConnectionAdmission? m_admission;
+
+        /// <summary>
+        /// The physical HTTP connections of a host this listener owns, reclaimable
+        /// while they have no request in flight.
+        /// </summary>
+        private readonly HttpConnectionActivityRegistry m_httpConnections = new();
         private readonly ConcurrentDictionary<UaScConnectionAdmission.Lease, byte> m_activeUpgrades = new();
+
+        /// <summary>
+        /// JSON WebSocket activity indexed by unique physical connection identity.
+        /// </summary>
+        private readonly ConcurrentDictionary<string, WebSocketActivity> m_jsonWebSocketActivity = new();
         private int m_admissionStopped;
         private BufferManager m_bufferManager = null!;
         private readonly IBufferManagerFactory m_bufferManagerFactory;
         private ITransportListenerCallback? m_callback;
+        private TaskCompletionSource<bool> m_acceptGate = CreateAcceptGate(accepting: true);
+        private bool m_acceptRequested = true;
+        private readonly Lock m_acceptLock = new();
 #if NET8_0_OR_GREATER
         private IHost? m_host;
 #else
@@ -3740,5 +4553,39 @@ namespace Opc.Ua.Bindings
             this ILogger logger,
             Exception exception,
             string channelId);
+
+        /// <summary>
+        /// Reports a binary WebSocket channel closed because its send waited longer than the
+        /// channel lifetime for a peer that stopped reading.
+        /// </summary>
+        [LoggerMessage(EventId = BindingsHttpsEventIds.HttpsTransportListener + 20, Level = LogLevel.Warning,
+            Message = "WSSLISTENER - channel {ChannelId} closed: its send waited {StalledMs} ms for the peer " +
+                "to read, {QueuedBytes} bytes queued.")]
+        public static partial void WssChannelWriteStalled(
+            this ILogger logger,
+            uint channelId,
+            long stalledMs,
+            long queuedBytes);
+
+        /// <summary>
+        /// Reports binary WebSocket inactivity cleanup.
+        /// </summary>
+        [LoggerMessage(EventId = BindingsHttpsEventIds.WssChannelLifetime + 0, Level = LogLevel.Information,
+            Message = "WSSLISTENER - channel {ChannelId} closed due to inactivity.")]
+        public static partial void WssChannelInactive(this ILogger logger, uint channelId);
+
+        /// <summary>
+        /// Reports JSON WebSocket inactivity cleanup.
+        /// </summary>
+        [LoggerMessage(EventId = BindingsHttpsEventIds.WssChannelLifetime + 1, Level = LogLevel.Information,
+            Message = "WSSLISTENER - JSON channel closed due to inactivity.")]
+        public static partial void WssJsonChannelInactive(this ILogger logger);
+
+        /// <summary>
+        /// Reports successful admission reclamation without a session.
+        /// </summary>
+        [LoggerMessage(EventId = BindingsHttpsEventIds.WssChannelLifetime + 2, Level = LogLevel.Information,
+            Message = "WSSLISTENER - reclaimed an unused channel for connection admission.")]
+        public static partial void WssChannelReclaimed(this ILogger logger);
     }
 }

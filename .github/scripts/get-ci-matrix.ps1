@@ -1,3 +1,6 @@
+# SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+# SPDX-License-Identifier: MIT
+
 <#
  .SYNOPSIS
     Expands the GitHub Actions build and test workload for a CI scope.
@@ -56,8 +59,9 @@
     Exceeding it is an error, never a truncation.
 
  .PARAMETER ReservedEntries
-    Entries reserved for the other full-scope jobs: discovery, four NativeAOT
-    legs, eight crash-corpus replays, coverage, the summary, and one spare.
+    Entries reserved for the other full-scope jobs: discovery, eight NativeAOT
+    legs (four RIDs on net10.0 and net11.0), eight crash-corpus replays,
+    coverage, the summary, and one spare.
 
  .PARAMETER MaxJobTimeoutMinutes
     Upper bound on a batch job's 'timeout-minutes', below the 360-minute ceiling
@@ -96,7 +100,7 @@ Param(
     [switch] $ExcludeMacOS,
     [string] $OnlyProject = '',
     [int]    $MaxEntries = 256,
-    [int]    $ReservedEntries = 16,
+    [int]    $ReservedEntries = 20,
     [int]    $MaxJobTimeoutMinutes = 350,
     [int]    $BatchTargetMinutes = 30,
     [string] $DurationsPath = '',
@@ -134,7 +138,8 @@ $RunnerArchitectures = @{
     macos   = 'arm64'
 }
 
-$LatestSdk = '10.0.402'
+$LatestSdk = (Get-Content -LiteralPath (Join-Path $RepositoryRoot 'global.json') -Raw |
+    ConvertFrom-Json).sdk.version
 
 # The category filter the fast legs use. Tiers that lift it declare so below.
 $DefaultFilter = 'TestCategory!=LongRunning&TestCategory!=Stress'
@@ -201,8 +206,7 @@ function Find-RepositoryFile([string] $filter)
 function Get-SdkVersions([string] $framework)
 {
     switch ($framework) {
-        'net8.0' { return @('8.0.x', $LatestSdk) }
-        'net9.0' { return @('9.0.x', $LatestSdk) }
+        'net10.0' { return @('10.0.x', $LatestSdk) }
         default { return @($LatestSdk) }
     }
 }
@@ -213,20 +217,21 @@ function Get-SdkVersions([string] $framework)
 #   framework        - the target framework the tests actually execute on
 #   scopes           - which CI scopes include the profile
 #
-# The Linux net10.0 Release mainline profile is pull-request only on purpose: in
-# the full scope the long-running tier runs the identical tuple with the category
+# Pull requests run the newest framework (net11.0); the full scope (nightly)
+# runs the net10.0 LTS release in its place.
+#
+# The Linux net10.0 Release mainline profile is not part of the full scope on
+# purpose: the long-running tier runs the identical tuple with the category
 # filter lifted, so keeping both would run the same tests twice.
 $Profiles = @(
     @{ id = 'windows-net48'; os = 'windows'; customTestTarget = 'net48'; framework = 'net48'; configuration = 'Release'; scopes = @('pr', 'full') }
-    @{ id = 'windows-net10.0'; os = 'windows'; customTestTarget = 'net10.0'; framework = 'net10.0'; configuration = 'Release'; scopes = @('pr', 'full') }
-    @{ id = 'linux-net10.0'; os = 'linux'; customTestTarget = 'net10.0'; framework = 'net10.0'; configuration = 'Release'; scopes = @('pr') }
-    @{ id = 'macos-net10.0'; os = 'macos'; customTestTarget = 'net10.0'; framework = 'net10.0'; configuration = 'Release'; scopes = @('pr', 'full') }
+    @{ id = 'windows-net11.0'; os = 'windows'; customTestTarget = 'net11.0'; framework = 'net11.0'; configuration = 'Release'; scopes = @('pr') }
+    @{ id = 'linux-net11.0'; os = 'linux'; customTestTarget = 'net11.0'; framework = 'net11.0'; configuration = 'Release'; scopes = @('pr') }
+    @{ id = 'macos-net11.0'; os = 'macos'; customTestTarget = 'net11.0'; framework = 'net11.0'; configuration = 'Release'; scopes = @('pr') }
+    @{ id = 'windows-net10.0'; os = 'windows'; customTestTarget = 'net10.0'; framework = 'net10.0'; configuration = 'Release'; scopes = @('full') }
+    @{ id = 'macos-net10.0'; os = 'macos'; customTestTarget = 'net10.0'; framework = 'net10.0'; configuration = 'Release'; scopes = @('full') }
     @{ id = 'windows-net10.0-debug'; os = 'windows'; customTestTarget = 'net10.0'; framework = 'net10.0'; configuration = 'Debug'; scopes = @('full') }
     @{ id = 'linux-net10.0-debug'; os = 'linux'; customTestTarget = 'net10.0'; framework = 'net10.0'; configuration = 'Debug'; scopes = @('full') }
-    @{ id = 'windows-net9.0'; os = 'windows'; customTestTarget = 'net9.0'; framework = 'net9.0'; configuration = 'Release'; scopes = @('full') }
-    @{ id = 'linux-net9.0'; os = 'linux'; customTestTarget = 'net9.0'; framework = 'net9.0'; configuration = 'Release'; scopes = @('full') }
-    @{ id = 'windows-net8.0'; os = 'windows'; customTestTarget = 'net8.0'; framework = 'net8.0'; configuration = 'Release'; scopes = @('full') }
-    @{ id = 'linux-net8.0'; os = 'linux'; customTestTarget = 'net8.0'; framework = 'net8.0'; configuration = 'Release'; scopes = @('full') }
     @{ id = 'linux-long-running'; os = 'linux'; customTestTarget = 'net10.0'; framework = 'net10.0'; configuration = 'Release'; scopes = @('full')
         tier = 'long-running'; filter = ''; hangTimeout = '30m'; coverage = $false
     }
@@ -239,23 +244,28 @@ $Profiles = @(
 )
 
 # Solution builds. 'solutions' is either '*' for every discovered .slnx or an
-# explicit list. Every solution across every
-# supported target framework in both configurations for the full scope, narrowed
-# for pull requests, plus the Linux leg that proves UA.slnx still compiles for
-# every Linux-capable target framework.
+# explicit list. The full scope builds every solution on Windows for net48,
+# net10.0 and net11.0, narrowed for pull requests, plus the Linux leg that
+# proves UA.slnx still compiles for every Linux-capable target framework.
 $BuildProfiles = @(
     @{ id = 'pr-windows'; os = 'windows'; scopes = @('pr'); solutions = '*'
-        tfms = @('net48', 'net10.0'); configurations = @('Debug', 'Release')
+        tfms = @('net48', 'net10.0', 'net11.0'); configurations = @('Debug', 'Release')
     }
     @{ id = 'pr-linux'; os = 'linux'; scopes = @('pr'); solutions = @('UA.slnx')
-        tfms = @('net8.0', 'net9.0', 'net10.0'); configurations = @('Release')
+        tfms = @('net10.0', 'net11.0'); configurations = @('Release')
+    }
+    # Debug covers the oldest and the newest framework only, which keeps the
+    # full scope under the 256-job ceiling.
+    @{ id = 'full-windows'; os = 'windows'; scopes = @('full'); solutions = '*'
+        tfms = @('net48', 'net10.0', 'net11.0')
+        configurations = @('Release')
     }
     @{ id = 'full-windows'; os = 'windows'; scopes = @('full'); solutions = '*'
-        tfms = @('net48', 'net8.0', 'net9.0', 'net10.0')
-        configurations = @('Debug', 'Release')
+        tfms = @('net48', 'net11.0')
+        configurations = @('Debug')
     }
     @{ id = 'full-linux'; os = 'linux'; scopes = @('full'); solutions = @('UA.slnx')
-        tfms = @('net8.0', 'net9.0', 'net10.0'); configurations = @('Release')
+        tfms = @('net10.0', 'net11.0'); configurations = @('Release')
     }
 )
 
@@ -383,14 +393,14 @@ function Expand-BuildMatrix([string] $scope)
 
 <#
  .SYNOPSIS
-    Packs an ordered project list into contiguous batches whose weights add up
+    Packs an ordered project list into batches whose weights add up
     to at most $targetMinutes, never more than $MaxProjectsPerBatch projects.
 
  .DESCRIPTION
-    Contiguous rather than best-fit: path order keeps projects that share
-    dependencies together, and the result only depends on the list and the
-    table, so a run is reproducible. A project heavier than the target is
-    placed in a batch of its own rather than split or dropped.
+    Ordinary projects retain path order within their batches. Isolated suites
+    get their own jobs without flushing an unfinished ordinary batch, so they
+    do not consume extra jobs for partially filled batches. A project heavier
+    than the target is placed in a batch of its own rather than split or dropped.
 #>
 function Split-IntoBatches([string[]] $projects, [int] $targetMinutes)
 {
@@ -401,11 +411,6 @@ function Split-IntoBatches([string[]] $projects, [int] $targetMinutes)
         $minutes = Get-ProjectMinutes $project
         $stem = [System.IO.Path]::GetFileNameWithoutExtension($project)
         if ($stem -eq 'Opc.Ua.WotCon.Samples.Tests' -or $DedicatedTestProjects -contains $stem) {
-            if ($current.Count -gt 0) {
-                $batches += , @($current)
-                $current = @()
-                $currentMinutes = 0
-            }
             $batches += , @($project)
             continue
         }
@@ -429,7 +434,7 @@ function Split-IntoBatches([string[]] $projects, [int] $targetMinutes)
     Returns exhaustive, non-overlapping filters for projects whose full test
     suite exceeds the per-project execution budget.
 #>
-function Get-TestProjectShards([string] $project, [string] $framework)
+function Get-TestProjectShards([string] $project, [string] $framework, [string] $os)
 {
     $stem = [System.IO.Path]::GetFileNameWithoutExtension($project)
     switch ($stem) {
@@ -474,52 +479,13 @@ function Get-TestProjectShards([string] $project, [string] $framework)
             )
         }
         'Opc.Ua.WotCon.Tests' {
-            $materialization = 'Opc.Ua.WotCon.Tests.Materialization.'
-            if ($framework -ne 'net48') {
-                return @(
-                    @{
-                        id = 'wot-materialization'
-                        name = 'wot-materialization'
-                        filter = "FullyQualifiedName~${materialization}"
-                        hangTimeout = ''
-                    }
-                    @{
-                        id = 'wot-other'
-                        name = 'wot-other'
-                        filter = "FullyQualifiedName!~${materialization}"
-                        hangTimeout = ''
-                    }
-                )
-            }
-            return @(
-                @{
-                    id = 'wot-materialization-core'
-                    name = 'wot-materialization-core'
-                    filter = "FullyQualifiedName~${materialization}&TestCategory!=Integration"
-                    hangTimeout = ''
-                }
-                @{
-                    id = 'wot-materialization-integration'
-                    name = 'wot-materialization-integration'
-                    filter = "FullyQualifiedName~${materialization}&TestCategory=Integration"
-                    hangTimeout = ''
-                }
-                @{
-                    id = 'wot-other-core'
-                    name = 'wot-other-core'
-                    filter = "FullyQualifiedName!~${materialization}&TestCategory!=Integration"
-                    hangTimeout = ''
-                }
-                @{
-                    id = 'wot-other-integration'
-                    name = 'wot-other-integration'
-                    filter = "FullyQualifiedName!~${materialization}&TestCategory=Integration"
-                    hangTimeout = ''
-                }
-            )
-        }
-        'Opc.Ua.Server.Tests' {
-            if ($framework -ne 'net48') {
+            # The suite runs its tests in parallel and seeds every live server
+            # from one certificate template (tests/Opc.Ua.WotCon.Tests/
+            # Properties/AssemblyInfo.cs, Support/WotTestPki.cs), so one entry
+            # covers it on the 4-core Windows and Linux runners. The 3-core
+            # macOS runners and net48 split it by namespace into two halves of
+            # similar length; the two filters are exhaustive and disjoint.
+            if ($framework -ne 'net48' -and $os -ne 'macos') {
                 return @(
                     @{
                         id = 'all'
@@ -529,22 +495,56 @@ function Get-TestProjectShards([string] $project, [string] $framework)
                     }
                 )
             }
-
+            $materialization = 'Opc.Ua.WotCon.Tests.Materialization.'
+            return @(
+                @{
+                    id = 'wot-materialization'
+                    name = 'wot-materialization'
+                    filter = "FullyQualifiedName~${materialization}"
+                    hangTimeout = ''
+                }
+                @{
+                    id = 'wot-other'
+                    name = 'wot-other'
+                    filter = "FullyQualifiedName!~${materialization}"
+                    hangTimeout = ''
+                }
+            )
+        }
+        'Opc.Ua.Server.Tests' {
+            $nativeLifecycle = 'Opc.Ua.Server.Tests.NodeManager.NodeManagerLifecycleTests.'
+            # Shard macOS and net48 workloads within the per-project ceiling.
+            if ($framework -ne 'net48' -and $os -ne 'macos') {
+                return @(
+                    @{
+                        id = 'all'
+                        name = 'all'
+                        filter = ''
+                        hangTimeout = ''
+                    }
+                )
+            }
+            # NodeManagerLifecycleTests run in parallel and copy one certificate
+            # template per test (NodeManager/NodeManagerLifecycleTests.TestPki.cs),
+            # so all of its cases fit one entry; see plans/lifecycle-test-suite-redesign.md.
             $groups = @(
+                @{
+                    id = 'server-node-lifecycle'
+                    name = 'server-node-lifecycle'
+                    terms = @($nativeLifecycle)
+                }
                 @{
                     id = 'server-node-management'
                     name = 'server-node-management'
                     terms = @('NodeManager', 'SamplingGroup', 'SamplingInterval', 'NodeState', 'MonitoredNode')
                 }
+                # Historian and subscription tests share one shard: each runs in about
+                # ten minutes on net48, and every entry counts against the 256-job limit.
                 @{
-                    id = 'server-historian'
-                    name = 'server-historian'
-                    terms = @('Historian', 'Aggregate', 'History')
-                }
-                @{
-                    id = 'server-subscriptions'
-                    name = 'server-subscriptions'
-                    terms = @('Subscription', 'MonitoredItem', 'Publish', 'KeepAlive')
+                    id = 'server-history-subscriptions'
+                    name = 'server-history-subscriptions'
+                    terms = @('Historian', 'Aggregate', 'History', 'Subscription', 'MonitoredItem', 'Publish',
+                        'KeepAlive')
                 }
                 @{
                     id = 'server-sessions'
@@ -574,6 +574,24 @@ function Get-TestProjectShards([string] $project, [string] $framework)
                     terms = @()
                 }
             )
+
+            if ($os -eq 'macos' -and $framework -ne 'net48') {
+                $groups = @(
+                    $groups[0]
+                    $groups[1]
+                    $groups[2]
+                    @{
+                        id = 'server-sessions-configuration-runtime'
+                        name = 'server-sessions-configuration-runtime'
+                        terms = @($groups[3].terms + $groups[4].terms + $groups[5].terms)
+                    }
+                    @{
+                        id = 'server-other'
+                        name = 'server-other'
+                        terms = @()
+                    }
+                )
+            }
 
             $assignedTerms = @()
             foreach ($group in $groups) {
@@ -623,7 +641,7 @@ function Measure-TestEntries([string] $scope, [int] $targetMinutes)
         }
         foreach ($batch in @(Split-IntoBatches $projectsByTier[$tier] $targetMinutes)) {
             if ($batch.Count -eq 1) {
-                $total += @(Get-TestProjectShards $batch[0] $testProfile.framework).Count
+                $total += @(Get-TestProjectShards $batch[0] $testProfile.framework $testProfile.os).Count
             }
             else {
                 $total++
@@ -686,7 +704,7 @@ function Expand-TestMatrix([string] $scope, [int] $targetMinutes, [bool] $includ
                     hangTimeout = ''
                 })
             if ($batch.Count -eq 1) {
-                $shards = @(Get-TestProjectShards $batch[0] $testProfile.framework)
+                $shards = @(Get-TestProjectShards $batch[0] $testProfile.framework $testProfile.os)
             }
             foreach ($shard in $shards) {
                 $batchId = "$($testProfile.id)-$(($index + 1).ToString('00'))-$($shard.id)"

@@ -1,32 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using System.Collections.Generic;
@@ -51,7 +24,7 @@ namespace Opc.Ua.Wot
     /// source has one. Where it does not - a Node authored in the plant's
     /// language and read against another default locale - the plural member is
     /// still written in full and the singular member carries the
-    /// code-point-first entry as a display fallback that asserts no locale.
+    /// code-point-first entry as a display fallback with its source locale.
     /// Section 9.1.1 states it that way on purpose: requiring the default
     /// locale would make the commonest real NodeSet unrepresentable in the
     /// readable mapping and push an ordinary document into the exceptional
@@ -80,17 +53,22 @@ namespace Opc.Ua.Wot
         /// <inheritdoc cref="TitleMember"/>
         internal const string DescriptionsMember = "descriptions";
 
+        /// <summary>
+        /// Writes the localized-term overrides required by the active context and fallback rules.
+        /// </summary>
         private static void WriteLocalizedTextContext(
             Utf8JsonWriter writer,
             Export.LocalizedText[]? displayName,
             Export.LocalizedText[]? description,
             string defaultLocale,
-            bool inheritedLanguageMayDiffer = false)
+            bool inheritedLanguageMayDiffer = false,
+            string? inheritedTitleLanguage = FallbackLocale,
+            string? inheritedDescriptionLanguage = FallbackLocale)
         {
             bool titleOverride = (inheritedLanguageMayDiffer && FirstText(displayName) is not null) ||
-                NeedsLocalizedTextOverride(displayName, defaultLocale, FallbackLocale);
+                NeedsLocalizedTextOverride(displayName, defaultLocale, inheritedTitleLanguage);
             bool descriptionOverride = (inheritedLanguageMayDiffer && FirstText(description) is not null) ||
-                NeedsLocalizedTextOverride(description, defaultLocale, FallbackLocale);
+                NeedsLocalizedTextOverride(description, defaultLocale, inheritedDescriptionLanguage);
             if (titleOverride || descriptionOverride)
             {
                 writer.WritePropertyName("@context");
@@ -98,6 +76,16 @@ namespace Opc.Ua.Wot
                     writer, titleOverride, descriptionOverride,
                     ProjectedTextLocale(displayName, defaultLocale), ProjectedTextLocale(description, defaultLocale));
             }
+        }
+
+        /// <summary>
+        /// Gets the language of a term after the generated root context is applied.
+        /// </summary>
+        private static string? GetGeneratedTermLanguage(Export.LocalizedText[]? texts, string defaultLocale)
+        {
+            return NeedsLocalizedTextOverride(texts, defaultLocale, FallbackLocale)
+                ? ProjectedTextLocale(texts, defaultLocale)
+                : FallbackLocale;
         }
 
         private static bool NeedsLocalizedTextOverride(
@@ -110,15 +98,23 @@ namespace Opc.Ua.Wot
 
         private static string? ProjectedTextLocale(Export.LocalizedText[]? texts, string defaultLocale)
         {
+            string? selected = SelectLocalizedValue(texts, defaultLocale);
+            string? selectedLocale = null;
             foreach (Export.LocalizedText text in texts ?? [])
             {
-                if (!string.IsNullOrEmpty(text.Value) &&
-                    (string.IsNullOrEmpty(text.Locale) || text.Locale == defaultLocale))
+                if (text.Value == selected)
                 {
-                    return string.IsNullOrEmpty(text.Locale) ? null : text.Locale;
+                    if (string.IsNullOrEmpty(text.Locale) || text.Locale == defaultLocale)
+                    {
+                        return string.IsNullOrEmpty(text.Locale) ? null : text.Locale;
+                    }
+                    if (selectedLocale is null || WotCodePointComparer.Instance.Compare(text.Locale, selectedLocale) < 0)
+                    {
+                        selectedLocale = text.Locale;
+                    }
                 }
             }
-            return null;
+            return selectedLocale;
         }
 
         private static bool LacksDefaultLocale(
@@ -727,8 +723,8 @@ namespace Opc.Ua.Wot
             {
                 // Section 9.1.1: a plural member with no entry for the default
                 // locale is not invalid. The singular member is then the
-                // code-point-first entry and is a display fallback that asserts
-                // no locale - which is what makes a NodeSet authored in the
+                // code-point-first entry and retains its source locale,
+                // which makes a NodeSet authored in the
                 // plant's language an ordinary document rather than one that
                 // has to fall back to the native projection to say something the
                 // plural member already says.
@@ -742,7 +738,7 @@ namespace Opc.Ua.Wot
                         $"locale '{defaultLocale}', so the {singular} member shall equal the " +
                         "entry whose language tag is first in ascending Unicode code-point " +
                         $"order ('{codePointFirstLocale}'). The value is a display fallback " +
-                        "and asserts no locale (WoT Binding Section 9.1.1).",
+                        "with its source locale (WoT Binding Section 9.1.1).",
                         WotLocation.FromPointer(parentPointer + "/" + singular)));
                 }
                 return;

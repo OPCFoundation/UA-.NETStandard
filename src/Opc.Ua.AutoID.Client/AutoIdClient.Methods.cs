@@ -1,31 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using System.Threading;
@@ -43,14 +17,13 @@ namespace Opc.Ua.AutoID.Client
         /// (<c>Bad_InvalidArgument</c>) and a scan while another is active
         /// (<c>Bad_InvalidState</c>); both are thrown as <see cref="ServiceResultException"/>. The
         /// call stays open for the scan; raise the <c>TimeoutHint</c> of the session for long scans.
-        /// An optical verifier has no usable <c>Scan</c>: the NodeSet types its results as
-        /// <c>WGS84Coordinate</c>, contradicting OPC 30010 6.4.3.1. Use <see cref="ScanStartAsync"/>
-        /// and the scan events for a verifier.
+        /// Optical verifier results follow OPC 30010 6.4.3.1: <c>OpticalVerifierScanResult[]</c>.
+        /// The imported model corrects the released NodeSet's conflicting <c>WGS84Coordinate[]</c> metadata.
         /// </remarks>
         /// <param name="reader">The reader.</param>
         /// <param name="settings">The scan settings.</param>
         /// <param name="cancellationToken">Cancels the call.</param>
-        /// <exception cref="NotSupportedException">The reader is an optical verifier.</exception>
+        /// <exception cref="NotSupportedException">The reader kind is not supported.</exception>
         /// <exception cref="ArgumentNullException"></exception>
         public async ValueTask<AutoIdScanResponse> ScanAsync(
             AutoIdReaderEntry reader,
@@ -83,10 +56,13 @@ namespace Opc.Ua.AutoID.Client
                         await new RtlsDeviceTypeClient(Session, reader.NodeId, Telemetry)
                             .ScanAsync(settings, cancellationToken).ConfigureAwait(false);
                     return new AutoIdScanResponse(Upcast(rtls), rtlsStatus);
+                case AutoIdReaderKind.OpticalVerifier:
+                    (ArrayOf<OpticalVerifierScanResult> verifier, AutoIdOperationStatusEnumeration verifierStatus) =
+                        await new OpticalVerifierDeviceTypeClient(Session, reader.NodeId, Telemetry)
+                            .ScanAsync(settings, cancellationToken).ConfigureAwait(false);
+                    return new AutoIdScanResponse(Upcast(verifier), verifierStatus);
                 default:
-                    throw new NotSupportedException(
-                        "The Scan method of an optical verifier is declared with WGS84Coordinate results " +
-                        "in the NodeSet, which contradicts OPC 30010 6.4.3.1; use ScanStartAsync and the scan events.");
+                    throw new NotSupportedException("The reader kind does not support scanning.");
             }
         }
 

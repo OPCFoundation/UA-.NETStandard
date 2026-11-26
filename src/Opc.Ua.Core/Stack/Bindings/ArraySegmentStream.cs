@@ -1,31 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 #if NET5_0_OR_GREATER
 #define STREAM_WITH_SPAN_SUPPORT
@@ -134,8 +108,29 @@ namespace Opc.Ua.Bindings
             m_bufferSize = bufferSize;
             m_start = start;
             m_count = count;
+            m_maxBufferCount = 0;
+            BufferLimitExceeded = false;
             ClearBuffers();
         }
+
+        /// <summary>
+        /// The most buffers a writable stream takes from its buffer manager; zero means
+        /// no limit. A write that needs one more buffer fails with
+        /// <see cref="StatusCodes.BadEncodingLimitsExceeded"/> and sets
+        /// <see cref="BufferLimitExceeded"/>, so a message that exceeds its size limit
+        /// stops being written as soon as it passes the limit.
+        /// </summary>
+        internal int MaxBufferCount
+        {
+            get => m_maxBufferCount;
+            set => m_maxBufferCount = value;
+        }
+
+        /// <summary>
+        /// Whether a write failed because the stream holds <see cref="MaxBufferCount"/>
+        /// buffers.
+        /// </summary>
+        internal bool BufferLimitExceeded { get; private set; }
 
         /// <summary>
         /// Returns the buffers the stream still holds to the buffer manager, as disposing the
@@ -691,6 +686,11 @@ namespace Opc.Ua.Bindings
                     throw new IOException("Attempt to write past end of stream.");
                 }
 
+                if (m_maxBufferCount != 0 && m_buffers.Count >= m_maxBufferCount)
+                {
+                    ThrowBufferLimitExceeded();
+                }
+
                 byte[] newBuffer = m_bufferManager.TakeBuffer(
                     m_bufferSize,
                     "ArraySegmentStream.Write");
@@ -699,6 +699,24 @@ namespace Opc.Ua.Bindings
 
                 SetCurrentBuffer(m_buffers.Count - 1);
             }
+        }
+
+        /// <summary>
+        /// Fails a write that needs more than <see cref="MaxBufferCount"/> buffers.
+        /// </summary>
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        private void ThrowBufferLimitExceeded()
+        {
+            // the write moved past the last buffer, so all of it is written.
+            if (m_buffers.Count > 0)
+            {
+                m_endOfLastBuffer = m_buffers[m_buffers.Count - 1].Count;
+            }
+            BufferLimitExceeded = true;
+            throw ServiceResultException.Create(
+                StatusCodes.BadEncodingLimitsExceeded,
+                "The message exceeds its size limit of {0} buffers.",
+                m_maxBufferCount);
         }
 
         /// <summary>
@@ -717,6 +735,7 @@ namespace Opc.Ua.Bindings
         private int m_currentPosition;
         private BufferCollection m_buffers;
         private BufferManager? m_bufferManager;
+        private int m_maxBufferCount;
         private int m_start;
         private int m_count;
         private int m_bufferSize;

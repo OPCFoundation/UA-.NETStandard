@@ -48,6 +48,12 @@ session scalability.
   - [Observed scaling](#observed-scaling)
   - [Subscription transport buffer pooling](#subscription-transport-buffer-pooling)
   - [Sizing and configuration](#sizing-and-configuration)
+- [NodeManager lifecycle measurements](#nodemanager-lifecycle-measurements)
+  - [Type registration snapshots](#type-registration-snapshots)
+  - [Lifecycle fixture cost](#lifecycle-fixture-cost)
+  - [System context reuse](#system-context-reuse)
+  - [Notification and permission costs](#notification-and-permission-costs)
+  - [Session activation scaling](#session-activation-scaling)
 
 ## How to run
 
@@ -639,6 +645,26 @@ commit with the lower delivery (0edc3b55a: 98 %, 2.8 µs per notification;
 65a67dd2f: 6 %, 94 µs). The 10-session row above may be affected as well:
 its CPU per notification is about twice the value reported in #4829.
 
+The lock-free admission, cached exact-source verdict, and shared subscriber
+context changes proposed in #4874 targeted this regression. Its paired runs on a
+Ryzen AI 9 HX 370 reported 98.4–98.8 % delivery at 4.7–4.8 µs of server CPU
+per notification. A validation run on another machine after applying those
+changes delivered 88.8 % and 91.7 % at 3.2 and 3.1 µs, respectively. These
+results are not directly comparable across machines.
+
+In [#4869](https://github.com/OPCFoundation/UA-.NETStandard/issues/4869), a
+remeasurement on November 5, 2026, used #4982 at `acbae3a8a` with five rounds
+per configuration. The issue's command used the managed client with workstation GC
+on both the client and server. It delivered a median of 74.7 % of expected
+notifications (68.4–80.7 %) at 5.1 µs of server CPU per notification
+(4.9–5.3 µs). With the classic client and server GC on both sides, delivery was
+99.0 % (98.7–99.9 %) at 3.7 µs (3.6–4.4 µs). The earlier 93 % result used
+the classic-client configuration, not the managed-client command. These
+results describe `acbae3a8a` and do not qualify later builds. To repeat either
+configuration on the target hardware, use the `sub` line in
+[`gc-scenarios.txt`](../perf/benchmarks/gc-scenarios.txt), set the client and
+GC modes, and follow the [A/B comparison](../perf/README.md#ab-comparison).
+
 Results of the individual pull requests, measured as paired A/B rounds
 against the previous `master` when each was merged, are recorded in
 #4829 (publish cadence: 50 × 15 × 600 delivered 67.7 % → 97.8 %),
@@ -857,3 +883,192 @@ The net10.0 in-process short `BufferManagerBenchmarks` run completed 256 `Buffer
 * Session establishment is CPU-bound (RSA handshakes) but parallelizes across cores; throttle/stagger concurrent connects and scale cores for bulk connection throughput.
 
 > A full macro benchmark that produces a capability matrix (sessions × subscriptions × items against CPU/memory) across configurations is planned as follow-up work.
+
+## NodeManager lifecycle measurements
+
+The component probes separate metadata capture and private candidate
+preparation from hosted lifecycle operations. Diagnostic runs do not establish
+notification, activation, or retirement throughput.
+
+### Type registration snapshots
+
+Type-table snapshots share a registration graph until their first write.
+The first mutation copies that graph; capture alone does not. See
+[NodeManager DataTypes](NodeManagers.md#datatypes) for the publication and
+ownership contract.
+
+A three-round sequential net10.0 Release comparison against
+`fcfc84eab5c105780d7268474a47d344d100aca1` recorded the following medians
+for five snapshots. The candidate uses copy-on-write type registration storage.
+This record does not identify the candidate SHA or machine configuration,
+so the figures describe that run rather than a reproducible capacity baseline.
+
+| Registered types | Baseline time / allocation | Copy-on-write time / allocation |
+| ---: | ---: | ---: |
+| 128 | 0.172 ms / 43,696 bytes | 0.024 ms / 5,216 bytes |
+| 2,048 | 7.827 ms / 828,296 bytes | 0.018 ms / 5,216 bytes |
+| 16,384 | 26.784 ms / 4,596,984 bytes | 0.017 ms / 5,208 bytes |
+
+At 16,384 types, five first mutations measured 29.054 ms and 4,597,048 bytes
+on the candidate. Copying moves from capture under the serving-table lock
+to the first write under the private staging-table lock; total copy work is
+not eliminated.
+
+A separate three-round alternating net10.0 Release comparison used baseline
+`0a48fb5cf2de4c9bec3a2beafe41d8caedb482ea` and candidate
+`1cf9db60d24feb1b916f2e4741d92a1334f4f5c7`. Each round measured five
+`LifecycleWriter.CaptureRevision` calls, then four concurrent preparations
+through `ChangePreparer.CreateNodeManagerAsync`. Each factory added one
+distinct root subtype to its private type table. Capture columns report
+median elapsed time and allocation; preparation columns report median wall
+time and summed worker allocations.
+
+| Registered types | Baseline capture, 5 calls | Candidate capture, 5 calls | Baseline preparation, 4 candidates | Candidate preparation, 4 candidates |
+| ---: | ---: | ---: | ---: | ---: |
+| 128 | 0.29 ms / 225,568 bytes | 0.14 ms / 32,888 bytes | 2.97 ms / 394,168 bytes | 3.34 ms / 420,056 bytes |
+| 2,048 | 9.81 ms / 4,148,568 bytes | 0.08 ms / 32,888 bytes | 3.01 ms / 3,470,232 bytes | 10.55 ms / 3,491,872 bytes |
+| 16,384 | 22.85 ms / 22,992,048 bytes | 0.09 ms / 32,888 bytes | 23.87 ms / 18,547,144 bytes | 6.33 ms / 18,572,808 bytes |
+
+Candidate capture time and allocation stayed nearly constant as the model
+grew. Preparation with a first type write was faster at 16,384 types, similar
+at 128 and slower at 2,048; worker allocations were close at every size.
+The fixture measures metadata capture, staging-server creation and one type
+registration. Its models use root registrations rather than a representative
+hierarchy, and it does not measure address-space construction or routing
+publication. Machine configuration is not recorded for this comparison.
+Treat the timings as directional.
+
+The explicit diagnostic fixtures are
+`TypeTableSnapshotPerformanceTests.CaptureSnapshotReportsTimeAndAllocation`
+in `Opc.Ua.Types.Tests` and
+`TypeRegistrationSnapshotPerformanceTests.CaptureRevisionAndConcurrentPreparationReportTimeAndAllocationAsync`
+in `Opc.Ua.Server.Tests`. Select them by full method name in a Release
+`dotnet test` run to collect the corresponding measurements.
+
+Hosted add and replacement probes on `4a78fe779` and `1e352d379` also measured
+real prepared-unit disposal with 128, 2,048, and 16,384 additional types. The
+serving type relationships and routes stayed unchanged. Both sources recorded
+type and factory capture during disposal, but no first type write during that
+phase. This diagnostic separates preparation from abort; it was not repeated
+on a quiet host, so the timings do not establish a performance difference.
+
+### Lifecycle fixture cost
+
+The same five cases ran on `4a78fe779` and `1e352d379`: two admission guards and
+three retained real-server controls covering shutdown drain and historian
+retirement. On the baseline the guards start a real server; on the checkpoint
+they use the direct lifecycle harness and check routing and writer state.
+
+In this diagnostic, the hosted guards each spent about 0.78 s and allocated
+130–131 MB in setup. Direct setup took 0.35 s and 3.84 MB for the first guard and
+4.25 ms and 0.33 MB for the second. The three hosted controls continued to start
+and stop the server. These are one-run, process-wide measurements, not matched
+cold and warm medians or a reason to remove the hosted controls.
+
+### System context reuse
+
+A component probe compared `4a78fe779` and `1e352d379` with 1, 8, and 24
+alternating templates on pinned requests, unpinned requests, and shared
+subscriber contexts. Both sources reused every copy in all nine cases. First
+access allocated the same number of bytes on pinned requests and shared
+subscriber contexts. For 128 unpinned operations at 24 templates, first access
+allocated 289,792 bytes on the baseline and 372,736 bytes on the checkpoint,
+which weakly keys copies beyond the first. On the checkpoint, none of the warm
+lookups allocated on the calling thread. This probe does not run sampling or
+measure authorization-verdict hits.
+
+### Notification and permission costs
+
+`perf/ServerLoadHarness` can run write-driven `sub`, sampled `native-counters`,
+and high-fanout `events` scenarios. It reports total server CPU and allocation
+per operation, delivered notifications, latency, and can collect CPU,
+allocation, or contention traces. Those results do not separately attribute
+each delivery's collection snapshots, `NamespaceDefaultPermissionReader`,
+`ConditionalWeakTable` access, or their contention. The in-process
+`MonitoredItemBenchmarks.QueueEvent` benchmark only queues synthetic events; it
+does not exercise subscriber delivery or authorization.
+
+The historical [#4869](https://github.com/OPCFoundation/UA-.NETStandard/issues/4869)
+allocation trace predates
+[#5009](https://github.com/OPCFoundation/UA-.NETStandard/pull/5009), which is
+included in `1e352d379`. Stock data-change fan-out now reuses the admitted item
+array and reads Value into a dedicated snapshot field. Membership changes
+invalidate the cached array, and exposing the public mutable dictionary
+restores a fresh `ConcurrentDictionary.ToArray()` for each change. The earlier
+per-change item-array and attribute-set percentages are not current allocation
+estimates. The #5009 measurements use a different workload and do not qualify
+end-to-end delivery.
+
+The 48-session `native-subs` comparison in
+[#4908](https://github.com/OPCFoundation/UA-.NETStandard/pull/4908) uses a separate
+harness patch and native multi-subscription worker that are not in this repository.
+The in-tree `native-counters` scenario is not that workload. To measure periodic
+sampling with a **managed client**, use the matching 48-session, five-subscription,
+1,000-item shape from [#4955](https://github.com/OPCFoundation/UA-.NETStandard/pull/4955):
+
+```powershell
+ServerLoadHarness.exe run --scenario counters --sessions 48 --subs 5 --nodes 1000 --sampling 100 --pub 100 --async-node-manager 1 --duration 20 --warmup 15
+```
+
+Report managed `counters` results separately from native `native-subs` results.
+The `sub` scenario drives notifications through writes and does not measure
+periodic sampling.
+
+Whole-workload CPU and allocation measurements do not establish the cost of
+an individual cache or registration-storage change. The following diagnostic
+used a scratch build based on `1e352d379` with the stock session membership
+change from `ed8c2df41`, on Windows with .NET 10.0.15 and Workstation GC. The
+probes ran in the server process and sampled each operation once per 256 calls
+per thread.
+
+| Workload | Snapshot lookup | Static permission lookup | Permission decode | Weak context path |
+|---|---:|---:|---:|---:|
+| Write-driven, 10 sessions x 15 subscriptions x 600 items | 0.12 us | 0.77 us | Not sampled | 1.49 us |
+| Periodic managed, 48 sessions x 5 subscriptions x 1,000 items | Not sampled | 0.41 us | 0.82 us | 0.04 us |
+| Event fanout, 10 sessions x 15 subscriptions, 400 events/s | 0.36 us | 0.33 us | Not sampled | Not sampled |
+
+These are mean elapsed times for sampled calls, including any waits within the
+probe boundary. None of those calls recorded calling-thread allocations; this
+does not establish that cache misses or snapshot rebuilds allocate nothing.
+The 48-session run recorded 43,668,000 verdict reuses and 4,852,000 rechecks
+across completed sampling passes. The client reported `FAIL` at 90.3% delivery
+even though the executable exited zero. This is diagnostic evidence, not a
+quiet-host comparison, a passing workload, or a substitute for `native-subs`.
+
+### Session activation scaling
+
+`SessionManager.GetSessions()` creates a list from `m_sessions.Values`.
+The stock protocol activation path passes the session that `StandardServer`
+already resolved to `MasterNodeManager`. It checks that the session is still
+registered before dispatching. `GenerationReconciler` still enumerates the list
+during binding and reconciliation, but the stock manager checks exact
+membership after each activation callback without taking another snapshot.
+Custom session managers keep the reference-equality check against `GetSessions()`.
+
+The session-load test measures connection establishment and steady-state
+notification delivery, not activation cost versus generation count during
+concurrent publication and close. A diagnostic on .NET 10 compared 1,024
+membership checks at 128 sessions: the snapshot scan allocated 2,326,528 bytes
+across the checks; the stock lookup allocated no bytes on the calling thread.
+That result isolates membership checks.
+
+A separate hosted diagnostic overlapped a real activation, a replacement
+decision, and the close of another session. It checked the exact activation and
+close callbacks, verified that the closing session was removed, and waited for
+retirement. Three alternating pairs compared `1e352d379` and `7197c76ea` on
+Windows and .NET 10. Only the server assembly and its symbols differed; the test
+assembly and its other dependencies were byte-identical.
+
+| Live sessions before the race | Added generations | Median elapsed, baseline / candidate | Median allocated bytes, baseline / candidate |
+|---:|---:|---:|---:|
+| 2 | 1 | 1.99 / 2.10 ms | 1,787,848 / 1,782,760 |
+| 2 | 8 | 2.26 / 2.40 ms | 1,817,632 / 1,812,648 |
+| 24 | 1 | 2.14 / 2.17 ms | 1,817,296 / 1,798,264 |
+| 24 | 8 | 2.61 / 2.38 ms | 1,861,012 / 1,822,656 |
+
+Each median uses 24 post-warmup observations. Allocation covers the process
+during the whole race, including session creation. The candidate allocated less
+at all four scales, but the elapsed results were mixed. The process CPU counter
+reported zero in most individual windows, and the host was not qualified as
+quiet. These measurements do not establish lower CPU cost or pass the
+activation-scaling gate.

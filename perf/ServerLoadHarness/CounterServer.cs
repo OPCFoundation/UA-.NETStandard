@@ -1,32 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
-
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using System.Collections.Generic;
@@ -154,7 +127,9 @@ namespace Opc.Ua.Perf.ServerLoadHarness
     /// <summary>
     /// The counters on <see cref="CustomNodeManager2"/> with sampling groups.
     /// </summary>
+#pragma warning disable CS0618, UA0031 // Benchmarks the legacy base class against AsyncCounterNodeManager.
     internal sealed class CounterNodeManager : CustomNodeManager2
+#pragma warning restore CS0618, UA0031
     {
         public const string Namespace = "urn:opcfoundation.org:perf:counters";
 
@@ -222,7 +197,7 @@ namespace Opc.Ua.Perf.ServerLoadHarness
     /// <summary>
     /// A server exposing only the counter node manager in addition to the standard nodes.
     /// </summary>
-    internal sealed class CounterServer : StandardServer
+    internal sealed class CounterServer : StandardServer, IAsyncNodeManagerFactory
     {
         public CounterServer(
             ITelemetryContext telemetry,
@@ -235,20 +210,31 @@ namespace Opc.Ua.Perf.ServerLoadHarness
             Counters = new CounterValues(count, lockedCallback);
             m_namespaceUri = namespaceUri;
             m_asyncNodeManager = asyncNodeManager;
+            AddNodeManager(this);
         }
 
         public CounterValues Counters { get; }
 
-        protected override IMasterNodeManager CreateMasterNodeManager(
+        /// <inheritdoc/>
+        ArrayOf<string> IAsyncNodeManagerFactory.NamespacesUris => [m_namespaceUri];
+
+        /// <inheritdoc/>
+        // TODO: Remove when CA2000 recognizes lifecycle ownership through ValueTask<IAsyncNodeManager>.
+#pragma warning disable CA2000 // Canonical lifecycle preparation takes ownership of the manager and adapter.
+        ValueTask<IAsyncNodeManager> IAsyncNodeManagerFactory.CreateAsync(
             IServerInternal server,
-            ApplicationConfiguration configuration)
+            ApplicationConfiguration configuration,
+            CancellationToken cancellationToken)
         {
-            return m_asyncNodeManager
-                ? new MasterNodeManager(
-                    server, configuration, null, new AsyncCounterNodeManager(server, configuration, Counters, m_namespaceUri))
-                : new MasterNodeManager(
-                    server, configuration, null, new CounterNodeManager(server, configuration, Counters, m_namespaceUri));
+            cancellationToken.ThrowIfCancellationRequested();
+            IAsyncNodeManager manager = m_asyncNodeManager
+                ? new AsyncCounterNodeManager(server, configuration, Counters, m_namespaceUri)
+#pragma warning disable CS0618, UA0031 // Benchmarks the legacy base class against AsyncCounterNodeManager.
+                : new CounterNodeManager(server, configuration, Counters, m_namespaceUri).ToAsyncNodeManager();
+#pragma warning restore CS0618, UA0031
+            return new ValueTask<IAsyncNodeManager>(manager);
         }
+#pragma warning restore CA2000
 
         private readonly string m_namespaceUri;
         private readonly bool m_asyncNodeManager;

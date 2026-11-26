@@ -1,31 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using System.Linq;
@@ -615,15 +589,18 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             bool exactXid, bool acceptLast)
         {
             HandoffProbe probe = ObserveHandoff();
-            await m_server.NodeManagerLifecycle.AddAsync(new WotRegistryNodeManagerFactory(
-                new WotRegistryServerOptions { AutoRefresh = false }, m_registry, m_coordinator),
-                callerContext: null).ConfigureAwait(false);
+            await m_server.NodeManagerLifecycle.ApplyAsync([LifecycleChange.Add(new WotRegistryNodeManagerFactory(
+                new WotRegistryServerOptions { AutoRefresh = false }, m_registry, m_coordinator))])
+                .ConfigureAwait(false);
             WotResource retired = await AddAsync("retired").ConfigureAwait(false);
             await m_coordinator.RefreshAsync(HandoffRequest("before-version-preview")).ConfigureAwait(false);
             WotRegistryMutationResult versioned = await m_registry.UpsertResourceAsync(new WotUpsertResourceRequest
             {
-                GroupId = retired.GroupId, ResourceId = retired.ResourceId, VersionId = "v2",
-                Kind = retired.Kind, SetAsDefault = false,
+                GroupId = retired.GroupId,
+                ResourceId = retired.ResourceId,
+                VersionId = "v2",
+                Kind = retired.Kind,
+                SetAsDefault = false,
                 Content = ByteString.From(TestMaterialization.Td("urn:retired", "2"))
             }).ConfigureAwait(false);
             Assert.That(versioned.Changed, Is.True, versioned.Message);
@@ -637,7 +614,33 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             await AwaitStockRegistryProjectionAsync().ConfigureAwait(false);
             WotRegistrySnapshot before = m_registry.Current;
             string xid = exactXid ? WotDependencyGraph.VersionXid(retired, selected) : retired.Xid;
-            probe.OnRuntimeCreated = () => probe.RejectReadImages = !acceptLast || probe.RuntimeCreatedCount <= 3;
+            if (exactXid && acceptLast)
+            {
+                WotRefreshResult warmup = await m_coordinator.RefreshAsync(new WotRefreshRequest
+                {
+                    ExpectedGeneration = 1,
+                    Selection = [UnitSelector(first)],
+                    Options = new WoTRefreshOptionsDataType
+                    {
+                        Atomicity = WoTAtomicityEnum.PerResource,
+                        DryRun = true
+                    }
+                }).ConfigureAwait(false);
+                Assert.That(warmup.Summary.Failed, Is.Zero);
+                Assert.That(m_registry.Current, Is.SameAs(before));
+            }
+            int bindingAttempts = 0;
+            int rejectedBindings = 0;
+            probe.RejectReadImagesAtBind = () =>
+            {
+                int attempt = Interlocked.Increment(ref bindingAttempts);
+                bool reject = !acceptLast || attempt <= 2;
+                if (reject)
+                {
+                    Interlocked.Increment(ref rejectedBindings);
+                }
+                return reject;
+            };
             m_events.Clear();
 
             WotRefreshResult result = await m_coordinator.RefreshAsync(new WotRefreshRequest
@@ -658,6 +661,8 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             }).ConfigureAwait(false);
 
             Assert.That(result.Summary.Total, Is.EqualTo(4u));
+            Assert.That(bindingAttempts, Is.EqualTo(3));
+            Assert.That(rejectedBindings, Is.EqualTo(acceptLast ? 2 : 3));
             Assert.That(result.Summary.Failed, Is.EqualTo(acceptLast ? 2u : 4u));
             Assert.That(result.Summary.Skipped, Is.EqualTo(acceptLast ? 1u : 0u));
             Assert.That(result.Results.Select(row => row.Xid),
@@ -682,9 +687,9 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             bool rejectEveryUnit, bool rejectFirstUnitOnly = false, bool exactRetiredVersion = false)
         {
             HandoffProbe probe = ObserveHandoff();
-            await m_server.NodeManagerLifecycle.AddAsync(new WotRegistryNodeManagerFactory(
-                new WotRegistryServerOptions { AutoRefresh = false }, m_registry, m_coordinator),
-                callerContext: null).ConfigureAwait(false);
+            await m_server.NodeManagerLifecycle.ApplyAsync([LifecycleChange.Add(new WotRegistryNodeManagerFactory(
+                new WotRegistryServerOptions { AutoRefresh = false }, m_registry, m_coordinator))])
+                .ConfigureAwait(false);
             WotResource retired = await AddAsync("retired").ConfigureAwait(false);
             await m_coordinator.RefreshAsync(HandoffRequest("before-split-preview")).ConfigureAwait(false);
             WotResource first = await AddAsync("first").ConfigureAwait(false);
@@ -695,16 +700,12 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             string retiredXid = exactRetiredVersion
                 ? WotDependencyGraph.VersionXid(retired, retired.DefaultVersion!)
                 : retired.Xid;
+            // Decide by the resource a runtime is built for, not by a creation count: validation
+            // can build more than one runtime for the same unit.
             probe.OnRuntimeCreated = () =>
             {
-                if (rejectFirstUnitOnly)
-                {
-                    probe.RejectReadImages = probe.RuntimeCreatedCount == 2;
-                }
-                else if (rejectEveryUnit || probe.RuntimeCreatedCount > 2)
-                {
-                    probe.RejectReadImages = true;
-                }
+                bool forFirst = probe.LastRuntimeResourceXids.Contains(first.Xid);
+                probe.RejectReadImages = rejectEveryUnit || (rejectFirstUnitOnly ? forFirst : !forFirst);
             };
             m_events.Clear();
 

@@ -1,31 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using System.Collections.Generic;
@@ -139,11 +113,44 @@ namespace Opc.Ua.Lds.Tests
                 await FindServersOnNetworkAsync(startingRecordId: 0, maxRecords: 2).ConfigureAwait(false);
             Assert.That(page1.Count, Is.EqualTo(2));
 
-            uint nextStart = page1[^1].RecordId + 1;
+            // Part 4 §5.5.3.2: only records with an id greater than startingRecordId
+            // are returned, so the last id seen is the cursor for the next page.
+            uint lastSeen = page1[^1].RecordId;
             (ArrayOf<ServerOnNetwork> page2, _) =
-                await FindServersOnNetworkAsync(startingRecordId: nextStart, maxRecords: 2).ConfigureAwait(false);
-            Assert.That(page2.Count, Is.GreaterThanOrEqualTo(2));
-            Assert.That(page2[0].RecordId, Is.GreaterThanOrEqualTo(nextStart));
+                await FindServersOnNetworkAsync(startingRecordId: lastSeen, maxRecords: 2).ConfigureAwait(false);
+            Assert.That(page2.Count, Is.EqualTo(2));
+            Assert.That(page2[0].RecordId, Is.GreaterThan(lastSeen));
+        }
+
+        [Test]
+        public async Task LdsMeQueryServersOnNetworkPagesOneRecordAtATimeAsync()
+        {
+            for (int i = 0; i < 3; i++)
+            {
+                SeedRecord(
+                    $"urn:test:single-page-{i}",
+                    $"single-page-{i}",
+                    ["LDS-ME"],
+                    $"opc.tcp://single-page-{i}:48010");
+            }
+
+            var seen = new List<uint>();
+            uint cursor = 0;
+            for (int page = 0; page < 50; page++)
+            {
+                (ArrayOf<ServerOnNetwork> records, _) =
+                    await FindServersOnNetworkAsync(startingRecordId: cursor, maxRecords: 1).ConfigureAwait(false);
+                if (records.Count == 0)
+                {
+                    break;
+                }
+                Assert.That(records[0].RecordId, Is.GreaterThan(cursor));
+                cursor = records[0].RecordId;
+                seen.Add(cursor);
+            }
+
+            Assert.That(seen, Is.Unique);
+            Assert.That(seen, Has.Count.GreaterThanOrEqualTo(3));
         }
 
         [Test]

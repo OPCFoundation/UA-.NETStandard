@@ -1,33 +1,9 @@
-/* ========================================================================
- * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
+using System.Collections.Concurrent;
+using System.Runtime.CompilerServices;
 using System.Threading;
 
 namespace Opc.Ua.Server
@@ -36,8 +12,8 @@ namespace Opc.Ua.Server
     /// Stores information used while a thread is completing an operation on behalf of a client.
     /// <para>
     /// A context created for a Client request owns that request's tracking scope, so disposing the
-    /// context reports the request as completed. Contexts created for internal work, such as
-    /// sampling a MonitoredItem, own no scope and disposing them does nothing.
+    /// context reports the request as completed. Internal contexts own no request tracking scope.
+    /// Service calls borrowing an unpinned context share one routing view until their last scope exits.
     /// </para>
     /// </summary>
     public class OperationContext : ISessionOperationContext, IDisposable, IRequestTableEntry
@@ -105,7 +81,7 @@ namespace Opc.Ua.Server
 
             ChannelContext = secureChannelContext;
             Session = session ?? throw new ArgumentNullException(nameof(session));
-            (UserIdentity, NotificationAuthorization) = CaptureNotificationContext(session);
+            (UserIdentity, NotificationAuthorization, m_sessionClientUserId) = CaptureNotificationContext(session);
             PreferredLocales = session.PreferredLocales;
             DiagnosticsMask = (DiagnosticsMasks)requestHeader.ReturnDiagnostics;
             AuditEntryId = requestHeader.AuditEntryId!;
@@ -133,7 +109,7 @@ namespace Opc.Ua.Server
         {
             ChannelContext = null!;
             Session = session ?? throw new ArgumentNullException(nameof(session));
-            (UserIdentity, NotificationAuthorization) = CaptureNotificationContext(session);
+            (UserIdentity, NotificationAuthorization, m_sessionClientUserId) = CaptureNotificationContext(session);
             PreferredLocales = session.PreferredLocales;
             DiagnosticsMask = diagnosticsMasks;
             AuditEntryId = null!;
@@ -157,6 +133,14 @@ namespace Opc.Ua.Server
         /// </remarks>
         /// <param name="monitoredItem">The monitored item.</param>
         public OperationContext(IMonitoredItem monitoredItem)
+            : this(monitoredItem, DiagnosticsMasks.SymbolicId)
+        {
+        }
+
+        /// <summary>
+        /// Creates a sessionless subscriber context with the sampling group's diagnostics.
+        /// </summary>
+        internal OperationContext(IMonitoredItem monitoredItem, DiagnosticsMasks diagnostics)
         {
             if (monitoredItem == null)
             {
@@ -169,17 +153,58 @@ namespace Opc.Ua.Server
 
             if (Session != null)
             {
-                (UserIdentity, NotificationAuthorization) = CaptureNotificationContext(Session);
+                (UserIdentity, NotificationAuthorization, m_sessionClientUserId) = CaptureNotificationContext(Session);
                 PreferredLocales = Session.PreferredLocales;
             }
 
-            DiagnosticsMask = DiagnosticsMasks.SymbolicId;
+            DiagnosticsMask = diagnostics;
             AuditEntryId = null!;
             RequestId = 0;
             RequestType = RequestType.Unknown;
             ClientHandle = 0;
             OperationDeadline = DateTime.MaxValue;
             RequestLifetime = RequestLifetime.None;
+        }
+
+        /// <summary>
+        /// Creates an internal read context with a construction-bound routing bootstrap checkpoint.
+        /// </summary>
+        /// <param name="requestHeader">The request header.</param>
+        /// <param name="beforeRoutingBootstrap">Observes null-cohort selection before reading its pin state.</param>
+        /// <param name="requestLifetime">The request lifetime.</param>
+        internal OperationContext(
+            RequestHeader requestHeader,
+            Action beforeRoutingBootstrap,
+            RequestLifetime requestLifetime)
+            : this(requestHeader, null, RequestType.Read, requestLifetime)
+        {
+            m_beforeRoutingBootstrap =
+                beforeRoutingBootstrap ?? throw new ArgumentNullException(nameof(beforeRoutingBootstrap));
+        }
+
+        /// <summary>
+        /// Gives one node-management callback its own permit without transferring request ownership.
+        /// </summary>
+        internal OperationContext(OperationContext request, NodeManagerCallbackPermit callbackPermit)
+        {
+            ChannelContext = request.ChannelContext;
+            Session = request.Session;
+            NotificationAuthorization = request.NotificationAuthorization;
+            m_sessionClientUserId = request.m_sessionClientUserId;
+            UserIdentity = request.UserIdentity;
+            PreferredLocales = request.PreferredLocales;
+            DiagnosticsMask = request.DiagnosticsMask;
+            AuditEntryId = request.AuditEntryId;
+            ClientTimestamp = request.ClientTimestamp;
+            RequestId = request.RequestId;
+            RequestType = request.RequestType;
+            ClientHandle = request.ClientHandle;
+            OperationDeadline = request.OperationDeadline;
+            RequestLifetime = request.RequestLifetime;
+            Readiness = request.Readiness;
+            PublicationDecision = request.PublicationDecision;
+            NodeManagerCallbackPermit = callbackPermit;
+            m_callbackRequest = Volatile.Read(ref request.m_callbackRequest) ?? request;
         }
 
         /// <summary>
@@ -198,6 +223,59 @@ namespace Opc.Ua.Server
         /// Gets the authorization epoch captured with the request identity.
         /// </summary>
         internal NotificationAuthorization? NotificationAuthorization { get; }
+
+        /// <summary>
+        /// Gets the routing view explicitly owned by this operation, if it is dispatching a service.
+        /// Internal subscriber contexts without a service scope use live routing.
+        /// </summary>
+        internal NodeManagerRoutingTable.RoutingSnapshot? RoutingSnapshot
+        {
+            get => Volatile.Read(ref m_callbackRequest)?.RoutingSnapshot ?? m_routingSnapshot;
+            private set => m_routingSnapshot = value;
+        }
+
+        /// <summary>
+        /// Gets or sets the local initializer that admitted this request, independently of its routing view.
+        /// </summary>
+        internal NodeManagerReadinessScope? Readiness { get; set; }
+
+        /// <summary>
+        /// Identifies a local durable decision when its callback invokes node management.
+        /// </summary>
+        public NodeManagerDecisionContext? PublicationDecision { get; init; }
+
+        /// <summary>
+        /// Gets or sets the revocable permit for a node-management callback.
+        /// </summary>
+        internal NodeManagerCallbackPermit? NodeManagerCallbackPermit { get; set; }
+
+        /// <summary>
+        /// Passes a node-management callback's admission to a nested local operation.
+        /// </summary>
+        /// <param name="callbackContext">The operation context supplied to the callback.</param>
+        /// <exception cref="ArgumentNullException"><paramref name="callbackContext"/> is null.</exception>
+        public void InheritNodeManagerAdmission(OperationContext callbackContext)
+        {
+            NodeManagerCallbackPermit = (callbackContext ??
+                throw new ArgumentNullException(nameof(callbackContext))).NodeManagerCallbackPermit;
+        }
+
+        /// <summary>
+        /// Gets whether this operation currently owns a routing-view pin.
+        /// </summary>
+        internal bool HasRoutingPin =>
+            Volatile.Read(ref m_callbackRequest)?.HasRoutingPin ??
+            (Volatile.Read(ref m_routingPinState) is
+                kRoutingPinActive or kRoutingPinTemporary or kRoutingPinDisposedActive or kRoutingPinCohortOwned);
+
+        /// <summary>
+        /// Gets whether this operation's pin protects the currently selected routing view.
+        /// </summary>
+        internal bool RoutingPinMatchesSnapshot =>
+            Volatile.Read(ref m_callbackRequest)?.RoutingPinMatchesSnapshot ??
+            (m_routingSnapshot is { } snapshot &&
+             HasRoutingPin &&
+             ReferenceEquals(Volatile.Read(ref m_routingEpoch), snapshot.Epoch));
 
         /// <summary>
         /// The lifetime of the request.
@@ -271,6 +349,140 @@ namespace Opc.Ua.Server
         internal bool ClientCertificateErrorAccepted { get; set; }
 
         /// <summary>
+        /// Starts the response byte budget of the service call: the results the call
+        /// keeps for its response are charged against <paramref name="maxResponseBytes"/>
+        /// while they are built, so a response that cannot fit the message size limit
+        /// is refused before all of it is built. Zero or less disables the budget, which
+        /// is the default: the services that send their results start it, in-process
+        /// callers of the node managers do not.
+        /// </summary>
+        /// <param name="maxResponseBytes">The response size limit in bytes.</param>
+        internal void StartResponseBudget(int maxResponseBytes)
+        {
+            // an unused budget is kept negated until the first charge.
+            Volatile.Write(
+                ref m_responseBudget,
+                maxResponseBytes <= 0 ? kNoResponseBudget :
+                maxResponseBytes == int.MaxValue ? -int.MaxValue : -(maxResponseBytes + 1));
+        }
+
+        /// <summary>
+        /// Starts a response byte budget that has nothing left before any result is
+        /// charged, for a response whose reserved framing alone exceeds the message size
+        /// limit: no result value fits, and the reserved framing that results do not use
+        /// is not returned to it (<see cref="CreditResponse(long)"/>), because the deficit
+        /// of the framing cannot be recorded.
+        /// </summary>
+        internal void StartExhaustedResponseBudget()
+        {
+            Volatile.Write(ref m_responseBudget, kResponseBudgetExhausted);
+        }
+
+        /// <summary>
+        /// Whether the budget was started exhausted
+        /// (<see cref="StartExhaustedResponseBudget"/>) and nothing was charged since:
+        /// results may not use the framing reserved for them for values.
+        /// </summary>
+        internal bool ResponseBudgetExhausted =>
+            Volatile.Read(ref m_responseBudget) == kResponseBudgetExhausted;
+
+        /// <summary>
+        /// Whether the call has a response byte budget that nothing was charged against
+        /// yet: a result that does not fit it cannot fit any response of the call.
+        /// </summary>
+        internal bool ResponseBudgetUnused
+        {
+            get
+            {
+                int current = Volatile.Read(ref m_responseBudget);
+                return current < 0 && current != kResponseBudgetExceeded;
+            }
+        }
+
+        /// <summary>
+        /// Charges result bytes against the response byte budget.
+        /// </summary>
+        /// <param name="bytes">A lower bound of the encoded size of the result.</param>
+        /// <returns><c>false</c> once the charged bytes exceed the budget.</returns>
+        internal bool TryChargeResponse(long bytes)
+        {
+            int current = Volatile.Read(ref m_responseBudget);
+            while (true)
+            {
+                if (current == kNoResponseBudget)
+                {
+                    return true;
+                }
+                if (current == kResponseBudgetExceeded)
+                {
+                    return false;
+                }
+                if (bytes == 0)
+                {
+                    return true;
+                }
+                long remaining = (current < 0 ? -(long)current : current) - bytes;
+                int next = remaining < 1 ? kResponseBudgetExceeded : (int)remaining;
+                int observed = Interlocked.CompareExchange(ref m_responseBudget, next, current);
+                if (observed == current)
+                {
+                    return next != kResponseBudgetExceeded;
+                }
+                current = observed;
+            }
+        }
+
+        /// <summary>
+        /// Returns bytes to the response byte budget that it reserved for framing the
+        /// response does not hold (the continuation point of a result that is complete).
+        /// A budget that nothing was charged against stays unused, an exceeded budget
+        /// stays exceeded.
+        /// </summary>
+        /// <param name="bytes">The reserved bytes the response does not hold.</param>
+        internal void CreditResponse(long bytes)
+        {
+            if (bytes <= 0)
+            {
+                return;
+            }
+            int current = Volatile.Read(ref m_responseBudget);
+            while (current != kNoResponseBudget &&
+                current != kResponseBudgetExceeded &&
+                current != kResponseBudgetExhausted)
+            {
+                long next = Math.Min(
+                    (current < 0 ? -(long)current : current) + bytes,
+                    int.MaxValue);
+                int stored = current < 0 ? -(int)next : (int)next;
+                int observed = Interlocked.CompareExchange(ref m_responseBudget, stored, current);
+                if (observed == current)
+                {
+                    return;
+                }
+                current = observed;
+            }
+        }
+
+        /// <summary>
+        /// The bytes left in the response byte budget, or -1 when the call has no budget.
+        /// </summary>
+        internal long ResponseBytesRemaining
+        {
+            get
+            {
+                int current = Volatile.Read(ref m_responseBudget);
+                return current == kNoResponseBudget ? -1 :
+                    current == kResponseBudgetExceeded ? 0 :
+                    current < 0 ? -(long)current - 1L : current - 1L;
+            }
+        }
+
+        /// <summary>
+        /// Whether the results charged so far exceed the response byte budget.
+        /// </summary>
+        internal bool ResponseBudgetExceeded => Volatile.Read(ref m_responseBudget) == kResponseBudgetExceeded;
+
+        /// <summary>
         /// Updates the status code (thread safe).
         /// </summary>
         /// <param name="statusCode">The status code.</param>
@@ -303,6 +515,16 @@ namespace Opc.Ua.Server
         /// <value>The user identity.</value>
         public IUserIdentity UserIdentity { get; }
 
+        /// <inheritdoc/>
+        /// <remarks>
+        /// The ClientUserId of the Session's user, captured together with
+        /// <see cref="UserIdentity"/> when the context was created, or of
+        /// <see cref="UserIdentity"/> when the operation has no Session.
+        /// </remarks>
+        public string? ClientUserId => Session != null
+            ? m_sessionClientUserId
+            : ClientUserIdResolver.ResolveIdentity(UserIdentity);
+
         /// <summary>
         /// The locales to use for the operation.
         /// </summary>
@@ -326,6 +548,10 @@ namespace Opc.Ua.Server
         {
             get
             {
+                if (Volatile.Read(ref m_callbackRequest) is { } request)
+                {
+                    return request.StringTable;
+                }
                 StringTable? table = Volatile.Read(ref m_stringTable);
                 if (table != null)
                 {
@@ -341,7 +567,8 @@ namespace Opc.Ua.Server
         /// <summary>
         /// The string table if anything asked for it, else <c>null</c>.
         /// </summary>
-        internal StringTable? CreatedStringTable => Volatile.Read(ref m_stringTable);
+        internal StringTable? CreatedStringTable =>
+            Volatile.Read(ref m_callbackRequest)?.CreatedStringTable ?? Volatile.Read(ref m_stringTable);
 
         /// <summary>
         /// When the request times out.
@@ -367,9 +594,9 @@ namespace Opc.Ua.Server
         public string AuditEntryId { get; } = null!;
 
         /// <summary>
-        /// Reports the request as completed and releases any lifecycle operation waiting for it.
-        /// Disposing a context that does not track a request does nothing, and disposing the same
-        /// context twice is safe.
+        /// Reports the request as completed and releases context-owned routing.
+        /// Active borrowed service scopes retain their admission until the last scope exits.
+        /// Disposing the same context twice is safe; a disposed context cannot capture another view.
         /// </summary>
         public void Dispose()
         {
@@ -385,6 +612,11 @@ namespace Opc.Ua.Server
         {
             if (disposing)
             {
+                if (Interlocked.Exchange(ref m_callbackRequest, null) is not null)
+                {
+                    Readiness = null;
+                    NodeManagerCallbackPermit = null;
+                }
                 try
                 {
                     System.Threading.Interlocked.Exchange(ref m_requestScope, null)?.Dispose();
@@ -393,8 +625,220 @@ namespace Opc.Ua.Server
                 }
                 finally
                 {
-                    System.Threading.Interlocked.Exchange(ref m_sessionlessLease, null)?.Dispose();
+                    try
+                    {
+                        ReleaseRoutingPin();
+                    }
+                    finally
+                    {
+                        if (Volatile.Read(ref m_routingCohort) is null)
+                        {
+                            RoutingSnapshot = null;
+                        }
+                        try
+                        {
+                            System.Threading.Interlocked.Exchange(ref m_sessionlessLease, null)?.Dispose();
+                        }
+                        finally
+                        {
+                            System.Threading.Interlocked.Exchange(ref m_firstSystemContext, null);
+                            System.Threading.Interlocked.Exchange(ref m_systemContextCache, null);
+                            System.Threading.Interlocked.Exchange(ref m_systemContextList, null);
+                        }
+                    }
                 }
+            }
+        }
+
+        /// <summary>
+        /// Pins the current routing view once for this request before admission or service callbacks run.
+        /// Subsequent calls are no-ops and do not replace the view.
+        /// </summary>
+        /// <param name="routingTable">The routing table providing the current published view.</param>
+        internal void PinRouting(NodeManagerRoutingTable routingTable)
+        {
+            if (Volatile.Read(ref m_callbackRequest) is { } request)
+            {
+                request.PinRouting(routingTable);
+                return;
+            }
+            if (routingTable is null)
+            {
+                throw new ArgumentNullException(nameof(routingTable));
+            }
+            var spinWait = new SpinWait();
+            while (true)
+            {
+                RoutingCohort? cohort = Volatile.Read(ref m_routingCohort);
+                if (cohort is not null)
+                {
+                    cohort.PinRouting(routingTable);
+                    return;
+                }
+                m_beforeRoutingBootstrap?.Invoke();
+                int state = Volatile.Read(ref m_routingPinState);
+                if (state == kRoutingPinReleased)
+                {
+                    throw new ObjectDisposedException(nameof(OperationContext));
+                }
+                if (state is kRoutingPinAcquiring or kRoutingPinTemporary or kRoutingPinDisposedActive or
+                    kRoutingPinCohortIdle or kRoutingPinCohortOwned)
+                {
+                    spinWait.SpinOnce();
+                    continue;
+                }
+                if (state == kRoutingPinActive)
+                {
+                    return;
+                }
+                if (Interlocked.CompareExchange(
+                    ref m_routingPinState,
+                    kRoutingPinAcquiring,
+                    kRoutingPinUnclaimed) == kRoutingPinUnclaimed)
+                {
+                    break;
+                }
+            }
+
+            AcquireRoutingPin(routingTable, kRoutingPinActive);
+        }
+
+        /// <summary>
+        /// Enters a service view without transferring a borrowed context's pin to its caller.
+        /// Overlapping and nested calls share the view until quiescence; continuous overlap can extend it.
+        /// </summary>
+        /// <param name="routingTable">The routing table providing the published view.</param>
+        /// <returns>The scope releasing this service's temporary ownership.</returns>
+        internal RoutingScope CaptureRouting(NodeManagerRoutingTable routingTable)
+        {
+            if (Volatile.Read(ref m_callbackRequest) is { } request)
+            {
+                return request.CaptureRouting(routingTable);
+            }
+            if (routingTable is null)
+            {
+                throw new ArgumentNullException(nameof(routingTable));
+            }
+            var spinWait = new SpinWait();
+            while (true)
+            {
+                RoutingCohort? cohort = Volatile.Read(ref m_routingCohort);
+                if (cohort is not null)
+                {
+                    return cohort.Enter(routingTable);
+                }
+                m_beforeRoutingBootstrap?.Invoke();
+                int state = Volatile.Read(ref m_routingPinState);
+                if (state == kRoutingPinReleased)
+                {
+                    throw new ObjectDisposedException(nameof(OperationContext));
+                }
+                if (state is kRoutingPinAcquiring or kRoutingPinTemporary or kRoutingPinDisposedActive or
+                    kRoutingPinCohortIdle or kRoutingPinCohortOwned)
+                {
+                    spinWait.SpinOnce();
+                    continue;
+                }
+                if (state == kRoutingPinActive)
+                {
+                    return default;
+                }
+                if (Interlocked.CompareExchange(
+                    ref m_routingPinState, kRoutingPinAcquiring, kRoutingPinUnclaimed) != kRoutingPinUnclaimed)
+                {
+                    continue;
+                }
+                try
+                {
+                    return new RoutingCohort(this).Enter(routingTable);
+                }
+                catch
+                {
+                    _ = Interlocked.CompareExchange(
+                        ref m_routingPinState, kRoutingPinUnclaimed, kRoutingPinAcquiring);
+                    throw;
+                }
+            }
+        }
+
+        /// <summary>
+        /// Acquires an epoch slot after the caller has reserved pin initialization.
+        /// </summary>
+        private void AcquireRoutingPin(NodeManagerRoutingTable routingTable, int state)
+        {
+            AddressSpaceEpoch? epoch = null;
+            int slot = -1;
+            try
+            {
+                (NodeManagerRoutingTable.RoutingSnapshot snapshot, AddressSpaceEpoch pinnedEpoch, int pinSlot) =
+                    routingTable.PinCurrent();
+                epoch = pinnedEpoch;
+                slot = pinSlot;
+                m_routingEpoch = pinnedEpoch;
+                m_routingPinSlot = pinSlot;
+                RoutingSnapshot = snapshot;
+                Volatile.Write(ref m_routingPinState, state);
+            }
+            catch
+            {
+                if (epoch is not null && slot >= 0)
+                {
+                    epoch.Exit(slot);
+                }
+                m_routingEpoch = null;
+                m_routingPinSlot = -1;
+                RoutingSnapshot = null;
+                _ = Interlocked.CompareExchange(
+                    ref m_routingPinState,
+                    kRoutingPinUnclaimed,
+                    kRoutingPinAcquiring);
+                throw;
+            }
+        }
+
+        private void ReleaseRoutingPin()
+        {
+            var spinWait = new SpinWait();
+            while (true)
+            {
+                RoutingCohort? cohort = Volatile.Read(ref m_routingCohort);
+                if (cohort is not null)
+                {
+                    cohort.DisposeContext();
+                    return;
+                }
+                m_beforeRoutingBootstrap?.Invoke();
+                int state = Volatile.Read(ref m_routingPinState);
+                if (state == kRoutingPinReleased)
+                {
+                    return;
+                }
+                if (state is kRoutingPinAcquiring or kRoutingPinTemporary or kRoutingPinDisposedActive or
+                    kRoutingPinCohortIdle or kRoutingPinCohortOwned)
+                {
+                    spinWait.SpinOnce();
+                    continue;
+                }
+                if (Interlocked.CompareExchange(
+                    ref m_routingPinState,
+                    kRoutingPinReleased,
+                    state) != state)
+                {
+                    continue;
+                }
+                if (state == kRoutingPinActive)
+                {
+                    AddressSpaceEpoch? epoch = m_routingEpoch;
+                    int slot = m_routingPinSlot;
+                    m_routingEpoch = null;
+                    m_routingPinSlot = -1;
+                    if (epoch is null || slot < 0)
+                    {
+                        throw new InvalidOperationException("An active routing pin has no epoch slot.");
+                    }
+                    epoch.Exit(slot);
+                }
+                return;
             }
         }
 
@@ -431,6 +875,17 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
+        /// Uses weakly keyed system-context copies for a subscriber context retained by a session
+        /// or monitored item.
+        /// </summary>
+        internal void EnableWeakSystemContextCache()
+        {
+            Interlocked.Exchange(ref m_weakSystemContextCache, 1);
+            Interlocked.Exchange(ref m_firstSystemContext, null);
+            Interlocked.Exchange(ref m_systemContextList, null);
+        }
+
+        /// <summary>
         /// Returns a copy of a node manager's system context bound to this operation,
         /// reusing the copy made for the previous call with the same template.
         /// </summary>
@@ -439,55 +894,120 @@ namespace Opc.Ua.Server
         /// metadata, reference descriptions) otherwise clone the system context once for
         /// every call or node of a request. The copies are equal for one request and
         /// node manager, so one copy is kept per template. A request that touches several
-        /// node managers keeps one copy for each of them, so they do not evict each
-        /// other.
+        /// node managers keeps one copy for each live template, so they do not evict each other.
+        /// An ordinary request owning a routing pin retains its copies until disposal, alongside
+        /// its pinned manager generations. Unpinned and borrowed operations weakly key copies
+        /// beyond the first. Shared subscriber operations weakly key every copy so retired
+        /// templates can be collected while the operation remains live. Copies cached before
+        /// pinning keep their identity and weak ownership. Disposing releases the cache.
         /// </remarks>
         /// <param name="template">The node manager's system context.</param>
         internal ServerSystemContext GetSystemContext(ServerSystemContext template)
         {
-            // The copy of the first node manager is kept on its own; it knows its template,
-            // so a request served by one node manager allocates no cache entry.
-            ServerSystemContext? first = m_firstSystemContext;
-            if (first != null && ReferenceEquals(first.CopiedFrom, template))
+            if (Volatile.Read(ref m_weakSystemContextCache) == 0)
             {
-                return first;
-            }
-
-            if (first == null)
-            {
-                ServerSystemContext firstCopy = template.Copy(this);
-                firstCopy.CopiedFrom = template;
-
-                // a concurrent caller may have published a copy for another template.
-                first = System.Threading.Interlocked.CompareExchange(ref m_firstSystemContext, firstCopy, null);
-                if (first == null || ReferenceEquals(first.CopiedFrom, template))
+                // Ordinary request contexts keep their first copy directly, avoiding a cache entry
+                // on the single-manager hot path. Shared subscriber contexts use weak keys instead.
+                ServerSystemContext? first = Volatile.Read(ref m_firstSystemContext);
+                if (first != null && ReferenceEquals(first.CopiedFrom, template))
                 {
-                    return first ?? firstCopy;
+                    return first;
+                }
+
+                if (first == null)
+                {
+                    ServerSystemContext firstCopy = template.Copy(this);
+                    firstCopy.CopiedFrom = template;
+
+                    // a concurrent caller may have published a copy for another template.
+                    first = System.Threading.Interlocked.CompareExchange(ref m_firstSystemContext, firstCopy, null);
+                    if (Volatile.Read(ref m_weakSystemContextCache) != 0)
+                    {
+                        Interlocked.CompareExchange(ref m_firstSystemContext, null, firstCopy);
+                    }
+                    if (first == null || ReferenceEquals(first.CopiedFrom, template))
+                    {
+                        return first ?? firstCopy;
+                    }
+                }
+
+                if (Volatile.Read(ref m_routingPinState) == kRoutingPinActive &&
+                    Volatile.Read(ref m_systemContextCache) is null)
+                {
+                    return GetListedSystemContext(template);
                 }
             }
 
-            SystemContextCacheEntry? head = m_systemContextCache;
-            int count = 0;
-            for (SystemContextCacheEntry? entry = head; entry != null; entry = entry.Next)
+            SystemContextCache? cache = Volatile.Read(ref m_systemContextCache);
+            if (cache != null && cache.Contexts.TryGetValue(template, out ServerSystemContext? cachedCopy))
             {
-                if (ReferenceEquals(entry.Template, template))
-                {
-                    return entry.Copy;
-                }
-
-                count++;
+                return cachedCopy;
             }
 
-            ServerSystemContext copy = template.Copy(this);
+            if (cache is null)
+            {
+                SystemContextCache candidate = new();
+                cache = Interlocked.CompareExchange(ref m_systemContextCache, candidate, null) ?? candidate;
+            }
 
-            // Entries are immutable and published as one reference. A concurrent caller
-            // that loses the race only costs one more copy later. A request touches few
-            // node managers; past the bound the list restarts instead of growing.
-            m_systemContextCache = new SystemContextCacheEntry(
-                template,
-                copy,
-                count < kMaxSystemContextCacheEntries ? head : null);
-            return copy;
+            lock (cache.Lock)
+            {
+                if (cache.Contexts.TryGetValue(template, out cachedCopy))
+                {
+                    return cachedCopy;
+                }
+
+                ServerSystemContext copy = template.Copy(this);
+                copy.CopiedFrom = template;
+                cache.Contexts.Add(template, copy);
+                return copy;
+            }
+        }
+
+        /// <summary>
+        /// Returns the copy for a template after the first of a request owning its routing pin.
+        /// </summary>
+        /// <remarks>
+        /// A per-request <see cref="ConditionalWeakTable{TKey, TValue}"/> made every request
+        /// served by two node managers allocate a finalizable container and dependent handles,
+        /// which multiplied the gen0 mark time. Entries are immutable and prepended with a
+        /// compare-and-swap; a caller that loses the race looks the template up again, so
+        /// concurrent callers share one copy per template.
+        /// </remarks>
+        private ServerSystemContext GetListedSystemContext(ServerSystemContext template)
+        {
+            SystemContextEntry? head = Volatile.Read(ref m_systemContextList);
+            ServerSystemContext? copy = null;
+            while (true)
+            {
+                for (SystemContextEntry? entry = head; entry != null; entry = entry.Next)
+                {
+                    if (ReferenceEquals(entry.Template, template))
+                    {
+                        return entry.Copy;
+                    }
+                }
+
+                if (copy == null)
+                {
+                    copy = template.Copy(this);
+                    copy.CopiedFrom = template;
+                }
+
+                var added = new SystemContextEntry(template, copy, head);
+                SystemContextEntry? current = Interlocked.CompareExchange(ref m_systemContextList, added, head);
+                if (ReferenceEquals(current, head))
+                {
+                    if (Volatile.Read(ref m_weakSystemContextCache) != 0)
+                    {
+                        Interlocked.CompareExchange(ref m_systemContextList, null, added);
+                    }
+                    return copy;
+                }
+
+                // another caller prepended entries: search them before adding this copy.
+                head = current;
+            }
         }
 
         /// <inheritdoc/>
@@ -499,20 +1019,19 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Captures built-in Session identity and epoch atomically, retaining support for custom sessions.
         /// </summary>
-        private static (IUserIdentity Identity, NotificationAuthorization? Authorization) CaptureNotificationContext(
-            ISession session)
+        private static (IUserIdentity Identity, NotificationAuthorization? Authorization, string? ClientUserId)
+            CaptureNotificationContext(ISession session)
         {
             return session is Session concreteSession
                 ? concreteSession.CaptureNotificationContext()
-                : (session.EffectiveIdentity, Opc.Ua.Server.NotificationAuthorization.Capture(session));
+                : (session.EffectiveIdentity,
+                    Opc.Ua.Server.NotificationAuthorization.Capture(session),
+                    ClientUserIdResolver.ResolveSession(session));
         }
 
+        private readonly string? m_sessionClientUserId;
         private int m_tableSlot = RequestTable<OperationContext>.kNoSlot;
-
-        /// <summary>
-        /// The most node managers after the first whose system context copies a request keeps.
-        /// </summary>
-        private const int kMaxSystemContextCacheEntries = 8;
+        private int m_weakSystemContextCache;
 
         /// <summary>
         /// The system context copy of the first node manager the request called.
@@ -520,15 +1039,19 @@ namespace Opc.Ua.Server
         private ServerSystemContext? m_firstSystemContext;
 
         /// <summary>
-        /// A system context copy and the template it was made from, published as one
-        /// reference so concurrent readers never pair a copy with the wrong template.
+        /// The copies after the first of a request owning its routing pin, newest first.
         /// </summary>
-        private sealed class SystemContextCacheEntry
+        private SystemContextEntry? m_systemContextList;
+
+        /// <summary>
+        /// An immutable system context copy and its template in the list of an ordinary request context.
+        /// </summary>
+        private sealed class SystemContextEntry
         {
-            public SystemContextCacheEntry(
+            public SystemContextEntry(
                 ServerSystemContext template,
                 ServerSystemContext copy,
-                SystemContextCacheEntry? next)
+                SystemContextEntry? next)
             {
                 Template = template;
                 Copy = copy;
@@ -536,8 +1059,28 @@ namespace Opc.Ua.Server
             }
 
             public ServerSystemContext Template { get; }
+
             public ServerSystemContext Copy { get; }
-            public SystemContextCacheEntry? Next { get; }
+
+            public SystemContextEntry? Next { get; }
+        }
+
+        /// <summary>
+        /// Holds weakly keyed system-context copies beyond the first request copy, or all copies
+        /// for a shared subscriber context.
+        /// </summary>
+        private sealed class SystemContextCache
+        {
+            /// <summary>
+            /// Synchronizes cache misses so concurrent calls create one copy per template.
+            /// </summary>
+            public System.Threading.Lock Lock { get; } = new();
+
+            /// <summary>
+            /// Stores copies without keeping retired templates alive, even though each copy points back
+            /// to its template.
+            /// </summary>
+            public ConditionalWeakTable<ServerSystemContext, ServerSystemContext> Contexts { get; } = new();
         }
 
         /// <summary>
@@ -547,28 +1090,39 @@ namespace Opc.Ua.Server
         /// <remarks>
         /// Permission checks read the DefaultAccessRestrictions, DefaultRolePermissions
         /// and DefaultUserRolePermissions of the node's namespace for every node of a
-        /// request, which took two server-wide locks and deep-copied the role permission
-        /// array per node. One read per namespace and request is enough. Contexts that
-        /// are not a service request (monitored item and session contexts, which can be
-        /// kept for a long time) remember nothing, so a changed default applies to them
-        /// at once.
+        /// request. Static defaults are remembered server-wide by
+        /// <see cref="NamespaceDefaultPermissionCache"/>; this cache keeps the defaults
+        /// that depend on the caller (read callbacks) for one service request. Contexts
+        /// that are not a service request (monitored item and session contexts, which can
+        /// be kept for a long time) remember nothing here, so a changed dynamic default
+        /// applies to them at once. Entries are indexed by namespace index: a slot array
+        /// for the first <see cref="kDefaultPermissionSlots"/> namespaces, sized to the highest
+        /// index seen, and a concurrent dictionary beyond it.
         /// </remarks>
         internal bool TryGetDefaultPermissions(
             ushort namespaceIndex,
             out NamespaceDefaultPermissions permissions)
         {
-            NamespaceDefaultPermissions[]? entries = m_defaultPermissions;
-            if (entries != null)
+            StrongBox<NamespaceDefaultPermissions>? entry = null;
+            if (namespaceIndex < kDefaultPermissionSlots)
             {
-                long generation = NamespaceDefaultPermissionReader.Generation;
-                foreach (NamespaceDefaultPermissions entry in entries)
+                StrongBox<NamespaceDefaultPermissions>?[]? slots = Volatile.Read(ref m_defaultPermissionSlots);
+                if (slots != null && namespaceIndex < slots.Length)
                 {
-                    if (entry.NamespaceIndex == namespaceIndex && entry.Generation == generation)
-                    {
-                        permissions = entry;
-                        return true;
-                    }
+                    entry = Volatile.Read(ref slots[namespaceIndex]);
                 }
+            }
+            else
+            {
+                ConcurrentDictionary<ushort, StrongBox<NamespaceDefaultPermissions>>? overflow =
+                    Volatile.Read(ref m_defaultPermissionOverflow);
+                overflow?.TryGetValue(namespaceIndex, out entry);
+            }
+
+            if (entry != null && entry.Value.Generation == NamespaceDefaultPermissionReader.Generation)
+            {
+                permissions = entry.Value;
+                return true;
             }
 
             permissions = default;
@@ -577,6 +1131,8 @@ namespace Opc.Ua.Server
 
         /// <summary>
         /// Remembers the namespace default permissions for the rest of this service request.
+        /// Node managers can validate nodes of one request concurrently: each slot is replaced
+        /// as a whole, and a lost update only costs a second read.
         /// </summary>
         internal void SetDefaultPermissions(NamespaceDefaultPermissions permissions)
         {
@@ -588,19 +1144,63 @@ namespace Opc.Ua.Server
                 return;
             }
 
-            // copy on write: node managers can validate nodes of one request concurrently,
-            // and a lost update only costs a second read.
-            NamespaceDefaultPermissions[]? entries = m_defaultPermissions;
-            if (entries == null)
+            var entry = new StrongBox<NamespaceDefaultPermissions>(permissions);
+            ushort namespaceIndex = permissions.NamespaceIndex;
+            if (namespaceIndex < kDefaultPermissionSlots)
             {
-                m_defaultPermissions = [permissions];
+                StrongBox<NamespaceDefaultPermissions>?[] slots = GetDefaultPermissionSlots(namespaceIndex);
+
+                Volatile.Write(ref slots[namespaceIndex], entry);
                 return;
             }
 
-            var updated = new NamespaceDefaultPermissions[entries.Length + 1];
-            Array.Copy(entries, updated, entries.Length);
-            updated[entries.Length] = permissions;
-            m_defaultPermissions = updated;
+            ConcurrentDictionary<ushort, StrongBox<NamespaceDefaultPermissions>>? overflow =
+                Volatile.Read(ref m_defaultPermissionOverflow);
+            if (overflow == null)
+            {
+                overflow = new ConcurrentDictionary<ushort, StrongBox<NamespaceDefaultPermissions>>();
+                overflow = Interlocked.CompareExchange(ref m_defaultPermissionOverflow, overflow, null) ?? overflow;
+            }
+
+            overflow[namespaceIndex] = entry;
+        }
+
+        /// <summary>
+        /// Returns a slot array that holds <paramref name="namespaceIndex"/>, sized to the
+        /// highest index seen so a request over a few low namespaces allocates little. A
+        /// store into an array that a concurrent grow just replaced is lost; that only costs
+        /// a second read.
+        /// </summary>
+        private StrongBox<NamespaceDefaultPermissions>?[] GetDefaultPermissionSlots(ushort namespaceIndex)
+        {
+            while (true)
+            {
+                StrongBox<NamespaceDefaultPermissions>?[]? slots = Volatile.Read(ref m_defaultPermissionSlots);
+                if (slots != null && namespaceIndex < slots.Length)
+                {
+                    return slots;
+                }
+
+                int length = slots?.Length ?? 4;
+                while (length <= namespaceIndex)
+                {
+                    length *= 2;
+                }
+
+                var grown = new StrongBox<NamespaceDefaultPermissions>?[Math.Min(length, kDefaultPermissionSlots)];
+                if (slots != null)
+                {
+                    for (int ii = 0; ii < slots.Length; ii++)
+                    {
+                        grown[ii] = Volatile.Read(ref slots[ii]);
+                    }
+                }
+
+                if (ReferenceEquals(Interlocked.CompareExchange(ref m_defaultPermissionSlots, grown, slots), slots))
+                {
+                    return grown;
+                }
+            }
         }
 
         /// <summary>
@@ -611,17 +1211,233 @@ namespace Opc.Ua.Server
         internal void DisableDefaultPermissionCache()
         {
             m_defaultPermissionCacheDisabled = true;
-            m_defaultPermissions = null;
+            Volatile.Write(ref m_defaultPermissionSlots, null);
+            Volatile.Write(ref m_defaultPermissionOverflow, null);
         }
 
+        /// <summary>
+        /// Releases temporary service ownership without changing the execution context.
+        /// </summary>
+        internal readonly struct RoutingScope : IDisposable
+        {
+            /// <summary>
+            /// Creates a scope owning one admission to a borrowed context's routing cohort.
+            /// </summary>
+            internal RoutingScope(IDisposable cohortScope)
+            {
+                m_cohortScope = cohortScope;
+            }
+
+            /// <summary>
+            /// Releases temporary ownership exactly once.
+            /// </summary>
+            public void Dispose()
+            {
+                m_cohortScope?.Dispose();
+            }
+
+            /// <summary>The idempotent admission owned by a borrowed service scope.</summary>
+            private readonly IDisposable? m_cohortScope;
+        }
+
+        /// <summary>
+        /// Serializes borrowed-context ownership without locking ordinary request-owned service dispatch.
+        /// </summary>
+        private sealed class RoutingCohort
+        {
+            /// <summary>
+            /// Creates the ownership state for a context's first borrowed service call.
+            /// </summary>
+            public RoutingCohort(OperationContext context)
+            {
+                m_context = context;
+            }
+
+            /// <summary>
+            /// Joins the current view or pins a fresh view after the previous cohort drained.
+            /// </summary>
+            public RoutingScope Enter(NodeManagerRoutingTable routingTable)
+            {
+                lock (m_lock)
+                {
+                    ThrowIfDisposed();
+                    var scope = new CohortScope(this);
+                    if (m_activeScopes == 0 && !m_contextOwned)
+                    {
+                        m_context.AcquireRoutingPin(routingTable, kRoutingPinTemporary);
+                    }
+                    m_activeScopes++;
+                    Volatile.Write(ref m_context.m_routingCohort, this);
+                    return new RoutingScope(scope);
+                }
+            }
+
+            /// <summary>
+            /// Transfers the current view to explicit context ownership without replacing it.
+            /// </summary>
+            public void PinRouting(NodeManagerRoutingTable routingTable)
+            {
+                lock (m_lock)
+                {
+                    ThrowIfDisposed();
+                    if (!m_contextOwned)
+                    {
+                        if (m_activeScopes == 0)
+                        {
+                            m_context.AcquireRoutingPin(routingTable, kRoutingPinCohortOwned);
+                        }
+                        m_contextOwned = true;
+                        Volatile.Write(ref m_context.m_routingPinState, kRoutingPinCohortOwned);
+                    }
+                }
+            }
+
+            /// <summary>
+            /// Rejects new scopes and releases the epoch after any active scopes finish.
+            /// </summary>
+            public void DisposeContext()
+            {
+                lock (m_lock)
+                {
+                    m_disposed = true;
+                    m_contextOwned = false;
+                    if (m_activeScopes == 0)
+                    {
+                        ReleasePin();
+                    }
+                    else
+                    {
+                        Volatile.Write(ref m_context.m_routingPinState, kRoutingPinDisposedActive);
+                    }
+                }
+            }
+
+            /// <summary>
+            /// Releases the last temporary owner without making the reusable context terminal.
+            /// </summary>
+            private void Exit()
+            {
+                lock (m_lock)
+                {
+                    m_activeScopes--;
+                    if (m_activeScopes == 0 && !m_contextOwned)
+                    {
+                        ReleasePin();
+                    }
+                }
+            }
+
+            /// <summary>
+            /// Clears the selected view and exits its epoch slot exactly once.
+            /// </summary>
+            private void ReleasePin()
+            {
+                AddressSpaceEpoch? epoch = m_context.m_routingEpoch;
+                int slot = m_context.m_routingPinSlot;
+                m_context.m_routingEpoch = null;
+                m_context.m_routingPinSlot = -1;
+                m_context.RoutingSnapshot = null;
+                Volatile.Write(
+                    ref m_context.m_routingPinState, m_disposed ? kRoutingPinReleased : kRoutingPinCohortIdle);
+                if (epoch is not null)
+                {
+                    epoch.Exit(slot);
+                }
+            }
+
+            /// <summary>
+            /// Rejects pin acquisition after context disposal, even while old scopes still own a view.
+            /// </summary>
+            private void ThrowIfDisposed()
+            {
+                if (m_disposed)
+                {
+                    throw new ObjectDisposedException(nameof(OperationContext));
+                }
+            }
+
+            /// <summary>
+            /// Releases one cohort admission once even if a routing scope is copied or disposed twice.
+            /// </summary>
+            private sealed class CohortScope : IDisposable
+            {
+                /// <summary>
+                /// Creates one service admission.
+                /// </summary>
+                public CohortScope(RoutingCohort cohort)
+                {
+                    m_cohort = cohort;
+                }
+
+                /// <inheritdoc/>
+                public void Dispose()
+                {
+                    Interlocked.Exchange(ref m_cohort, null)?.Exit();
+                }
+
+                /// <summary>The cohort awaiting this admission's release.</summary>
+                private RoutingCohort? m_cohort;
+            }
+
+            /// <summary>The context whose identity and selected view remain unchanged.</summary>
+            private readonly OperationContext m_context;
+
+            /// <summary>Serializes acquisition, explicit ownership, and scope release.</summary>
+            private readonly System.Threading.Lock m_lock = new();
+
+            /// <summary>The number of service scopes still using the selected view.</summary>
+            private int m_activeScopes;
+
+            /// <summary>Whether an explicit pin keeps the view after the last service returns.</summary>
+            private bool m_contextOwned;
+
+            /// <summary>Whether disposal forbids new admissions.</summary>
+            private bool m_disposed;
+        }
+
+        /// <summary>
+        /// The response byte budget: <see cref="kNoResponseBudget"/>, the bytes left plus
+        /// one (negated while nothing was charged), or <see cref="kResponseBudgetExceeded"/>.
+        /// </summary>
+        private int m_responseBudget;
+        private const int kNoResponseBudget = 0;
+        private const int kResponseBudgetExceeded = int.MinValue;
+
+        /// <summary>
+        /// An unused budget with no bytes left, which only
+        /// <see cref="StartExhaustedResponseBudget"/> starts: every other unused budget
+        /// has at least one byte left.
+        /// </summary>
+        private const int kResponseBudgetExhausted = -1;
         private StringTable? m_stringTable;
         private IDisposable? m_requestScope;
         private RequestManager? m_requestCompletion;
         private IDisposable? m_sessionlessLease;
-        private SystemContextCacheEntry? m_systemContextCache;
-        private NamespaceDefaultPermissions[]? m_defaultPermissions;
+        private OperationContext? m_callbackRequest;
+        private NodeManagerRoutingTable.RoutingSnapshot? m_routingSnapshot;
+        private AddressSpaceEpoch? m_routingEpoch;
+        private int m_routingPinSlot = -1;
+        private int m_routingPinState;
+        private RoutingCohort? m_routingCohort;
+
+        /// <summary>The construction-bound null-cohort routing checkpoint.</summary>
+        private readonly Action? m_beforeRoutingBootstrap;
+
+        private SystemContextCache? m_systemContextCache;
+        private StrongBox<NamespaceDefaultPermissions>?[]? m_defaultPermissionSlots;
+        private ConcurrentDictionary<ushort, StrongBox<NamespaceDefaultPermissions>>? m_defaultPermissionOverflow;
+        private const int kDefaultPermissionSlots = 64;
         private bool m_defaultPermissionCacheDisabled;
         private static uint s_lastRequestId;
+        private const int kRoutingPinUnclaimed = 0;
+        private const int kRoutingPinAcquiring = 1;
+        private const int kRoutingPinActive = 2;
+        private const int kRoutingPinReleased = 3;
+        private const int kRoutingPinTemporary = 4;
+        private const int kRoutingPinDisposedActive = 5;
+        // Once installed, a cohort never reuses states accepted by stale null-cohort bootstrap paths.
+        private const int kRoutingPinCohortIdle = 6;
+        private const int kRoutingPinCohortOwned = 7;
     }
 
     /// <summary>

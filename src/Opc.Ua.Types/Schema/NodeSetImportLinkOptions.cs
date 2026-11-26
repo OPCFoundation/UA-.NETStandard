@@ -1,31 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using System.Collections.Generic;
@@ -90,6 +64,11 @@ namespace Opc.Ua.Export
         /// imported child which belongs in such a slot has to replace the
         /// generated placeholder, or the typed accessor would keep returning
         /// the placeholder while the address space exposes the imported node.
+        /// An imported child which is not of the slot's generated class, for
+        /// example a generic <see cref="PropertyState"/> for a slot declared as
+        /// <see cref="PropertyState{T}"/>, is converted: the slot materializes a
+        /// typed child copied from it, and that typed child replaces the
+        /// imported child in the parent and in the imported node collection.
         /// </remarks>
         public Func<NodeState, BaseInstanceState, bool>? UseTypedReplacement { get; set; }
 
@@ -97,6 +76,25 @@ namespace Opc.Ua.Export
         /// Gets or sets the callback which receives every generated placeholder
         /// displaced by an imported child, together with its replacement.
         /// </summary>
+        /// <remarks>
+        /// The replacement is the node which now occupies the slot: the
+        /// imported child, or the typed child converted from it. The displaced
+        /// placeholder is detached and left unchanged.
+        /// </remarks>
         public Action<BaseInstanceState, BaseInstanceState>? OnTypedReplacement { get; set; }
+
+        /// <summary>
+        /// Gets or sets the callback which receives every imported child that
+        /// linking replaced with a typed child copied from it, together with
+        /// that typed child.
+        /// </summary>
+        /// <remarks>
+        /// It is invoked before any child of the converted node is linked, so a
+        /// caller which tracks imported nodes by reference can let the typed
+        /// child inherit the provenance of the imported one. Unlike
+        /// <see cref="OnTypedReplacement"/> it is also invoked when the slot
+        /// was empty.
+        /// </remarks>
+        internal Action<BaseInstanceState, BaseInstanceState>? OnImportedNodeConverted { get; set; }
     }
 }

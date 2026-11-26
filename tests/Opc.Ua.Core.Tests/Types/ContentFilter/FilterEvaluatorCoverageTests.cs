@@ -1,31 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using System.Collections.Generic;
@@ -308,6 +282,87 @@ namespace Opc.Ua.Core.Tests.Types.ContentFilter
                 new LiteralOperand(Variant.Null),
                 new LiteralOperand(Variant.From("abc")));
             Assert.That(Filter(element).Evaluate(m_context, m_target), Is.False);
+        }
+
+        /// <summary>
+        /// A Like element whose match takes more than <see cref="Ua.ContentFilter.MaxLikeMatchSteps"/>
+        /// steps evaluates to NULL, so it does not turn into TRUE when negated.
+        /// </summary>
+        [Test]
+        public void LikeBeyondTheMatchStepBudgetIsNull()
+        {
+            // about 20000 x 1000 steps: every wildcard position is retried.
+            ContentFilterElement like = Element(
+                FilterOperator.Like,
+                new LiteralOperand(Variant.From(new string('a', 20000))),
+                new LiteralOperand(Variant.From("%" + new string('a', 1000) + "b")));
+            Assert.That(
+                Filter(Element(FilterOperator.IsNull, new ElementOperand(1)), like)
+                    .Evaluate(m_context, m_target),
+                Is.True);
+            Assert.That(
+                Filter(Element(FilterOperator.Not, new ElementOperand(1)), like)
+                    .Evaluate(m_context, m_target),
+                Is.False);
+        }
+
+        /// <summary>
+        /// The Like elements of one evaluation share the match step budget: elements that
+        /// fit it together are evaluated, and the ones beyond it are NULL.
+        /// </summary>
+        [TestCase(3, true)]
+        [TestCase(5, false)]
+        public void LikeElementsOfOneEvaluationShareTheMatchStepBudget(int likeCount, bool expected)
+        {
+            // Not(Or(Like, Or(Like, ...))) with about 300000 steps per Like element.
+            string target = new('a', 3000);
+            string pattern = "%" + new string('a', 100) + "b";
+            var elements = new List<ContentFilterElement>
+            {
+                Element(FilterOperator.Not, new ElementOperand(1))
+            };
+            for (int ii = 0; ii < likeCount - 1; ii++)
+            {
+                uint or = (uint)elements.Count;
+                elements.Add(Element(
+                    FilterOperator.Or,
+                    new ElementOperand(or + 1),
+                    new ElementOperand(or + 2)));
+                elements.Add(Element(
+                    FilterOperator.Like,
+                    new LiteralOperand(Variant.From(target)),
+                    new LiteralOperand(Variant.From(pattern))));
+            }
+            elements.Add(Element(
+                FilterOperator.Like,
+                new LiteralOperand(Variant.From(target)),
+                new LiteralOperand(Variant.From(pattern))));
+
+            Ua.ContentFilter filter = Filter([.. elements]);
+            Assert.That(filter.Evaluate(m_context, m_target), Is.EqualTo(expected));
+
+            // the budget is per evaluation.
+            Assert.That(filter.Evaluate(m_context, m_target), Is.EqualTo(expected));
+        }
+
+        /// <summary>
+        /// A literal Like pattern is parsed once and kept by its operand; evaluating the
+        /// filter again, for the same or another target, gives the same results.
+        /// </summary>
+        [TestCase("Hello World", true)]
+        [TestCase("Hallo World", true)]
+        [TestCase("Hello world", false)]
+        public void LikeWithLiteralPatternGivesTheSameResultOnEveryEvaluation(string text, bool expected)
+        {
+            var pattern = new LiteralOperand(Variant.From("H_llo [A-Z]%"));
+            Ua.ContentFilter filter = Filter(Element(
+                FilterOperator.Like,
+                new LiteralOperand(Variant.From(text)),
+                pattern));
+            for (int ii = 0; ii < 3; ii++)
+            {
+                Assert.That(filter.Evaluate(m_context, m_target), Is.EqualTo(expected));
+            }
         }
 
         [Test]

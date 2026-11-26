@@ -1,31 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using System.Collections.Generic;
@@ -52,13 +26,13 @@ namespace Opc.Ua.Server
     }
 
     /// <summary>
-    /// A set of the executing requests (or open validation scopes) of a
+    /// A set of the executing requests of a
     /// <see cref="RequestManager"/> that registers and removes entries without a lock.
     /// </summary>
     /// <remarks>
     /// <para>
-    /// Every request registers and completes once and passes a validation scope, so these
-    /// sets are written four times per request from every worker thread. Behind a
+    /// Every request registers and completes once, so the set is written twice per request
+    /// from every worker thread. Behind a
     /// <see cref="System.Collections.Concurrent.ConcurrentDictionary{TKey, TValue}"/>, or
     /// behind sharded locks, the writes showed as the largest waiting point after the
     /// channel gate on many cores: every lock acquisition is a chance for its holder to be
@@ -69,10 +43,10 @@ namespace Opc.Ua.Server
     /// its key, so consecutive requests land on different cache lines, and it remembers its
     /// slot, so it is removed with one more compare-and-swap. Only when every slot near the
     /// hash is taken does it go to an overflow dictionary under a lock. Both operations are
-    /// full fences. Enumeration (drains, Cancel, Session close, the timeout sweep) reads the
+    /// full fences. Enumeration (Cancel, Session close, the timeout sweep) reads the
     /// slots one after the other: an entry it does not see was placed after it read that
     /// slot, which keeps the ordering arguments of the request manager (registration before
-    /// the Session/Cancel marks, drain count published before the snapshot) intact.
+    /// the Session/Cancel marks) intact.
     /// </para>
     /// </remarks>
     /// <typeparam name="T">The entry type.</typeparam>

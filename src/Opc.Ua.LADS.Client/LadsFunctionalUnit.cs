@@ -1,31 +1,5 @@
-﻿/* ========================================================================
- * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using System.Collections.Generic;
@@ -84,6 +58,45 @@ namespace Opc.Ua.LADS.Client
             CancellationToken cancellationToken = default)
         {
             return Client.ReadFunctionalUnitAsync(NodeId, includeFunctions, cancellationToken);
+        }
+
+        /// <summary>
+        /// Discovers the optional running methods and their current executability.
+        /// Availability is a snapshot, not a reservation to execute a physical command.
+        /// </summary>
+        public ValueTask<ArrayOf<LadsRunningMethod>> GetRunningMethodsAsync(
+            CancellationToken cancellationToken = default)
+        {
+            return Client.GetRunningMethodsAsync(NodeId, cancellationToken);
+        }
+
+        /// <summary>
+        /// Observes the running substate, including acting and acknowledged stable states.
+        /// </summary>
+        public async IAsyncEnumerable<LadsStateSnapshot> ObserveRunningStateAsync(
+            IStreamingSubscription? streaming = null,
+            [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken cancellationToken = default)
+        {
+            NodeId machine = await RunningStateMachineIdAsync(cancellationToken).ConfigureAwait(false);
+            await foreach (LadsStateSnapshot snapshot in Client.ObserveStateAsync(
+                machine, streaming, cancellationToken).ConfigureAwait(false))
+            {
+                yield return snapshot;
+            }
+        }
+
+        /// <summary>
+        /// Waits for a running substate rather than interpreting method acceptance as completion.
+        /// </summary>
+        public async ValueTask<LadsStateSnapshot> WaitForRunningStateAsync(
+            string stateName,
+            TimeSpan timeout,
+            IStreamingSubscription? streaming = null,
+            CancellationToken cancellationToken = default)
+        {
+            NodeId machine = await RunningStateMachineIdAsync(cancellationToken).ConfigureAwait(false);
+            return await Client.WaitForStateAsync(machine, stateName, timeout, streaming, cancellationToken)
+                .ConfigureAwait(false);
         }
 
         /// <summary>
@@ -410,5 +423,23 @@ namespace Opc.Ua.LADS.Client
         {
             return Client.RequireAsync(NodeId, cancellationToken, Client.Lads(BrowseNames.FunctionalUnitState));
         }
+
+        /// <summary>
+        /// Resolves the running substate machine of this unit.
+        /// </summary>
+        private ValueTask<NodeId> RunningStateMachineIdAsync(CancellationToken cancellationToken)
+        {
+            return Client.RequireAsync(NodeId, cancellationToken,
+                Client.Lads(BrowseNames.FunctionalUnitState), Client.Lads(BrowseNames.RunningStateMachine));
+        }
     }
+
+    /// <summary>
+    /// A discovered optional running method and its current server/user permissions.
+    /// </summary>
+    /// <param name="Name">The standard method browse name.</param>
+    /// <param name="NodeId">The method identifier in this session's namespace table.</param>
+    /// <param name="Executable">Whether the method is executable in the current state.</param>
+    /// <param name="UserExecutable">Whether the current user may execute it.</param>
+    public sealed record LadsRunningMethod(string Name, NodeId NodeId, bool Executable, bool UserExecutable);
 }

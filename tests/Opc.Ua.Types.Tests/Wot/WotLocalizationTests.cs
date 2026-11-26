@@ -1,32 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using System.Linq;
@@ -216,7 +189,7 @@ namespace Opc.Ua.Types.Tests.Wot
                     speed.GetProperty("title").GetString(),
                     Is.EqualTo("Drehzahl"),
                     "'de' sorts before 'fr' by Unicode code point, so the singular " +
-                    "member carries it as a display fallback that asserts no locale - " +
+                    "member carries it as a display fallback with its source locale, " +
                     "and not the entry that happened to come first in the source.");
             });
         }
@@ -240,7 +213,7 @@ namespace Opc.Ua.Types.Tests.Wot
             JsonElement speed = document.Properties["Speed"];
             Assert.That(speed.GetProperty("titles").GetProperty("de").GetString(), Is.EqualTo("Drehzahl"));
             Assert.That(speed.TryGetProperty("@context", out JsonElement local), Is.True);
-            Assert.That(local.GetProperty("title").GetProperty("@language").ValueKind, Is.EqualTo(JsonValueKind.Null));
+            Assert.That(local.GetProperty("title").GetProperty("@language").GetString(), Is.EqualTo("de"));
             Assert.That(local.TryGetProperty("description", out _), Is.False,
                 "An English description must not lose its language because the title is a fallback.");
         }
@@ -493,6 +466,115 @@ namespace Opc.Ua.Types.Tests.Wot
                 WotConversionResult<UANodeSet> restored = WotNodeSetConverter.ToNodeSetResult(roundTrip!);
                 Assert.That(restored.Success, Is.True, string.Join("; ", restored.Diagnostics));
                 source = restored.Value!;
+            }
+        }
+
+        /// <summary>
+        /// Verifies that unscoped affordances reuse root term languages while properties retain scoped overrides.
+        /// </summary>
+        [TestCase(null, null)]
+        [TestCase("en", "en")]
+        [TestCase("de", "de")]
+        [TestCase(null, "en")]
+        [TestCase("en", null)]
+        public void ActionAndEventTextInheritsMatchingRootTermLanguages(string? titleLocale, string? descriptionLocale)
+        {
+            UANodeSet source = CreateLocalizedAffordanceNodeSet(
+                titleLocale, descriptionLocale, titleLocale, descriptionLocale);
+
+            using WotDocument document = WotNodeSetConverter.FromNodeSet(source);
+
+            Assert.That(document.Actions["Run"].TryGetProperty("@context", out _), Is.False);
+            Assert.That(document.Events["Notice"].TryGetProperty("@context", out _), Is.False);
+            JsonElement property = document.Properties["Value"];
+            bool titleOverride = titleLocale != "en";
+            bool descriptionOverride = descriptionLocale != "en";
+            Assert.That(property.TryGetProperty("@context", out JsonElement context),
+                Is.EqualTo(titleOverride || descriptionOverride));
+            if (context.ValueKind == JsonValueKind.Object)
+            {
+                Assert.That(context.TryGetProperty("title", out _), Is.EqualTo(titleOverride));
+                Assert.That(context.TryGetProperty("description", out _), Is.EqualTo(descriptionOverride));
+            }
+            using WotDocument readable = WithoutPreservation(document);
+            UANodeSet restored = WotNodeSetConverter.ToNodeSet(readable);
+            foreach (UANode node in restored.Items!)
+            {
+                Assert.That(node.DisplayName!.Single().Locale, Is.EqualTo(titleLocale ?? string.Empty));
+                Assert.That(node.Description!.Single().Locale, Is.EqualTo(descriptionLocale ?? string.Empty));
+            }
+        }
+
+        /// <summary>
+        /// Verifies that an affordance overrides only the term whose inherited language differs.
+        /// </summary>
+        [TestCase(null, "en", "en")]
+        [TestCase("en", null, null)]
+        [TestCase("de", "en", "en")]
+        [TestCase(null, "de", "de")]
+        public void ActionAndEventTextOverridesOnlyTheDifferingTerm(
+            string? rootLocale, string? descriptionLocale, string? expectedLanguage)
+        {
+            UANodeSet source = CreateLocalizedAffordanceNodeSet(
+                rootLocale, rootLocale, rootLocale, descriptionLocale);
+
+            using WotDocument document = WotNodeSetConverter.FromNodeSet(source);
+
+            foreach (JsonElement affordance in new[] { document.Actions["Run"], document.Events["Notice"] })
+            {
+                JsonElement context = affordance.GetProperty("@context");
+                Assert.That(context.TryGetProperty("title", out _), Is.False);
+                JsonElement description = context.GetProperty("description");
+                Assert.That(description.GetProperty("@id").GetString(),
+                    Is.EqualTo("https://www.w3.org/2019/wot/td#description"));
+                Assert.That(description.GetProperty("@language").GetString(), Is.EqualTo(expectedLanguage));
+            }
+            using WotDocument readable = WithoutPreservation(document);
+            UANodeSet restored = WotNodeSetConverter.ToNodeSet(readable);
+            foreach (UANode node in restored.Items!.Where(node => node is UAMethod ||
+                node is UAObjectType && node.NodeId != "ns=1;i=2000"))
+            {
+                Assert.That(node.DisplayName!.Single().Locale, Is.EqualTo(rootLocale ?? string.Empty));
+                Assert.That(node.Description!.Single().Locale, Is.EqualTo(descriptionLocale ?? string.Empty));
+            }
+        }
+
+        /// <summary>
+        /// Verifies that a missing root description leaves the W3C term language in effect.
+        /// </summary>
+        [Test]
+        public void ActionAndEventDescriptionsUseW3cLanguageWhenRootHasNoDescription()
+        {
+            UANodeSet source = CreateLocalizedAffordanceNodeSet(null, null, null, "en");
+            source.Items!.Single(node => node.NodeId == "ns=1;i=2000").Description = null;
+
+            using WotDocument document = WotNodeSetConverter.FromNodeSet(source);
+
+            Assert.That(document.Actions["Run"].TryGetProperty("@context", out _), Is.False);
+            Assert.That(document.Events["Notice"].TryGetProperty("@context", out _), Is.False);
+            using WotDocument readable = WithoutPreservation(document);
+            UANodeSet restored = WotNodeSetConverter.ToNodeSet(readable);
+            Assert.That(restored.Items!.OfType<UAMethod>().Single().Description!.Single().Locale, Is.EqualTo("en"));
+        }
+
+        /// <summary>
+        /// Verifies that tagged fallbacks retain the local override required by the binding.
+        /// </summary>
+        [Test]
+        public void ActionAndEventFallbacksRetainTheirOwnSourceLanguageOverrides()
+        {
+            UANodeSet source = CreateLocalizedAffordanceNodeSet(null, null, "de", null);
+
+            using WotDocument document = WotNodeSetConverter.FromNodeSet(source);
+
+            foreach (JsonElement affordance in new[] { document.Actions["Run"], document.Events["Notice"] })
+            {
+                JsonElement context = affordance.GetProperty("@context");
+                Assert.That(context.GetProperty("title").GetProperty("@language").GetString(),
+                    Is.EqualTo("de"));
+                Assert.That(context.TryGetProperty("description", out _), Is.False);
+                Assert.That(affordance.GetProperty("titles").GetProperty("de").GetString(),
+                    Is.EqualTo(affordance.GetProperty("title").GetString()));
             }
         }
 
@@ -1103,7 +1185,8 @@ namespace Opc.Ua.Types.Tests.Wot
                 "\"properties\":{\"Speed\":{\"type\":\"number\",\"title\":\"Drehzahl\"" + local + "}}",
                 "en",
                 ",\"properties\":{\"@id\":\"https://www.w3.org/2019/wot/td#hasPropertyAffordance\"," +
-                "\"@container\":\"@index\",\"@context\":{\"@language\":\"de\"}}," +
+                "\"@container\":\"@index\",\"@context\":{\"@language\":\"de\"," +
+                "\"title\":\"https://www.w3.org/2019/wot/td#title\"}}," +
                 "\"Speed\":{\"@id\":\"urn:test:Speed\",\"@context\":{\"@language\":\"fr\"}}");
 
             UANodeSet source = WotNodeSetConverter.ToNodeSet(document);
@@ -1231,6 +1314,31 @@ namespace Opc.Ua.Types.Tests.Wot
                 Assert.That(exported.RootElement.TryGetProperty("uav:nodes", out _), Is.False);
                 source = restored.Value!;
             }
+        }
+
+        /// <summary>
+        /// Creates root, property, action and event nodes with independently selected text locales.
+        /// </summary>
+        private static UANodeSet CreateLocalizedAffordanceNodeSet(
+            string? rootTitleLocale,
+            string? rootDescriptionLocale,
+            string? childTitleLocale,
+            string? childDescriptionLocale)
+        {
+            using WotDocument document = ParseEnglishModel(
+                "\"properties\":{\"Value\":{\"type\":\"string\"}}," +
+                "\"actions\":{\"Run\":{\"@type\":\"uav:method\"}}," +
+                "\"events\":{\"Notice\":{\"@type\":\"uav:eventType\"}}");
+            UANodeSet source = WotNodeSetConverter.ToNodeSet(document);
+            foreach (UANode node in source.Items!)
+            {
+                bool root = node.NodeId == "ns=1;i=2000";
+                node.DisplayName = WotAnalogTestData.Text(
+                    node.BrowseName!, root ? rootTitleLocale : childTitleLocale);
+                node.Description = WotAnalogTestData.Text(
+                    "Description", root ? rootDescriptionLocale : childDescriptionLocale);
+            }
+            return source;
         }
 
         private static WotDocument ParseLocalizedModel(string members, string language, string extraContext = "")

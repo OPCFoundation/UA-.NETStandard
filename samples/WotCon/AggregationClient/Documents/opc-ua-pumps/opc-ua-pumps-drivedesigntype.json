@@ -5,6 +5,7 @@
       "ns1": "http://opcfoundation.org/UA/Pumps/",
       "ns2": "http://opcfoundation.org/UA/Machinery/",
       "ns3": "http://opcfoundation.org/UA/DI/",
+      "qudt": "http://qudt.org/schema/qudt/",
       "ua": "http://opcfoundation.org/UA/",
       "uav": "http://opcfoundation.org/UA/WoT-Binding/"
     },
@@ -52,9 +53,6 @@
       "title": "Definition",
       "type": "string",
       "uav:browseName": "Definition",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=9338"
-      ],
       "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=9350",
       "uav:mapToType": "i=12",
       "uav:modellingRule": "Optional"
@@ -83,9 +81,6 @@
       "title": "Definition",
       "type": "string",
       "uav:browseName": "Definition",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=9346"
-      ],
       "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=9372",
       "uav:mapToType": "i=12",
       "uav:modellingRule": "Optional"
@@ -114,9 +109,6 @@
       "title": "Definition",
       "type": "string",
       "uav:browseName": "Definition",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=9347"
-      ],
       "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=9375",
       "uav:mapToType": "i=12",
       "uav:modellingRule": "Optional"
@@ -145,9 +137,6 @@
       "title": "Definition",
       "type": "string",
       "uav:browseName": "Definition",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=9348"
-      ],
       "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=9378",
       "uav:mapToType": "i=12",
       "uav:modellingRule": "Optional"
@@ -176,9 +165,6 @@
       "title": "Definition",
       "type": "string",
       "uav:browseName": "Definition",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=9339"
-      ],
       "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=9351",
       "uav:mapToType": "i=12",
       "uav:modellingRule": "Optional"
@@ -207,9 +193,6 @@
       "title": "Definition",
       "type": "string",
       "uav:browseName": "Definition",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=9340"
-      ],
       "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=9354",
       "uav:mapToType": "i=12",
       "uav:modellingRule": "Optional"
@@ -238,9 +221,6 @@
       "title": "Definition",
       "type": "string",
       "uav:browseName": "Definition",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=9341"
-      ],
       "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=9357",
       "uav:mapToType": "i=12",
       "uav:modellingRule": "Optional"
@@ -269,9 +249,6 @@
       "title": "Definition",
       "type": "string",
       "uav:browseName": "Definition",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=9342"
-      ],
       "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=9360",
       "uav:mapToType": "i=12",
       "uav:modellingRule": "Optional"
@@ -300,9 +277,6 @@
       "title": "Definition",
       "type": "string",
       "uav:browseName": "Definition",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=9343"
-      ],
       "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=9363",
       "uav:mapToType": "i=12",
       "uav:modellingRule": "Optional"
@@ -331,9 +305,6 @@
       "title": "Definition",
       "type": "string",
       "uav:browseName": "Definition",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=9344"
-      ],
       "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=9366",
       "uav:mapToType": "i=12",
       "uav:modellingRule": "Optional"
@@ -362,9 +333,6 @@
       "title": "Definition",
       "type": "string",
       "uav:browseName": "Definition",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=9345"
-      ],
       "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=9369",
       "uav:mapToType": "i=12",
       "uav:modellingRule": "Optional"
@@ -393,9 +361,6 @@
       "title": "Definition",
       "type": "string",
       "uav:browseName": "Definition",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=9337"
-      ],
       "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=9349",
       "uav:mapToType": "i=12",
       "uav:modellingRule": "Optional"
@@ -423,9 +388,6 @@
       "readOnly": true,
       "title": "EURange",
       "uav:browseName": "EURange",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=9339"
-      ],
       "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=9352",
       "uav:mapToType": "i=884",
       "uav:modellingRule": "Optional"
@@ -453,9 +415,6 @@
       "readOnly": true,
       "title": "EURange",
       "uav:browseName": "EURange",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=9348"
-      ],
       "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=9379",
       "uav:mapToType": "i=884",
       "uav:modellingRule": "Optional"
@@ -483,9 +442,6 @@
       "readOnly": true,
       "title": "EURange",
       "uav:browseName": "EURange",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=9340"
-      ],
       "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=9355",
       "uav:mapToType": "i=884",
       "uav:modellingRule": "Optional"
@@ -513,9 +469,6 @@
       "readOnly": true,
       "title": "EURange",
       "uav:browseName": "EURange",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=9341"
-      ],
       "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=9358",
       "uav:mapToType": "i=884",
       "uav:modellingRule": "Optional"
@@ -543,9 +496,6 @@
       "readOnly": true,
       "title": "EURange",
       "uav:browseName": "EURange",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=9342"
-      ],
       "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=9361",
       "uav:mapToType": "i=884",
       "uav:modellingRule": "Optional"
@@ -573,9 +523,6 @@
       "readOnly": true,
       "title": "EURange",
       "uav:browseName": "EURange",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=9343"
-      ],
       "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=9364",
       "uav:mapToType": "i=884",
       "uav:modellingRule": "Optional"
@@ -603,9 +550,6 @@
       "readOnly": true,
       "title": "EURange",
       "uav:browseName": "EURange",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=9344"
-      ],
       "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=9367",
       "uav:mapToType": "i=884",
       "uav:modellingRule": "Optional"
@@ -633,9 +577,6 @@
       "readOnly": true,
       "title": "EURange",
       "uav:browseName": "EURange",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=9345"
-      ],
       "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=9370",
       "uav:mapToType": "i=884",
       "uav:modellingRule": "Optional"
@@ -663,9 +604,6 @@
       "readOnly": true,
       "title": "EURange",
       "uav:browseName": "EURange",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=9346"
-      ],
       "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=9373",
       "uav:mapToType": "i=884",
       "uav:modellingRule": "Optional"
@@ -693,9 +631,6 @@
       "readOnly": true,
       "title": "EURange",
       "uav:browseName": "EURange",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=9347"
-      ],
       "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=9376",
       "uav:mapToType": "i=884",
       "uav:modellingRule": "Optional"
@@ -752,9 +687,6 @@
       "title": "EngineeringUnits",
       "type": "string",
       "uav:browseName": "EngineeringUnits",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=9339"
-      ],
       "uav:engineeringUnits": {
         "description": "hertz",
         "displayName": "Hz",
@@ -789,9 +721,6 @@
       "title": "EngineeringUnits",
       "type": "string",
       "uav:browseName": "EngineeringUnits",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=9348"
-      ],
       "uav:engineeringUnits": {
         "description": "newton",
         "displayName": "N",
@@ -826,9 +755,6 @@
       "title": "EngineeringUnits",
       "type": "string",
       "uav:browseName": "EngineeringUnits",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=9340"
-      ],
       "uav:engineeringUnits": {
         "description": "hertz",
         "displayName": "Hz",
@@ -863,9 +789,6 @@
       "title": "EngineeringUnits",
       "type": "string",
       "uav:browseName": "EngineeringUnits",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=9341"
-      ],
       "uav:engineeringUnits": {
         "description": "percent",
         "displayName": "%",
@@ -900,9 +823,6 @@
       "title": "EngineeringUnits",
       "type": "string",
       "uav:browseName": "EngineeringUnits",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=9342"
-      ],
       "uav:engineeringUnits": {
         "description": "hertz",
         "displayName": "Hz",
@@ -937,9 +857,6 @@
       "title": "EngineeringUnits",
       "type": "string",
       "uav:browseName": "EngineeringUnits",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=9343"
-      ],
       "uav:engineeringUnits": {
         "description": "watt",
         "displayName": "W",
@@ -974,9 +891,6 @@
       "title": "EngineeringUnits",
       "type": "string",
       "uav:browseName": "EngineeringUnits",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=9344"
-      ],
       "uav:engineeringUnits": {
         "description": "volt",
         "displayName": "V",
@@ -1011,9 +925,6 @@
       "title": "EngineeringUnits",
       "type": "string",
       "uav:browseName": "EngineeringUnits",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=9345"
-      ],
       "uav:engineeringUnits": {
         "description": "percent",
         "displayName": "%",
@@ -1048,9 +959,6 @@
       "title": "EngineeringUnits",
       "type": "string",
       "uav:browseName": "EngineeringUnits",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=9346"
-      ],
       "uav:engineeringUnits": {
         "description": "ampere",
         "displayName": "A",
@@ -1085,9 +993,6 @@
       "title": "EngineeringUnits",
       "type": "string",
       "uav:browseName": "EngineeringUnits",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=9347"
-      ],
       "uav:engineeringUnits": {
         "description": "reciprocal second",
         "displayName": "s⁻¹",
@@ -1118,6 +1023,12 @@
         }
       ],
       "observable": true,
+      "qudt:hasQuantityKind": {
+        "@id": "http://qudt.org/vocab/quantitykind/Frequency"
+      },
+      "qudt:hasUnit": {
+        "@id": "http://qudt.org/vocab/unit/HZ"
+      },
       "readOnly": true,
       "title": "MaxNominalFrequency",
       "type": "number",
@@ -1148,6 +1059,12 @@
         }
       ],
       "observable": true,
+      "qudt:hasQuantityKind": {
+        "@id": "http://qudt.org/vocab/quantitykind/Frequency"
+      },
+      "qudt:hasUnit": {
+        "@id": "http://qudt.org/vocab/unit/HZ"
+      },
       "readOnly": true,
       "title": "MinNominalFrequency",
       "type": "number",
@@ -1178,6 +1095,9 @@
         }
       ],
       "observable": true,
+      "qudt:hasUnit": {
+        "@id": "http://qudt.org/vocab/unit/PERCENT"
+      },
       "readOnly": true,
       "title": "MotorEfficiency",
       "type": "number",
@@ -1208,6 +1128,12 @@
         }
       ],
       "observable": true,
+      "qudt:hasQuantityKind": {
+        "@id": "http://qudt.org/vocab/quantitykind/Frequency"
+      },
+      "qudt:hasUnit": {
+        "@id": "http://qudt.org/vocab/unit/HZ"
+      },
       "readOnly": true,
       "title": "NominalFrequency",
       "type": "number",
@@ -1238,6 +1164,12 @@
         }
       ],
       "observable": true,
+      "qudt:hasQuantityKind": {
+        "@id": "http://qudt.org/vocab/quantitykind/Power"
+      },
+      "qudt:hasUnit": {
+        "@id": "http://qudt.org/vocab/unit/W"
+      },
       "readOnly": true,
       "title": "NominalPowerConsumption",
       "type": "number",
@@ -1268,6 +1200,12 @@
         }
       ],
       "observable": true,
+      "qudt:hasQuantityKind": {
+        "@id": "http://qudt.org/vocab/quantitykind/ElectricPotential"
+      },
+      "qudt:hasUnit": {
+        "@id": "http://qudt.org/vocab/unit/V"
+      },
       "readOnly": true,
       "title": "NominalVoltage",
       "type": "number",
@@ -1298,6 +1236,9 @@
         }
       ],
       "observable": true,
+      "qudt:hasUnit": {
+        "@id": "http://qudt.org/vocab/unit/PERCENT"
+      },
       "readOnly": true,
       "title": "PowerFactor",
       "type": "number",
@@ -1356,6 +1297,12 @@
         }
       ],
       "observable": true,
+      "qudt:hasQuantityKind": {
+        "@id": "http://qudt.org/vocab/quantitykind/ElectricCurrent"
+      },
+      "qudt:hasUnit": {
+        "@id": "http://qudt.org/vocab/unit/A"
+      },
       "readOnly": true,
       "title": "RatedCurrent",
       "type": "number",
@@ -1386,6 +1333,12 @@
         }
       ],
       "observable": true,
+      "qudt:hasQuantityKind": {
+        "@id": "http://qudt.org/vocab/quantitykind/Frequency"
+      },
+      "qudt:hasUnit": {
+        "@id": "http://qudt.org/vocab/unit/PER-SEC"
+      },
       "readOnly": true,
       "title": "RatedSpeed",
       "type": "number",
@@ -1416,6 +1369,12 @@
         }
       ],
       "observable": true,
+      "qudt:hasQuantityKind": {
+        "@id": "http://qudt.org/vocab/quantitykind/Force"
+      },
+      "qudt:hasUnit": {
+        "@id": "http://qudt.org/vocab/unit/N"
+      },
       "readOnly": true,
       "title": "TorqueAtNominalSpeedOfDrive",
       "type": "number",
@@ -1428,6 +1387,52 @@
     }
   },
   "title": "DriveDesignType",
+  "tm:optional": [
+    "/properties/EnergyEfficiencyClassOfMotor",
+    "/properties/MaxNominalFrequency",
+    "/properties/MinNominalFrequency",
+    "/properties/MotorEfficiency",
+    "/properties/NominalFrequency",
+    "/properties/NominalPowerConsumption",
+    "/properties/NominalVoltage",
+    "/properties/PowerFactor",
+    "/properties/ProtectionClass",
+    "/properties/RatedCurrent",
+    "/properties/RatedSpeed",
+    "/properties/TorqueAtNominalSpeedOfDrive",
+    "/properties/Definition",
+    "/properties/Definition_2",
+    "/properties/EngineeringUnits",
+    "/properties/EURange",
+    "/properties/Definition_3",
+    "/properties/EngineeringUnits_2",
+    "/properties/EURange_2",
+    "/properties/Definition_4",
+    "/properties/EngineeringUnits_3",
+    "/properties/EURange_3",
+    "/properties/Definition_5",
+    "/properties/EngineeringUnits_4",
+    "/properties/EURange_4",
+    "/properties/Definition_6",
+    "/properties/EngineeringUnits_5",
+    "/properties/EURange_5",
+    "/properties/Definition_7",
+    "/properties/EngineeringUnits_6",
+    "/properties/EURange_6",
+    "/properties/Definition_8",
+    "/properties/EngineeringUnits_7",
+    "/properties/EURange_7",
+    "/properties/Definition_9",
+    "/properties/Definition_10",
+    "/properties/EngineeringUnits_8",
+    "/properties/EURange_8",
+    "/properties/Definition_11",
+    "/properties/EngineeringUnits_9",
+    "/properties/EURange_9",
+    "/properties/Definition_12",
+    "/properties/EngineeringUnits_10",
+    "/properties/EURange_10"
+  ],
   "uav:bindingVersion": "1.1",
   "uav:browseName": "ns1:DriveDesignType",
   "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=1043",
@@ -1649,6 +1654,7 @@
         "browseName": "1:DriveDesignType",
         "displayName": [
           {
+            "locale": "",
             "value": "DriveDesignType"
           }
         ],
@@ -1713,15 +1719,18 @@
         "superType": "ns=3;i=1005"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:EnergyEfficiencyClassOfMotor",
         "dataType": "String",
         "description": [
           {
+            "locale": "",
             "value": "Characterization of the energy efficiency of electric motors according to international standards."
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "EnergyEfficiencyClassOfMotor"
           }
         ],
@@ -1751,10 +1760,12 @@
         "typeDefinition": "i=2365"
       },
       {
+        "arrayDimensions": "",
         "browseName": "Definition",
         "dataType": "String",
         "displayName": [
           {
+            "locale": "",
             "value": "Definition"
           }
         ],
@@ -1780,15 +1791,18 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:MaxNominalFrequency",
         "dataType": "Double",
         "description": [
           {
+            "locale": "",
             "value": "A suitable, maximum (usually rounded) value of a frequency to describe, designate or identify a component, device, resource, facility or equipment."
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "MaxNominalFrequency"
           }
         ],
@@ -1826,10 +1840,12 @@
         "typeDefinition": "i=15318"
       },
       {
+        "arrayDimensions": "",
         "browseName": "Definition",
         "dataType": "String",
         "displayName": [
           {
+            "locale": "",
             "value": "Definition"
           }
         ],
@@ -1855,10 +1871,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "EngineeringUnits",
         "dataType": "EUInformation",
         "displayName": [
           {
+            "locale": "",
             "value": "EngineeringUnits"
           }
         ],
@@ -1885,10 +1903,12 @@
         "valueXml": "<uax:ExtensionObject xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">\n        <uax:TypeId>\n          <uax:Identifier>i=888</uax:Identifier>\n        </uax:TypeId>\n        <uax:Body>\n          <uax:EUInformation>\n            <uax:NamespaceUri>http://www.opcfoundation.org/UA/units/un/cefact</uax:NamespaceUri>\n            <uax:UnitId>4740186</uax:UnitId>\n            <uax:DisplayName>\n              <uax:Text>Hz</uax:Text>\n            </uax:DisplayName>\n            <uax:Description>\n              <uax:Text>hertz</uax:Text>\n            </uax:Description>\n          </uax:EUInformation>\n        </uax:Body>\n      </uax:ExtensionObject>"
       },
       {
+        "arrayDimensions": "",
         "browseName": "EURange",
         "dataType": "Range",
         "displayName": [
           {
+            "locale": "",
             "value": "EURange"
           }
         ],
@@ -1914,15 +1934,18 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:MinNominalFrequency",
         "dataType": "Double",
         "description": [
           {
+            "locale": "",
             "value": "A suitable minimum (usually rounded) value of a frequency to describe, designate or identify a component, device, resource, facility or equipment."
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "MinNominalFrequency"
           }
         ],
@@ -1960,10 +1983,12 @@
         "typeDefinition": "i=15318"
       },
       {
+        "arrayDimensions": "",
         "browseName": "Definition",
         "dataType": "String",
         "displayName": [
           {
+            "locale": "",
             "value": "Definition"
           }
         ],
@@ -1989,10 +2014,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "EngineeringUnits",
         "dataType": "EUInformation",
         "displayName": [
           {
+            "locale": "",
             "value": "EngineeringUnits"
           }
         ],
@@ -2019,10 +2046,12 @@
         "valueXml": "<uax:ExtensionObject xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">\n        <uax:TypeId>\n          <uax:Identifier>i=888</uax:Identifier>\n        </uax:TypeId>\n        <uax:Body>\n          <uax:EUInformation>\n            <uax:NamespaceUri>http://www.opcfoundation.org/UA/units/un/cefact</uax:NamespaceUri>\n            <uax:UnitId>4740186</uax:UnitId>\n            <uax:DisplayName>\n              <uax:Text>Hz</uax:Text>\n            </uax:DisplayName>\n            <uax:Description>\n              <uax:Text>hertz</uax:Text>\n            </uax:Description>\n          </uax:EUInformation>\n        </uax:Body>\n      </uax:ExtensionObject>"
       },
       {
+        "arrayDimensions": "",
         "browseName": "EURange",
         "dataType": "Range",
         "displayName": [
           {
+            "locale": "",
             "value": "EURange"
           }
         ],
@@ -2048,15 +2077,18 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:MotorEfficiency",
         "dataType": "Double",
         "description": [
           {
+            "locale": "",
             "value": "Proportion of the motor power input P_mot delivered as pump power input P_mot, u."
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "MotorEfficiency"
           }
         ],
@@ -2094,10 +2126,12 @@
         "typeDefinition": "i=15318"
       },
       {
+        "arrayDimensions": "",
         "browseName": "Definition",
         "dataType": "String",
         "displayName": [
           {
+            "locale": "",
             "value": "Definition"
           }
         ],
@@ -2123,10 +2157,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "EngineeringUnits",
         "dataType": "EUInformation",
         "displayName": [
           {
+            "locale": "",
             "value": "EngineeringUnits"
           }
         ],
@@ -2153,10 +2189,12 @@
         "valueXml": "<uax:ExtensionObject xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">\n        <uax:TypeId>\n          <uax:Identifier>i=888</uax:Identifier>\n        </uax:TypeId>\n        <uax:Body>\n          <uax:EUInformation>\n            <uax:NamespaceUri>http://www.opcfoundation.org/UA/units/un/cefact</uax:NamespaceUri>\n            <uax:UnitId>20529</uax:UnitId>\n            <uax:DisplayName>\n              <uax:Text>%</uax:Text>\n            </uax:DisplayName>\n            <uax:Description>\n              <uax:Text>percent</uax:Text>\n            </uax:Description>\n          </uax:EUInformation>\n        </uax:Body>\n      </uax:ExtensionObject>"
       },
       {
+        "arrayDimensions": "",
         "browseName": "EURange",
         "dataType": "Range",
         "displayName": [
           {
+            "locale": "",
             "value": "EURange"
           }
         ],
@@ -2182,15 +2220,18 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:NominalFrequency",
         "dataType": "Double",
         "description": [
           {
+            "locale": "",
             "value": "Design of the object at a certain frequency, which is repeated regularly."
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "NominalFrequency"
           }
         ],
@@ -2228,10 +2269,12 @@
         "typeDefinition": "i=15318"
       },
       {
+        "arrayDimensions": "",
         "browseName": "Definition",
         "dataType": "String",
         "displayName": [
           {
+            "locale": "",
             "value": "Definition"
           }
         ],
@@ -2257,10 +2300,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "EngineeringUnits",
         "dataType": "EUInformation",
         "displayName": [
           {
+            "locale": "",
             "value": "EngineeringUnits"
           }
         ],
@@ -2287,10 +2332,12 @@
         "valueXml": "<uax:ExtensionObject xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">\n        <uax:TypeId>\n          <uax:Identifier>i=888</uax:Identifier>\n        </uax:TypeId>\n        <uax:Body>\n          <uax:EUInformation>\n            <uax:NamespaceUri>http://www.opcfoundation.org/UA/units/un/cefact</uax:NamespaceUri>\n            <uax:UnitId>4740186</uax:UnitId>\n            <uax:DisplayName>\n              <uax:Text>Hz</uax:Text>\n            </uax:DisplayName>\n            <uax:Description>\n              <uax:Text>hertz</uax:Text>\n            </uax:Description>\n          </uax:EUInformation>\n        </uax:Body>\n      </uax:ExtensionObject>"
       },
       {
+        "arrayDimensions": "",
         "browseName": "EURange",
         "dataType": "Range",
         "displayName": [
           {
+            "locale": "",
             "value": "EURange"
           }
         ],
@@ -2316,15 +2363,18 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:NominalPowerConsumption",
         "dataType": "Double",
         "description": [
           {
+            "locale": "",
             "value": "Indication of the rated power consumption in watts."
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "NominalPowerConsumption"
           }
         ],
@@ -2362,10 +2412,12 @@
         "typeDefinition": "i=15318"
       },
       {
+        "arrayDimensions": "",
         "browseName": "Definition",
         "dataType": "String",
         "displayName": [
           {
+            "locale": "",
             "value": "Definition"
           }
         ],
@@ -2391,10 +2443,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "EngineeringUnits",
         "dataType": "EUInformation",
         "displayName": [
           {
+            "locale": "",
             "value": "EngineeringUnits"
           }
         ],
@@ -2421,10 +2475,12 @@
         "valueXml": "<uax:ExtensionObject xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">\n        <uax:TypeId>\n          <uax:Identifier>i=888</uax:Identifier>\n        </uax:TypeId>\n        <uax:Body>\n          <uax:EUInformation>\n            <uax:NamespaceUri>http://www.opcfoundation.org/UA/units/un/cefact</uax:NamespaceUri>\n            <uax:UnitId>5723220</uax:UnitId>\n            <uax:DisplayName>\n              <uax:Text>W</uax:Text>\n            </uax:DisplayName>\n            <uax:Description>\n              <uax:Text>watt</uax:Text>\n            </uax:Description>\n          </uax:EUInformation>\n        </uax:Body>\n      </uax:ExtensionObject>"
       },
       {
+        "arrayDimensions": "",
         "browseName": "EURange",
         "dataType": "Range",
         "displayName": [
           {
+            "locale": "",
             "value": "EURange"
           }
         ],
@@ -2450,15 +2506,18 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:NominalVoltage",
         "dataType": "Double",
         "description": [
           {
+            "locale": "",
             "value": "Rated voltage is the value of the electrical voltage in normal operation specified by the manufacturer or supplier."
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "NominalVoltage"
           }
         ],
@@ -2496,10 +2555,12 @@
         "typeDefinition": "i=15318"
       },
       {
+        "arrayDimensions": "",
         "browseName": "Definition",
         "dataType": "String",
         "displayName": [
           {
+            "locale": "",
             "value": "Definition"
           }
         ],
@@ -2525,10 +2586,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "EngineeringUnits",
         "dataType": "EUInformation",
         "displayName": [
           {
+            "locale": "",
             "value": "EngineeringUnits"
           }
         ],
@@ -2555,10 +2618,12 @@
         "valueXml": "<uax:ExtensionObject xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">\n        <uax:TypeId>\n          <uax:Identifier>i=888</uax:Identifier>\n        </uax:TypeId>\n        <uax:Body>\n          <uax:EUInformation>\n            <uax:NamespaceUri>http://www.opcfoundation.org/UA/units/un/cefact</uax:NamespaceUri>\n            <uax:UnitId>5655636</uax:UnitId>\n            <uax:DisplayName>\n              <uax:Text>V</uax:Text>\n            </uax:DisplayName>\n            <uax:Description>\n              <uax:Text>volt</uax:Text>\n            </uax:Description>\n          </uax:EUInformation>\n        </uax:Body>\n      </uax:ExtensionObject>"
       },
       {
+        "arrayDimensions": "",
         "browseName": "EURange",
         "dataType": "Range",
         "displayName": [
           {
+            "locale": "",
             "value": "EURange"
           }
         ],
@@ -2584,15 +2649,18 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:PowerFactor",
         "dataType": "Double",
         "description": [
           {
+            "locale": "",
             "value": "Ratio of the amount of active power to apparent power."
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "PowerFactor"
           }
         ],
@@ -2630,10 +2698,12 @@
         "typeDefinition": "i=15318"
       },
       {
+        "arrayDimensions": "",
         "browseName": "Definition",
         "dataType": "String",
         "displayName": [
           {
+            "locale": "",
             "value": "Definition"
           }
         ],
@@ -2659,10 +2729,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "EngineeringUnits",
         "dataType": "EUInformation",
         "displayName": [
           {
+            "locale": "",
             "value": "EngineeringUnits"
           }
         ],
@@ -2689,10 +2761,12 @@
         "valueXml": "<uax:ExtensionObject xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">\n        <uax:TypeId>\n          <uax:Identifier>i=888</uax:Identifier>\n        </uax:TypeId>\n        <uax:Body>\n          <uax:EUInformation>\n            <uax:NamespaceUri>http://www.opcfoundation.org/UA/units/un/cefact</uax:NamespaceUri>\n            <uax:UnitId>20529</uax:UnitId>\n            <uax:DisplayName>\n              <uax:Text>%</uax:Text>\n            </uax:DisplayName>\n            <uax:Description>\n              <uax:Text>percent</uax:Text>\n            </uax:Description>\n          </uax:EUInformation>\n        </uax:Body>\n      </uax:ExtensionObject>"
       },
       {
+        "arrayDimensions": "",
         "browseName": "EURange",
         "dataType": "Range",
         "displayName": [
           {
+            "locale": "",
             "value": "EURange"
           }
         ],
@@ -2718,15 +2792,18 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:ProtectionClass",
         "dataType": "String",
         "description": [
           {
+            "locale": "",
             "value": "Protection class of an enclosure, expressed as NEMA or IP rating."
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "ProtectionClass"
           }
         ],
@@ -2756,10 +2833,12 @@
         "typeDefinition": "i=2365"
       },
       {
+        "arrayDimensions": "",
         "browseName": "Definition",
         "dataType": "String",
         "displayName": [
           {
+            "locale": "",
             "value": "Definition"
           }
         ],
@@ -2785,15 +2864,18 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:RatedCurrent",
         "dataType": "Double",
         "description": [
           {
+            "locale": "",
             "value": "Appropriate (usually rounded) value of a current to describe, designate or identify a component, device, resource, facility or equipment."
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "RatedCurrent"
           }
         ],
@@ -2831,10 +2913,12 @@
         "typeDefinition": "i=15318"
       },
       {
+        "arrayDimensions": "",
         "browseName": "Definition",
         "dataType": "String",
         "displayName": [
           {
+            "locale": "",
             "value": "Definition"
           }
         ],
@@ -2860,10 +2944,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "EngineeringUnits",
         "dataType": "EUInformation",
         "displayName": [
           {
+            "locale": "",
             "value": "EngineeringUnits"
           }
         ],
@@ -2890,10 +2976,12 @@
         "valueXml": "<uax:ExtensionObject xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">\n        <uax:TypeId>\n          <uax:Identifier>i=888</uax:Identifier>\n        </uax:TypeId>\n        <uax:Body>\n          <uax:EUInformation>\n            <uax:NamespaceUri>http://www.opcfoundation.org/UA/units/un/cefact</uax:NamespaceUri>\n            <uax:UnitId>4279632</uax:UnitId>\n            <uax:DisplayName>\n              <uax:Text>A</uax:Text>\n            </uax:DisplayName>\n            <uax:Description>\n              <uax:Text>ampere</uax:Text>\n            </uax:Description>\n          </uax:EUInformation>\n        </uax:Body>\n      </uax:ExtensionObject>"
       },
       {
+        "arrayDimensions": "",
         "browseName": "EURange",
         "dataType": "Range",
         "displayName": [
           {
+            "locale": "",
             "value": "EURange"
           }
         ],
@@ -2919,15 +3007,18 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:RatedSpeed",
         "dataType": "Double",
         "description": [
           {
+            "locale": "",
             "value": "Speed corresponding to the rated data of the motor used."
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "RatedSpeed"
           }
         ],
@@ -2965,10 +3056,12 @@
         "typeDefinition": "i=15318"
       },
       {
+        "arrayDimensions": "",
         "browseName": "Definition",
         "dataType": "String",
         "displayName": [
           {
+            "locale": "",
             "value": "Definition"
           }
         ],
@@ -2994,10 +3087,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "EngineeringUnits",
         "dataType": "EUInformation",
         "displayName": [
           {
+            "locale": "",
             "value": "EngineeringUnits"
           }
         ],
@@ -3024,10 +3119,12 @@
         "valueXml": "<uax:ExtensionObject xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">\n        <uax:TypeId>\n          <uax:Identifier>i=888</uax:Identifier>\n        </uax:TypeId>\n        <uax:Body>\n          <uax:EUInformation>\n            <uax:NamespaceUri>http://www.opcfoundation.org/UA/units/un/cefact</uax:NamespaceUri>\n            <uax:UnitId>4405559</uax:UnitId>\n            <uax:DisplayName>\n              <uax:Text>s⁻¹</uax:Text>\n            </uax:DisplayName>\n            <uax:Description>\n              <uax:Text>reciprocal second</uax:Text>\n            </uax:Description>\n          </uax:EUInformation>\n        </uax:Body>\n      </uax:ExtensionObject>"
       },
       {
+        "arrayDimensions": "",
         "browseName": "EURange",
         "dataType": "Range",
         "displayName": [
           {
+            "locale": "",
             "value": "EURange"
           }
         ],
@@ -3053,15 +3150,18 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "1:TorqueAtNominalSpeedOfDrive",
         "dataType": "Double",
         "description": [
           {
+            "locale": "",
             "value": "The torque transmittable by the equipment."
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "TorqueAtNominalSpeedOfDrive"
           }
         ],
@@ -3099,10 +3199,12 @@
         "typeDefinition": "i=15318"
       },
       {
+        "arrayDimensions": "",
         "browseName": "Definition",
         "dataType": "String",
         "displayName": [
           {
+            "locale": "",
             "value": "Definition"
           }
         ],
@@ -3128,10 +3230,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "EngineeringUnits",
         "dataType": "EUInformation",
         "displayName": [
           {
+            "locale": "",
             "value": "EngineeringUnits"
           }
         ],
@@ -3158,10 +3262,12 @@
         "valueXml": "<uax:ExtensionObject xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">\n        <uax:TypeId>\n          <uax:Identifier>i=888</uax:Identifier>\n        </uax:TypeId>\n        <uax:Body>\n          <uax:EUInformation>\n            <uax:NamespaceUri>http://www.opcfoundation.org/UA/units/un/cefact</uax:NamespaceUri>\n            <uax:UnitId>5129559</uax:UnitId>\n            <uax:DisplayName>\n              <uax:Text>N</uax:Text>\n            </uax:DisplayName>\n            <uax:Description>\n              <uax:Text>newton</uax:Text>\n            </uax:Description>\n          </uax:EUInformation>\n        </uax:Body>\n      </uax:ExtensionObject>"
       },
       {
+        "arrayDimensions": "",
         "browseName": "EURange",
         "dataType": "Range",
         "displayName": [
           {
+            "locale": "",
             "value": "EURange"
           }
         ],

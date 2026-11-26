@@ -1,31 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using System.Collections.Generic;
@@ -48,6 +22,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
     /// activate-after-commit / deactivate-before-retire ordering.
     /// </summary>
     [TestFixture]
+    [Category("Integration")]
     public sealed class WotBindingCoordinatorTests
     {
         /// <summary>
@@ -295,7 +270,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             await Upsert(registry, "td-a", Td("urn:td-a", "mem://store/v1")).ConfigureAwait(false);
             await coordinator.RefreshAsync(new WotRefreshRequest()).ConfigureAwait(false);
 
-            // A content change triggers a shadow reload (an update, not a first add).
+            // A content change migrates the existing projection registration.
             await Upsert(registry, "td-a", Td("urn:td-a", "mem://store/v2")).ConfigureAwait(false);
             await coordinator.RefreshAsync(new WotRefreshRequest()).ConfigureAwait(false);
 
@@ -308,14 +283,14 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             Assert.That(binders.DeactivatedPlans[0], Is.SameAs(planV1),
                 "Only the previously tracked plan may be deactivated on update.");
 
-            // Order: the shadow switch happens first, then the old plan is
+            // Order: the migration commits first, then the old plan is
             // deactivated, then the new plan is activated.
-            int shadow = recorder.IndexOf("shadow");
+            int migration = recorder.IndexOf("migrate");
             int deactivateOld = recorder.IndexOf("deactivate", planV1);
             int activateNew = recorder.IndexOf("activate", planV2);
-            Assert.That(shadow, Is.GreaterThanOrEqualTo(0), "The update must shadow-reload the projection.");
-            Assert.That(deactivateOld, Is.GreaterThan(shadow),
-                "The old plan must be deactivated only after the shadow switch succeeds.");
+            Assert.That(migration, Is.GreaterThanOrEqualTo(0), "The update must migrate the projection.");
+            Assert.That(deactivateOld, Is.GreaterThan(migration),
+                "The old plan must be deactivated only after the migration commits.");
             Assert.That(activateNew, Is.GreaterThan(deactivateOld),
                 "The new plan must be activated after the old plan is deactivated.");
         }
@@ -427,7 +402,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 {
                     m_recorder.Record(change.Document is null ? "remove" :
                         change.Current is null ? "add" :
-                        change.RetirementPolicy == WotProjectionRetirementPolicy.Immediate ? "immediate" : "shadow");
+                        change.RetirementPolicy == WotProjectionRetirementPolicy.Invalidate ? "invalidate" : "migrate");
                 }
             }
 
@@ -506,7 +481,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 {
                     m_timeline.Add(change.Document is null ? "retirement-commit" :
                         change.Current is null ? "activation-commit" :
-                        change.RetirementPolicy == WotProjectionRetirementPolicy.Immediate ? "immediate" : "shadow");
+                        change.RetirementPolicy == WotProjectionRetirementPolicy.Invalidate ? "invalidate" : "migrate");
                 }
             }
 

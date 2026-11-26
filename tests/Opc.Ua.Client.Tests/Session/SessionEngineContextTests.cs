@@ -1,31 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using System.Collections.Generic;
@@ -337,6 +311,51 @@ namespace Opc.Ua.Client.Tests
             await Task.CompletedTask.ConfigureAwait(false);
         }
 
+        /// <summary>
+        /// A replaced transport starts with a new message context. The next Publish restores
+        /// deferred decoding on it.
+        /// </summary>
+        [Test]
+        public async Task PublishRestoresDeferredDecodingOnAReplacedTransportAsync()
+        {
+            using TestSessionScope scope = CreateSessionScope();
+            var initial = (ServiceMessageContext)scope.Session.MessageContext;
+            scope.Session.DeferNotificationDecoding = true;
+            Assert.That(initial.DeferNotificationBodies, Is.True);
+
+            // a managed channel keeps its identity and swaps the transport behind it.
+            ServiceMessageContext replaced = ServiceMessageContext.Create(scope.Telemetry);
+            scope.Channel.SetupGet(c => c.MessageContext).Returns(replaced);
+            Assert.That(replaced.DeferNotificationBodies, Is.False);
+
+            try
+            {
+                await scope.Context.PublishAsync(new RequestHeader(), []).ConfigureAwait(false);
+            }
+            catch (Exception ex) when (ex is ServiceResultException or NullReferenceException)
+            {
+                // the mock channel does not answer; only the context matters here.
+            }
+
+            Assert.That(replaced.DeferNotificationBodies, Is.True);
+        }
+
+        /// <summary>
+        /// A session that does not defer leaves alone what another session on a shared
+        /// transport turned on, so the order of connecting does not change the result.
+        /// </summary>
+        [Test]
+        public void SessionThatDoesNotDeferLeavesASharedTransportAlone()
+        {
+            using TestSessionScope scope = CreateSessionScope();
+            var shared = (ServiceMessageContext)scope.Session.MessageContext;
+            shared.DeferNotificationBodies = true;
+
+            scope.Session.DeferNotificationDecoding = false;
+
+            Assert.That(shared.DeferNotificationBodies, Is.True);
+        }
+
         [Test]
         public void AsyncRequestTrackingDelegatesToSession()
         {
@@ -373,7 +392,7 @@ namespace Opc.Ua.Client.Tests
                 CreateEndpoint(),
                 engineFactory: engineFactory);
 
-            return new TestSessionScope(session, engineFactory.Context!, telemetry);
+            return new TestSessionScope(session, engineFactory.Context!, telemetry, channel);
         }
 
         private static ApplicationConfiguration CreateClientConfiguration(
@@ -442,11 +461,13 @@ namespace Opc.Ua.Client.Tests
             public TestSessionScope(
                 Session session,
                 ISubscriptionEngineContext context,
-                ITelemetryContext telemetry)
+                ITelemetryContext telemetry,
+                Mock<ITransportChannel> channel)
             {
                 Session = session;
                 Context = context;
                 Telemetry = telemetry;
+                Channel = channel;
             }
 
             public Session Session { get; }
@@ -454,6 +475,8 @@ namespace Opc.Ua.Client.Tests
             public ISubscriptionEngineContext Context { get; }
 
             public ITelemetryContext Telemetry { get; }
+
+            public Mock<ITransportChannel> Channel { get; }
 
             public void Dispose()
             {

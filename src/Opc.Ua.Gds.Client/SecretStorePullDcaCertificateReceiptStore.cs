@@ -1,26 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person obtaining a copy
- * of this software and associated documentation files (the "Software"), to deal
- * in the Software without restriction, including without limitation the rights
- * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the Software is
- * furnished to do so, subject to the following conditions:
- *
- * The above copyright notice and this permission notice shall be included in
- * all copies or substantial portions of the Software.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
- * OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL
- * THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR
- * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
- * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using System.Globalization;
@@ -82,7 +61,7 @@ namespace Opc.Ua.Gds.Client
             }
             ThrowIfDisposed();
             SecretIdentifier identifier = GetIdentifier(registrar, applicationId, requestId);
-            string group = EncodeId(profile.CertificateGroupId);
+            string group = EncodeCertificateGroupId(profile.CertificateGroupId);
             string type = EncodeId(profile.CertificateTypeId);
             await m_gate.WaitAsync(cancellationToken).ConfigureAwait(false);
             try
@@ -258,6 +237,14 @@ namespace Opc.Ua.Gds.Client
         }
 
         /// <summary>
+        /// Encodes the null certificate group as the Part 12 default without changing explicit group bindings.
+        /// </summary>
+        private string EncodeCertificateGroupId(NodeId id)
+        {
+            return id.IsNull ? kDefaultCertificateGroupBinding : EncodeId(id);
+        }
+
+        /// <summary>
         /// Rejects use after disposal.
         /// </summary>
         private void ThrowIfDisposed()
@@ -270,6 +257,9 @@ namespace Opc.Ua.Gds.Client
 
         /// <summary>The maximum encoded public receipt size.</summary>
         private const int kMaximumReceiptBytes = 16 * 1024 * 1024;
+
+        /// <summary>The version-1 binding for the Part 12 default application certificate group.</summary>
+        private const string kDefaultCertificateGroupBinding = "<default-application-certificate-group>";
 
         /// <summary>The borrowed secret store.</summary>
         private readonly ISecretStore m_secretStore;

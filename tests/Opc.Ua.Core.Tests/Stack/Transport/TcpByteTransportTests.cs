@@ -1,31 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using System.Collections.Generic;
@@ -851,6 +825,72 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
                     async () => await client.ReceiveChunkAsync(CancellationToken.None)
                         .ConfigureAwait(false)))!;
                 Assert.That(ex.StatusCode, Is.EqualTo((uint)StatusCodes.BadConnectionClosed));
+            }
+        }
+
+        /// <summary>
+        /// The channel closes the transport from the completion of a failed receive
+        /// (its receive loop faulting). The close must return promptly, end the
+        /// connection and release the socket (#4981).
+        /// </summary>
+        [Test]
+        public async Task CloseFromAFailedReceiveCompletionReleasesTheSocketAsync()
+        {
+            (TcpByteTransport client, Socket serverSocket, TcpListener listener) =
+                await CreateConnectedPairAsync().ConfigureAwait(false);
+            using var _l = new ListenerScope(listener);
+            using Socket _s = serverSocket;
+            var socket = (Socket)typeof(TcpByteTransport)
+                .GetField("m_socket", BindingFlags.Instance | BindingFlags.NonPublic)!
+                .GetValue(client)!;
+
+            // A valid chunk header announcing more bytes than are sent keeps the
+            // receive pending on the socket; the reset then faults it there.
+            serverSocket.LingerState = new LingerOption(true, 0);
+            await serverSocket
+                .SendAsync(
+                    new ArraySegment<byte>(BuildValidChunk(TcpMessageType.MessageFinal, 4096), 0, 100),
+                    SocketFlags.None)
+                .ConfigureAwait(false);
+            Task<ArraySegment<byte>> receive = client.ReceiveChunkAsync(CancellationToken.None).AsTask();
+            await Task.Delay(50).ConfigureAwait(false);
+            Assert.That(receive.IsCompleted, Is.False);
+            Task close = receive.ContinueWith(
+                _ => client.Close(),
+                CancellationToken.None,
+                TaskContinuationOptions.ExecuteSynchronously,
+                TaskScheduler.Default);
+            serverSocket.Close();
+
+            Assert.That(
+                await Task.WhenAny(close, Task.Delay(TimeSpan.FromSeconds(5))).ConfigureAwait(false),
+                Is.SameAs(close));
+            await close.ConfigureAwait(false);
+            // The socket receive failed: a reset, or the end of the stream.
+            Exception ex = (await Assert.CatchAsync<Exception>(
+                async () => await receive.ConfigureAwait(false)))!;
+            Assert.That(
+                ex is SocketException ||
+                    (ex is ServiceResultException sre && sre.StatusCode == StatusCodes.BadConnectionClosed),
+                Is.True,
+                ex.ToString());
+
+            var deadline = DateTime.UtcNow + TimeSpan.FromSeconds(10);
+            while (true)
+            {
+                try
+                {
+                    _ = socket.Available;
+                }
+                catch (ObjectDisposedException)
+                {
+                    break;
+                }
+                catch (SocketException)
+                {
+                }
+                Assert.That(DateTime.UtcNow, Is.LessThan(deadline), "The socket was not disposed.");
+                await Task.Delay(10).ConfigureAwait(false);
             }
         }
 

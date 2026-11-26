@@ -1,34 +1,7 @@
-/* ========================================================================
- * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
-using System.Buffers;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
@@ -142,8 +115,7 @@ namespace Opc.Ua.Server
                 () => Id,
                 maxMessageCount,
                 m_server.SubscriptionStore as ISubscriptionRetransmissionStore,
-                m_logger,
-                m_server.EventManager);
+                m_logger);
             m_supportsDurable = m_server.MonitoredItemQueueFactory.SupportsDurableQueues;
             IsDurable = false;
 
@@ -267,21 +239,30 @@ namespace Opc.Ua.Server
             {
                 foreach (KeyValuePair<uint, IReadOnlyList<uint>> link in triggeringLinks)
                 {
-                    if (link.Value == null || !m_monitoredItems.ContainsKey(link.Key))
+                    if (link.Value == null ||
+                        !m_monitoredItems.ContainsKey(link.Key) ||
+                        m_itemsToTrigger.ContainsKey(link.Key))
                     {
                         continue;
                     }
 
-                    var triggeredItems = new List<ITriggeredMonitoredItem>(link.Value.Count);
+                    var triggeredItems = new List<ITriggeredMonitoredItem>(
+                        Math.Min(link.Value.Count, kMaxTriggeringLinks - m_triggeringLinkCount));
+                    var linkedIds = new HashSet<uint>();
                     foreach (uint linkedItemId in link.Value)
                     {
+                        if (m_triggeringLinkCount >= kMaxTriggeringLinks)
+                        {
+                            break;
+                        }
                         if (m_monitoredItems.TryGetValue(
                                 linkedItemId,
                                 out LinkedListNode<IMonitoredItem>? linkedNode) &&
                             linkedNode.Value is ITriggeredMonitoredItem triggeredItem &&
-                            !triggeredItems.Exists(item => item.Id == linkedItemId))
+                            linkedIds.Add(linkedItemId))
                         {
                             triggeredItems.Add(triggeredItem);
+                            AddTriggeredTarget(linkedItemId);
                         }
                     }
 
@@ -341,8 +322,7 @@ namespace Opc.Ua.Server
                 m_logger,
                 storedSubscription.SentMessages,
                 storedSubscription.SequenceNumber,
-                storedSubscription.LastSentMessage,
-                m_server.EventManager);
+                storedSubscription.LastSentMessage);
             m_supportsDurable = m_server.MonitoredItemQueueFactory.SupportsDurableQueues;
             IsDurable = storedSubscription.IsDurable;
             // UserIdentityToken is null for anonymous sessions; the owner is then an
@@ -432,7 +412,11 @@ namespace Opc.Ua.Server
                     EndValuePublications();
                     foreach (KeyValuePair<uint, LinkedListNode<IMonitoredItem>> monitoredItemKVP in m_monitoredItems)
                     {
-                        monitoredItemKVP.Value?.Value?.Dispose();
+                        if (monitoredItemKVP.Value?.Value is { } monitoredItem)
+                        {
+                            ReleaseMonitoredItemOwnership(monitoredItem);
+                            monitoredItem.Dispose();
+                        }
                     }
 
                     m_monitoredItems.Clear();
@@ -604,71 +588,11 @@ namespace Opc.Ua.Server
             lock (m_lock)
             {
                 return m_monitoredItems.Values.Any(monitoredItem =>
-                    monitoredItem.Value is not IDetachableMonitoredItem
+                    monitoredItem.Value is not IMonitoredItemGenerationBinding
                     {
-                        IsDetached: true
+                        IsSourceUnavailable: true
                     } &&
                     IsOwnedBy(monitoredItem.Value, nodeManager));
-            }
-        }
-
-        /// <inheritdoc/>
-        IReadOnlyList<IMonitoredItem>
-            ISubscriptionMonitoredItemLifecycle.GetMonitoredItemsSnapshot(
-                IAsyncNodeManager nodeManager)
-        {
-            lock (m_lock)
-            {
-                return
-                [
-                    .. m_monitoredItems.Values
-                        .Select(entry => entry.Value)
-                        .Where(monitoredItem =>
-                            monitoredItem is not IDetachableMonitoredItem
-                            {
-                                IsDetached: true
-                            } &&
-                            IsOwnedBy(monitoredItem, nodeManager))
-                ];
-            }
-        }
-
-        /// <inheritdoc/>
-        IReadOnlyList<IMonitoredItem>
-            ISubscriptionMonitoredItemLifecycle.GetRecoverableMonitoredItemsSnapshot(
-                IReadOnlyCollection<NodeId>? nodeIds)
-        {
-            lock (m_lock)
-            {
-                if (nodeIds == null)
-                {
-                    return
-                    [
-                        .. m_monitoredItems.Values
-                            .Select(entry => entry.Value)
-                            .Where(monitoredItem =>
-                                monitoredItem is IDetachableMonitoredItem lifecycle &&
-                                (lifecycle.IsDetached || lifecycle.IsDeleted))
-                    ];
-                }
-
-                if (nodeIds.Count == 0)
-                {
-                    return [];
-                }
-
-                var requestedNodeIds = new HashSet<NodeId>(
-                    nodeIds,
-                    NodeIdComparer.Default);
-                return
-                [
-                    .. m_monitoredItems.Values
-                        .Select(entry => entry.Value)
-                        .Where(monitoredItem =>
-                        monitoredItem is IDetachableMonitoredItem lifecycle &&
-                        (lifecycle.IsDetached || lifecycle.IsDeleted) &&
-                        requestedNodeIds.Contains(monitoredItem.NodeId))
-                ];
             }
         }
 
@@ -685,6 +609,66 @@ namespace Opc.Ua.Server
             }
         }
 
+        /// <summary>
+        /// Temporarily includes an externally owned item in membership without creating or rebinding its source.
+        /// </summary>
+        /// <param name="monitoredItem">The item whose lifetime remains with its caller.</param>
+        /// <returns>A lease removing only this membership when disposed.</returns>
+        /// <exception cref="ArgumentNullException"><paramref name="monitoredItem"/> is null.</exception>
+        internal IDisposable IncludeExternalMonitoredItem(IMonitoredItem monitoredItem)
+        {
+            if (monitoredItem is null)
+            {
+                throw new ArgumentNullException(nameof(monitoredItem));
+            }
+            var membership = new ExternalItemMembership(this, monitoredItem);
+            lock (m_lock)
+            {
+                m_monitoredItems.Add(monitoredItem.Id, new LinkedListNode<IMonitoredItem>(monitoredItem));
+            }
+            return membership;
+        }
+
+        /// <summary>
+        /// Removes a temporary external membership without deleting its item or changing a replacement.
+        /// </summary>
+        private sealed class ExternalItemMembership : IDisposable
+        {
+            /// <summary>
+            /// Creates an unregistered membership owned by the caller.
+            /// </summary>
+            public ExternalItemMembership(Subscription subscription, IMonitoredItem item)
+            {
+                m_subscription = subscription;
+                m_item = item;
+            }
+
+            /// <inheritdoc/>
+            public void Dispose()
+            {
+                Subscription? subscription = Interlocked.Exchange(ref m_subscription, null);
+                if (subscription is null)
+                {
+                    return;
+                }
+                lock (subscription.m_lock)
+                {
+                    if (subscription.m_monitoredItems.TryGetValue(
+                        m_item.Id, out LinkedListNode<IMonitoredItem>? node) &&
+                        ReferenceEquals(node.Value, m_item))
+                    {
+                        subscription.m_monitoredItems.Remove(m_item.Id);
+                    }
+                }
+            }
+
+            /// <summary>The subscription until membership is released.</summary>
+            private Subscription? m_subscription;
+
+            /// <summary>The externally owned item whose exact membership is removed.</summary>
+            private readonly IMonitoredItem m_item;
+        }
+
         private static bool IsOwnedBy(
             IMonitoredItem monitoredItem,
             IAsyncNodeManager nodeManager)
@@ -699,8 +683,8 @@ namespace Opc.Ua.Server
                 return true;
             }
 
-            INodeManager? monitoredItemSync = monitoredItemOwner.SyncNodeManager;
-            INodeManager? nodeManagerSync = nodeManager.SyncNodeManager;
+            object? monitoredItemSync = monitoredItemOwner.SyncNodeManager;
+            object? nodeManagerSync = nodeManager.SyncNodeManager;
             return monitoredItemSync is not null &&
                 nodeManagerSync is not null &&
                 ReferenceEquals(monitoredItemSync, nodeManagerSync);
@@ -764,8 +748,12 @@ namespace Opc.Ua.Server
                 lock (m_lock)
                 {
                     monitoredItems = [.. m_monitoredItems.Values.Select(node => node.Value)];
+                    foreach (IMonitoredItem monitoredItem in monitoredItems)
+                    {
+                        ReleaseMonitoredItemOwnership(monitoredItem);
+                    }
                     m_monitoredItems.Clear();
-                    m_itemsToTrigger.Clear();
+                    ClearTriggeringLinks();
                     m_itemsToCheck.Clear();
                     m_itemsToPublish.Clear();
                     ClearReadyCandidates();
@@ -781,19 +769,16 @@ namespace Opc.Ua.Server
 
                 if (monitoredItems.Count > 0)
                 {
-                    // the context may be null if the server is cleaning up expired subscriptions.
-                    // in this case we create a context with a dummy request and use the current session.
-                    if (context == null)
-                    {
-                        var requestHeader = new RequestHeader
-                        {
-                            ReturnDiagnostics = (int)DiagnosticsMasks.OperationSymbolicIdAndText
-                        };
-                        // The context tracks no request, so there is nothing to release when this scope ends.
-#pragma warning disable CA2000
-                        context = new OperationContext(requestHeader, null, RequestType.Unknown, RequestLifetime.None);
-#pragma warning restore CA2000
-                    }
+                    using OperationContext? ownedContext = context is null
+                        ? new OperationContext(
+                            new RequestHeader
+                            {
+                                ReturnDiagnostics = (int)DiagnosticsMasks.OperationSymbolicIdAndText
+                            },
+                            null,
+                            RequestType.Unknown,
+                            RequestLifetime.None)
+                        : null;
 
                     var errors = new List<ServiceResult>(monitoredItems.Count);
                     for (int ii = 0; ii < monitoredItems.Count; ii++)
@@ -804,7 +789,8 @@ namespace Opc.Ua.Server
                     try
                     {
                         await m_server.NodeManager
-                            .DeleteMonitoredItemsAsync(context, Id, monitoredItems, errors, CancellationToken.None)
+                            .DeleteMonitoredItemsAsync(
+                                context ?? ownedContext!, Id, monitoredItems, errors, CancellationToken.None)
                             .ConfigureAwait(false);
                     }
                     finally
@@ -981,35 +967,68 @@ namespace Opc.Ua.Server
         /// </remarks>
         private void PromoteReadyMonitoredItems()
         {
+            // a change an item made to itself outside of a publish may have made a
+            // ready-to-report signal stale. Invalidations are consumed before the intake is
+            // taken, so the candidate of an item that signalled and then invalidated is in
+            // this pass; a newer invalidation is also honoured now but kept for the next pass.
+            bool invalidated = Interlocked.Exchange(ref m_readinessInvalidated, 0) != 0;
+
+            TakeReadyIntake();
+
             // an item the subscription does not know to signal: a custom IMonitoredItem.
             if (m_monitoredItems.Count != m_signalingItemCount)
             {
+                // the scan reads every item, but the candidates it leaves keep their flags
+                // for when the subscription stops scanning.
+                m_recheckReadyCandidates |= invalidated;
+                DropPublishListCandidates();
                 ScanAllMonitoredItems();
                 return;
             }
 
-            TakeReadyIntake();
+            // so may a configuration change.
+            bool recheck = invalidated ||
+                m_recheckReadyCandidates ||
+                Volatile.Read(ref m_readinessInvalidated) != 0;
+            m_recheckReadyCandidates = false;
 
             // compacts the candidates in place; triggered items may be appended while the
             // list is walked and are checked in the same pass.
             int kept = 0;
             for (int ii = 0; ii < m_readyCandidates.Count; ii++)
             {
-                IMonitoredItem monitoredItem = m_readyCandidates[ii];
-                var signaling = (IReadySignalingMonitoredItem)monitoredItem;
+                ReadyCandidate candidate = m_readyCandidates[ii];
+                IMonitoredItem monitoredItem = candidate.Item;
 
                 if (!m_monitoredItems.TryGetValue(
-                        monitoredItem.Id,
+                        candidate.Id,
                         out LinkedListNode<IMonitoredItem>? node) ||
-                    !ReferenceEquals(node.Value, monitoredItem) ||
-                    !ReferenceEquals(node.List, m_itemsToCheck))
+                    !ReferenceEquals(node.Value, monitoredItem))
                 {
-                    // deleted, or already in the publish list, which checks it again when
-                    // the item leaves the list.
-                    signaling.ReleaseReadySignal();
+                    // deleted.
+                    ((IReadySignalingMonitoredItem)monitoredItem).ReleaseReadySignal();
                     continue;
                 }
 
+                if (!ReferenceEquals(node.List, m_itemsToCheck))
+                {
+                    // already in the publish list, which holds the signal and checks the
+                    // item again when it leaves the list.
+                    continue;
+                }
+
+                // The item said it was ready to report when it signalled, and a value or the
+                // passing time does not take that back: move it without reading it, so the
+                // publish step is its only cold touch. The publish list keeps the signal.
+                if (candidate.ReadyToReport && !recheck)
+                {
+                    m_itemsToCheck.Remove(node);
+                    m_itemsToPublish.AddLast(node);
+                    TriggerLinkedItems(monitoredItem, promoteTriggeredItems: true);
+                    continue;
+                }
+
+                var signaling = (IReadySignalingMonitoredItem)monitoredItem;
                 bool ready = IsReadyToReport(monitoredItem);
                 if (ready)
                 {
@@ -1020,20 +1039,24 @@ namespace Opc.Ua.Server
                 // update any triggered items; ready ones are appended to the publish list.
                 TriggerLinkedItems(monitoredItem, promoteTriggeredItems: true);
 
-                if (!ready && signaling.HasPendingNotifications)
+                if (ready)
                 {
-                    m_readyCandidates[kept++] = monitoredItem;
+                    continue;
+                }
+
+                if (signaling.HasPendingNotifications)
+                {
+                    m_readyCandidates[kept++] = new ReadyCandidate(monitoredItem, candidate.Id, false);
                     continue;
                 }
 
                 // a value queued after the flags were read signals again; one queued before
                 // the release is seen by the second check.
                 signaling.ReleaseReadySignal();
-                if (!ready &&
-                    signaling.HasPendingNotifications &&
+                if (signaling.HasPendingNotifications &&
                     signaling.TryAcquireReadySignal())
                 {
-                    m_readyCandidates[kept++] = monitoredItem;
+                    m_readyCandidates[kept++] = new ReadyCandidate(monitoredItem, candidate.Id, false);
                 }
             }
 
@@ -1041,12 +1064,54 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
+        /// Drops the candidates whose item is in the publish list or deleted while the
+        /// subscription scans all items, so the candidates stay bounded until the
+        /// subscription uses them again.
+        /// </summary>
+        /// <remarks>
+        /// The caller holds <c>m_lock</c>. The publish list releases the signal of an item
+        /// when the item leaves it and adds a new candidate when something is pending, so
+        /// the entries of those items are not needed.
+        /// </remarks>
+        private void DropPublishListCandidates()
+        {
+            int kept = 0;
+            for (int ii = 0; ii < m_readyCandidates.Count; ii++)
+            {
+                ReadyCandidate candidate = m_readyCandidates[ii];
+                if (!m_monitoredItems.TryGetValue(
+                        candidate.Id,
+                        out LinkedListNode<IMonitoredItem>? node) ||
+                    !ReferenceEquals(node.Value, candidate.Item))
+                {
+                    ((IReadySignalingMonitoredItem)candidate.Item).ReleaseReadySignal();
+                    continue;
+                }
+                if (!ReferenceEquals(node.List, m_itemsToCheck))
+                {
+                    continue;
+                }
+                m_readyCandidates[kept++] = candidate;
+            }
+            m_readyCandidates.RemoveRange(kept, m_readyCandidates.Count - kept);
+        }
+
+        /// <summary>
+        /// A monitored item that signalled it has something to report.
+        /// </summary>
+        /// <param name="Item">The item.</param>
+        /// <param name="Id">The id of the item, read by the item when it signalled.</param>
+        /// <param name="ReadyToReport">Whether the item was ready to report when it
+        /// signalled.</param>
+        private readonly record struct ReadyCandidate(IMonitoredItem Item, uint Id, bool ReadyToReport);
+
+        /// <summary>
         /// Moves the ready signals received from the monitored items to the candidates.
         /// </summary>
         /// <remarks>The caller holds <c>m_lock</c>.</remarks>
         private void TakeReadyIntake()
         {
-            List<IMonitoredItem> taken;
+            List<ReadyCandidate> taken;
             lock (m_readyIntakeLock)
             {
                 taken = m_readyIntake;
@@ -1063,12 +1128,21 @@ namespace Opc.Ua.Server
         }
 
         /// <inheritdoc/>
-        void IMonitoredItemReadySink.OnMonitoredItemReady(IMonitoredItem monitoredItem)
+        void IMonitoredItemReadySink.OnMonitoredItemReady(
+            IMonitoredItem monitoredItem,
+            uint monitoredItemId,
+            bool readyToReport)
         {
             lock (m_readyIntakeLock)
             {
-                m_readyIntake.Add(monitoredItem);
+                m_readyIntake.Add(new ReadyCandidate(monitoredItem, monitoredItemId, readyToReport));
             }
+        }
+
+        /// <inheritdoc/>
+        void IMonitoredItemReadySink.OnMonitoredItemReadinessInvalidated()
+        {
+            Interlocked.Exchange(ref m_readinessInvalidated, 1);
         }
 
         /// <summary>
@@ -1077,28 +1151,123 @@ namespace Opc.Ua.Server
         /// mode or triggering links changed).
         /// </summary>
         /// <remarks>The caller holds <c>m_lock</c>.</remarks>
-        private void MarkReadyCandidate(IMonitoredItem monitoredItem)
+        private void MarkReadyCandidate(IMonitoredItem monitoredItem, bool configurationChanged = true)
         {
-            if (monitoredItem is IReadySignalingMonitoredItem signaling &&
-                signaling.TryAcquireReadySignal())
+            if (monitoredItem is not IReadySignalingMonitoredItem signaling)
             {
-                m_readyCandidates.Add(monitoredItem);
+                return;
+            }
+
+            if (signaling.TryAcquireReadySignal())
+            {
+                m_readyCandidates.Add(new ReadyCandidate(monitoredItem, monitoredItem.Id, false));
+            }
+            else if (configurationChanged)
+            {
+                // the candidate that holds the signal may say the item is ready to report
+                // from before the change; the next pass checks every candidate.
+                m_recheckReadyCandidates = true;
             }
         }
 
         /// <summary>
-        /// Marks a monitored item that left the publish list as a candidate when it still has
-        /// something pending.
+        /// Moves a monitored item that was found ready to report from the check list to the
+        /// publish list, outside of a candidate that holds its ready signal.
         /// </summary>
-        /// <remarks>The caller holds <c>m_lock</c>.</remarks>
-        private void MarkPendingCandidate(IMonitoredItem monitoredItem)
+        /// <remarks>
+        /// The caller holds <c>m_lock</c>. The publish list holds the signal while the item
+        /// is in it. When a candidate holds the signal instead, the candidate may say the
+        /// item is ready to report although this publish takes the value, so the next pass
+        /// checks every candidate.
+        /// </remarks>
+        private void MoveCheckedToPublishList(LinkedListNode<IMonitoredItem> node)
         {
-            if (monitoredItem is IReadySignalingMonitoredItem signaling &&
-                signaling.HasPendingNotifications)
+            m_itemsToCheck.Remove(node);
+            m_itemsToPublish.AddLast(node);
+
+            if (node.Value is IReadySignalingMonitoredItem signaling &&
+                !signaling.TryAcquireReadySignal())
             {
-                MarkReadyCandidate(monitoredItem);
+                m_recheckReadyCandidates = true;
             }
         }
+
+        /// <summary>
+        /// Releases the ready signal of a monitored item that left the publish list and
+        /// marks it as a candidate when it still has something pending.
+        /// </summary>
+        /// <remarks>
+        /// The caller holds <c>m_lock</c>. The publish list holds the signal of the items
+        /// the publish timer moved to it. The item was just published, so reading it here
+        /// is cheap and the candidate says whether it is ready to report.
+        /// </remarks>
+        private void MarkPendingCandidate(IMonitoredItem monitoredItem)
+        {
+            if (monitoredItem is not IReadySignalingMonitoredItem signaling)
+            {
+                return;
+            }
+
+            // a value queued after the release signals again; one queued before it is seen
+            // by the check.
+            signaling.ReleaseReadySignal();
+            if (signaling.HasPendingNotifications &&
+                signaling.TryAcquireReadySignal())
+            {
+                m_readyCandidates.Add(new ReadyCandidate(
+                    monitoredItem,
+                    monitoredItem.Id,
+                    IsReadyToReport(monitoredItem)));
+            }
+        }
+
+        /// <summary>
+        /// Drops the candidates of deleted monitored items once they outnumber the live
+        /// ones.
+        /// </summary>
+        /// <remarks>
+        /// The caller holds <c>m_lock</c>. A deleted item keeps its candidate entry until
+        /// the publish timer looks at it, which a subscription with publishing disabled
+        /// never does, so without this a create/delete loop would retain every deleted item.
+        /// A live item holds at most one entry (its ready signal), so the lists are compacted
+        /// only when they hold more than twice the live items plus a slack; the cost is
+        /// amortized over at least as many deletes as entries are walked.
+        /// </remarks>
+        private void PurgeDeletedReadyCandidates()
+        {
+            int intake;
+            lock (m_readyIntakeLock)
+            {
+                intake = m_readyIntake.Count;
+            }
+            if (m_readyCandidates.Count + intake <= (2 * m_signalingItemCount) + kReadyCandidateSlack)
+            {
+                return;
+            }
+
+            TakeReadyIntake();
+
+            int kept = 0;
+            for (int ii = 0; ii < m_readyCandidates.Count; ii++)
+            {
+                ReadyCandidate candidate = m_readyCandidates[ii];
+                if (!m_monitoredItems.TryGetValue(
+                        candidate.Id,
+                        out LinkedListNode<IMonitoredItem>? node) ||
+                    !ReferenceEquals(node.Value, candidate.Item))
+                {
+                    ((IReadySignalingMonitoredItem)candidate.Item).ReleaseReadySignal();
+                    continue;
+                }
+                m_readyCandidates[kept++] = candidate;
+            }
+            m_readyCandidates.RemoveRange(kept, m_readyCandidates.Count - kept);
+        }
+
+        /// <summary>
+        /// The candidate entries of deleted items tolerated before they are purged.
+        /// </summary>
+        private const int kReadyCandidateSlack = 64;
 
         /// <summary>
         /// Forgets all candidates when the monitored items are removed together.
@@ -1112,38 +1281,6 @@ namespace Opc.Ua.Server
             }
             m_readyCandidates.Clear();
             m_signalingItemCount = 0;
-            CountPooledItems(-m_pooledItemCount);
-        }
-
-        /// <summary>
-        /// Adds the monitored items of this subscription to the process-wide count that sizes
-        /// the event field list pool, and raises the pool bound when the count grew.
-        /// </summary>
-        /// <remarks>
-        /// The activator pool is process-wide and retains 1024 instances by default. An
-        /// event field list is recycled after its message was sent and acknowledged, so about
-        /// two publishing cycles of event field lists are in flight; with more items than the
-        /// bound most of them would be allocated again. The bound follows twice the number of
-        /// monitored items of all subscriptions in the process, capped at
-        /// <see cref="kMaxPooledNotifications"/>, and is never lowered. Data change
-        /// notifications are not pooled (see <see cref="MonitoredItem"/>).
-        /// </remarks>
-        private void CountPooledItems(int delta)
-        {
-            if (delta == 0)
-            {
-                return;
-            }
-
-            m_pooledItemCount += delta;
-            long total = Interlocked.Add(ref s_pooledItemCount, delta);
-            if (delta > 0)
-            {
-                int bound = (int)Math.Min(
-                    kMaxPooledNotifications,
-                    Math.Max(PooledEncodeableType<MonitoredItemNotification>.DefaultMaximumRetained, total * 2));
-                EventFieldListActivator.Instance.EnsureMaximumRetained(bound);
-            }
         }
 
         /// <summary>
@@ -1152,7 +1289,23 @@ namespace Opc.Ua.Server
         /// <remarks>The caller holds <c>m_lock</c>.</remarks>
         private void OnMonitoredItemAdded(IMonitoredItem monitoredItem)
         {
-            CountPooledItems(1);
+            if (monitoredItem is IMonitoredItemGenerationBinding binding)
+            {
+                binding.BindSubscription(this);
+            }
+            else
+            {
+                NodeManagerGeneration? generation = monitoredItem.NodeManager is { } nodeManager
+                    ? NodeManagerGenerationRegistry.GetOrCreate(nodeManager)
+                    : null;
+                m_foreignItemGenerations ??= new Dictionary<IMonitoredItem, NodeManagerGeneration?>(
+                    MonitoredItemReferenceComparer.Instance);
+                m_foreignItemGenerations.Add(monitoredItem, generation);
+                if (generation is not null)
+                {
+                    generation.MonitoredItems[monitoredItem] = this;
+                }
+            }
             if (monitoredItem is IReadySignalingMonitoredItem)
             {
                 m_signalingItemCount++;
@@ -1160,6 +1313,32 @@ namespace Opc.Ua.Server
                 // a value queued before the item was attached to the subscription was not
                 // signalled to it.
                 MarkReadyCandidate(monitoredItem);
+            }
+        }
+
+        /// <summary>
+        /// Removes the subscription's claim without changing the callback needed during manager cleanup.
+        /// </summary>
+        /// <param name="monitoredItem">The item leaving this subscription.</param>
+        private void ReleaseMonitoredItemOwnership(IMonitoredItem monitoredItem)
+        {
+            if (monitoredItem is IMonitoredItemGenerationBinding binding)
+            {
+                binding.UnbindSubscription(this);
+            }
+            else
+            {
+                if (m_foreignItemGenerations?.TryGetValue(
+                    monitoredItem, out NodeManagerGeneration? generation) != true)
+                {
+                    throw new InvalidOperationException("The monitored item's subscription claim is unavailable.");
+                }
+                generation?.MonitoredItems.TryRemove(monitoredItem, out _);
+                m_foreignItemGenerations.Remove(monitoredItem);
+                if (m_foreignItemGenerations.Count == 0)
+                {
+                    m_foreignItemGenerations = null;
+                }
             }
         }
 
@@ -1182,8 +1361,7 @@ namespace Opc.Ua.Server
                 // check if the item is ready to publish.
                 if (IsReadyToReport(monitoredItem))
                 {
-                    m_itemsToCheck.Remove(current);
-                    m_itemsToPublish.AddLast(current);
+                    MoveCheckedToPublishList(current);
                 }
 
                 // update any triggered items.
@@ -1207,8 +1385,7 @@ namespace Opc.Ua.Server
 
                     if (IsReadyToReport(monitoredItem))
                     {
-                        m_itemsToCheck.Remove(current);
-                        m_itemsToPublish.AddLast(current);
+                        MoveCheckedToPublishList(current);
                     }
 
                     current = next;
@@ -1282,12 +1459,11 @@ namespace Opc.Ua.Server
                 {
                     if (IsReadyToReport(triggeredNode.Value))
                     {
-                        m_itemsToCheck.Remove(triggeredNode);
-                        m_itemsToPublish.AddLast(triggeredNode);
+                        MoveCheckedToPublishList(triggeredNode);
                     }
                     else
                     {
-                        MarkReadyCandidate(triggeredNode.Value);
+                        MarkReadyCandidate(triggeredNode.Value, configurationChanged: false);
                     }
                 }
             }
@@ -1402,12 +1578,14 @@ namespace Opc.Ua.Server
             {
                 if ((item.MonitoredItemType & MonitoredItemTypeMask.Events) == 0 ||
                     item is not IEventMonitoredItem ||
-                    item is IDetachableMonitoredItem { IsDetached: true })
+                    item is IMonitoredItemGenerationBinding { IsSourceUnavailable: true })
                 {
                     continue;
                 }
-                IAsyncNodeManager owner = item.NodeManager;
-                object handle = item.ManagerHandle;
+                if (item.NodeManager is not { } owner || item.ManagerHandle is not { } handle)
+                {
+                    throw new ServiceResultException(StatusCodes.BadNodeIdUnknown);
+                }
                 NodeMetadata? metadata = await owner.GetNodeMetadataAsync(
                     context, handle, BrowseResultMask.All, cancellationToken).ConfigureAwait(false);
                 if (metadata == null || !ReferenceEquals(owner, item.NodeManager) ||
@@ -1416,7 +1594,7 @@ namespace Opc.Ua.Server
                     throw new ServiceResultException(StatusCodes.BadNodeIdUnknown);
                 }
                 ServiceResult permission = MasterNodeManager.ValidateRolePermissions(
-                    context, metadata, PermissionType.ReceiveEvents);
+                    m_server, context, metadata, PermissionType.ReceiveEvents);
                 if (ServiceResult.IsGood(permission))
                 {
                     permission = MasterNodeManager.ValidateAccessRestrictions(
@@ -2186,7 +2364,7 @@ namespace Opc.Ua.Server
             // the collections are reused by every Publish of the subscription (under m_lock);
             // the constructed messages copy what they keep.
             List<NotificationMessage> messages = m_publishMessages;
-            List<MonitoredItemNotification[]?> rentedItemArrays = m_publishRentedItemArrays;
+            List<RentedNotificationArrays> rentedItemArrays = m_publishRentedItemArrays;
             messages.Clear();
             rentedItemArrays.Clear();
 
@@ -2195,10 +2373,11 @@ namespace Opc.Ua.Server
                 DateTime start1 = DateTime.UtcNow;
 
                 // collect notifications to publish.
-                Queue<EventFieldList> events = m_publishEvents;
+                Queue<QueuedEvent> events = m_publishEvents;
                 Queue<MonitoredItemNotification> datachanges = m_publishDataChanges;
                 Queue<DiagnosticInfo> datachangeDiagnostics = m_publishDataChangeDiagnostics;
                 events.Clear();
+                AdvanceDataChangeOrdinal(null, datachanges.Count);
                 datachanges.Clear();
                 datachangeDiagnostics.Clear();
 
@@ -2293,7 +2472,7 @@ namespace Opc.Ua.Server
                             datachanges,
                             datachangeDiagnostics,
                             out int notificationCount,
-                            out MonitoredItemNotification[]? rentedItems);
+                            out RentedNotificationArrays rentedItems);
 
                         // add to list of messages to send.
                         messages.Add(message);
@@ -2325,7 +2504,7 @@ namespace Opc.Ua.Server
                         datachanges,
                         datachangeDiagnostics,
                         out int notificationCount,
-                        out MonitoredItemNotification[]? rentedItems);
+                        out RentedNotificationArrays rentedItems);
 
                     // add to list of messages to send.
                     messages.Add(message);
@@ -2439,14 +2618,15 @@ namespace Opc.Ua.Server
         /// Construct a message from the queues.
         /// </summary>
         private NotificationMessage ConstructMessage(
-            Queue<EventFieldList> events,
+            Queue<QueuedEvent> events,
             Queue<MonitoredItemNotification> datachanges,
             Queue<DiagnosticInfo> datachangeDiagnostics,
             out int notificationCount,
-            out MonitoredItemNotification[]? rentedItems)
+            out RentedNotificationArrays rented)
         {
             notificationCount = 0;
-            rentedItems = null;
+            EventNotificationBuffer? rentedEvents = null;
+            DataChangeNotificationBuffer? rentedItems = null;
 
             var message = (NotificationMessage)NotificationMessageActivator.Instance.CreateInstance();
             message.SequenceNumber = m_messageQueue.AssignSequenceNumber();
@@ -2471,27 +2651,38 @@ namespace Opc.Ua.Server
             // add events.
             if (eventCount > 0)
             {
-                var eventList = new EventFieldList[eventCount];
-                for (int ii = 0; ii < eventList.Length; ii++)
+                // the buffer is pooled and returned with the payload of the message like the
+                // data change array. The admission stamps stay referenced by the message until
+                // its last owner releases it, so the occurrences it reports keep their EventIds.
+                // A dedicated pool, because every retained message holds one until it is
+                // acknowledged, which is more than ArrayPool.Shared keeps.
+                rentedEvents = EventNotificationBuffer.Rent(eventCount);
+                EventFieldList[] eventList = rentedEvents.Events;
+                object?[] stamps = rentedEvents.Stamps;
+                EventManager? eventManager = m_server.EventManager;
+                for (int ii = 0; ii < eventCount; ii++)
                 {
-                    EventFieldList fields = events.Dequeue();
-                    m_server.EventManager?.AdmitEventFields(fields);
-                    eventList[ii] = fields;
+                    QueuedEvent queued = events.Dequeue();
+                    eventManager?.AdmitEventFields(queued);
+                    eventList[ii] = queued.Fields;
+                    stamps[ii] = queued.AdmissionStamp;
                 }
                 notificationCount += eventCount;
-                var notification = (EventNotificationList)EventNotificationListActivator.Instance.CreateInstance();
-                notification.Events = eventList;
-                notificationData[dataIndex++] = new ExtensionObject(notification);
+                notificationData[dataIndex++] = new ExtensionObject(new EventNotificationList
+                {
+                    Events = new ArrayOf<EventFieldList>(eventList.AsMemory(0, eventCount))
+                });
             }
 
             // add datachanges (space permitting).
             if (dataChangeCount > 0)
             {
-                // the array is rented and returned with the payload of the message
-                // (NotificationMessageLease); the message sees an exact-length slice.
-                MonitoredItemNotification[] dataChangeList =
-                    ArrayPool<MonitoredItemNotification>.Shared.Rent(dataChangeCount);
-                rentedItems = dataChangeList;
+                // the array is pooled and returned with the payload of the message
+                // (NotificationMessageLease); the message sees an exact-length slice. A
+                // dedicated pool, because every retained message holds one until it is
+                // acknowledged, which is more than ArrayPool.Shared keeps.
+                rentedItems = DataChangeNotificationBuffer.Rent(dataChangeCount);
+                MonitoredItemNotification[] dataChangeList = rentedItems.Items;
 
                 // the diagnostics list is only sent when one of the notifications has one,
                 // which is rare, so it is only allocated then.
@@ -2508,6 +2699,7 @@ namespace Opc.Ua.Server
                     }
                 }
                 notificationCount += dataChangeCount;
+                AdvanceDataChangeOrdinal(message, dataChangeCount);
 
                 var notification = (DataChangeNotification)DataChangeNotificationActivator.Instance.CreateInstance();
                 notification.MonitoredItems = new ArrayOf<MonitoredItemNotification>(
@@ -2517,6 +2709,7 @@ namespace Opc.Ua.Server
             }
 
             message.NotificationData = notificationData;
+            rented = new RentedNotificationArrays(rentedItems, rentedEvents);
             return message;
         }
 
@@ -2744,21 +2937,25 @@ namespace Opc.Ua.Server
                     m_itemsToTrigger[triggeringItemId] = triggeredItems = [];
                 }
 
+                // the ids linked from the triggering item: the lookups below cost one hash
+                // probe each instead of a scan of the link list.
+                var linkedIds = new HashSet<uint>();
+                foreach (ITriggeredMonitoredItem linkedItem in triggeredItems)
+                {
+                    linkedIds.Add(linkedItem.Id);
+                }
+
                 // remove old links.
+                HashSet<uint>? removedIds = null;
                 for (int ii = 0; ii < linksToRemove.Count; ii++)
                 {
                     removeResultList.Add(StatusCodes.Good);
 
-                    bool found = false;
-
-                    for (int jj = 0; jj < triggeredItems.Count; jj++)
+                    bool found = linkedIds.Remove(linksToRemove[ii]);
+                    if (found)
                     {
-                        if (triggeredItems[jj].Id == linksToRemove[ii])
-                        {
-                            found = true;
-                            triggeredItems.RemoveAt(jj);
-                            break;
-                        }
+                        (removedIds ??= []).Add(linksToRemove[ii]);
+                        RemoveTriggeredTarget(linksToRemove[ii]);
                     }
 
                     if (!found)
@@ -2785,6 +2982,11 @@ namespace Opc.Ua.Server
                     {
                         removeDiagnosticInfoList!.Add(null!);
                     }
+                }
+
+                if (removedIds != null)
+                {
+                    triggeredItems.RemoveAll(item => removedIds.Contains(item.Id));
                 }
 
                 // The trigger flag is only consumed while the item has links, so it can still
@@ -2839,20 +3041,30 @@ namespace Opc.Ua.Server
                     }
 
                     // add value if not already in list.
-                    bool found = false;
-
-                    for (int jj = 0; jj < triggeredItems.Count; jj++)
+                    if (!linkedIds.Contains(triggeredItem.Id))
                     {
-                        if (triggeredItems[jj].Id == triggeredItem.Id)
+                        if (m_triggeringLinkCount >= kMaxTriggeringLinks)
                         {
-                            found = true;
-                            break;
-                        }
-                    }
+                            addResultList[ii] = StatusCodes.BadTooManyOperations;
 
-                    if (!found)
-                    {
+                            // update diagnostics.
+                            if ((context.DiagnosticsMask & DiagnosticsMasks.OperationAll) != 0)
+                            {
+                                DiagnosticInfo? diagnosticInfo = ServerUtils.CreateDiagnosticInfo(
+                                    m_server,
+                                    context,
+                                    addResultList[ii],
+                                    m_logger);
+                                diagnosticsExist = true;
+                                addDiagnosticInfoList!.Add(diagnosticInfo!);
+                            }
+
+                            continue;
+                        }
+
+                        linkedIds.Add(triggeredItem.Id);
                         triggeredItems.Add(triggeredItem);
+                        AddTriggeredTarget(triggeredItem.Id);
                     }
 
                     // update diagnostics.
@@ -3408,6 +3620,7 @@ namespace Opc.Ua.Server
             var originalMonitoringModes = new MonitoringMode[count];
 
             bool validItems = false;
+            HashSet<uint>? deletedTriggeredTargets = null;
 
             lock (m_lock)
             {
@@ -3446,29 +3659,13 @@ namespace Opc.Ua.Server
 
                     // remove the item from the internal lists.
                     m_monitoredItems.Remove(monitoredItemIds[ii]);
+                    ReleaseMonitoredItemOwnership(monitoredItem);
                     if (monitoredItem is IReadySignalingMonitoredItem)
                     {
                         m_signalingItemCount--;
                     }
-                    if (m_pooledItemCount > 0)
-                    {
-                        CountPooledItems(-1);
-                    }
                     countChange?.Decrement();
-                    m_itemsToTrigger.Remove(monitoredItemIds[ii]);
-                    foreach (KeyValuePair<uint, List<ITriggeredMonitoredItem>> item in m_itemsToTrigger)
-                    {
-                        //remove the links towards the deleted monitored item
-                        List<ITriggeredMonitoredItem>? triggeredItems = item.Value;
-                        for (int jj = 0; jj < triggeredItems.Count; jj++)
-                        {
-                            if (triggeredItems[jj].Id == monitoredItemIds[ii])
-                            {
-                                triggeredItems.RemoveAt(jj);
-                                break;
-                            }
-                        }
-                    }
+                    RemoveTriggeringLinksOfDeletedItem(monitoredItemIds[ii], ref deletedTriggeredTargets);
 
                     node.List?.Remove(node);
 
@@ -3483,6 +3680,12 @@ namespace Opc.Ua.Server
                     {
                         diagnosticInfos!.Add(null!);
                     }
+                }
+
+                RemoveDeletedTriggeredTargets(deletedTriggeredTargets);
+                if (validItems)
+                {
+                    PurgeDeletedReadyCandidates();
                 }
             }
 
@@ -4334,21 +4537,24 @@ namespace Opc.Ua.Server
         /// <summary>The authorization epoch of the retained messages.</summary>
         private NotificationAuthorization? m_notificationAuthorization;
         private readonly List<NotificationMessage> m_publishMessages = [];
-        private readonly List<MonitoredItemNotification[]?> m_publishRentedItemArrays = [];
-        private readonly Queue<EventFieldList> m_publishEvents = new();
+        private readonly List<RentedNotificationArrays> m_publishRentedItemArrays = [];
+        private readonly Queue<QueuedEvent> m_publishEvents = new();
         private readonly Queue<MonitoredItemNotification> m_publishDataChanges = new();
         private readonly Queue<DiagnosticInfo> m_publishDataChangeDiagnostics = new();
         private readonly Dictionary<uint, LinkedListNode<IMonitoredItem>> m_monitoredItems;
+
+        /// <summary>Exact generation claims for items that do not manage their own generation binding.</summary>
+        private Dictionary<IMonitoredItem, NodeManagerGeneration?>? m_foreignItemGenerations;
+
         private readonly LinkedList<IMonitoredItem> m_itemsToCheck;
         private readonly LinkedList<IMonitoredItem> m_itemsToPublish;
         private readonly Lock m_readyIntakeLock = new();
-        private List<IMonitoredItem> m_readyIntake = [];
-        private List<IMonitoredItem> m_readyIntakeSpare = [];
-        private readonly List<IMonitoredItem> m_readyCandidates = [];
+        private List<ReadyCandidate> m_readyIntake = [];
+        private List<ReadyCandidate> m_readyIntakeSpare = [];
+        private readonly List<ReadyCandidate> m_readyCandidates = [];
+        private bool m_recheckReadyCandidates;
+        private int m_readinessInvalidated;
         private int m_signalingItemCount;
-        private int m_pooledItemCount;
-        private static long s_pooledItemCount;
-        private const int kMaxPooledNotifications = 65536;
         private readonly NodeId m_diagnosticsId;
         private bool m_refreshInProgress;
         private bool m_expired;

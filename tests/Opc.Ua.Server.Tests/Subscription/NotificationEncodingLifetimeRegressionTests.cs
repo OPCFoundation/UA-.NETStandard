@@ -1,31 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using System.Collections.Generic;
@@ -81,9 +55,7 @@ namespace Opc.Ua.Server.Tests
             var item = (MonitoredItemNotification)MonitoredItemNotificationActivator.Instance.CreateInstance();
             item.ClientHandle = 77;
             item.Value = new DataValue(42);
-            var eventItem = (EventFieldList)EventFieldListActivator.Instance.CreateInstance();
-            eventItem.ClientHandle = 77;
-            eventItem.EventFields = [42];
+            var eventItem = new EventFieldList { ClientHandle = 77, EventFields = [42] };
             var data = new DataChangeNotification { MonitoredItems = [item] };
             var eventList = new EventNotificationList { Events = [eventItem] };
             source.NotificationData = [new ExtensionObject(events ? eventList : data)];
@@ -169,8 +141,9 @@ namespace Opc.Ua.Server.Tests
                     Is.True);
                 Assert.That(value!.Events[0].ClientHandle, Is.EqualTo(77u));
                 Assert.That(value.Events[0].EventFields[0].GetInt32(), Is.EqualTo(42));
-                Assert.That(eventItem.ClientHandle, Is.Zero);
-                item.Reuse();
+
+                // event field lists are values; the message holds a copy.
+                Assert.That(eventItem.ClientHandle, Is.EqualTo(77u));
             }
             else
             {
@@ -179,10 +152,8 @@ namespace Opc.Ua.Server.Tests
                 Assert.That(value!.MonitoredItems[0].ClientHandle, Is.EqualTo(77u));
                 Assert.That(value.MonitoredItems[0].Value.WrappedValue.GetInt32(), Is.EqualTo(42));
 
-                // data change notifications are not pooled by the server; they are left to the GC.
+                // data change notifications are values; the message holds a copy.
                 Assert.That(item.ClientHandle, Is.EqualTo(77u));
-                item.Reuse();
-                eventItem.Reuse();
             }
             queue.Clear();
         }
@@ -197,7 +168,7 @@ namespace Opc.Ua.Server.Tests
         {
             var queue = new SentMessageQueue(() => 1, 4, null, NullLogger.Instance);
             var message = new CountingNotificationMessage { SequenceNumber = 1 };
-            var item = new CountingMonitoredItemNotification { ClientHandle = 5, Value = new DataValue(7) };
+            var item = new MonitoredItemNotification { ClientHandle = 5, Value = new DataValue(7) };
             message.NotificationData = [new ExtensionObject(new DataChangeNotification { MonitoredItems = [item] })];
 
             NotificationMessage sent = queue.Enqueue([message], [], out _, out _, out NotificationMessageLease lease);
@@ -207,18 +178,11 @@ namespace Opc.Ua.Server.Tests
             Assert.Multiple(() =>
             {
                 Assert.That(message.ReuseCount, Is.Zero, "acknowledged before it was sent");
-                Assert.That(item.ReuseCount, Is.Zero);
                 Assert.That(Encode(response).NotificationMessage.SequenceNumber, Is.EqualTo(1u));
             });
 
             ((IPooledEncodeable)response).Reuse();
-            Assert.Multiple(() =>
-            {
-                Assert.That(message.ReuseCount, Is.EqualTo(1));
-
-                // data change notifications are not pooled by the server and never reused.
-                Assert.That(item.ReuseCount, Is.Zero);
-            });
+            Assert.That(message.ReuseCount, Is.EqualTo(1));
         }
 
         /// <summary>
@@ -230,7 +194,7 @@ namespace Opc.Ua.Server.Tests
         {
             var queue = new SentMessageQueue(() => 1, 4, null, NullLogger.Instance);
             var message = new CountingNotificationMessage { SequenceNumber = 1 };
-            var item = new CountingMonitoredItemNotification { ClientHandle = 5, Value = new DataValue(7) };
+            var item = new MonitoredItemNotification { ClientHandle = 5, Value = new DataValue(7) };
             message.NotificationData = [new ExtensionObject(new DataChangeNotification { MonitoredItems = [item] })];
 
             NotificationMessage sent = queue.Enqueue([message], [], out _, out _, out NotificationMessageLease lease);
@@ -269,7 +233,7 @@ namespace Opc.Ua.Server.Tests
             var message = new CountingNotificationMessage { SequenceNumber = 1 };
             message.NotificationData = [new ExtensionObject(new DataChangeNotification
             {
-                MonitoredItems = [new CountingMonitoredItemNotification { ClientHandle = 5 }]
+                MonitoredItems = [new MonitoredItemNotification { ClientHandle = 5 }]
             })];
             NotificationMessage sent = queue.Enqueue([message], [], out _, out _, out NotificationMessageLease lease);
             var response = new LeasedPublishResponse(lease) { NotificationMessage = sent };
@@ -309,7 +273,8 @@ namespace Opc.Ua.Server.Tests
         public void RentedNotificationArrayIsReturnedWithThePayload([Values(false, true)] bool acknowledgeFirst)
         {
             var queue = new SentMessageQueue(() => 1, 4, null, NullLogger.Instance);
-            MonitoredItemNotification[] rented = System.Buffers.ArrayPool<MonitoredItemNotification>.Shared.Rent(3);
+            var buffer = DataChangeNotificationBuffer.Rent(3);
+            MonitoredItemNotification[] rented = buffer.Items;
             for (int ii = 0; ii < 3; ii++)
             {
                 rented[ii] = new MonitoredItemNotification { ClientHandle = (uint)ii + 1, Value = new DataValue(ii) };
@@ -325,7 +290,7 @@ namespace Opc.Ua.Server.Tests
 
             MonitoredItemNotification[] originals = rented.Take(3).ToArray();
             NotificationMessage sent = queue.Enqueue(
-                [message], [], out _, out _, out NotificationMessageLease lease, [rented]);
+                [message], [], out _, out _, out NotificationMessageLease lease, [new RentedNotificationArrays(buffer, null)]);
             var response = new LeasedPublishResponse(lease) { NotificationMessage = sent };
             PublishResponse decoded = Encode(response);
             Assert.That(
@@ -337,13 +302,13 @@ namespace Opc.Ua.Server.Tests
             if (acknowledgeFirst)
             {
                 Assert.That(queue.TryAcknowledge(1), Is.True);
-                Assert.That(rented[0], Is.SameAs(originals[0]), "still being sent");
+                Assert.That(rented[0], Is.EqualTo(originals[0]), "still being sent");
                 ((IPooledEncodeable)response).Reuse();
             }
             else
             {
                 ((IPooledEncodeable)response).Reuse();
-                Assert.That(rented[0], Is.SameAs(originals[0]), "still retained for republish");
+                Assert.That(rented[0], Is.EqualTo(originals[0]), "still retained for republish");
                 Assert.That(queue.TryAcknowledge(1), Is.True);
             }
 
@@ -351,7 +316,69 @@ namespace Opc.Ua.Server.Tests
             // (another test may have rented it again since).
             for (int ii = 0; ii < originals.Length; ii++)
             {
-                Assert.That(rented[ii], Is.Not.SameAs(originals[ii]));
+                Assert.That(rented[ii], Is.Not.EqualTo(originals[ii]));
+            }
+        }
+
+        /// <summary>
+        /// The event field lists and admission stamps of a message are copied into a pooled
+        /// event buffer; the buffer is returned once the payload is recycled, and the message
+        /// encodes only its slice of it.
+        /// </summary>
+        [Test]
+        public void RentedEventArrayIsReturnedWithThePayload([Values(false, true)] bool acknowledgeFirst)
+        {
+            var queue = new SentMessageQueue(() => 1, 4, null, NullLogger.Instance);
+            var buffer = EventNotificationBuffer.Rent(3);
+            EventFieldList[] rented = buffer.Events;
+            object?[] stamps = buffer.Stamps;
+            for (int ii = 0; ii < 3; ii++)
+            {
+                rented[ii] = new EventFieldList { ClientHandle = (uint)ii + 1, EventFields = [ii] };
+                stamps[ii] = new object();
+            }
+            var message = new NotificationMessage
+            {
+                SequenceNumber = 1,
+                NotificationData = [new ExtensionObject(new EventNotificationList
+                {
+                    Events = new ArrayOf<EventFieldList>(rented.AsMemory(0, 3))
+                })]
+            };
+
+            EventFieldList[] originals = rented.Take(3).ToArray();
+            NotificationMessage sent = queue.Enqueue(
+                [message], [], out _, out _, out NotificationMessageLease lease,
+                [new RentedNotificationArrays(null, buffer)]);
+            var response = new LeasedPublishResponse(lease) { NotificationMessage = sent };
+            PublishResponse decoded = Encode(response);
+            Assert.That(
+                decoded.NotificationMessage.NotificationData[0].TryGetValue(out EventNotificationList? events),
+                Is.True);
+            Assert.That(events!.Events.Count, Is.EqualTo(3));
+            Assert.That(events.Events[2].ClientHandle, Is.EqualTo(3u));
+            Assert.That(events.Events[2].EventFields[0].GetInt32(), Is.EqualTo(2));
+
+            if (acknowledgeFirst)
+            {
+                Assert.That(queue.TryAcknowledge(1), Is.True);
+                Assert.That(rented[0], Is.EqualTo(originals[0]), "still being sent");
+                Assert.That(stamps[0], Is.Not.Null, "stamps held while being sent");
+                ((IPooledEncodeable)response).Reuse();
+            }
+            else
+            {
+                ((IPooledEncodeable)response).Reuse();
+                Assert.That(rented[0], Is.EqualTo(originals[0]), "still retained for republish");
+                Assert.That(stamps[0], Is.Not.Null, "stamps held for republish");
+                Assert.That(queue.TryAcknowledge(1), Is.True);
+            }
+
+            // cleared on return, so it no longer references the recycled field values or the
+            // admission stamps (another test may have rented it again since).
+            for (int ii = 0; ii < originals.Length; ii++)
+            {
+                Assert.That(rented[ii], Is.Not.EqualTo(originals[ii]));
             }
         }
 
@@ -364,16 +391,18 @@ namespace Opc.Ua.Server.Tests
             var queue = new SentMessageQueue(() => 1, 1, null, NullLogger.Instance);
             var droppedItem = new MonitoredItemNotification { ClientHandle = 1 };
             var keptItem = new MonitoredItemNotification { ClientHandle = 2 };
-            MonitoredItemNotification[] dropped = System.Buffers.ArrayPool<MonitoredItemNotification>.Shared.Rent(1);
+            var droppedBuffer = DataChangeNotificationBuffer.Rent(1);
+            MonitoredItemNotification[] dropped = droppedBuffer.Items;
             dropped[0] = droppedItem;
-            MonitoredItemNotification[] kept = System.Buffers.ArrayPool<MonitoredItemNotification>.Shared.Rent(1);
+            var keptBuffer = DataChangeNotificationBuffer.Rent(1);
+            MonitoredItemNotification[] kept = keptBuffer.Items;
             kept[0] = keptItem;
             List<NotificationMessage> messages =
             [
                 new NotificationMessage { SequenceNumber = 1 },
                 new NotificationMessage { SequenceNumber = 2 }
             ];
-            List<MonitoredItemNotification[]?> rented = [dropped, kept];
+            List<RentedNotificationArrays> rented = [new(droppedBuffer, null), new(keptBuffer, null)];
 
             NotificationMessage sent = queue.Enqueue(messages, [], out _, out uint discarded, out NotificationMessageLease lease, rented);
 
@@ -381,13 +410,13 @@ namespace Opc.Ua.Server.Tests
             {
                 Assert.That(sent.SequenceNumber, Is.EqualTo(2u));
                 Assert.That(discarded, Is.EqualTo(1u));
-                Assert.That(dropped[0], Is.Not.SameAs(droppedItem), "returned with the dropped message");
-                Assert.That(kept[0], Is.SameAs(keptItem));
+                Assert.That(dropped[0], Is.Not.EqualTo(droppedItem), "returned with the dropped message");
+                Assert.That(kept[0], Is.EqualTo(keptItem));
                 Assert.That(rented, Has.Count.EqualTo(1), "trimmed with the messages");
             });
             lease.Release();
             queue.Clear();
-            Assert.That(kept[0], Is.Not.SameAs(keptItem));
+            Assert.That(kept[0], Is.Not.EqualTo(keptItem));
         }
 
         /// <summary>
@@ -478,19 +507,6 @@ namespace Opc.Ua.Server.Tests
         /// Counts recycling instead of returning the instance to the shared pool.
         /// </summary>
         private sealed class CountingNotificationMessage : NotificationMessage
-        {
-            public int ReuseCount { get; private set; }
-
-            protected override void ReuseCore()
-            {
-                ReuseCount++;
-            }
-        }
-
-        /// <summary>
-        /// Counts recycling instead of returning the instance to the shared pool.
-        /// </summary>
-        private sealed class CountingMonitoredItemNotification : MonitoredItemNotification
         {
             public int ReuseCount { get; private set; }
 

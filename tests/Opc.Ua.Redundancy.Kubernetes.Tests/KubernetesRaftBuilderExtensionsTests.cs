@@ -1,171 +1,286 @@
-/* ========================================================================
- * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 // CA2007: tests run without a SynchronizationContext; ConfigureAwait(false)
 // adds noise without a behavioural benefit. Disabled file-level for the suite.
 #pragma warning disable CA2007
 
+using System;
 using System.IO;
+using System.Linq;
+using System.Net;
+using System.Net.Sockets;
+using System.Security.Cryptography;
+using System.Security.Cryptography.X509Certificates;
+using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection;
+using Moq;
 using NUnit.Framework;
+using Opc.Ua.Redundancy.Server;
+using Opc.Ua.Security.Certificates;
+using Opc.Ua.Server;
 using Opc.Ua.Server.Hosting;
+using Raft.Storage.File;
 
 namespace Opc.Ua.Redundancy.Kubernetes.Tests
 {
     /// <summary>
-    /// Unit tests for <see cref="KubernetesRaftBuilderExtensions"/> — the multi-node RaftCs registration for a
-    /// Kubernetes StatefulSet.
+    /// Tests for the Kubernetes StatefulSet Raft registration.
     /// </summary>
     [TestFixture]
     [Category("Distributed")]
     public sealed class KubernetesRaftBuilderExtensionsTests
     {
         [Test]
-        public async Task RegistersRaftCsConsensusForStatefulSetAsync()
+        [NonParallelizable]
+        public async Task StatefulSetReplicasStartWithPinnedTlsAndPersistMembershipAsync()
         {
-            var services = new ServiceCollection();
-            services.AddOpcUa()
-                .AddServer(_ => { })
-                .UseKubernetesRaftConsensus(options =>
+            string wal = CreateWalPath();
+            using X509Certificate2 firstCertificate = CreateCertificate();
+            using X509Certificate2 secondCertificate = CreateCertificate();
+            (int firstPort, int secondPort) = ReservePorts();
+            var certificates = new[] { firstCertificate, secondCertificate };
+            int resolutions = 0;
+            string? oldPodIp = Environment.GetEnvironmentVariable("POD_IP");
+            Environment.SetEnvironmentVariable("POD_IP", "127.0.0.1");
+            try
+            {
+                var services = new ServiceCollection[2];
+                for (int ordinal = 0; ordinal < services.Length; ordinal++)
                 {
-                    // Set the pod name explicitly so the test does not depend on the
-                    // machine name; ordinal 1 → Raft node id 2 of a 3-node cluster.
-                    options.PodName = "opcua-ha-1";
-                    options.HeadlessServiceName = "opcua-ha-headless";
-                    options.ReplicaCount = 3;
-                    options.UseDurableStorage = false;
-                });
+                    int localOrdinal = ordinal;
+                    services[ordinal] = new ServiceCollection();
+                    services[ordinal].AddOpcUa()
+                        .AddServer(_ => { })
+                        .UseRedundancyConsistency(RedundancyConsistencyMode.Strong)
+                        .UseKubernetesRaftConsensus(options =>
+                        {
+                            options.PodName = localOrdinal == 0 ? "opcua-ha-0" : "opcua-ha-1";
+                            options.HeadlessServiceName = "opcua-ha-headless";
+                            options.Namespace = "opcua";
+                            options.ReplicaCount = 2;
+                            options.RaftPort = localOrdinal == 0 ? firstPort : secondPort;
+                            options.BindAddress = localOrdinal == 0 ? $"tcp://127.0.0.1:{firstPort}" : null;
+                            options.StoragePath = Path.Combine(wal, options.PodName);
+                            options.ResolveMemberCertificateAsync = async (_, id, isLocal, ct) =>
+                            {
+                                await Task.Yield();
+                                ct.ThrowIfCancellationRequested();
+                                Interlocked.Increment(ref resolutions);
+                                Assert.That(isLocal, Is.EqualTo(id == (ulong)localOrdinal + 1));
+                                X509Certificate2 certificate = certificates[(int)id - 1];
+                                return isLocal
+                                    ? new X509Certificate2(certificate)
+                                    : X509CertificateLoader.LoadCertificate(certificate.RawData);
+                            };
+                            options.ResolvePeerEndPointAsync = (_, id, endpoint, _) =>
+                            {
+                                string expectedHost = id == 1
+                                    ? "opcua-ha-0.opcua-ha-headless.opcua.svc"
+                                    : "opcua-ha-1.opcua-ha-headless.opcua.svc";
+                                Assert.That(endpoint.Host, Is.EqualTo(expectedHost));
+                                return ValueTask.FromResult(
+                                    new IPEndPoint(IPAddress.Loopback, id == 1 ? firstPort : secondPort));
+                            };
+                        });
+                }
 
-            await using ServiceProvider provider = services.BuildServiceProvider();
+                {
+                    await using ServiceProvider firstProvider = services[0].BuildServiceProvider();
+                    await using ServiceProvider secondProvider = services[1].BuildServiceProvider();
+                    IRaftConsensus first = firstProvider.GetRequiredService<IRaftConsensus>();
+                    IRaftConsensus second = secondProvider.GetRequiredService<IRaftConsensus>();
+                    Assert.That(first, Is.InstanceOf<IRaftConsensusLocality>());
+                    Assert.That(((IRaftConsensusLocality)first).IsProcessLocal, Is.False);
+                    Assert.That(resolutions, Is.Zero, "DI resolution must not load certificates");
+                    using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(15));
+                    await Task.WhenAll(
+                        StartServerRaftAsync(firstProvider, timeout.Token).AsTask(),
+                        StartServerRaftAsync(secondProvider, timeout.Token).AsTask());
+                    Assert.That(resolutions, Is.EqualTo(4));
+                    Assert.That(first.IsLeader ^ second.IsLeader, Is.True);
+                }
 
-            IRaftConsensus consensus = provider.GetRequiredService<IRaftConsensus>();
-            Assert.That(consensus, Is.InstanceOf<DefaultRaftConsensus>());
+                using var firstWal = new FileRaftStorage(new FileRaftStorageOptions(Path.Combine(wal, "opcua-ha-0")));
+                using var secondWal = new FileRaftStorage(new FileRaftStorageOptions(Path.Combine(wal, "opcua-ha-1")));
+                Assert.That(firstWal.InitialState().ConfState.Voters, Is.EqualTo(new ulong[] { 1, 2 }));
+                Assert.That(secondWal.InitialState().ConfState.Voters, Is.EqualTo(new ulong[] { 1, 2 }));
+            }
+            finally
+            {
+                Environment.SetEnvironmentVariable("POD_IP", oldPodIp);
+                if (Directory.Exists(wal))
+                {
+                    Directory.Delete(wal, true);
+                }
+            }
         }
 
         [Test]
-        public async Task RegistersDurableFileStorageWithFqdnPeersAsync()
+        public async Task StartupRejectsMissingPeerCertificateAsync()
         {
-            string dir = Path.Combine(Path.GetTempPath(), "opcua-raft-" + System.Guid.NewGuid().ToString("N"));
+            var services = new ServiceCollection();
+            string wal = CreateWalPath();
             try
             {
-                var services = new ServiceCollection();
                 services.AddOpcUa()
                     .AddServer(_ => { })
                     .UseKubernetesRaftConsensus(options =>
                     {
-                        options.PodName = "opcua-ha-0";
-                        options.HeadlessServiceName = "opcua-ha-headless";
-                        options.Namespace = "opcua"; // fully-qualified peer DNS
-                        options.ReplicaCount = 3;
-                        options.UseDurableStorage = true; // FileRaftStorage on a temp dir
-                        options.StoragePath = dir;
+                        ConfigureNetwork(options, wal);
+                        options.ResolveMemberCertificateAsync = (_, _, isLocal, _) =>
+                            ValueTask.FromResult(isLocal ? CreateCertificate() : null!);
                     });
 
-                // Resolve (builds the WAL + bootstraps the ConfState) then dispose
-                // (closes the WAL) before deleting the directory.
-                {
-                    await using ServiceProvider provider = services.BuildServiceProvider();
-                    Assert.That(
-                        provider.GetRequiredService<IRaftConsensus>(),
-                        Is.InstanceOf<DefaultRaftConsensus>());
-                }
-
-                Assert.That(Directory.Exists(dir), Is.True, "the file WAL directory was created");
+                await using ServiceProvider provider = services.BuildServiceProvider();
+                await Assert.ThatAsync(
+                    async () => await StartServerRaftAsync(provider),
+                    Throws.InvalidOperationException.With.Message.Contains("member 2"));
             }
             finally
             {
-                if (Directory.Exists(dir))
+                if (Directory.Exists(wal))
                 {
-                    Directory.Delete(dir, true);
+                    Directory.Delete(wal, true);
                 }
             }
         }
 
         [Test]
-        public void RejectsNullBuilderAndInvalidOptions()
+        public async Task ExplicitSingleNodeInProcessTestBackendStartsAsync()
         {
-            Assert.That(
-                () => ((IOpcUaServerBuilder)null!).UseKubernetesRaftConsensus(),
-                Throws.ArgumentNullException);
+            var services = new ServiceCollection();
+            services.AddOpcUa()
+                .AddServer(_ => { })
+                .UseKubernetesRaftConsensus(options =>
+                {
+                    options.ReplicaCount = 1;
+                    options.UseInProcessTestTransport = true;
+                });
 
+            await using ServiceProvider provider = services.BuildServiceProvider();
+            await StartServerRaftAsync(provider);
+            IRaftConsensus consensus = provider.GetRequiredService<IRaftConsensus>();
+            Assert.That(consensus.IsLeader, Is.True);
+            Assert.That(consensus, Is.InstanceOf<IRaftConsensusLocality>());
+            Assert.That(((IRaftConsensusLocality)consensus).IsProcessLocal, Is.True);
+        }
+
+        [Test]
+        public void InProcessTestBackendRejectsKubernetes()
+        {
+            var services = new ServiceCollection();
+            var api = new Mock<IKubernetesApiClient>();
+            api.SetupGet(client => client.IsInCluster).Returns(true);
+            services.AddSingleton(api.Object);
+            services.AddOpcUa()
+                .AddServer(_ => { })
+                .UseKubernetesRaftConsensus(options =>
+                {
+                    options.ReplicaCount = 1;
+                    options.UseInProcessTestTransport = true;
+                });
+
+            using ServiceProvider provider = services.BuildServiceProvider();
+            Assert.That(() => provider.GetRequiredService<IRaftConsensus>(), Throws.InvalidOperationException);
+        }
+
+        [Test]
+        public void RejectsImplicitNetworkCredentialsOrVolatileStorage()
+        {
             var services = new ServiceCollection();
             IOpcUaServerBuilder builder = services.AddOpcUa().AddServer(_ => { });
 
             Assert.That(
-                () => builder.UseKubernetesRaftConsensus(o => o.ReplicaCount = 3),
-                Throws.ArgumentException, "HeadlessServiceName is required");
+                () => builder.UseKubernetesRaftConsensus(options =>
+                {
+                    options.HeadlessServiceName = "raft";
+                    options.ReplicaCount = 1;
+                }),
+                Throws.ArgumentException.With.Message.Contains("ResolveMemberCertificateAsync"));
             Assert.That(
-                () => builder.UseKubernetesRaftConsensus(o => o.HeadlessServiceName = "h"),
-                Throws.ArgumentException, "ReplicaCount must be >= 1");
+                () => builder.UseKubernetesRaftConsensus(options =>
+                {
+                    ConfigureNetwork(options, "unused");
+                    options.UseDurableStorage = false;
+                }),
+                Throws.ArgumentException.With.Message.Contains("WAL"));
+            Assert.That(
+                () => builder.UseKubernetesRaftConsensus(options =>
+                {
+                    options.ReplicaCount = 2;
+                    options.UseInProcessTestTransport = true;
+                }),
+                Throws.ArgumentException.With.Message.Contains("one replica"));
         }
 
-        [Test]
-        public void ResolvingRejectsNonOrdinalPodName()
+        [TestCase("no-ordinal-here")]
+        [TestCase("opcua-ha-5")]
+        public void ResolvingRejectsInvalidOrdinal(string podName)
         {
             var services = new ServiceCollection();
             services.AddOpcUa()
                 .AddServer(_ => { })
                 .UseKubernetesRaftConsensus(options =>
                 {
-                    options.PodName = "no-ordinal-here";
-                    options.HeadlessServiceName = "h";
-                    options.ReplicaCount = 3;
-                    options.UseDurableStorage = false;
+                    ConfigureNetwork(options, "unused");
+                    options.PodName = podName;
                 });
 
             using ServiceProvider provider = services.BuildServiceProvider();
-
-            Assert.That(
-                () => provider.GetRequiredService<IRaftConsensus>(),
-                Throws.InvalidOperationException);
+            Assert.That(() => provider.GetRequiredService<IRaftConsensus>(), Throws.InvalidOperationException);
         }
 
-        [Test]
-        public void ResolvingRejectsOutOfRangeOrdinal()
+        private static ValueTask StartServerRaftAsync(IServiceProvider provider, CancellationToken ct = default)
         {
-            var services = new ServiceCollection();
-            services.AddOpcUa()
-                .AddServer(_ => { })
-                .UseKubernetesRaftConsensus(options =>
-                {
-                    options.PodName = "opcua-ha-5";
-                    options.HeadlessServiceName = "h";
-                    options.ReplicaCount = 3;
-                    options.UseDurableStorage = false;
-                });
+            IServerPreStartupTask task = provider.GetServices<IServerPreStartupTask>().Single();
+            return task.OnServerStartingAsync(Mock.Of<IServerContext>(), ct);
+        }
 
-            using ServiceProvider provider = services.BuildServiceProvider();
+        private static void ConfigureNetwork(KubernetesRaftConsensusOptions options, string wal)
+        {
+            options.PodName = "opcua-ha-0";
+            options.HeadlessServiceName = "opcua-ha-headless";
+            options.ReplicaCount = 2;
+            options.BindAddress = "127.0.0.1";
+            options.StoragePath = wal;
+            options.ResolveMemberCertificateAsync = (_, _, _, _) => ValueTask.FromResult(CreateCertificate());
+        }
 
-            Assert.That(
-                () => provider.GetRequiredService<IRaftConsensus>(),
-                Throws.InvalidOperationException);
+        private static (int First, int Second) ReservePorts()
+        {
+            using var first = new TcpListener(IPAddress.Loopback, 0);
+            using var second = new TcpListener(IPAddress.Loopback, 0);
+            first.Start();
+            second.Start();
+            return (((IPEndPoint)first.LocalEndpoint).Port, ((IPEndPoint)second.LocalEndpoint).Port);
+        }
+
+        private static string CreateWalPath()
+        {
+            return Path.GetFullPath(Path.Combine("bin", "kube-raft-tests", Guid.NewGuid().ToString("N")));
+        }
+
+        private static X509Certificate2 CreateCertificate()
+        {
+            using RSA key = RSA.Create(2048);
+            var request = new CertificateRequest("CN=Raft Test", key, HashAlgorithmName.SHA256,
+                RSASignaturePadding.Pkcs1);
+            request.CertificateExtensions.Add(new X509EnhancedKeyUsageExtension(
+                new OidCollection { new(Oids.ServerAuthentication), new(Oids.ClientAuthentication) },
+                critical: false));
+            DateTimeOffset now = DateTimeOffset.UtcNow;
+            using X509Certificate2 certificate = request.CreateSelfSigned(now.AddMinutes(-1), now.AddHours(1));
+            byte[] pkcs12 = certificate.Export(X509ContentType.Pkcs12);
+            try
+            {
+                return X509CertificateLoader.LoadPkcs12(pkcs12, null);
+            }
+            finally
+            {
+                CryptographicOperations.ZeroMemory(pkcs12);
+            }
         }
     }
 }

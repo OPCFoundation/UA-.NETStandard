@@ -1,31 +1,6 @@
-/* ========================================================================
- * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
+
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -106,32 +81,11 @@ namespace Opc.Ua.Client.TestFramework
             IServerInternal server,
             ApplicationConfiguration configuration)
         {
-            m_logger.LogInformation(
-                Utils.TraceMasks.StartStop,
-                "Creating the Reference Server Node Manager.");
-
-            var nodeManagers = new List<INodeManager>();
-
-            // create the custom node manager (ownership transfers to MasterNodeManager).
-#pragma warning disable CA2000 // Dispose objects before losing scope - ownership transfers to MasterNodeManagerWithLimits
-            var referenceNodeManager = new ReferenceNodeManager(
-                server,
-                configuration);
-#pragma warning restore CA2000
-            List<IAsyncNodeManager> asyncNodeManagers = [referenceNodeManager];
-
-            foreach (INodeManagerFactory nodeManagerFactory in NodeManagerFactories)
-            {
-                nodeManagers.Add(nodeManagerFactory.Create(server, configuration));
-            }
-            //this.MasterNodeManagerReference = new MasterNodeManager(server, configuration, null, nodeManagers.ToArray());
             MasterNodeManagerReference = new MasterNodeManagerWithLimits(
                 server,
                 configuration,
-                null!,
-                asyncNodeManagers,
-                [.. nodeManagers]);
-            // create master node manager.
+                null,
+                GetReferenceInitialNodeManagerFactories());
             return MasterNodeManagerReference;
         }
 
@@ -260,6 +214,34 @@ namespace Opc.Ua.Client.TestFramework
     /// </summary>
     public class MasterNodeManagerWithLimits : MasterNodeManager
     {
+        /// <summary>
+        /// Creates the system manager roles for a factory-configured reference server.
+        /// </summary>
+        public MasterNodeManagerWithLimits(
+            IServerInternal server,
+            ApplicationConfiguration configuration,
+            string? dynamicNamespaceUri)
+            : this(server, configuration, dynamicNamespaceUri, [])
+        {
+        }
+
+        /// <summary>
+        /// Creates system roles after the configured application namespace declarations.
+        /// </summary>
+        public MasterNodeManagerWithLimits(
+            IServerInternal server,
+            ApplicationConfiguration configuration,
+            string? dynamicNamespaceUri,
+            ArrayOf<IAsyncNodeManagerFactory> initialFactories)
+            : base(server, configuration, dynamicNamespaceUri, initialFactories)
+        {
+            m_logger = server.Telemetry.CreateLogger<MasterNodeManagerWithLimits>();
+        }
+
+        /// <summary>
+        /// Creates a standalone compatibility dispatcher with preconstructed managers.
+        /// </summary>
+        [Obsolete("Pass initial factories to the constructor for hosted managers.")]
         public MasterNodeManagerWithLimits(
             IServerInternal server,
             ApplicationConfiguration configuration,
@@ -301,7 +283,7 @@ namespace Opc.Ua.Client.TestFramework
                     throw new ServiceResultException(StatusCodes.BadViewIdUnknown);
                 }
 
-                NodeMetadata metadata = await viewManager.GetNodeMetadataAsync(
+                NodeMetadata? metadata = await viewManager.GetNodeMetadataAsync(
                         context,
                         viewHandle,
                         BrowseResultMask.NodeClass,

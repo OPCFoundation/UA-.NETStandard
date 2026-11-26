@@ -1,32 +1,21 @@
-/* ========================================================================
- * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
+using NUnit.Framework;
 
 [assembly: CLSCompliant(false)]
+
+// Every test owns its servers, clients, certificate stores and temporary
+// folders, so tests run in parallel, each on its own fixture instance.
+// Fixtures that change process-wide state opt out with [NonParallelizable].
+// Each live test hosts one or two in-process servers; four workers keep the
+// 3- and 4-core CI runners busy without starving the servers' own threads.
+[assembly: Parallelizable(ParallelScope.All)]
+[assembly: FixtureLifeCycle(LifeCycle.InstancePerTestCase)]
+[assembly: LevelOfParallelism(4)]
+
+// [Category("Integration")] marks exactly the tests that start a server; the
+// guard fails a test that breaks this. "--filter TestCategory!=Integration"
+// is the fast, server-free local loop (see README.md).
+[assembly: Opc.Ua.WotCon.Tests.IntegrationCategoryGuard]

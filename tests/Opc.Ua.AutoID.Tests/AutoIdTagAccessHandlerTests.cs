@@ -1,31 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using System.Linq;
@@ -81,6 +55,41 @@ namespace Opc.Ua.AutoID.Tests
                     Is.EqualTo(2),
                     "a wrong password is still an access to the tag");
             });
+        }
+
+        /// <summary>
+        /// Keeps a tag command active until its asynchronous access-event sink completes.
+        /// </summary>
+        [Test]
+        public async Task TagCommandAwaitsAsyncEventSinkAndReaderShutdownAsync()
+        {
+            (RfidReaderDeviceState device, _, _) = await CreateAsync().ConfigureAwait(false);
+            AutoIdReader reader = ReaderOf(device);
+            var entered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var release = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            device.OnReportEventAsync = async (_, _, e, cancellationToken) =>
+            {
+                if (e is RfidAccessEventState)
+                {
+                    entered.TrySetResult(true);
+                    await release.Task.WaitAsync(cancellationToken).ConfigureAwait(false);
+                }
+            };
+            await AutoIdGatedTest.RunAsync(
+                reader,
+                () => ReadAsync(device).AsTask(),
+                () => release.TrySetResult(true),
+                async (invocation, startDisposal) =>
+                {
+                    await entered.Task.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+                    Task<ReadTagMethodStateResult> call =
+                        await invocation.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+                    Assert.That(call.IsCompleted, Is.False);
+                    Task dispose = await startDisposal().WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+                    Assert.That(dispose.IsCompleted, Is.False);
+                },
+                result => Assert.That(result.Status, Is.EqualTo(AutoIdOperationStatusEnumeration.SUCCESS)))
+                .ConfigureAwait(false);
         }
 
         [TestCase(AutoIdOperationStatusEnumeration.SUCCESS, true)]

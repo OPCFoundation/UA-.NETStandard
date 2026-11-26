@@ -1,33 +1,7 @@
-/* ========================================================================
- * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
-#if NET10_0
+#if NET10_0_OR_GREATER
 using System;
 using System.Text.Json;
 using NUnit.Framework;
@@ -371,7 +345,7 @@ namespace Opc.Ua.Tools.Tests.Mcp
                 Value = new TypedValueDto
                 {
                     DataType = "Boolean",
-                    Value = JsonDocument.Parse("true").RootElement
+                    Value = JsonElement.Parse("true")
                 }
             };
 
@@ -392,7 +366,7 @@ namespace Opc.Ua.Tools.Tests.Mcp
                     {
                         Name = "Count",
                         DataType = "Int32",
-                        Value = JsonDocument.Parse("3").RootElement
+                        Value = JsonElement.Parse("3")
                     }
                 ]
             };
@@ -1030,7 +1004,7 @@ namespace Opc.Ua.Tools.Tests.Mcp
             var dto = new SetOutputIntentInput
             {
                 Output = "ns=2;s=Do1",
-                Value = new TypedValueDto { Value = JsonDocument.Parse("true").RootElement }
+                Value = new TypedValueDto { Value = JsonElement.Parse("true") }
             };
 
             Assert.That(
@@ -1049,7 +1023,7 @@ namespace Opc.Ua.Tools.Tests.Mcp
                     new NamedTypedValueDto
                     {
                         Name = "Count",
-                        Value = JsonDocument.Parse("3").RootElement
+                        Value = JsonElement.Parse("3")
                     }
                 ]
             };
@@ -1071,13 +1045,13 @@ namespace Opc.Ua.Tools.Tests.Mcp
                     {
                         Name = "Count",
                         DataType = "Int32",
-                        Value = JsonDocument.Parse("3").RootElement
+                        Value = JsonElement.Parse("3")
                     },
                     new NamedTypedValueDto
                     {
                         Name = "Count",
                         DataType = "Int32",
-                        Value = JsonDocument.Parse("4").RootElement
+                        Value = JsonElement.Parse("4")
                     }
                 ]
             };
@@ -1099,7 +1073,7 @@ namespace Opc.Ua.Tools.Tests.Mcp
                     {
                         Name = "Nozzle",
                         DataType = "Int32",
-                        Value = JsonDocument.Parse("7").RootElement
+                        Value = JsonElement.Parse("7")
                     }
                 ]
             };
@@ -1124,7 +1098,7 @@ namespace Opc.Ua.Tools.Tests.Mcp
                     {
                         Name = "Count",
                         DataType = "Int32",
-                        Value = JsonDocument.Parse("3").RootElement
+                        Value = JsonElement.Parse("3")
                     }
                 ]
             };

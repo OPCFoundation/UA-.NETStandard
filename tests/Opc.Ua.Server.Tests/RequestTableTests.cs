@@ -1,31 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using System.Collections.Generic;
@@ -207,13 +181,11 @@ namespace Opc.Ua.Server.Tests
             private int m_tableSlot = RequestTable<TestEntry>.kNoSlot;
         }
         /// <summary>
-        /// A drain started while many requests are executing waits for each of
-        /// them, however the completions interleave across threads, and completes exactly
-        /// once after the last one.
+        /// Concurrent completions remove only their own requests, including requests with reused handles.
         /// </summary>
         [Test]
         [Category("NodeManagerLifecycle")]
-        public async Task DrainWaitsForEveryRequestStartedBeforeItWhileThreadsCompleteThemAsync()
+        public async Task ConcurrentCompletionsPreserveTheRemainingTrackedRequestAsync()
         {
             using RequestManager manager = CreateManager();
             const int count = 2000;
@@ -226,11 +198,10 @@ namespace Opc.Ua.Server.Tests
                 manager.RequestReceived(contexts[ii]);
             }
 
-            Task drain = manager.WaitForCurrentRequestsAsync().AsTask();
-            Assert.That(drain.IsCompleted, Is.False);
+            Assert.That(manager.TrackedRequestCount, Is.EqualTo(count));
 
             // Complete all but the last request from several threads, interleaved with
-            // requests that start after the drain and must not extend it.
+            // independently registered requests sharing a handle.
             int next = -1;
             var workers = new Task[8];
             for (int worker = 0; worker < workers.Length; worker++)
@@ -244,16 +215,18 @@ namespace Opc.Ua.Server.Tests
                         OperationContext late = CreateContext(uint.MaxValue, lateLifetime);
                         manager.RequestReceived(late);
                         manager.RequestCompleted(contexts[index]);
+                        Assert.That(manager.IsExecutingRequest(late), Is.True);
+                        Assert.That(manager.IsExecutingRequest(contexts[index]), Is.False);
                         manager.RequestCompleted(late);
                     }
                 });
             }
             await Task.WhenAll(workers).ConfigureAwait(false);
 
-            Assert.That(drain.IsCompleted, Is.False, "the drain completed before the last request it waits for");
+            Assert.That(manager.TrackedRequestCount, Is.EqualTo(1));
+            Assert.That(manager.IsExecutingRequest(contexts[count - 1]), Is.True);
             manager.RequestCompleted(contexts[count - 1]);
-            await drain.WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
-            Assert.That(drain.Status, Is.EqualTo(TaskStatus.RanToCompletion));
+            Assert.That(manager.TrackedRequestCount, Is.Zero);
             Assert.That(lifetimes.All(lifetime => lifetime.StatusCode == StatusCodes.Good), Is.True,
                 "completion marks each lifetime completed without cancelling it");
             foreach (RequestLifetime lifetime in lifetimes)

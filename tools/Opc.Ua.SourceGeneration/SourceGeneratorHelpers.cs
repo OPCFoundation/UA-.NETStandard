@@ -1,36 +1,13 @@
-/* ========================================================================
- * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using System.Diagnostics;
+using System.IO;
 using System.Linq;
+using System.Text;
 using Microsoft.CodeAnalysis;
+using Microsoft.CodeAnalysis.Text;
 
 namespace Opc.Ua.SourceGeneration
 {
@@ -41,6 +18,19 @@ namespace Opc.Ua.SourceGeneration
     /// </summary>
     internal static partial class SourceGenerator
     {
+        /// <summary>
+        /// Reads generated UTF-8 output without copying the VFS bytes or a whole-file string.
+        /// Preserves the leading BOM character emitted by the former GetString path.
+        /// </summary>
+        internal static SourceText ReadGeneratedSource(IFileSystem fileSystem, string path)
+        {
+            using Stream stream = fileSystem.OpenRead(path);
+            using var reader = new StreamReader(stream, s_utf8WithoutPreamble, detectEncodingFromByteOrderMarks: false);
+            // Roslyn uses length as a chunk-capacity estimate. UTF-8 byte length
+            // bounds the character count without a second decoding pass.
+            return SourceText.From(reader, checked((int)stream.Length), Encoding.UTF8);
+        }
+
         /// <summary>
         /// Runs a source output callback and converts an unhandled exception
         /// into a diagnostic. Roslyn fails the whole compilation with a bare
@@ -116,5 +106,7 @@ namespace Opc.Ua.SourceGeneration
                 Debugger.Launch();
             }
         }
+
+        private static readonly Encoding s_utf8WithoutPreamble = new UTF8Encoding(encoderShouldEmitUTF8Identifier: false);
     }
 }

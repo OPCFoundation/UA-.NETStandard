@@ -1,31 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using System.Collections.Concurrent;
@@ -338,6 +312,7 @@ namespace Opc.Ua.Bindings
     /// </summary>
     public class TcpTransportListener
         : ITransportListener,
+            ITransportListenerAcceptControl,
             ITcpChannelListener,
             ITransportListenerCertificateRotation,
             ITransportListenerPeerCertificateChainRotation
@@ -532,6 +507,7 @@ namespace Opc.Ua.Bindings
             m_reverseConnectListener = settings.ReverseConnectListener;
             MaxChannelCount = settings.MaxChannelCount;
             m_listenBacklog = settings.ListenBacklog > 0 ? settings.ListenBacklog : kDefaultSocketBacklog;
+            m_deferAccept = settings.DeferAccept;
             m_admission = new UaScConnectionAdmission(
                 0,
                 settings.ConnectionRateLimiter,
@@ -539,6 +515,15 @@ namespace Opc.Ua.Bindings
                 m_quotas.HandshakeTimeout,
                 m_timeProvider,
                 m_telemetry);
+            if (!m_reverseConnectListener)
+            {
+                // The provider's connection capacity is shared with the other
+                // listeners of the server: let them reclaim unused channels here.
+                m_admission.SetSharedCapacityReclaimer(TryReclaimChannelForSharedCapacity);
+            }
+            // The channel table is enforced after admission: no other listener's
+            // connection is reclaimed for a connection the full table refuses.
+            m_admission.SetListenerCapacityCheck(HasChannelCapacity);
             m_acceptedTransportDecorator = settings.AcceptedTransportDecorator;
             m_onAcceptedChannel = settings.OnAcceptedChannel;
 
@@ -787,6 +772,8 @@ namespace Opc.Ua.Bindings
             m_admission?.Start();
             lock (m_lock)
             {
+                m_accepting = !m_deferAccept;
+
                 // Track potential problematic client behavior only if Basic128Rsa15 security policy is offered
                 if (m_descriptions != null &&
                     m_descriptions.Any(d => d.SecurityPolicyUri == SecurityPolicies.Basic128Rsa15))
@@ -832,21 +819,9 @@ namespace Opc.Ua.Bindings
                         TimeSpan.FromMilliseconds(m_inactivityDetectPeriod),
                         TimeSpan.FromMilliseconds(m_inactivityDetectPeriod));
 
-                    SocketAsyncEventArgs? args = null;
-                    try
+                    if (m_accepting)
                     {
-                        args = new SocketAsyncEventArgs();
-                        args.Completed += OnAccept;
-                        args.UserToken = m_listeningSocket;
-                        if (!m_listeningSocket.AcceptAsync(args))
-                        {
-                            QueueAccept(args);
-                        }
-                        args = null; // ownership transferred
-                    }
-                    finally
-                    {
-                        args?.Dispose();
+                        BeginAccept(m_listeningSocket);
                     }
                 }
                 catch (Exception ex)
@@ -875,21 +850,9 @@ namespace Opc.Ua.Bindings
                         m_listeningSocketIPv6.Bind(endpointIPv6);
                         m_listeningSocketIPv6.Listen(m_listenBacklog);
 
-                        SocketAsyncEventArgs? args = null;
-                        try
+                        if (m_accepting)
                         {
-                            args = new SocketAsyncEventArgs();
-                            args.Completed += OnAccept;
-                            args.UserToken = m_listeningSocketIPv6;
-                            if (!m_listeningSocketIPv6.AcceptAsync(args))
-                            {
-                                QueueAccept(args);
-                            }
-                            args = null; // ownership transferred
-                        }
-                        finally
-                        {
-                            args?.Dispose();
+                            BeginAccept(m_listeningSocketIPv6);
                         }
                     }
                     catch (Exception ex)
@@ -915,6 +878,67 @@ namespace Opc.Ua.Bindings
             }
         }
 
+        /// <inheritdoc/>
+        public bool IsAccepting
+        {
+            get
+            {
+                lock (m_lock)
+                {
+                    return m_accepting;
+                }
+            }
+        }
+
+        /// <inheritdoc/>
+        public ValueTask StartAcceptingAsync(CancellationToken ct = default)
+        {
+            ct.ThrowIfCancellationRequested();
+            lock (m_lock)
+            {
+                // a later Stop/Start cycle accepts right away.
+                m_deferAccept = false;
+                if (m_accepting || (m_listeningSocket == null && m_listeningSocketIPv6 == null))
+                {
+                    return default;
+                }
+                m_accepting = true;
+                if (m_listeningSocket != null)
+                {
+                    BeginAccept(m_listeningSocket);
+                }
+                if (m_listeningSocketIPv6 != null)
+                {
+                    BeginAccept(m_listeningSocketIPv6);
+                }
+            }
+            return default;
+        }
+
+        /// <summary>
+        /// Posts the first accept on a listening socket. The accept loop in
+        /// <see cref="OnAccept"/> posts the following ones.
+        /// </summary>
+        private void BeginAccept(Socket listeningSocket)
+        {
+            SocketAsyncEventArgs? args = null;
+            try
+            {
+                args = new SocketAsyncEventArgs();
+                args.Completed += OnAccept;
+                args.UserToken = listeningSocket;
+                if (!listeningSocket.AcceptAsync(args))
+                {
+                    QueueAccept(args);
+                }
+                args = null; // ownership transferred
+            }
+            finally
+            {
+                args?.Dispose();
+            }
+        }
+
         /// <summary>
         /// Stops listening.
         /// </summary>
@@ -924,6 +948,7 @@ namespace Opc.Ua.Bindings
             {
                 ConnectionWaiting = null;
                 ConnectionStatusChanged = null;
+                m_accepting = false;
 
                 m_listeningSocket?.Dispose();
                 m_listeningSocket = null;
@@ -1600,7 +1625,29 @@ namespace Opc.Ua.Bindings
             return TryReclaimUnusedChannel([]);
         }
 
-        private bool TryReclaimUnusedChannel(HashSet<TcpListenerChannel> attempted)
+        /// <summary>
+        /// Reclaims an unused channel for another listener whose new connection
+        /// found the shared connection capacity exhausted; a channel whose
+        /// connection holds only protected capacity cannot relieve it.
+        /// </summary>
+        private bool TryReclaimChannelForSharedCapacity()
+        {
+            return TryReclaimUnusedChannel([], sharedCapacityOnly: true);
+        }
+
+        /// <summary>
+        /// Whether the channel table admits another accepted connection.
+        /// </summary>
+        private bool HasChannelCapacity()
+        {
+            lock (m_lock)
+            {
+                return m_channels != null &&
+                    (MaxChannelCount <= 0 || m_channels.Count + m_pendingAccepts < MaxChannelCount);
+            }
+        }
+
+        private bool TryReclaimUnusedChannel(HashSet<TcpListenerChannel> attempted, bool sharedCapacityOnly = false)
         {
             ConcurrentDictionary<uint, TcpListenerChannel>? channels;
             TcpListenerChannel[] candidates;
@@ -1613,10 +1660,12 @@ namespace Opc.Ua.Bindings
                 }
                 candidates = channels.Values.ToArray();
             }
-            foreach (TcpListenerChannel candidate in candidates.OrderByDescending(
-                channel => channel.ElapsedSinceLastActiveTime))
+            foreach (TcpListenerChannel candidate in candidates
+                .OrderBy(channel => channel.HoldsPartialMessage)
+                .ThenByDescending(channel => channel.ElapsedSinceLastActiveTime))
             {
-                if (attempted.Contains(candidate) || candidate.UsedBySession)
+                if (attempted.Contains(candidate) || candidate.UsedBySession ||
+                    (sharedCapacityOnly && !UaScConnectionAdmission.Lease.CanRelieveSharedCapacity(candidate.Transport)))
                 {
                     continue;
                 }
@@ -1678,6 +1727,20 @@ namespace Opc.Ua.Bindings
                 {
                     channels.Add(chEntry.Value);
                     cleanup = true;
+                    continue;
+                }
+
+                // A peer that stops reading keeps a send waiting and every queued response
+                // with it. A Session keeps the channel active, so the send time decides.
+                TimeSpan stalled = chEntry.Value.GetWriteStallTime();
+                if (stalled.TotalMilliseconds > m_quotas.ChannelLifetime)
+                {
+                    m_logger.TcpTransportWriteStalled(
+                        chEntry.Value.Id,
+                        (long)stalled.TotalMilliseconds,
+                        chEntry.Value.QueuedWriteBytes);
+                    channels.Add(chEntry.Value);
+                    cleanup = true;
                 }
             }
 
@@ -1730,7 +1793,8 @@ namespace Opc.Ua.Bindings
             ValueTask<IServiceResponse> processing;
             try
             {
-                processing = callback.ProcessRequestAsync(channel.GetRequestContext(), request);
+                processing = callback.ProcessRequestAsync(
+                    channel.GetRequestContext(), request, channel.RequestCancellationToken);
             }
             catch (Exception e)
             {
@@ -2161,6 +2225,8 @@ namespace Opc.Ua.Bindings
         private ChannelQuotas m_quotas = null!;
         private ICertificateRegistry m_serverCertificates = null!;
         private int m_lastChannelId;
+        private bool m_deferAccept;
+        private bool m_accepting;
         private Socket? m_listeningSocket;
         private Socket? m_listeningSocketIPv6;
         private ConcurrentDictionary<uint, TcpListenerChannel>? m_channels;
@@ -2414,5 +2480,17 @@ namespace Opc.Ua.Bindings
         [LoggerMessage(EventId = CoreEventIds.TcpTransportListener + 34, Level = LogLevel.Debug,
             Message = "Refused TCP connection closed before Bad_TcpNotEnoughResources could be sent.")]
         public static partial void TcpResourceRejectionFailed(this ILogger logger, Exception exception);
+
+        /// <summary>
+        /// Logs that a channel is closed because its peer stopped reading.
+        /// </summary>
+        [LoggerMessage(EventId = CoreEventIds.TcpTransportListener + 35, Level = LogLevel.Warning,
+            Message = "TCPLISTENER: Closing channel {ChannelId}: a send waited {ElapsedMs} ms for the peer " +
+                "to read, with {QueuedBytes} bytes of responses queued.")]
+        public static partial void TcpTransportWriteStalled(
+            this ILogger logger,
+            uint channelId,
+            long elapsedMs,
+            long queuedBytes);
     }
 }

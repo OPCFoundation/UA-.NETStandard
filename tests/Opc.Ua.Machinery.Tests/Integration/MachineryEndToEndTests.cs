@@ -1,31 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using System.Collections.Concurrent;
@@ -342,9 +316,8 @@ namespace Opc.Ua.Machinery.Tests.Integration
                 Task> scenario)
         {
             string testRoot = Path.Combine(
-                TestContext.CurrentContext.WorkDirectory,
-                nameof(MachineryEndToEndTests),
-                Guid.NewGuid().ToString("N"));
+                Path.GetTempPath(),
+                "ua-machinery-e2e-" + Guid.NewGuid().ToString("N"));
             using var jobProvider = new InMemoryIsa95JobControlProvider();
             var configurator = new PressConfigurator(jobProvider);
 
@@ -1301,6 +1274,10 @@ namespace Opc.Ua.Machinery.Tests.Integration
             Assert.That(
                 await jobs.StartAsync(jobOrderId, ct: ct).ConfigureAwait(false),
                 Is.EqualTo(Isa95JobReturnStatus.Success));
+            Isa95JobOrderReceiptV2 ready = await jobProvider
+                .TransitionAsync(jobOrderId, Isa95JobExecutionTransition.MarkReady, ct)
+                .ConfigureAwait(false);
+            Assert.That(ready.ReturnStatus, Is.EqualTo(Isa95JobReturnStatus.Success));
             Isa95JobOrderReceiptV2 began = await jobProvider
                 .TransitionAsync(jobOrderId, Isa95JobExecutionTransition.BeginExecution, ct)
                 .ConfigureAwait(false);
@@ -1907,36 +1884,27 @@ namespace Opc.Ua.Machinery.Tests.Integration
                 PressConfigurator configurator)
                 : base(telemetry)
             {
-                m_configurator = configurator;
-            }
-
-            protected override ValueTask<IMasterNodeManager> CreateMasterNodeManagerAsync(
-                IServerInternal server,
-                ApplicationConfiguration configuration,
-                CancellationToken cancellationToken = default)
-            {
                 var options = new MachineryServerOptions { Parts = MachineryParts.All };
-                var manager = new MachineryNodeManager(
-                    server,
-                    configuration,
-                    new IMachineryModelProvider[]
-                    {
-                        new MachineryModelProvider(options.Parts)
-                    }.ToArrayOf(),
+                AddNodeManager(new MachineryNodeManagerFactory(
+                    [new MachineryModelProvider(options.Parts)],
                     options,
-                    new DelegatePostSetupRunner(m_configurator));
-                Manager = manager;
-                IMasterNodeManager master = new MasterNodeManager(
-                    server,
-                    configuration,
-                    null,
-                    [manager]);
-                return new ValueTask<IMasterNodeManager>(master);
+                    new DelegatePostSetupRunner(configurator)));
             }
 
+            /// <summary>
+            /// Gets the published Machinery owner, retained for teardown assertions.
+            /// </summary>
             public MachineryNodeManager? Manager { get; private set; }
 
-            private readonly PressConfigurator m_configurator;
+            /// <inheritdoc/>
+            protected override async ValueTask OnNodeManagerStartedAsync(
+                IServerInternal server,
+                CancellationToken cancellationToken = default)
+            {
+                Manager = server.NodeManager.AsyncNodeManagers.OfType<MachineryNodeManager>().Single();
+                await base.OnNodeManagerStartedAsync(server, cancellationToken).ConfigureAwait(false);
+            }
+
         }
 
         /// <summary>

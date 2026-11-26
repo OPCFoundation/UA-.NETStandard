@@ -1,31 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using System.Collections.Generic;
@@ -64,7 +38,11 @@ namespace Opc.Ua.Server
     /// <para>
     /// Publishing is idempotent: namespaces that already carry a metadata
     /// Object keep it, and values that the model already populated are never
-    /// overwritten.
+    /// overwritten. An existing Object whose type definition is
+    /// <c>NamespaceMetadataType</c> or a subtype is recognized even when it is
+    /// not a <see cref="NamespaceMetadataState"/>, e.g. when an untyped NodeSet
+    /// import created it; such an Object keeps its values and is only linked to
+    /// <c>Namespaces</c> when it is not browsable.
     /// </para>
     /// </remarks>
     public sealed class NamespaceMetadataPublisher
@@ -96,7 +74,9 @@ namespace Opc.Ua.Server
 
             Dictionary<string, ModelDependencyAttribute> models = CollectModelMetadata();
             string[] namespaceUris = m_server.NamespaceUris.ToArray();
-            var published = new List<NamespaceMetadataState>(namespaceUris.Length);
+
+            // every metadata Object, published or already provided, must be browsable.
+            var metadataNodeIds = new HashSet<NodeId>();
 
             for (int ii = 0; ii < namespaceUris.Length; ii++)
             {
@@ -106,25 +86,48 @@ namespace Opc.Ua.Server
                     continue;
                 }
 
-                NamespaceMetadataState? metadata = await configuration
-                    .CreateNamespaceMetadataStateAsync(namespaceUri, cancellationToken)
-                    .ConfigureAwait(false);
+                // the configuration node manager also recognizes an untyped
+                // NamespaceMetadataType object, e.g. from an untyped NodeSet import.
+                NamespaceMetadataNode? metadata = configuration is ConfigurationNodeManager manager
+                    ? await manager.GetOrCreateNamespaceMetadataNodeAsync(namespaceUri, cancellationToken)
+                        .ConfigureAwait(false)
+                    : NamespaceMetadataNode.From(await configuration
+                        .CreateNamespaceMetadataStateAsync(namespaceUri, cancellationToken)
+                        .ConfigureAwait(false));
                 if (metadata == null)
                 {
                     m_logger.NamespaceMetadataNotPublished(namespaceUri);
                     continue;
                 }
 
-                if (models.TryGetValue(namespaceUri, out ModelDependencyAttribute? model))
+                if (metadata.TypedState is not NamespaceMetadataState typed)
                 {
-                    ApplyModelMetadata(metadata, model);
+                    // an object the address space already provides keeps its values, but is
+                    // linked like a published one when it is not browsable.
+                    metadataNodeIds.Add(metadata.Node.NodeId);
+                    if (metadata.NamespaceUri == namespaceUri)
+                    {
+                        m_logger.NamespaceMetadataProvided((ushort)ii, namespaceUri);
+                    }
+                    else
+                    {
+                        // an object whose NamespaceUri is not resolvable yet may describe the namespace.
+                        m_logger.NamespaceMetadataIdentityUnresolved((ushort)ii, namespaceUri, metadata.Node.NodeId);
+                    }
+
+                    continue;
                 }
 
-                published.Add(metadata);
+                if (models.TryGetValue(namespaceUri, out ModelDependencyAttribute? model))
+                {
+                    ApplyModelMetadata(typed, model);
+                }
+
+                metadataNodeIds.Add(typed.NodeId);
                 m_logger.NamespaceMetadataPublished((ushort)ii, namespaceUri);
             }
 
-            await LinkUnreachableMetadataAsync(published, cancellationToken).ConfigureAwait(false);
+            await LinkUnreachableMetadataAsync(metadataNodeIds, cancellationToken).ConfigureAwait(false);
         }
 
         /// <summary>
@@ -135,13 +138,14 @@ namespace Opc.Ua.Server
         /// because <c>Namespaces</c> lives in namespace 0 — the link has to be
         /// registered as a cross-manager reference instead. This runs after
         /// every metadata Object exists so nodes that are already reachable
-        /// are never linked twice.
+        /// are never linked twice. Objects the address space already
+        /// provided, e.g. untyped NodeSet imports, are linked the same way.
         /// </summary>
         private async ValueTask LinkUnreachableMetadataAsync(
-            List<NamespaceMetadataState> published,
+            HashSet<NodeId> metadataNodeIds,
             CancellationToken cancellationToken)
         {
-            if (published.Count == 0)
+            if (metadataNodeIds.Count == 0)
             {
                 return;
             }
@@ -150,9 +154,9 @@ namespace Opc.Ua.Server
                 .ConfigureAwait(false);
 
             var missing = new List<IReference>();
-            foreach (NamespaceMetadataState metadata in published)
+            foreach (NodeId metadataNodeId in metadataNodeIds)
             {
-                if (metadata.NodeId.IsNull || reachable.Contains(metadata.NodeId))
+                if (metadataNodeId.IsNull || reachable.Contains(metadataNodeId))
                 {
                     continue;
                 }
@@ -161,7 +165,7 @@ namespace Opc.Ua.Server
                 {
                     ReferenceTypeId = ReferenceTypeIds.HasComponent,
                     IsInverse = false,
-                    TargetId = metadata.NodeId
+                    TargetId = metadataNodeId
                 });
             }
 
@@ -282,7 +286,7 @@ namespace Opc.Ua.Server
                 // wrapper. Scanning both assemblies finds the assembly that
                 // carries the ModelDependency attribute regardless of shape.
                 ScanAssembly(nodeManager.GetType().Assembly, visited, models);
-                INodeManager? sync = nodeManager.SyncNodeManager;
+                object? sync = nodeManager.SyncNodeManager;
                 if (sync != null)
                 {
                     ScanAssembly(sync.GetType().Assembly, visited, models);
@@ -349,5 +353,27 @@ namespace Opc.Ua.Server
         public static partial void NamespaceMetadataNotPublished(
             this ILogger logger,
             string namespaceUri);
+
+        [LoggerMessage(
+            EventId = ServerEventIds.NamespaceMetadataPublisher + 2,
+            Level = LogLevel.Debug,
+            Message = "NamespaceMetadata for namespace {NamespaceIndex} ('{NamespaceUri}') is provided by " +
+                "an existing untyped NamespaceMetadataType object; nothing is published.")]
+        public static partial void NamespaceMetadataProvided(
+            this ILogger logger,
+            ushort namespaceIndex,
+            string namespaceUri);
+
+        [LoggerMessage(
+            EventId = ServerEventIds.NamespaceMetadataPublisher + 3,
+            Level = LogLevel.Warning,
+            Message = "NamespaceMetadata for namespace {NamespaceIndex} ('{NamespaceUri}') is not published: " +
+                "the NamespaceUri of the existing untyped NamespaceMetadataType object {NodeId} cannot be " +
+                "resolved yet and it may describe the namespace.")]
+        public static partial void NamespaceMetadataIdentityUnresolved(
+            this ILogger logger,
+            ushort namespaceIndex,
+            string namespaceUri,
+            NodeId nodeId);
     }
 }

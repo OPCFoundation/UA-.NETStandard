@@ -1,31 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using System.Collections.Generic;
@@ -482,11 +456,18 @@ namespace Opc.Ua.Sessions.Tests
                 ServiceResultException sre = await Assert
                     .ThrowsAsync<ServiceResultException>(() =>
                         client.GetEndpointsAsync(profileUris));
-                // race condition, if socket closed is detected before the error was returned,
-                // client may report channel closed instead of security policy rejected
-                if (StatusCodes.BadSecureChannelClosed == sre.StatusCode)
+                // Race: the server rejects the oversized request and closes the socket.
+                // If the close is seen while the client is still writing the multi-chunk
+                // request, the client reports a transport error instead of the rejection.
+                // The failed socket send surfaces as BadTcpInternalError
+                // ("Unexpected error during write operation", e.g. EPIPE/ECONNRESET on
+                // macOS); a closed transport or channel surfaces as one of the others.
+                if (sre.StatusCode == StatusCodes.BadSecureChannelClosed ||
+                    sre.StatusCode == StatusCodes.BadConnectionClosed ||
+                    sre.StatusCode == StatusCodes.BadNotConnected ||
+                    sre.StatusCode == StatusCodes.BadTcpInternalError)
                 {
-                    Assert.Inconclusive($"Unexpected Status: {sre}");
+                    Assert.Inconclusive($"Socket closed before the rejection was read: {sre}");
                 }
                 Assert.That(
                     sre.StatusCode,

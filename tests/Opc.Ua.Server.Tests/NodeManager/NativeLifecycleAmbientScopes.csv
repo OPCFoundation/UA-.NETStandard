@@ -1,0 +1,19 @@
+Path,Field,Guard and expiration,Owning control or disposition
+src\Opc.Ua.Server\NodeManager\Lifecycle\LifecycleWriter.cs,m_namespaceGetter,Bound only while invoking legacy context-free routing getters; reservation identity expires on release,NamespaceGetterRejectsServingReentryButKeepsStagedMutationsLocalAsync
+src\Opc.Ua.Server\NodeManager\MasterNodeManager.cs,m_lifecycleCallbackPermit,Legacy session-close adapter restores the slot after revoking the explicit permit; existing borrows drain before host admission releases,NodeManagerCallbackPermitTests
+src\Opc.Ua.Server\NodeManager\NodeManagerServiceDispatcher.cs,m_legacyLookupContext,Released virtual lookup adapter clears both the shared routing image and readiness on exit,NodeManagerLegacyLookupScopeTests
+src\Opc.Ua.Server\NodeManager\AsyncCustomNodeManager.cs,m_operationContext,Operation Active flag and operation counter end admission,AsyncNodeManagerDisposalReviewTests
+src\Opc.Ua.Server\NodeManager\AsyncCustomNodeManager.cs,m_disposeAsyncCoreContext,Scalar flag additionally requires owner-wide active disposal,AsyncNodeManagerDisposalReviewTests
+src\Opc.Ua.Server\NodeManager\AsyncCustomNodeManager.cs,m_registrationScope,Revocable typed guard falls back only to active parent,AsyncLocalEscapedContextTests
+src\Opc.Ua.Server\NodeManager\AsyncCustomNodeManager.cs,m_addNodesNodeId,Revocable typed NodeId guard; subtree indexing cannot replace another node,AsyncLocalEscapedContextTests
+src\Opc.Ua.Server\NodeManager\CustomNodeManager.cs,m_operationContext,Operation Active state checked under manager lifetime admission,NodeManagerDisposalRegressionTests
+src\Opc.Ua.Server\NodeManager\PredefinedNodesAddressSpace.cs,m_drivingOperation,Revocable adapter notification guard,AsyncLocalEscapedContextTests
+src\Opc.Ua.Server\NodeManager\NodeStateModelChangeExtensions.cs,s_isFrameworkBump,Revocable NodeVersion notification guard,NodeManagerModelChangeScopeTests
+src\Opc.Ua.Server\Configuration\ConfigurationNodeManager.cs,m_activeRotationCollector,Revocable collector; disposal clears rotation handles,ConfigurationNodeManagerPushTests.CertificateRotationCollectorExpiresAfterApplyAsync
+src\Opc.Ua.Server\RoleBasedUserManagement\UserManagement\UserManagementBinding.cs,m_currentUserChange,Revocable collector; owned deactivation task list cleared after observation,UserDeactivationShutdownReviewTests
+src\Opc.Ua.Server\Session\SessionContinuationPoints.cs,m_historyRead,Shared active state and state lock clear exact point and generation admissions,NodeManagerHistoryReadScopeTests
+src\Opc.Ua.Server\Session\SessionContinuationPoints.cs,s_currentHistoryRequest,Request scope releases session and pins and restores preceding scope,NodeManagerHistoryReadScopeTests
+src\Opc.Ua.Server\Session\SessionContinuationPoints.cs,s_currentHistoryDispatch,Active binding expires; detached issuer attribution deliberately remains,HistoryReadContinuationDispatchTests
+src\Opc.Ua.Server\Subscription\MonitoredItem\RestoredQueueStaging.cs,s_current,Shared IsActive marker revoked at restore scope exit,SubscriptionRestoreFailureTests
+src\Opc.Ua.Types\State\NodeState.EventPropagation.cs,s_eventPropagation,Join and mark share the closure gate; closing revokes and clears nodes and occurrence,NodeStateChangeNotificationTests.CapturedEventContextReleasesCompletedEventGraphAsync; InheritedEventContextExpiresAfterPublisherReturnsAsync
+src\Opc.Ua.Types\BuiltIn\AmbientMessageContext.cs,s_current,Deserialization and telemetry flow; not lifecycle or routing authority,Retain ordinary execution-context semantics

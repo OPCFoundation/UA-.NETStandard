@@ -1,38 +1,12 @@
-/* ========================================================================
- * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using System.Buffers.Binary;
 using System.Collections.Generic;
-using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using System.Security.Cryptography;
+using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
@@ -40,6 +14,7 @@ using Microsoft.Extensions.Logging;
 using Opc.Ua.Redaction;
 using Opc.Ua.Redundancy;
 using Opc.Ua.Security.Certificates;
+using X509AuthorityKeyIdentifierExtension = Opc.Ua.Security.Certificates.X509AuthorityKeyIdentifierExtension;
 
 namespace Opc.Ua
 {
@@ -50,11 +25,11 @@ namespace Opc.Ua
     /// </summary>
     /// <remarks>
     /// <para>
-    /// Every record is written through an <see cref="IRecordProtector"/> for integrity: a forged or tampered
-    /// record fails the authenticity check on read (fail-closed) and is skipped, so an attacker with write
-    /// access to the shared store cannot inject a trusted certificate. An in-memory single-process store may use
-    /// the no-op <see cref="NullRecordProtector"/>; an external, network-reachable store must use an
-    /// authenticating protector.
+    /// Distributed stores require an authenticating <see cref="IRecordProtector"/> and a
+    /// <see cref="FreshnessProtectedKeyValueStore"/> with an explicitly enrolled authority epoch. A missing
+    /// or unverifiable committed record is a security failure, not an empty result. Records in a legacy raw
+    /// backend are not read automatically. Only the process-local <see cref="InMemorySharedKeyValueStore"/>
+    /// can be used without the freshness view and with the no-op <see cref="NullRecordProtector"/>.
     /// </para>
     /// <para>
     /// This store holds public certificates only: <see cref="NoPrivateKeys"/> is <c>true</c> and
@@ -83,13 +58,17 @@ namespace Opc.Ua
         /// <exception cref="ArgumentNullException">
         /// <paramref name="store"/> or <paramref name="telemetry"/> is <c>null</c>.
         /// </exception>
+        /// <exception cref="ArgumentException">
+        /// A backend other than <see cref="InMemorySharedKeyValueStore"/> lacks freshness protection
+        /// or an authenticating record protector.
+        /// </exception>
         public SharedKeyValueCertificateStore(
             ISharedKeyValueStore store,
             IRecordProtector? protector,
             ITelemetryContext telemetry)
         {
-            m_store = store ?? throw new ArgumentNullException(nameof(store));
-            m_protector = protector ?? NullRecordProtector.Instance;
+            m_protector = RequireProtection(store, protector);
+            m_store = store;
             if (telemetry == null)
             {
                 throw new ArgumentNullException(nameof(telemetry));
@@ -131,21 +110,30 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
+        /// <exception cref="ServiceResultException">Committed records could not be verified.</exception>
         public async Task<CertificateCollection> EnumerateAsync(CancellationToken ct = default)
         {
             var certificates = new CertificateCollection();
-            await foreach (KeyValuePair<string, ByteString> entry in m_store
-                .ScanAsync(CertPrefix, ct)
-                .ConfigureAwait(false))
+            try
             {
-                if (TryDecodeCertificate(entry.Key, entry.Value, out Certificate? certificate))
+                await foreach (KeyValuePair<string, ByteString> entry in m_store
+                    .ScanAsync(CertPrefix, ct)
+                    .ConfigureAwait(false))
                 {
-                    // Add takes its own reference (AddRef); release the local one.
+                    using Certificate certificate = DecodeCertificate(entry.Key, entry.Value);
                     certificates.Add(certificate);
-                    certificate.Dispose();
                 }
+                return certificates;
             }
-            return certificates;
+            catch (Exception ex)
+            {
+                certificates.Dispose();
+                if (ShouldWrapReadFailure(ex, ct))
+                {
+                    throw UnavailableRecords(ex);
+                }
+                throw;
+            }
         }
 
         /// <inheritdoc/>
@@ -161,16 +149,12 @@ namespace Opc.Ua
             _ = password;
 
             string key = CertKey(certificate.Thumbprint);
-            (bool found, _) = await m_store.TryGetAsync(key, ct).ConfigureAwait(false);
-            if (found)
+            if (!await m_store.CompareAndSwapAsync(key, default, EncodeCertificate(key, certificate), ct)
+                .ConfigureAwait(false))
             {
                 throw new ArgumentException(
                     "A certificate with the same thumbprint is already in the store.");
             }
-
-            await m_store
-                .SetAsync(key, EncodeCertificate(key, certificate), ct)
-                .ConfigureAwait(false);
             if (m_logger.IsEnabled(LogLevel.Debug))
             {
                 m_logger.SharedKeyValueStoreLog0(certificate.Thumbprint, m_storePath);
@@ -223,29 +207,33 @@ namespace Opc.Ua
             return DeleteInternalAsync(thumbprint, ct);
         }
 
-        // CA2000: the decoded certificate is handed to the returned CertificateCollection, whose caller owns
-        // and disposes it; the local reference is released immediately after Add.
         /// <inheritdoc/>
+        /// <exception cref="ServiceResultException">The committed record could not be verified.</exception>
         public async Task<CertificateCollection> FindByThumbprintAsync(
             string thumbprint,
             CancellationToken ct = default)
         {
-            var certificates = new CertificateCollection();
             if (string.IsNullOrEmpty(thumbprint))
             {
-                return certificates;
+                return new CertificateCollection();
             }
 
-            (bool found, ByteString value) = await m_store
-                .TryGetAsync(CertKey(thumbprint), ct)
-                .ConfigureAwait(false);
-            if (found && TryDecodeCertificate(CertKey(thumbprint), value, out Certificate? certificate))
+            try
             {
-                // Add takes its own reference (AddRef); release the local one.
-                certificates.Add(certificate);
-                certificate.Dispose();
+                string key = CertKey(thumbprint);
+                (bool found, ByteString value) = await m_store.TryGetAsync(key, ct).ConfigureAwait(false);
+                if (!found)
+                {
+                    return new CertificateCollection();
+                }
+
+                using Certificate certificate = DecodeCertificate(key, value);
+                return new CertificateCollection { certificate };
             }
-            return certificates;
+            catch (Exception ex) when (ShouldWrapReadFailure(ex, ct))
+            {
+                throw UnavailableRecords(ex);
+            }
         }
 
         /// <inheritdoc/>
@@ -265,6 +253,7 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
+        /// <exception cref="ServiceResultException">The committed revocation data could not be verified.</exception>
         public async Task<StatusCode> IsRevokedAsync(
             Certificate issuer,
             Certificate certificate,
@@ -279,52 +268,44 @@ namespace Opc.Ua
                 throw new ArgumentNullException(nameof(certificate));
             }
 
-            bool crlExpired = true;
-            foreach (X509CRL crl in await EnumerateCRLsAsync(ct).ConfigureAwait(false))
+            bool hasCurrentCrl = false;
+            DateTime now = DateTime.UtcNow;
+            foreach (X509CRL crl in await EnumerateCRLsAsync(issuer, validateUpdateTime: false, ct)
+                .ConfigureAwait(false))
             {
-                if (!X509Utils.CompareDistinguishedName(crl.IssuerName, issuer.SubjectName))
-                {
-                    continue;
-                }
-                if (!crl.VerifySignature(issuer, false))
-                {
-                    continue;
-                }
                 if (crl.IsRevoked(certificate))
                 {
                     return StatusCodes.BadCertificateRevoked;
                 }
-                if (crl.ThisUpdate <= DateTime.UtcNow &&
-                    (crl.NextUpdate == DateTime.MinValue || crl.NextUpdate >= DateTime.UtcNow))
-                {
-                    crlExpired = false;
-                }
+                hasCurrentCrl |= IsCurrent(crl, now);
             }
 
-            if (!crlExpired)
-            {
-                return StatusCodes.Good;
-            }
-            return StatusCodes.BadCertificateRevocationUnknown;
+            return hasCurrentCrl ? StatusCodes.Good : StatusCodes.BadCertificateRevocationUnknown;
         }
 
         /// <inheritdoc/>
+        /// <exception cref="ServiceResultException">Committed records could not be verified.</exception>
         public async Task<X509CRLCollection> EnumerateCRLsAsync(CancellationToken ct = default)
         {
             var crls = new X509CRLCollection();
-            await foreach (KeyValuePair<string, ByteString> entry in m_store
-                .ScanAsync(CrlPrefix, ct)
-                .ConfigureAwait(false))
+            try
             {
-                if (TryDecodeCrl(entry.Key, entry.Value, out X509CRL? crl))
+                await foreach (KeyValuePair<string, ByteString> entry in m_store
+                    .ScanAsync(CrlPrefix, ct)
+                    .ConfigureAwait(false))
                 {
-                    crls.Add(crl);
+                    crls.Add(DecodeCrl(entry.Key, entry.Value));
                 }
+                return crls;
             }
-            return crls;
+            catch (Exception ex) when (ShouldWrapReadFailure(ex, ct))
+            {
+                throw UnavailableRecords(ex);
+            }
         }
 
         /// <inheritdoc/>
+        /// <exception cref="ServiceResultException">Committed records could not be verified.</exception>
         public async Task<X509CRLCollection> EnumerateCRLsAsync(
             Certificate issuer,
             bool validateUpdateTime = true,
@@ -336,24 +317,22 @@ namespace Opc.Ua
             }
 
             var crls = new X509CRLCollection();
-            foreach (X509CRL crl in await EnumerateCRLsAsync(ct).ConfigureAwait(false))
+            DateTime now = DateTime.UtcNow;
+            try
             {
-                if (!X509Utils.CompareDistinguishedName(crl.IssuerName, issuer.SubjectName))
+                foreach (X509CRL crl in await EnumerateCRLsAsync(ct).ConfigureAwait(false))
                 {
-                    continue;
+                    if (AppliesToIssuer(crl, issuer) && (!validateUpdateTime || IsCurrent(crl, now)))
+                    {
+                        crls.Add(crl);
+                    }
                 }
-                if (!crl.VerifySignature(issuer, false))
-                {
-                    continue;
-                }
-                if (!validateUpdateTime ||
-                    (crl.ThisUpdate <= DateTime.UtcNow &&
-                        (crl.NextUpdate == DateTime.MinValue || crl.NextUpdate >= DateTime.UtcNow)))
-                {
-                    crls.Add(crl);
-                }
+                return crls;
             }
-            return crls;
+            catch (Exception ex) when (ShouldWrapReadFailure(ex, ct))
+            {
+                throw UnavailableRecords(ex);
+            }
         }
 
         /// <inheritdoc/>
@@ -385,11 +364,12 @@ namespace Opc.Ua
                     "Could not find issuer of the CRL.");
             }
 
+            string key = CrlKey(crl.RawData);
             await m_store
                 .SetAsync(
-                    CrlKey(crl.RawData),
+                    key,
                     m_protector.Protect(
-                        RecordProtectionContext.Create("certificate-store", CrlKey(crl.RawData)),
+                        RecordProtectionContext.Create("certificate-store", key),
                         new ByteString(crl.RawData)),
                     ct)
                 .ConfigureAwait(false);
@@ -415,6 +395,32 @@ namespace Opc.Ua
         public void Dispose()
         {
             // Nothing to release; the shared store outlives this handle.
+        }
+
+        /// <summary>
+        /// Checks the backend and protector for both direct and provider-based construction.
+        /// </summary>
+        internal static IRecordProtector RequireProtection(ISharedKeyValueStore store, IRecordProtector? protector)
+        {
+            if (store == null)
+            {
+                throw new ArgumentNullException(nameof(store));
+            }
+            if (store is InMemorySharedKeyValueStore)
+            {
+                return protector ?? NullRecordProtector.Instance;
+            }
+            if (store is not FreshnessProtectedKeyValueStore)
+            {
+                throw new ArgumentException(
+                    "Distributed certificates require a freshness-protected store.", nameof(store));
+            }
+            if (protector is null or NullRecordProtector)
+            {
+                throw new ArgumentException(
+                    "Distributed certificates require an authenticating protector.", nameof(protector));
+            }
+            return protector;
         }
 
         private async Task<bool> DeleteInternalAsync(string thumbprint, CancellationToken ct)
@@ -478,70 +484,53 @@ namespace Opc.Ua
                 new ByteString(plaintext));
         }
 
-        private bool TryDecodeCertificate(
-            string recordKey,
-            ByteString value,
-            [NotNullWhen(true)] out Certificate? certificate)
+        private Certificate DecodeCertificate(string recordKey, ByteString value)
         {
-            certificate = null;
             if (!TryUnprotect(recordKey, value, out ByteString plaintext) ||
                 plaintext.Span.Length <= TimestampLength + sizeof(int))
             {
-                return false;
+                throw InvalidRecord();
             }
 
+            ReadOnlySpan<byte> data = plaintext.Span;
+            int keyLength = BinaryPrimitives.ReadInt32LittleEndian(data[TimestampLength..]);
+            byte[] expectedKey = Encoding.UTF8.GetBytes(recordKey);
+            const int keyOffset = TimestampLength + sizeof(int);
+            if (keyLength != expectedKey.Length ||
+                keyLength >= data.Length - keyOffset ||
+                !CryptoUtils.FixedTimeEquals(data.Slice(keyOffset, keyLength), expectedKey))
+            {
+                throw InvalidRecord();
+            }
+
+            Certificate certificate = Certificate.FromRawData(data[(keyOffset + keyLength)..].ToArray());
             try
             {
-                ReadOnlySpan<byte> data = plaintext.Span;
-                int keyLength = BinaryPrimitives.ReadInt32LittleEndian(
-                    data[TimestampLength..]);
-                byte[] expectedKey = Encoding.UTF8.GetBytes(recordKey);
-                if (keyLength != expectedKey.Length ||
-                    !CryptoUtils.FixedTimeEquals(
-                        data.Slice(TimestampLength + sizeof(int), keyLength),
-                        expectedKey))
+                if (!string.Equals(recordKey, CertKey(certificate.Thumbprint), StringComparison.Ordinal))
                 {
-                    return false;
+                    throw InvalidRecord();
                 }
-
-                certificate = Certificate.FromRawData(
-                    data[(TimestampLength + sizeof(int) + keyLength)..].ToArray());
-                return true;
+                return certificate;
             }
-            catch (Exception ex)
+            catch
             {
-                if (m_logger.IsEnabled(LogLevel.Warning))
-                {
-                    m_logger.SharedKeyValueStoreLog2(ex, m_storePath);
-                }
-                return false;
+                certificate.Dispose();
+                throw;
             }
         }
 
-        private bool TryDecodeCrl(
-            string recordKey,
-            ByteString value,
-            [NotNullWhen(true)] out X509CRL? crl)
+        private X509CRL DecodeCrl(string recordKey, ByteString value)
         {
-            crl = null;
-            if (!TryUnprotect(recordKey, value, out ByteString plaintext) || plaintext.Span.Length == 0)
+            if (!TryUnprotect(recordKey, value, out ByteString plaintext) || plaintext.Span.IsEmpty)
             {
-                return false;
+                throw InvalidRecord();
             }
-
-            try
+            byte[] der = plaintext.Span.ToArray();
+            if (!string.Equals(recordKey, CrlKey(der), StringComparison.Ordinal))
             {
-                crl = new X509CRL(plaintext.Span.ToArray());
-                return true;
+                throw InvalidRecord();
             }
-            catch (Exception ex)
-            {
-                if (m_logger.IsEnabled(LogLevel.Warning))
-                {
-                    m_logger.SharedKeyValueStoreLog3(ex, m_storePath);
-                }
-                return false;
-            }
+            return new X509CRL(der);
         }
 
         private bool TryUnprotect(string recordKey, ByteString value, out ByteString plaintext)
@@ -561,6 +550,57 @@ namespace Opc.Ua
                 m_logger.SharedKeyValueStoreLog4(m_storePath);
             }
             return false;
+        }
+
+        private static bool AppliesToIssuer(X509CRL crl, Certificate issuer)
+        {
+            if (!X509Utils.CompareDistinguishedName(crl.IssuerName, issuer.SubjectName))
+            {
+                return false;
+            }
+            if (crl.VerifySignature(issuer, false))
+            {
+                return true;
+            }
+
+            // A different key identifier distinguishes same-name issuers, such as a CA rollover.
+            string? crlKey = crl.CrlExtensions.FindExtension<X509AuthorityKeyIdentifierExtension>()?.KeyIdentifier;
+            string? issuerKey = issuer.FindExtension<X509SubjectKeyIdentifierExtension>()?.SubjectKeyIdentifier;
+            if (!string.IsNullOrEmpty(crlKey) && !string.IsNullOrEmpty(issuerKey) &&
+                !string.Equals(crlKey, issuerKey, StringComparison.OrdinalIgnoreCase))
+            {
+                return false;
+            }
+            throw new ServiceResultException(
+                StatusCodes.BadSecurityChecksFailed,
+                "Could not verify the signature of a committed revocation list for this issuer.");
+        }
+
+        private static bool IsCurrent(X509CRL crl, DateTime now)
+        {
+            return crl.ThisUpdate <= now && (crl.NextUpdate == DateTime.MinValue || crl.NextUpdate >= now);
+        }
+
+        private static bool ShouldWrapReadFailure(Exception error, CancellationToken ct)
+        {
+            return (error is not OperationCanceledException || !ct.IsCancellationRequested) &&
+                (error is not ServiceResultException serviceError ||
+                    serviceError.StatusCode != StatusCodes.BadSecurityChecksFailed);
+        }
+
+        private static ServiceResultException UnavailableRecords(Exception error)
+        {
+            return new ServiceResultException(
+                StatusCodes.BadSecurityChecksFailed,
+                "Could not read the committed shared certificate store records.",
+                error);
+        }
+
+        private static ServiceResultException InvalidRecord()
+        {
+            return new ServiceResultException(
+                StatusCodes.BadSecurityChecksFailed,
+                "A committed shared certificate store record could not be verified.");
         }
 
         private string CertPrefix => m_storePath + "/cert/";
@@ -618,20 +658,6 @@ namespace Opc.Ua
         public static partial void SharedKeyValueStoreLog1(
             this ILogger logger,
             [ApplicationIdentity] string? issuer,
-            [FilePath] string? storePath);
-
-        [LoggerMessage(EventId = CoreEventIds.SharedKeyValueCertificateStore + 2, Level = LogLevel.Warning,
-            Message = "Skipping an undecodable certificate record in shared store {StorePath}.")]
-        public static partial void SharedKeyValueStoreLog2(
-            this ILogger logger,
-            Exception? exception,
-            [FilePath] string? storePath);
-
-        [LoggerMessage(EventId = CoreEventIds.SharedKeyValueCertificateStore + 3, Level = LogLevel.Warning,
-            Message = "Skipping an undecodable CRL record in shared store {StorePath}.")]
-        public static partial void SharedKeyValueStoreLog3(
-            this ILogger logger,
-            Exception? exception,
             [FilePath] string? storePath);
 
         [LoggerMessage(EventId = CoreEventIds.SharedKeyValueCertificateStore + 4, Level = LogLevel.Warning,

@@ -1,31 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using System.Collections.Generic;
@@ -564,7 +538,7 @@ namespace Opc.Ua.Wot
         {
             if (element.StartsWith(NamespaceUriPrefix, StringComparison.Ordinal))
             {
-                int separator = element.IndexOf(';', NamespaceUriPrefix.Length);
+                int separator = element.IndexOf(';', NamespaceUriPrefix.Length, StringComparison.Ordinal);
                 if (separator > NamespaceUriPrefix.Length && separator + 1 < element.Length)
                 {
                     qualifier = element[
@@ -578,7 +552,7 @@ namespace Opc.Ua.Wot
             }
             if (element.Length > 0 && element[0] == '{')
             {
-                int close = element.IndexOf('}', 1);
+                int close = element.IndexOf('}', 1, StringComparison.Ordinal);
                 if (close > 1 && close + 1 < element.Length)
                 {
                     qualifier = element[1..close];
@@ -589,7 +563,7 @@ namespace Opc.Ua.Wot
                 name = element;
                 return;
             }
-            int colon = element.IndexOf(':', 0);
+            int colon = element.IndexOf(':', 0, StringComparison.Ordinal);
             if (colon > 0 && colon + 1 < element.Length)
             {
                 qualifier = element[..colon];
@@ -651,7 +625,7 @@ namespace Opc.Ua.Wot
             int start = 0;
             while (true)
             {
-                int separator = browsePath.IndexOf('/', SkipQualifier(browsePath, start));
+                int separator = browsePath.IndexOf('/', SkipQualifier(browsePath, start), StringComparison.Ordinal);
                 if (separator < 0)
                 {
                     elements.Add(browsePath[start..]);
@@ -703,12 +677,12 @@ namespace Opc.Ua.Wot
             {
                 // ';' terminates the NamespaceUri and is percent-escaped inside
                 // it, so the first one is the delimiter (OPC 10000-6 §5.3.1.11).
-                int delimiter = browsePath.IndexOf(';', start + NamespaceUriPrefix.Length);
+                int delimiter = browsePath.IndexOf(';', start + NamespaceUriPrefix.Length, StringComparison.Ordinal);
                 return delimiter < 0 ? start : delimiter + 1;
             }
             if (browsePath[start] == '{')
             {
-                int delimiter = browsePath.IndexOf('}', start + 1);
+                int delimiter = browsePath.IndexOf('}', start + 1, StringComparison.Ordinal);
                 return delimiter < 0 ? start : delimiter + 1;
             }
             return start;

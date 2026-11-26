@@ -1,31 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 
@@ -38,6 +12,13 @@ namespace Opc.Ua.Redundancy.Server
     /// </summary>
     public sealed class LoadDirectionOptions
     {
+        /// <summary>
+        /// The exact application URIs eligible for load direction. A null array uses the static peers registered
+        /// through <c>AddServerRedundancy</c>, if any. An explicitly empty array disables redirection. Without
+        /// configured peers discovery stays local; records and dynamic discovery never establish membership.
+        /// </summary>
+        public ArrayOf<string> PeerApplicationUris { get; set; }
+
         /// <summary>
         /// The shared-store key prefix for the per-peer health <c>ServiceLevel</c> signal (eligibility). This keyspace
         /// can be routed to the strongly-consistent store (Raft) for a deterministic redirect target.
@@ -52,14 +33,14 @@ namespace Opc.Ua.Redundancy.Server
 
         /// <summary>
         /// The shared-store key prefix for the per-peer published <c>EndpointDescription</c>s that the local Server
-        /// returns when it directs a Client to a peer. Low-churn (published at startup and on certificate rotation),
-        /// so it can be routed to the strongly-consistent store alongside the health signal.
+        /// returns when it directs a Client to a peer. Hosted servers refresh the complete endpoint snapshot
+        /// independently of discovery traffic. This keyspace can be strongly consistent alongside the health signal.
         /// </summary>
         public string EndpointKeyPrefix { get; set; } = "endpoint/";
 
         /// <summary>
-        /// How long a gossiped per-peer record is considered fresh. A peer whose health record is older than this is
-        /// excluded from direction (fail-safe); a load record older than this is treated as unknown for tie-breaking.
+        /// Maximum age of a peer's health, endpoint and load records. Missing, stale or future health or endpoints
+        /// prevent redirection; missing, stale or future load is treated as unknown for tie-breaking.
         /// </summary>
         public TimeSpan StalenessWindow { get; set; } = TimeSpan.FromSeconds(15);
 

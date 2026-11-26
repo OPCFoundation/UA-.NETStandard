@@ -1,31 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using NUnit.Framework;
@@ -50,6 +24,7 @@ namespace Opc.Ua.LADS.Tests.Server
             Assert.That(options.InstanceNamespaceUri, Is.EqualTo("urn:opcua-netstandard:lads:instances"));
             Assert.That(options.MaxResultFileBytes, Is.EqualTo(16 * 1024 * 1024));
             Assert.That(options.MaxRetainedResults, Is.EqualTo(100));
+            Assert.That(options.ConfirmInterruptedDeviceReadinessAsync, Is.Null);
             Assert.That(options.RequiredMachineryParts, Is.EqualTo(MachineryParts.BuildingBlocks));
             Assert.That(options.Validate, Throws.Nothing);
         }
@@ -103,6 +78,23 @@ namespace Opc.Ua.LADS.Tests.Server
             };
 
             Assert.That(options.Validate, Throws.Nothing);
+        }
+
+        /// <summary>
+        /// Direct option composition retains the injected asynchronous readiness callback.
+        /// </summary>
+        [Test]
+        public void CopyPreservesReadinessCallback()
+        {
+            var source = new LadsServerOptions
+            {
+                ConfirmInterruptedDeviceReadinessAsync = (_, _) =>
+                    new System.Threading.Tasks.ValueTask<bool>(false)
+            };
+            var copy = new LadsServerOptions();
+            source.CopyTo(copy);
+            Assert.That(copy.ConfirmInterruptedDeviceReadinessAsync,
+                Is.SameAs(source.ConfirmInterruptedDeviceReadinessAsync));
         }
     }
 }

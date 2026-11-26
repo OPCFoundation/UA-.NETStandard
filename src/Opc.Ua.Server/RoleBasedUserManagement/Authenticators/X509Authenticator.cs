@@ -1,32 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using System.Collections.Generic;
@@ -102,8 +75,13 @@ namespace Opc.Ua.Server
                     "Security token is not a valid X.509 token. A certificate is required.");
             }
 
+            // User certificates are validated on their own terms: the application
+            // certificate settings (AutoAcceptUntrustedCertificates and the global
+            // AcceptError hook) apply to application instance certificates only.
+            // The options override both, so every validation error rejects the token.
+            using var chain = new CertificateCollection { userCertificate };
             CertificateValidationResult validationResult = await m_certificateValidator!
-                .ValidateAsync(userCertificate, m_trustList, ct)
+                .ValidateAsync(chain, m_trustList, s_userTokenValidationOptions, ct)
                 .ConfigureAwait(false);
 
             if (!validationResult.IsValid)
@@ -111,9 +89,20 @@ namespace Opc.Ua.Server
                 StatusCode statusCode = validationResult.StatusCode == StatusCodes.BadCertificateUseNotAllowed
                     ? StatusCodes.BadIdentityTokenInvalid
                     : StatusCodes.BadIdentityTokenRejected;
-                return Reject(
+
+                // The validation error travels as the inner result so the session
+                // manager can raise the AuditCertificate event Part 4 §6.5.6 requires;
+                // it is stripped before the result goes back to the client.
+                return AuthenticationResult.Reject(new ServiceResult(
+                    null,
                     statusCode,
-                    $"'{userCertificate.Subject}' is not a trusted user certificate.");
+                    new LocalizedText($"'{userCertificate.Subject}' is not a trusted user certificate."),
+                    null,
+                    // keep the detailed chain (e.g. BadCertificateInvalid wrapping
+                    // the specific cause) so the cause-specific audit event is raised.
+                    validationResult.Errors.Count > 0
+                        ? validationResult.Errors[0]
+                        : new ServiceResult(validationResult.StatusCode)));
             }
 
             return AuthenticationResult.Accept(new X509UserIdentity(x509TokenHandler, userCertificate));
@@ -139,13 +128,32 @@ namespace Opc.Ua.Server
             }
         }
 
+        /// <summary>
+        /// Validation options for user token certificates: an untrusted certificate
+        /// or any other suppressible error is never accepted, whatever the
+        /// application certificate configuration of the validator is. A user
+        /// certificate only signs, so its key usage is checked for signing rather
+        /// than for the data encipherment an application certificate needs.
+        /// </summary>
+        private static readonly Security.Certificates.CertificateValidationOptions s_userTokenValidationOptions = new()
+        {
+            AutoAcceptUntrustedCertificates = false,
+            ValidateForSigning = true,
+            AcceptError = static (_, _) => false
+        };
+
         private static AuthenticationResult Reject(StatusCode statusCode, string message)
         {
             return AuthenticationResult.Reject(
                 new ServiceResult(statusCode, new LocalizedText(message)));
         }
 
-        private sealed class X509UserIdentity : IUserIdentity, IIdentityClaims
+        /// <summary>
+        /// The identity of a validated X.509 user token. It expires with the certificate:
+        /// Part 4 §7.40.5 requires the Session to lose these credentials once the
+        /// certificate is no longer valid.
+        /// </summary>
+        private sealed class X509UserIdentity : IUserIdentity, IIdentityClaims, IIdentityExpiration
         {
             private readonly UserIdentity m_innerIdentity;
 
@@ -154,6 +162,7 @@ namespace Opc.Ua.Server
                 m_innerIdentity = new UserIdentity(tokenHandler);
                 Subject = certificate.Subject;
                 Issuer = certificate.Issuer;
+                ExpiresAt = certificate.NotAfter.ToUniversalTime();
                 Claims = new Dictionary<string, object?>(StringComparer.Ordinal)
                 {
                     ["sub"] = Subject,
@@ -165,6 +174,8 @@ namespace Opc.Ua.Server
             }
 
             public IReadOnlyDictionary<string, object?> Claims { get; }
+
+            public DateTime? ExpiresAt { get; }
 
             public IReadOnlyList<string> Groups { get; }
 

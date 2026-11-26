@@ -1,31 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using System.Buffers;
@@ -143,6 +117,12 @@ namespace Opc.Ua
         {
             if (disposing)
             {
+                // return the units reserved but not used.
+                if (m_recoveries != null && m_encodeablesLeft > 0)
+                {
+                    m_recoveries!.ReleaseEncodeables(m_encodeablesLeft);
+                    m_encodeablesLeft = 0;
+                }
                 m_reader?.Dispose();
                 m_reader = null!;
             }
@@ -183,16 +163,39 @@ namespace Opc.Ua
         /// The end of the ExtensionObject body when the whole buffer of this
         /// decoder is such a body, -1 when unknown.
         /// </param>
+        /// <param name="recoveries">The recoveries of the response, if shared.</param>
         internal void InheritDecodingState(
             ushort[]? namespaceMappings,
             ushort[]? serverMappings,
             uint nestingLevel,
-            int bodyEnd = -1)
+            int bodyEnd = -1,
+            DecoderRecoveries? recoveries = null)
         {
             m_namespaceMappings = namespaceMappings;
             m_serverMappings = serverMappings;
             m_nestingLevel = nestingLevel;
             m_bodyEnd = bodyEnd;
+            m_recoveries = recoveries;
+
+            // the decoders of the bodies of one message share their count, from
+            // which this decoder has reserved nothing yet.
+            if (recoveries != null)
+            {
+                m_encodeablesLeft = 0;
+            }
+        }
+
+        /// <summary>
+        /// Checks the depth before decoding a NodeState child. Root nodes have depth
+        /// zero, and the node hierarchy does not consume the quota for encoded values.
+        /// </summary>
+        internal ChildNodeScope EnterChildNode()
+        {
+            uint childDepth = m_nodeDepth + 1;
+            CheckNestingLevel(childDepth);
+            EncodingLimits.EnsureSufficientStack();
+            m_nodeDepth = childDepth;
+            return new ChildNodeScope(this);
         }
 
         /// <summary>
@@ -542,7 +545,12 @@ namespace Opc.Ua
                 {
                     utf8StringLength--;
                 }
-                return Encoding.UTF8.GetString(bytes[..utf8StringLength]);
+
+                // short strings repeat across the values of a message (event source names,
+                // messages, locales, string node ids): reuse the instance decoded last.
+                return utf8StringLength <= DecodedStringCache.MaxUtf8Length
+                    ? DecodedStringCache.GetOrAdd(bytes[..utf8StringLength])
+                    : Encoding.UTF8.GetString(bytes[..utf8StringLength]);
             }
             finally
             {
@@ -934,7 +942,7 @@ namespace Opc.Ua
             // DataValue is constructed once instead of via a chain of
             // intermediate "With..." struct copies.
             Variant wrappedValue = Variant.Null;
-            StatusCode statusCode = StatusCodes.Good;
+            uint statusCode = 0;
             DateTimeUtc sourceTimestamp = DateTimeUtc.MinValue;
             DateTimeUtc serverTimestamp = DateTimeUtc.MinValue;
             ushort sourcePicoseconds = 0;
@@ -947,7 +955,7 @@ namespace Opc.Ua
 
             if ((encodingByte & (byte)DataValueEncodingBits.StatusCode) != 0)
             {
-                statusCode = ReadStatusCode(null);
+                statusCode = SafeReadUInt32();
             }
 
             // Picoseconds without their timestamp are read and ignored, and
@@ -981,7 +989,7 @@ namespace Opc.Ua
                 }
             }
 
-            return new DataValue(
+            return DataValue.FromStored(
                 wrappedValue,
                 statusCode,
                 sourceTimestamp,
@@ -1079,7 +1087,7 @@ namespace Opc.Ua
                         // up to MaxDecoderRecoveries times and logged once, so a
                         // message cannot flood the log with its own content.
                         if (typeId.NamespaceIndex == 0 ||
-                            m_encodeablesRecovered >= Context.MaxDecoderRecoveries)
+                            !ShareEncodeableCount().TryReserve(Context.MaxDecoderRecoveries))
                         {
                             if (e is ServiceResultException)
                             {
@@ -1093,12 +1101,10 @@ namespace Opc.Ua
                                 extension.TypeId);
                         }
 
-                        if (m_encodeablesRecovered == 0)
+                        if (m_recoveries!.TryLogFailure())
                         {
                             Logger.CouldNotDecodeKnownTypeXml(activator.XmlName, e.Message);
                         }
-
-                        m_encodeablesRecovered++;
                     }
                 }
 
@@ -1109,6 +1115,18 @@ namespace Opc.Ua
             // Allow a length of -1 to support legacy devices that don't fill the length correctly
             int length = SafeReadInt32();
 
+            // A notification body is only needed when it is dispatched: keep the bytes
+            // flat until then, so that messages waiting for dispatch cost the GC nothing.
+            // A forward-only stream cannot tell that the length is available up front.
+            if (activator != null &&
+                length > 0 &&
+                DeferredExtensionObjectBody.IsDeferred(Context, typeId) &&
+                m_namespaceMappings == null &&
+                m_serverMappings == null &&
+                (m_hasBuffer || BaseStream.CanSeek))
+            {
+                return ReadDeferredExtensionObject(extension.TypeId, activator, length);
+            }
             if (!m_hasBuffer && !BaseStream.CanSeek)
             {
                 if (length < 0)
@@ -1141,19 +1159,63 @@ namespace Opc.Ua
                 byte[] body = SafeReadStreamBytes(length, nameof(ReadExtensionObject));
                 using var bodyDecoder = new BinaryDecoder(body, Context);
                 bodyDecoder.InheritDecodingState(
-                    m_namespaceMappings, m_serverMappings, m_nestingLevel, body.Length);
-                bodyDecoder.m_encodeablesRecovered = m_encodeablesRecovered;
-                try
-                {
-                    return bodyDecoder.ReadBinaryExtensionObject(typeId, extension, activator, length);
-                }
-                finally
-                {
-                    m_encodeablesRecovered = bodyDecoder.m_encodeablesRecovered;
-                }
+                    m_namespaceMappings,
+                    m_serverMappings,
+                    m_nestingLevel,
+                    body.Length,
+                    ShareEncodeableCount());
+                return bodyDecoder.ReadBinaryExtensionObject(typeId, extension, activator, length);
             }
 
             return ReadBinaryExtensionObject(typeId, extension, activator, length);
+        }
+
+        /// <summary>
+        /// Copies a body that is decoded on first use into a rented buffer.
+        /// </summary>
+        private ExtensionObject ReadDeferredExtensionObject(
+            ExpandedNodeId typeId,
+            IEncodeableType activator,
+            int length)
+        {
+            // the eager path enforces the limit when it starts on the body, and a body
+            // without nested structures would never reach another check.
+            CheckNestingLevel(m_nestingLevel);
+
+            // never rent a length the input cannot satisfy.
+            CheckRemainingBytes(length, nameof(ReadExtensionObject));
+            if (Context.MaxMessageSize > 0 && Context.MaxMessageSize < length)
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadEncodingLimitsExceeded,
+                    "MaxMessageSize exceeded in ExtensionObject: {0} < {1}",
+                    Context.MaxMessageSize,
+                    length);
+            }
+            // the deferred body counts its encodeables with this message, and
+            // this decoder counts the body itself as the eager path does.
+            CountEncodeable();
+            DecoderRecoveries shared = ShareEncodeableCount();
+            byte[] buffer = DeferredExtensionObjectBody.Rent(length);
+            try
+            {
+                ReadRawBytes(buffer.AsSpan(0, length));
+            }
+            catch
+            {
+                DeferredExtensionObjectBody.Return(buffer);
+                throw;
+            }
+            return new ExtensionObject(
+                typeId,
+                new DeferredExtensionObjectBody(
+                    typeId,
+                    buffer,
+                    length,
+                    activator,
+                    Context,
+                    m_nestingLevel + 1,
+                    shared));
         }
 
         /// <summary>
@@ -1183,6 +1245,7 @@ namespace Opc.Ua
                 string errorMessage = string.Empty;
                 Exception? exception = null;
                 uint nestingLevel = m_nestingLevel;
+                CountEncodeable();
 
                 // Publish the extent of this body for the duration of the call.
                 // A type whose last field has no self-describing length - the
@@ -1241,7 +1304,7 @@ namespace Opc.Ua
                     // reset stream to return ExtensionObject if configured to do so!
                     // decoding failure of a known type in ns=0 is always a decoding error.
                     if (typeId.NamespaceIndex == 0 ||
-                        m_encodeablesRecovered >= Context.MaxDecoderRecoveries)
+                        !ShareEncodeableCount().TryReserve(Context.MaxDecoderRecoveries))
                     {
                         throw exception
                             ?? ServiceResultException.Create(
@@ -1251,7 +1314,8 @@ namespace Opc.Ua
                                 activator!.XmlName,
                                 extension.TypeId);
                     }
-                    else if (m_encodeablesRecovered == 0)
+
+                    if (m_recoveries!.TryLogFailure())
                     {
                         // log the error only once to avoid flooding the log.
                         Logger.DecodeEncodeableRecovered(
@@ -1264,9 +1328,6 @@ namespace Opc.Ua
                     // reset the stream to the begin of the ExtensionObject body.
                     SetPosition(start);
                     encodeable = null;
-
-                    // count number of recoveries
-                    m_encodeablesRecovered++;
                 }
             }
 
@@ -1337,6 +1398,7 @@ namespace Opc.Ua
                     encodeableTypeId,
                     typeof(T).Name);
             }
+            CountEncodeable();
             CheckAndIncrementNestingLevel();
             try
             {
@@ -1352,6 +1414,7 @@ namespace Opc.Ua
         /// <inheritdoc/>
         public T ReadEncodeable<T>(string? fieldName) where T : IEncodeable, new()
         {
+            CountEncodeable();
             CheckAndIncrementNestingLevel();
             var encodeable = new T();
             try
@@ -3180,20 +3243,184 @@ namespace Opc.Ua
         }
 
         /// <summary>
+        /// Counts one decoded encodeable against the limit of the message: the
+        /// larger of <see cref="IServiceMessageContext.MaxMessageSize"/> and the
+        /// input length, plus <see cref="kEncodeableAllowance"/>. A structure can
+        /// encode to zero bytes, so neither the remaining input nor the nesting
+        /// level bounds how many of them one message decodes. The decoders of
+        /// the bodies of one message share their count, see
+        /// <see cref="DecoderRecoveries"/>.
+        /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private void CountEncodeable()
+        {
+            if (--m_encodeablesLeft < 0)
+            {
+                CountEncodeableSlow();
+            }
+        }
+
+        /// <summary>
+        /// Continues the count beyond the allowance, or beyond the units a decoder
+        /// that shares its count reserved: reserves <see cref="kEncodeableReservation"/>
+        /// further units from the shared count. Dispose returns the units a decoder
+        /// reserved but did not use.
+        /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
+        private void CountEncodeableSlow()
+        {
+            if (m_recoveries == null)
+            {
+                // the allowance is used up: the shared count continues it, and
+                // knows the limit of the message as its input grows.
+                ShareEncodeableCount();
+                return;
+            }
+            DecoderRecoveries shared = m_recoveries!;
+            int limit = GetEncodeableLimit();
+            if (shared.TryCountEncodeables(kEncodeableReservation, limit))
+            {
+                m_encodeablesLeft += kEncodeableReservation;
+                return;
+            }
+            if (shared.TryCountEncodeables(1, limit))
+            {
+                m_encodeablesLeft++;
+                return;
+            }
+
+            // a later count fails again.
+            m_encodeablesLeft++;
+            ThrowEncodeableLimitExceeded(limit);
+        }
+
+        /// <summary>
+        /// Moves the count of this decoder to the shared count before a decoder
+        /// of a body of this message counts there too, and raises the shared
+        /// limit to the limit of this decoder, which grows with the input read
+        /// from a stream. Later counts of this decoder reserve units from the
+        /// shared count.
+        /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
+        private DecoderRecoveries ShareEncodeableCount()
+        {
+            int limit = GetEncodeableLimit();
+            DecoderRecoveries? shared = m_recoveries;
+            if (shared == null)
+            {
+                // the allowance is a constant, so what is left of it tells the count.
+                shared = new DecoderRecoveries();
+                shared.RaiseEncodeableLimit(limit);
+                if (!shared.TryCountEncodeables(kEncodeableAllowance - m_encodeablesLeft, limit))
+                {
+                    ThrowEncodeableLimitExceeded(limit);
+                }
+                m_encodeablesLeft = 0;
+                m_recoveries = shared;
+            }
+            else
+            {
+                shared.RaiseEncodeableLimit(limit);
+
+                // the units this decoder reserved ahead go back, so that the
+                // decoder it hands off to can count up to the limit.
+                if (m_encodeablesLeft > 0)
+                {
+                    shared.ReleaseEncodeables(m_encodeablesLeft);
+                    m_encodeablesLeft = 0;
+                }
+            }
+            return shared;
+        }
+
+        /// <summary>
+        /// Throws when a message decodes more encodeables than its limit.
+        /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
+        private static void ThrowEncodeableLimitExceeded(int limit)
+        {
+            throw ServiceResultException.Create(
+                StatusCodes.BadEncodingLimitsExceeded,
+                "The message decodes more than {0} encodeables.",
+                limit);
+        }
+
+        /// <summary>
+        /// The most encodeables this decoder may decode.
+        /// </summary>
+        private int GetEncodeableLimit()
+        {
+            return GetEncodeableLimit(Context, GetInputLength());
+        }
+
+        /// <summary>
+        /// The most encodeables a message of <paramref name="inputLength"/> bytes
+        /// may decode.
+        /// </summary>
+        internal static int GetEncodeableLimit(IServiceMessageContext context, long inputLength)
+        {
+            int maxMessageSize = context.MaxMessageSize;
+            long limit = maxMessageSize > 0 ? maxMessageSize : DefaultEncodingLimits.MaxMessageSize;
+            return (int)Math.Min(Math.Max(limit, inputLength) + kEncodeableAllowance, int.MaxValue);
+        }
+
+        /// <summary>
+        /// The length of the input, or the number of bytes read so far when the
+        /// input is a forward-only stream.
+        /// </summary>
+        private long GetInputLength()
+        {
+            if (m_hasBuffer)
+            {
+                return m_buffer.Length;
+            }
+            Stream? stream = m_reader?.BaseStream;
+            if (stream == null)
+            {
+                return 0;
+            }
+            return stream.CanSeek ? stream.Length : stream.Position;
+        }
+
+        /// <summary>
         /// Test and increment the nesting level.
         /// </summary>
         /// <exception cref="ServiceResultException"></exception>
         private void CheckAndIncrementNestingLevel()
         {
-            if (m_nestingLevel > Context.MaxEncodingNestingLevels)
+            CheckNestingLevel(m_nestingLevel);
+            EncodingLimits.EnsureSufficientStack();
+            m_nestingLevel++;
+        }
+
+        /// <summary>
+        /// Test the nesting level.
+        /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
+        private void CheckNestingLevel(uint nestingLevel)
+        {
+            if (nestingLevel > Context.MaxEncodingNestingLevels)
             {
                 throw ServiceResultException.Create(
                     StatusCodes.BadEncodingLimitsExceeded,
                     "Maximum nesting level of {0} was exceeded",
                     Context.MaxEncodingNestingLevels);
             }
-            EncodingLimits.EnsureSufficientStack();
-            m_nestingLevel++;
+        }
+
+        /// <summary>
+        /// Restores the parent node's depth when decoding its child finishes.
+        /// </summary>
+        internal readonly ref struct ChildNodeScope(BinaryDecoder decoder)
+        {
+            /// <summary>
+            /// Leaves the child node even when decoding fails.
+            /// </summary>
+            public void Dispose()
+            {
+                decoder.m_nodeDepth--;
+            }
         }
 
         /// <summary>
@@ -3253,11 +3480,31 @@ namespace Opc.Ua
         private int m_bufferPosition;
         private long m_synchronizedStreamPosition;
         private uint m_nestingLevel;
+        private uint m_nodeDepth;
 
         // The end position of the ExtensionObject body being decoded, or -1
         // when none is. See TryReadRemainingBodyBytes.
         private int m_bodyEnd = -1;
-        private uint m_encodeablesRecovered;
+
+        // Shared with the decoders of the bodies of the same response, and set
+        // once this decoder counts its encodeables there.
+        private DecoderRecoveries? m_recoveries;
+
+        // The encodeables this decoder may decode before it checks again: what is
+        // left of the allowance, which every message may decode, or of the units
+        // reserved from the count in m_recoveries once that is set. See
+        // CountEncodeable.
+        private int m_encodeablesLeft = kEncodeableAllowance;
+
+        /// <summary>
+        /// The encodeables a message may decode beyond the larger of its maximum
+        /// size and its input length, enough for an array of the default
+        /// maximum length of empty structures.
+        /// </summary>
+        internal const int kEncodeableAllowance = 1 << 17;
+
+        // The units a decoder that shares its count reserves at once.
+        private const int kEncodeableReservation = 64;
 
         // The most bytes allocated up front for an array read element by
         // element, see ReadArrayElements. Below the large object heap limit.

@@ -1,0 +1,39 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <AssemblyName>$(AssemblyPrefix).PADIM.Client</AssemblyName>
+    <TargetFrameworks>$(LibTargetFrameworks)</TargetFrameworks>
+    <PackageId>$(PackagePrefix).Opc.Ua.PADIM.Client</PackageId>
+    <RootNamespace>Opc.Ua.PADIM.Client</RootNamespace>
+    <Description>Typed OPC 30081 PA-DIM discovery, values, semantic references and generated operation clients.</Description>
+    <IsPackable>true</IsPackable>
+    <PackageReadmeFile>NugetREADME.md</PackageReadmeFile>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <IsAotCompatible Condition="$([MSBuild]::IsTargetFrameworkCompatible('$(TargetFramework)', 'net10.0'))">true</IsAotCompatible>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)' == 'Debug'">
+    <PackageId>$(PackageId).Debug</PackageId>
+  </PropertyGroup>
+  <ItemGroup>
+    <None Include="NugetREADME.md" Pack="true" PackagePath="\" />
+  </ItemGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="Opc.Ua.PADIM.Tests" />
+    <ProjectReference Include="..\Opc.Ua.Client\Opc.Ua.Client.csproj" />
+    <ProjectReference Include="..\Opc.Ua.PADIM\Opc.Ua.PADIM.csproj" />
+    <ProjectReference Include="..\..\tools\Opc.Ua.SourceGeneration\Opc.Ua.SourceGeneration.csproj"
+                      OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
+  </ItemGroup>
+  <ItemGroup>
+    <AdditionalFiles Include="..\Opc.Ua.PADIM\Model\Opc.Ua.PADIM.NodeSet2.xml">
+      <ModelSourceGeneratorName>PADIM</ModelSourceGeneratorName>
+      <ModelSourceGeneratorPrefix>Opc.Ua.PADIM</ModelSourceGeneratorPrefix>
+    </AdditionalFiles>
+  </ItemGroup>
+  <Import Project="..\..\tools\Opc.Ua.SourceGeneration\OPCFoundation.Opc.Ua.SourceGeneration.props" />
+  <PropertyGroup>
+    <ModelSourceGeneratorClientAccessorsOnly>true</ModelSourceGeneratorClientAccessorsOnly>
+    <ModelSourceGeneratorClientAccessorNamespace>Opc.Ua.PADIM.Client</ModelSourceGeneratorClientAccessorNamespace>
+    <ModelSourceGeneratorClientAccessorClassName>PadimClientMembers</ModelSourceGeneratorClientAccessorClassName>
+    <ModelSourceGeneratorUseAllowSubtypes>true</ModelSourceGeneratorUseAllowSubtypes>
+  </PropertyGroup>
+</Project>

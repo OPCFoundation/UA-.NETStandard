@@ -1,31 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 // IDE0230: byte-array literals below are opaque binary test vectors, not text; a
 // UTF-8 "..."u8 literal would misrepresent their intent, so keep the explicit byte arrays.
@@ -68,7 +42,8 @@ namespace Opc.Ua.Server.Tests.Redundancy
             var options = new LoadDirectionOptions
             {
                 ServiceLevelKeyPrefix = "deployment/health/",
-                LoadKeyPrefix = "deployment/load/"
+                LoadKeyPrefix = "deployment/load/",
+                PeerApplicationUris = ["urn:server:a"]
             };
             var time = new FakeTimeProvider();
             var publisher = new SharedPeerDirectionPublisher(
@@ -98,7 +73,7 @@ namespace Opc.Ua.Server.Tests.Redundancy
         {
             using var store = new InMemorySharedKeyValueStore();
             IServiceMessageContext context = CreateContext();
-            var options = new LoadDirectionOptions();
+            var options = new LoadDirectionOptions { PeerApplicationUris = ["urn:server:a"] };
             var time = new FakeTimeProvider();
 
             var publisher = new SharedPeerDirectionPublisher(
@@ -122,7 +97,7 @@ namespace Opc.Ua.Server.Tests.Redundancy
         {
             using var store = new InMemorySharedKeyValueStore();
             IServiceMessageContext context = CreateContext();
-            var options = new LoadDirectionOptions { StalenessWindow = TimeSpan.FromSeconds(15) };
+            var options = new LoadDirectionOptions { PeerApplicationUris = ["urn:server:a"] };
             var time = new FakeTimeProvider();
 
             var publisher = new SharedPeerDirectionPublisher(
@@ -144,7 +119,7 @@ namespace Opc.Ua.Server.Tests.Redundancy
         {
             using var store = new InMemorySharedKeyValueStore();
             IServiceMessageContext context = CreateContext();
-            var options = new LoadDirectionOptions { StalenessWindow = TimeSpan.FromSeconds(15) };
+            var options = new LoadDirectionOptions { PeerApplicationUris = ["urn:server:a"] };
             var time = new FakeTimeProvider();
 
             var publisher = new SharedPeerDirectionPublisher(
@@ -168,7 +143,7 @@ namespace Opc.Ua.Server.Tests.Redundancy
         {
             using var store = new InMemorySharedKeyValueStore();
             IServiceMessageContext context = CreateContext();
-            var options = new LoadDirectionOptions();
+            var options = new LoadDirectionOptions { PeerApplicationUris = ["urn:server:x"] };
             var time = new FakeTimeProvider();
 
             await store.SetAsync("svc/urn:server:x", ByteString.From(new byte[] { 9, 9, 9 })).ConfigureAwait(false);
@@ -185,7 +160,7 @@ namespace Opc.Ua.Server.Tests.Redundancy
         {
             using var store = new InMemorySharedKeyValueStore();
             IServiceMessageContext context = CreateContext();
-            var options = new LoadDirectionOptions();
+            var options = new LoadDirectionOptions { PeerApplicationUris = ["urn:server:a", "urn:server:b"] };
             var time = new FakeTimeProvider();
 
             var a = new SharedPeerDirectionPublisher(
@@ -208,7 +183,7 @@ namespace Opc.Ua.Server.Tests.Redundancy
         {
             using var store = new InMemorySharedKeyValueStore();
             IServiceMessageContext context = CreateContext();
-            var options = new LoadDirectionOptions();
+            var options = new LoadDirectionOptions { PeerApplicationUris = ["urn:server:a"] };
             var time = new FakeTimeProvider();
 
             var publisher = new SharedPeerDirectionPublisher(
@@ -223,6 +198,64 @@ namespace Opc.Ua.Server.Tests.Redundancy
 
             Assert.That(peers, Has.Length.EqualTo(1));
             Assert.That(peers[0].ServiceLevel, Is.EqualTo((byte)120), "the latest published health value must win");
+        }
+
+        [Test]
+        public async Task ViewRequiresAgreementWithMemberKeyAsync()
+        {
+            const string configuredUri = "urn:server:a";
+            const string otherUri = "urn:server:b";
+            using var store = new InMemorySharedKeyValueStore();
+            using var random = RandomNumberGenerator.Create();
+            byte[] key = new byte[32];
+            random.GetBytes(key);
+            using var protector = new AesCbcHmacRecordProtector(key);
+            IServiceMessageContext context = CreateContext();
+            var time = new FakeTimeProvider();
+            var options = new LoadDirectionOptions { PeerApplicationUris = [configuredUri] };
+            var view = new SharedPeerDirectionView(store, context, protector, options, time);
+            var other = new SharedPeerDirectionPublisher(store, context, protector, options, time, otherUri);
+            await other.PublishServiceLevelAsync(200).ConfigureAwait(false);
+
+            ArrayOf<PeerDirectionRecord> peers = await view.GetPeersAsync().ConfigureAwait(false);
+            Assert.That(peers.Count, Is.Zero, "the member is not configured");
+
+            string recordKey = options.ServiceLevelKeyPrefix + configuredUri;
+            ByteString mismatchedSignal = PeerDirectionCodec.Encode(
+                otherUri, 200, time.GetUtcNow().UtcDateTime.Ticks, context);
+            await store.SetAsync(
+                recordKey, protector.Protect(RecordProtectionContext.Create("peer-direction", recordKey),
+                    mismatchedSignal)).ConfigureAwait(false);
+
+            peers = await view.GetPeersAsync().ConfigureAwait(false);
+            Assert.That(peers.Count, Is.Zero, "the signal names a different member");
+        }
+
+        [Test]
+        public async Task ViewRejectsFutureSignalsAsync()
+        {
+            const string serverUri = "urn:server:a";
+            using var store = new InMemorySharedKeyValueStore();
+            IServiceMessageContext context = CreateContext();
+            var options = new LoadDirectionOptions { PeerApplicationUris = [serverUri] };
+            var now = new FakeTimeProvider();
+            var ahead = new FakeTimeProvider(now.GetUtcNow().AddTicks(1));
+            var future = new SharedPeerDirectionPublisher(
+                store, context, NullRecordProtector.Instance, options, ahead, serverUri);
+            var current = new SharedPeerDirectionPublisher(
+                store, context, NullRecordProtector.Instance, options, now, serverUri);
+            var view = new SharedPeerDirectionView(store, context, NullRecordProtector.Instance, options, now);
+            await future.PublishServiceLevelAsync(200).ConfigureAwait(false);
+            await future.PublishLoadWeightAsync(30).ConfigureAwait(false);
+
+            ArrayOf<PeerDirectionRecord> peers = await view.GetPeersAsync().ConfigureAwait(false);
+            Assert.That(peers.Count, Is.Zero, "future health is not eligible");
+
+            await current.PublishServiceLevelAsync(200).ConfigureAwait(false);
+            peers = await view.GetPeersAsync().ConfigureAwait(false);
+
+            Assert.That(peers.Count, Is.EqualTo(1));
+            Assert.That(peers[0].LoadKnown, Is.False, "future load is not eligible even with valid health");
         }
 
         private static ServiceMessageContext CreateContext()

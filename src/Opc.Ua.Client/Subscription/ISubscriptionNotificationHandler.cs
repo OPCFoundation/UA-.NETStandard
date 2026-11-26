@@ -1,31 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using System.Collections.Generic;
@@ -52,7 +26,10 @@ namespace Opc.Ua.Client.Subscriptions
     /// scope), so a handler may safely copy this struct by value and
     /// continue using <see cref="Value"/> after the call. Pool-aware
     /// projection audit: confirmed safe — no reference to a pooled
-    /// instance is surfaced.
+    /// instance is surfaced. The memory that holds the structs passed
+    /// to <see cref="ISubscriptionNotificationHandler.OnDataChangeNotificationAsync"/>
+    /// is rented in this mode and returned after the handler returns:
+    /// copy the structs instead of keeping the memory.
     /// </para>
     /// </summary>
     /// <param name="MonitoredItem"></param>
@@ -109,14 +86,17 @@ namespace Opc.Ua.Client.Subscriptions
     /// <para>
     /// Lifetime note (pooled notifications): when the V2 subscription
     /// manager has <see cref="ISubscriptionManager.PoolNotifications"/>
-    /// enabled, the underlying <c>EventFieldList</c> is recycled back
-    /// to its activator pool after the handler returns. The
+    /// enabled, the underlying <c>EventNotificationList</c> is recycled
+    /// back to its activator pool after the handler returns. The
     /// <see cref="Fields"/> property is captured by value as an
     /// <see cref="ArrayOf{T}"/> wrapping the original event-fields
     /// array. Arrays are not pooled in this design (out of scope), so
     /// the captured backing array survives the recycle. Pool-aware
     /// projection audit: confirmed safe — no reference to a pooled
-    /// instance is surfaced.
+    /// instance is surfaced. The memory that holds the structs passed
+    /// to <see cref="ISubscriptionNotificationHandler.OnEventDataNotificationAsync"/>
+    /// is rented in this mode and returned after the handler returns:
+    /// copy the structs instead of keeping the memory.
     /// </para>
     /// </summary>
     /// <param name="MonitoredItem"></param>

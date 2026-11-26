@@ -1,37 +1,12 @@
-/* ========================================================================
- * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using System.Collections.Generic;
 using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
+using Opc.Ua.ISA95.JobControl;
 using V1 = Opc.Ua.ISA95.JobControl.V1;
 using V2 = Opc.Ua.ISA95.JobControl.V2;
 
@@ -182,11 +157,12 @@ namespace Opc.Ua.ISA95.Server.Providers
                 });
             }
 
-            EngineResult result = ApplyOperation(operation, Isa95JobControlConversions.FromV1Order(jobOrder), []);
+            EngineResult result = ApplyOperation(operation, Isa95JobControlConversions.FromV1Order(jobOrder),
+                [], Isa95JobControlVersion.V1);
             return new ValueTask<Isa95JobOrderReceiptV1>(new Isa95JobOrderReceiptV1
             {
                 Result = result.Result,
-                ReturnStatus = ToV1ReturnStatus(result.ReturnStatus)
+                ReturnStatus = result.ReturnStatus
             });
         }
 
@@ -200,40 +176,23 @@ namespace Opc.Ua.ISA95.Server.Providers
             ThrowIfDisposed();
 
             bool hasOrderSelector = !string.IsNullOrEmpty(jobOrderId);
-            bool hasStateSelector = state != V1.ISA95JobOrderStateEnum.Undefined;
-
-            if (hasStateSelector &&
-                ((int)state < (int)V1.ISA95JobOrderStateEnum.Waiting ||
-                    (int)state > (int)V1.ISA95JobOrderStateEnum.Error))
+            ulong validation = Isa95JobControlRules.ValidateV1ResponseSelector(jobOrderId, state);
+            if (validation != Isa95JobReturnStatus.Success)
             {
                 return new ValueTask<Isa95JobResponseQueryV1>(
                     new Isa95JobResponseQueryV1
                     {
-                        Result = BusinessFailure("The job-order state is invalid."),
-                        ReturnStatus = Isa95JobReturnStatus.InvalidStatus,
-                        Responses = []
-                    });
-            }
-
-            // OPC-10031-4 V1 RequestJobResponse selects responses by exactly one of
-            // the job order identifier or the job order state; specifying both or
-            // neither is an invalid request.
-            if (hasOrderSelector == hasStateSelector)
-            {
-                return new ValueTask<Isa95JobResponseQueryV1>(
-                    new Isa95JobResponseQueryV1
-                    {
-                        Result = BusinessFailure(
-                            "Exactly one of the job order identifier or the job order state must be specified."),
-                        ReturnStatus = Isa95JobReturnStatus.InvalidRequest,
+                        Result = BusinessFailure(validation == Isa95JobReturnStatus.InvalidStatus
+                            ? "The job-order state is invalid."
+                            : "Exactly one of the job order identifier or the job order state must be specified."),
+                        ReturnStatus = validation,
                         Responses = []
                     });
             }
 
             (EngineResult result, List<Isa95JobResponse> responses) = hasOrderSelector
                 ? RequestResponses(jobOrderId, filter: null)
-                : RequestResponsesByPredicate(
-                    Isa95JobControlConversions.FromV1State(state));
+                : RequestResponsesByPredicate(state);
 
             var projected = new List<V1.ISA95JobResponseDataType>(responses.Count);
             foreach (Isa95JobResponse response in responses)
@@ -303,9 +262,24 @@ namespace Opc.Ua.ISA95.Server.Providers
             }
 
             EngineResult result = ApplyOperation(
-                Isa95JobControlConversions.MapV2Operation(operation),
+                operation switch
+                {
+                    Isa95JobOrderOperationV2.Store => Isa95JobOperation.Store,
+                    Isa95JobOrderOperationV2.StoreAndStart => Isa95JobOperation.StoreAndStart,
+                    Isa95JobOrderOperationV2.Start => Isa95JobOperation.Start,
+                    Isa95JobOrderOperationV2.Update => Isa95JobOperation.Update,
+                    Isa95JobOrderOperationV2.Stop => Isa95JobOperation.Stop,
+                    Isa95JobOrderOperationV2.Cancel => Isa95JobOperation.Cancel,
+                    Isa95JobOrderOperationV2.Clear => Isa95JobOperation.Clear,
+                    Isa95JobOrderOperationV2.Pause => Isa95JobOperation.Pause,
+                    Isa95JobOrderOperationV2.Resume => Isa95JobOperation.Resume,
+                    Isa95JobOrderOperationV2.Abort => Isa95JobOperation.Abort,
+                    Isa95JobOrderOperationV2.RevokeStart => Isa95JobOperation.RevokeStart,
+                    _ => throw new ArgumentOutOfRangeException(nameof(operation))
+                },
                 Isa95JobControlConversions.FromV2Order(jobOrder),
-                comment);
+                comment,
+                Isa95JobControlVersion.V2);
             return new ValueTask<Isa95JobOrderReceiptV2>(new Isa95JobOrderReceiptV2
             {
                 Result = result.Result,
@@ -609,7 +583,8 @@ namespace Opc.Ua.ISA95.Server.Providers
         private EngineResult ApplyOperation(
             Isa95JobOperation operation,
             Isa95JobOrder order,
-            ArrayOf<LocalizedText> comment)
+            ArrayOf<LocalizedText> comment,
+            Isa95JobControlVersion version)
         {
             string id = order.Id;
             if (string.IsNullOrEmpty(id))
@@ -622,72 +597,14 @@ namespace Opc.Ua.ISA95.Server.Providers
             lock (m_lock)
             {
                 ThrowIfDisposed();
-                bool exists = m_orders.TryGetValue(id, out JobEntry? entry);
-
-                switch (operation)
+                m_orders.TryGetValue(id, out JobEntry? entry);
+                Isa95JobDecision decision = Isa95JobControlRules.Evaluate(entry?.State, operation, version);
+                if (decision.Mutation == Isa95JobMutation.Create && m_orders.Count >= m_options.MaxJobOrders)
                 {
-                    case Isa95JobOperation.Store:
-                        return Create(id, order, exists, Isa95JobCanonicalState.NotAllowedToStart, comment);
-                    case Isa95JobOperation.StoreAndStart:
-                        return Create(id, order, exists, Isa95JobCanonicalState.AllowedToStart, comment);
-                    case Isa95JobOperation.Start:
-                        return Transition(
-                            entry,
-                            exists,
-                            static state => state == Isa95JobCanonicalState.NotAllowedToStart,
-                            Isa95JobCanonicalState.AllowedToStart,
-                            comment);
-                    case Isa95JobOperation.Update:
-                        return Update(entry, exists, order, comment);
-                    case Isa95JobOperation.Stop:
-                        return Transition(
-                            entry,
-                            exists,
-                            static state => state is Isa95JobCanonicalState.Running
-                                or Isa95JobCanonicalState.Held
-                                or Isa95JobCanonicalState.Suspended,
-                            Isa95JobCanonicalState.Completed,
-                            comment);
-                    case Isa95JobOperation.StopAndRemove:
-                        return StopAndRemoveStarted(id, entry, exists);
-                    case Isa95JobOperation.Cancel:
-                        return RemoveNotStarted(id, entry, exists);
-                    case Isa95JobOperation.Clear:
-                        return Clear(id, entry, exists);
-                    case Isa95JobOperation.Pause:
-                        return Transition(
-                            entry,
-                            exists,
-                            static state => state == Isa95JobCanonicalState.Running,
-                            Isa95JobCanonicalState.Suspended,
-                            comment);
-                    case Isa95JobOperation.Resume:
-                        return Transition(
-                            entry,
-                            exists,
-                            static state => state is Isa95JobCanonicalState.Held
-                                or Isa95JobCanonicalState.Suspended,
-                            Isa95JobCanonicalState.Running,
-                            comment);
-                    case Isa95JobOperation.Abort:
-                        return Transition(
-                            entry,
-                            exists,
-                            static state => !IsTerminal(state),
-                            Isa95JobCanonicalState.Aborted,
-                            comment);
-                    case Isa95JobOperation.RevokeStart:
-                        return Transition(
-                            entry,
-                            exists,
-                            static state => state == Isa95JobCanonicalState.AllowedToStart,
-                            Isa95JobCanonicalState.NotAllowedToStart,
-                            comment);
-                    default:
-                        return Failure(
-                            Isa95JobReturnStatus.InvalidRequest,
-                            "The operation is not supported.");
+                    return Failure(Isa95JobReturnStatus.UnableToAccept, "The job order capacity is exhausted.");
                 }
+                return Commit(id, entry, decision, operation is Isa95JobOperation.Store
+                    or Isa95JobOperation.StoreAndStart or Isa95JobOperation.Update ? order : null, comment);
             }
         }
 
@@ -704,144 +621,72 @@ namespace Opc.Ua.ISA95.Server.Providers
             lock (m_lock)
             {
                 ThrowIfDisposed();
-                bool exists = m_orders.TryGetValue(jobOrderId, out JobEntry? entry);
-                return transition switch
+                m_orders.TryGetValue(jobOrderId, out JobEntry? entry);
+                Isa95JobOperation operation = transition switch
                 {
-                    Isa95JobExecutionTransition.BeginExecution => Transition(
-                        entry,
-                        exists,
-                        static state => state == Isa95JobCanonicalState.AllowedToStart,
-                        Isa95JobCanonicalState.Running,
-                        []),
-                    Isa95JobExecutionTransition.Hold => Transition(
-                        entry,
-                        exists,
-                        static state => state == Isa95JobCanonicalState.Running,
-                        Isa95JobCanonicalState.Held,
-                        []),
-                    Isa95JobExecutionTransition.Complete => Transition(
-                        entry,
-                        exists,
-                        static state => state is Isa95JobCanonicalState.Running
-                            or Isa95JobCanonicalState.Held
-                            or Isa95JobCanonicalState.Suspended,
-                        Isa95JobCanonicalState.Completed,
-                        []),
-                    Isa95JobExecutionTransition.Close => Transition(
-                        entry,
-                        exists,
-                        static state => state == Isa95JobCanonicalState.Completed,
-                        Isa95JobCanonicalState.Closed,
-                        []),
-                    _ => Failure(
-                        Isa95JobReturnStatus.InvalidRequest,
-                        "The execution transition is not supported.")
+                    Isa95JobExecutionTransition.BeginExecution => Isa95JobOperation.BeginExecution,
+                    Isa95JobExecutionTransition.Hold => Isa95JobOperation.Hold,
+                    Isa95JobExecutionTransition.Complete => Isa95JobOperation.Complete,
+                    Isa95JobExecutionTransition.Close => Isa95JobOperation.Close,
+                    Isa95JobExecutionTransition.MarkReady => Isa95JobOperation.MarkReady,
+                    Isa95JobExecutionTransition.Load => Isa95JobOperation.Load,
+                    Isa95JobExecutionTransition.Unload => Isa95JobOperation.Unload,
+                    Isa95JobExecutionTransition.MarkNotReady => Isa95JobOperation.MarkNotReady,
+                    _ => (Isa95JobOperation)(-1)
+                };
+                Isa95JobDecision decision = Isa95JobControlRules.Evaluate(
+                    entry?.State, operation, Isa95JobControlVersion.V2);
+                return Commit(jobOrderId, entry, decision, null, []);
+            }
+        }
+
+        private EngineResult Commit(
+            string id,
+            JobEntry? entry,
+            Isa95JobDecision decision,
+            Isa95JobOrder? order,
+            ArrayOf<LocalizedText> comment)
+        {
+            if (decision.ReturnStatus != Isa95JobReturnStatus.Success)
+            {
+                return decision.ReturnStatus switch
+                {
+                    Isa95JobReturnStatus.UnknownJobOrderId => NotFound(),
+                    Isa95JobReturnStatus.UnableToAccept =>
+                        Failure(decision.ReturnStatus, "A job order with the same identifier exists."),
+                    Isa95JobReturnStatus.InvalidRequest =>
+                        Failure(decision.ReturnStatus, "The operation is not supported."),
+                    _ => Failure(decision.ReturnStatus, "The operation is not valid from the current state.")
                 };
             }
-        }
-
-        private EngineResult Create(
-            string id,
-            Isa95JobOrder order,
-            bool exists,
-            Isa95JobCanonicalState state,
-            ArrayOf<LocalizedText> comment)
-        {
-            if (exists)
+            if (decision.Mutation == Isa95JobMutation.Remove)
             {
-                return Failure(
-                    Isa95JobReturnStatus.UnableToAccept,
-                    "A job order with the same identifier exists.");
+                m_orders.Remove(id);
+                SignalCatalog(id, Isa95JobOrderCatalogChangeKind.Removed, null);
+                return EngineResult.Success;
             }
-            if (m_orders.Count >= m_options.MaxJobOrders)
+            if (decision.State is not Isa95JobCanonicalState state)
             {
-                return Failure(
-                    Isa95JobReturnStatus.UnableToAccept,
-                    "The job order capacity is exhausted.");
+                throw new InvalidOperationException("The job order decision did not supply a state.");
             }
-
-            m_orders[id] = new JobEntry(order with { Comment = comment }, state);
-            Emit(id, state);
-            return EngineResult.Success;
-        }
-
-        private EngineResult Update(
-            JobEntry? entry,
-            bool exists,
-            Isa95JobOrder order,
-            ArrayOf<LocalizedText> comment)
-        {
-            if (!exists || entry is null)
+            if (decision.Mutation == Isa95JobMutation.Create)
             {
-                return NotFound();
+                order = order ?? throw new InvalidOperationException("The job order payload is required for creation.");
+                entry = new JobEntry(order with { Comment = comment }, state);
+                m_orders.Add(id, entry);
             }
-            if (entry.State is not (Isa95JobCanonicalState.NotAllowedToStart or Isa95JobCanonicalState.AllowedToStart))
+            else
             {
-                return InvalidState("The job order cannot be updated after it started.");
+                entry = entry ?? throw new InvalidOperationException("The job order is required for an update.");
+                entry.State = state;
+                ArrayOf<LocalizedText> retainedComment = comment.Count > 0 ? comment : entry.Order.Comment;
+                entry.Order = (order ?? entry.Order) with { Comment = retainedComment };
             }
-
-            entry.Order = order with { Comment = comment.Count > 0 ? comment : entry.Order.Comment };
-            SignalCatalog(
-                entry.Order.Id,
-                Isa95JobOrderCatalogChangeKind.Updated,
-                ProjectOrderAndState(entry));
-            // Update is a self-transition with ISA95JobOrderStatusEventType as
-            // HasEffect in the standard model.
-            Emit(entry.Order.Id, entry.State);
-            return EngineResult.Success;
-        }
-
-        private EngineResult Clear(string id, JobEntry? entry, bool exists)
-        {
-            if (!exists || entry is null)
+            SignalCatalog(id, Isa95JobOrderCatalogChangeKind.Updated, ProjectOrderAndState(entry));
+            if (decision.PublishStatusEvent)
             {
-                return NotFound();
+                Emit(id, state);
             }
-            if (!IsTerminal(entry.State))
-            {
-                return InvalidState("Only terminal job orders can be cleared.");
-            }
-
-            m_orders.Remove(id);
-            SignalCatalog(id, Isa95JobOrderCatalogChangeKind.Removed, null);
-            return EngineResult.Success;
-        }
-
-        private EngineResult RemoveNotStarted(string id, JobEntry? entry, bool exists)
-        {
-            if (!exists || entry is null)
-            {
-                return NotFound();
-            }
-            if (entry.State is not (
-                Isa95JobCanonicalState.NotAllowedToStart or
-                Isa95JobCanonicalState.AllowedToStart))
-            {
-                return InvalidState("Only a not-started job order can be cancelled.");
-            }
-            m_orders.Remove(id);
-            SignalCatalog(id, Isa95JobOrderCatalogChangeKind.Removed, null);
-            return EngineResult.Success;
-        }
-
-        private EngineResult StopAndRemoveStarted(string id, JobEntry? entry, bool exists)
-        {
-            if (!exists || entry is null)
-            {
-                return NotFound();
-            }
-            if (entry.State is not (
-                Isa95JobCanonicalState.Running or
-                Isa95JobCanonicalState.Held or
-                Isa95JobCanonicalState.Suspended))
-            {
-                return InvalidState("Only a started job order can be stopped.");
-            }
-
-            // OPC-10031-4 V1 Stop reports on the work done and removes the stored
-            // information; the order is not left behind in a terminal state.
-            m_orders.Remove(id);
-            SignalCatalog(id, Isa95JobOrderCatalogChangeKind.Removed, null);
             return EngineResult.Success;
         }
 
@@ -852,32 +697,6 @@ namespace Opc.Ua.ISA95.Server.Providers
                 JobOrder = Isa95JobControlConversions.ToV2Order(entry.Order),
                 State = Isa95JobControlConversions.ToV2StateArray(entry.State)
             };
-        }
-
-        private EngineResult Transition(
-            JobEntry? entry,
-            bool exists,
-            Func<Isa95JobCanonicalState, bool> allowed,
-            Isa95JobCanonicalState target,
-            ArrayOf<LocalizedText> comment)
-        {
-            if (!exists || entry is null)
-            {
-                return NotFound();
-            }
-            if (!allowed(entry.State))
-            {
-                return InvalidState(
-                    "The requested transition is not valid from the current state.");
-            }
-
-            entry.State = target;
-            if (comment.Count > 0)
-            {
-                entry.Order = entry.Order with { Comment = comment };
-            }
-            Emit(entry.Order.Id, target);
-            return EngineResult.Success;
         }
 
         private EngineResult ReceiveResponse(Isa95JobResponse response)
@@ -967,7 +786,7 @@ namespace Opc.Ua.ISA95.Server.Providers
         }
 
         private (EngineResult Result, List<Isa95JobResponse> Responses) RequestResponsesByPredicate(
-            Isa95JobCanonicalState state)
+            V1.ISA95JobOrderStateEnum state)
         {
             lock (m_lock)
             {
@@ -976,7 +795,7 @@ namespace Opc.Ua.ISA95.Server.Providers
                 var matches = new List<Isa95JobResponse>();
                 foreach (Isa95JobResponse response in m_responses.Values)
                 {
-                    if (response.State == state)
+                    if (Isa95JobControlConversions.ToV1State(response.State) == state)
                     {
                         matches.Add(response);
                     }
@@ -1176,11 +995,6 @@ namespace Opc.Ua.ISA95.Server.Providers
                 "The job order is unknown.");
         }
 
-        private static EngineResult InvalidState(string message)
-        {
-            return Failure(Isa95JobReturnStatus.InvalidStatus, message);
-        }
-
         private static EngineResult Failure(ulong returnStatus, string message)
         {
             return new EngineResult(BusinessFailure(message), returnStatus);
@@ -1189,23 +1003,6 @@ namespace Opc.Ua.ISA95.Server.Providers
         private static ServiceResult BusinessFailure(string message)
         {
             return new ServiceResult(StatusCodes.Uncertain, new LocalizedText(message));
-        }
-
-        private static bool IsTerminal(Isa95JobCanonicalState state)
-        {
-            return state is Isa95JobCanonicalState.Completed
-                or Isa95JobCanonicalState.Aborted
-                or Isa95JobCanonicalState.Closed;
-        }
-
-        private static ulong ToV1ReturnStatus(ulong returnStatus)
-        {
-            if ((returnStatus & Isa95JobReturnStatus.InvalidStatus) != 0)
-            {
-                returnStatus &= ~Isa95JobReturnStatus.InvalidStatus;
-                returnStatus |= Isa95JobReturnStatus.InvalidCommand;
-            }
-            return returnStatus;
         }
 
         private readonly Isa95JobControlProviderOptions m_options;

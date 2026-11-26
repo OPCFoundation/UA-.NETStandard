@@ -1,31 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using System.Collections.Generic;
@@ -136,40 +110,104 @@ namespace Opc.Ua.Server
             {
                 throw new ArgumentNullException(nameof(occurrence));
             }
+            AdmitEventCore(context, occurrence);
+        }
+
+        /// <summary>
+        /// Admits a native event and returns the identity stamp it was admitted with, or
+        /// <c>null</c> when admission is not required and the occurrence has no identity.
+        /// </summary>
+        /// <remarks>
+        /// A sealed snapshot was admitted when the publication pipeline took it and is never
+        /// changed afterwards, so its stamp is returned without taking the identity lock or
+        /// reading the occurrence again, although every item it is queued to admits it.
+        /// </remarks>
+        private IdentityStamp? AdmitEventCore(ISystemContext context, IFilterTarget occurrence)
+        {
+            if (TryGetSealedStamp(occurrence, out IdentityStamp? sealedStamp))
+            {
+                ThrowIfIdentityDisposed();
+                return sealedStamp;
+            }
+            IdentitySnapshot snapshot;
+            try
+            {
+                // read outside the lock: the snapshot only depends on the occurrence.
+                snapshot = CaptureIdentity(context, occurrence);
+            }
+            catch (ServiceResultException exception)
+            {
+                lock (m_identityLock)
+                {
+                    ThrowIfIdentityDisposed();
+                    if (m_identityRequired)
+                    {
+                        throw;
+                    }
+                    MarkIdentityContinuityLost(exception.StatusCode);
+                    return null;
+                }
+            }
             lock (m_identityLock)
             {
                 ThrowIfIdentityDisposed();
                 try
                 {
-                    IdentitySnapshot snapshot = CaptureIdentity(context, occurrence);
                     if (TryGetIdentityStamp(occurrence, snapshot, out IdentityStamp? stamp))
                     {
                         SetIdentityStamp(occurrence, stamp);
-                        return;
+                        return stamp;
                     }
                     IdentityClaim claim = ReserveIdentityCore(
                         snapshot.EventId, new NativeIdentitySource(snapshot));
-                    SetIdentityStamp(occurrence, new IdentityStamp(claim, snapshot));
+                    stamp = new IdentityStamp(claim, snapshot);
+                    SetIdentityStamp(occurrence, stamp);
+                    return stamp;
                 }
                 catch (ServiceResultException exception) when (!m_identityRequired)
                 {
                     MarkIdentityContinuityLost(exception.StatusCode);
+                    return null;
                 }
             }
         }
 
         /// <summary>
-        /// Copies the identity stamp of an event occurrence to its snapshot.
+        /// Copies the identity stamp of an event occurrence to its snapshot and seals the
+        /// snapshot, so the items it is queued to find it admitted without reading it again.
         /// </summary>
+        /// <remarks>
+        /// The caller owns the snapshot and must not change it afterwards. A snapshot that no
+        /// longer matches the admitted occurrence (the occurrence changed before it was copied)
+        /// is not stamped, so the items admit it themselves.
+        /// </remarks>
+        /// <param name="context">The system context.</param>
         /// <param name="original">The filter target.</param>
         /// <param name="snapshot">The filter target.</param>
-        internal void TransferEventIdentity(IFilterTarget original, IFilterTarget snapshot)
+        internal void TransferEventIdentity(ISystemContext context, IFilterTarget original, IFilterTarget snapshot)
         {
+            if (!Volatile.Read(ref m_eventIdentityTargets).TryGetValue(original, out IdentityStamp? stamp))
+            {
+                return;
+            }
+            IdentitySnapshot copied;
+            try
+            {
+                copied = CaptureIdentity(context, snapshot);
+            }
+            catch (ServiceResultException)
+            {
+                return;
+            }
+            if (!copied.Equals(stamp.Snapshot))
+            {
+                return;
+            }
             lock (m_identityLock)
             {
-                if (m_eventIdentityTargets.TryGetValue(original, out IdentityStamp? stamp))
+                if (!m_identityDisposed)
                 {
-                    SetIdentityStamp(snapshot, stamp);
+                    SetIdentityStamp(snapshot, stamp with { Sealed = true });
                 }
             }
         }
@@ -177,25 +215,23 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Verifies that queued event fields originate from an admitted occurrence.
         /// </summary>
-        /// <param name="fields">The event field list.</param>
-        internal void AdmitEventFields(EventFieldList fields)
+        /// <param name="fields">The queued event.</param>
+        internal void AdmitEventFields(in QueuedEvent fields)
         {
-            if (fields is null)
+            ThrowIfIdentityDisposed();
+            if (fields.AdmissionStamp is EventFieldsStamp stamp && ReferenceEquals(stamp.Owner, this))
             {
-                throw new ArgumentNullException(nameof(fields));
+                if (stamp.Fields.Span != fields.EventFields.Span &&
+                    !stamp.Fields.Equals(fields.EventFields))
+                {
+                    throw new ServiceResultException(StatusCodes.BadSecurityChecksFailed,
+                        "Queued event fields changed after occurrence admission.");
+                }
+                return;
             }
             lock (m_identityLock)
             {
                 ThrowIfIdentityDisposed();
-                if (m_eventFieldIdentities.TryGetValue(fields, out EventFieldsStamp? stamp))
-                {
-                    if (!stamp.Fields.Equals(fields.EventFields))
-                    {
-                        throw new ServiceResultException(StatusCodes.BadSecurityChecksFailed,
-                            "Queued event fields changed after occurrence admission.");
-                    }
-                    return;
-                }
                 if (m_identityRequired)
                 {
                     throw new ServiceResultException(StatusCodes.BadNotSupported,
@@ -208,33 +244,76 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Associates event fields with the identity of their admitted occurrence.
         /// </summary>
-        /// <param name="fields">The event field list.</param>
+        /// <remarks>
+        /// The association is kept in the queued event (<see cref="QueuedEvent"/>): it is made
+        /// once per notification by the producers and verified by Publish, so a shared table
+        /// would make all of them meet in its lock. When the fields are copied into a
+        /// notification message the stamp moves to the message, which keeps it until its last
+        /// owner releases it.
+        /// </remarks>
+        /// <param name="fields">The event field values.</param>
         /// <param name="occurrence">The filter target.</param>
-        internal void RegisterEventFields(EventFieldList fields, IFilterTarget occurrence)
+        /// <returns>The admission stamp to queue with the fields, or <c>null</c>.</returns>
+        internal object? RegisterEventFields(ArrayOf<Variant> fields, IFilterTarget occurrence)
         {
-            AdmitEvent(m_server.DefaultSystemContext, occurrence);
-            lock (m_identityLock)
-            {
-                if (m_eventIdentityTargets.TryGetValue(occurrence, out IdentityStamp? stamp))
-                {
-                    m_eventFieldIdentities.Add(fields, new EventFieldsStamp(stamp, fields.EventFields));
-                }
-            }
+            IdentityStamp? stamp = AdmitEventCore(m_server.DefaultSystemContext, occurrence);
+            return stamp != null ? new EventFieldsStamp(this, stamp, fields) : null;
         }
 
         /// <summary>
-        /// Releases the identity association of event fields.
+        /// Associates event fields with a stamp created once for the event and the group of
+        /// items that share the field values (see <see cref="CreateSharedEventFieldsStamp"/>).
+        /// Falls back to <see cref="RegisterEventFields(ArrayOf{Variant}, IFilterTarget)"/> when
+        /// there is no shared stamp or it does not belong to these fields.
         /// </summary>
-        /// <param name="fields">The event field list.</param>
-        internal void ReleaseEventFields(EventFieldList fields)
+        /// <param name="fields">The event field values.</param>
+        /// <param name="occurrence">The filter target.</param>
+        /// <param name="sharedStamp">The stamp shared by the group, or <c>null</c>.</param>
+        /// <returns>The admission stamp to queue with the fields, or <c>null</c>.</returns>
+        internal object? RegisterEventFields(ArrayOf<Variant> fields, IFilterTarget occurrence, object? sharedStamp)
         {
-            lock (m_identityLock)
+            if (sharedStamp is EventFieldsStamp stamp && ReferenceEquals(stamp.Owner, this) &&
+                stamp.Fields.Span == fields.Span)
             {
-                if (m_eventFieldIdentities.Remove(fields))
-                {
-                    fields.Handle = null;
-                }
+                ThrowIfIdentityDisposed();
+                return stamp;
             }
+            return RegisterEventFields(fields, occurrence);
+        }
+
+        /// <summary>
+        /// Creates the stamp of event fields that every item of a group shares, or returns
+        /// <c>null</c> when the occurrence is not a sealed snapshot.
+        /// </summary>
+        /// <remarks>
+        /// A sealed snapshot was admitted once by the publication pipeline and is never
+        /// changed, so admitting it again per item returns the same identity stamp; the
+        /// stamp of the fields therefore depends only on the event and the shared field
+        /// values and can be created once for all items of the group.
+        /// </remarks>
+        /// <param name="occurrence">The filter target.</param>
+        /// <param name="fields">The field values shared by the group.</param>
+        internal object? CreateSharedEventFieldsStamp(IFilterTarget occurrence, Variant[] fields)
+        {
+            if (!TryGetSealedStamp(occurrence, out IdentityStamp? stamp))
+            {
+                return null;
+            }
+            ThrowIfIdentityDisposed();
+            return new EventFieldsStamp(this, stamp, fields);
+        }
+
+        /// <summary>
+        /// Gets the stamp of a sealed snapshot without taking the identity lock.
+        /// </summary>
+        private bool TryGetSealedStamp(IFilterTarget occurrence, [NotNullWhen(true)] out IdentityStamp? stamp)
+        {
+            if (Volatile.Read(ref m_eventIdentityTargets).TryGetValue(occurrence, out stamp) && stamp.Sealed)
+            {
+                return true;
+            }
+            stamp = null;
+            return false;
         }
 
         private void RequireEventIdentityAdmissionCore()
@@ -347,18 +426,22 @@ namespace Opc.Ua.Server
         {
             var filter = new FilterContext(
                 context.NamespaceUris, context.TypeTable, context.PreferredLocales, context.Telemetry);
-            Variant id = ReadIdentityField(occurrence, filter, Ua.BrowseNames.EventId);
-            Variant time = ReadIdentityField(occurrence, filter, Ua.BrowseNames.Time);
+            Variant id = ReadIdentityField(occurrence, filter, s_eventIdPath);
+            Variant time = ReadIdentityField(occurrence, filter, s_timePath);
             if (!id.TryGetValue(out ByteString eventId) || eventId.IsEmpty ||
                 !time.TryGetValue(out DateTimeUtc occurrenceTime) || occurrenceTime.IsNull)
             {
                 throw new ServiceResultException(StatusCodes.BadNotSupported,
                     "A native occurrence must expose its original EventId and Time for identity admission.");
             }
-            var facts = new List<Variant>(32);
-            foreach (string name in s_identityFields)
+            // the facts are sized exactly, so the snapshot keeps the array they are read into.
+            bool isCondition = occurrence.IsTypeOf(filter, Ua.ObjectTypeIds.ConditionType);
+            var facts = new Variant[s_identityFields.Count +
+                (isCondition ? 1 + s_conditionIdentityFields.Count : 0)];
+            int count = 0;
+            foreach (ArrayOf<QualifiedName> path in s_identityFields)
             {
-                Variant value = ReadIdentityField(occurrence, filter, name);
+                Variant value = ReadIdentityField(occurrence, filter, path);
                 if (value.TryGetValue(out NodeId nodeId))
                 {
                     if (nodeId.NamespaceIndex >= context.NamespaceUris.Count)
@@ -367,9 +450,9 @@ namespace Opc.Ua.Server
                     }
                     value = NodeId.ToExpandedNodeId(nodeId, context.NamespaceUris);
                 }
-                facts.Add(value);
+                facts[count++] = value;
             }
-            if (occurrence.IsTypeOf(filter, Ua.ObjectTypeIds.ConditionType))
+            if (isCondition)
             {
                 Variant conditionId = occurrence.GetAttributeValue(
                     filter, NodeId.Null, [], Attributes.NodeId, default);
@@ -377,7 +460,7 @@ namespace Opc.Ua.Server
                 {
                     conditionId = NodeId.ToExpandedNodeId(nodeId, context.NamespaceUris);
                 }
-                facts.Add(conditionId);
+                facts[count++] = conditionId;
                 foreach (ArrayOf<QualifiedName> path in s_conditionIdentityFields)
                 {
                     Variant value = occurrence.GetAttributeValue(
@@ -386,16 +469,16 @@ namespace Opc.Ua.Server
                     {
                         value = NodeId.ToExpandedNodeId(branchId, context.NamespaceUris);
                     }
-                    facts.Add(value);
+                    facts[count++] = value;
                 }
             }
-            return new IdentitySnapshot(eventId, facts.ToArrayOf());
+            return new IdentitySnapshot(eventId, facts);
         }
 
-        private static Variant ReadIdentityField(IFilterTarget occurrence, IFilterContext context, string name)
+        private static Variant ReadIdentityField(
+            IFilterTarget occurrence, IFilterContext context, ArrayOf<QualifiedName> path)
         {
-            return occurrence.GetAttributeValue(
-                context, NodeId.Null, [QualifiedName.From(name)], Attributes.Value, default);
+            return occurrence.GetAttributeValue(context, NodeId.Null, path, Attributes.Value, default);
         }
 
         private void MarkIdentityContinuityLost(StatusCode reason)
@@ -409,7 +492,7 @@ namespace Opc.Ua.Server
 
         private void ThrowIfIdentityDisposed()
         {
-            if (m_identityDisposed)
+            if (Volatile.Read(ref m_identityDisposed))
             {
                 throw new ObjectDisposedException(nameof(EventManager));
             }
@@ -421,8 +504,7 @@ namespace Opc.Ua.Server
             {
                 m_identityDisposed = true;
                 m_eventIdentities.Clear();
-                m_eventIdentityTargets = new();
-                m_eventFieldIdentities = new();
+                Volatile.Write(ref m_eventIdentityTargets, new());
             }
         }
 
@@ -499,9 +581,16 @@ namespace Opc.Ua.Server
 
         private sealed record IdentitySnapshot(ByteString EventId, ArrayOf<Variant> Facts);
 
-        private sealed record IdentityStamp(IdentityClaim Claim, IdentitySnapshot Snapshot);
+        private sealed record IdentityStamp(IdentityClaim Claim, IdentitySnapshot Snapshot)
+        {
+            /// <summary>
+            /// Whether the stamp belongs to a snapshot owned by the publication pipeline,
+            /// which is admitted once and never changes.
+            /// </summary>
+            public bool Sealed { get; init; }
+        }
 
-        private sealed record EventFieldsStamp(IdentityStamp Identity, ArrayOf<Variant> Fields);
+        private sealed record EventFieldsStamp(EventManager Owner, IdentityStamp Identity, ArrayOf<Variant> Fields);
 
         private sealed class NativeIdentitySource(IdentitySnapshot snapshot) : IEventIdentitySource
         {
@@ -521,14 +610,19 @@ namespace Opc.Ua.Server
         private readonly Lock m_identityLock = new();
         private readonly Dictionary<ByteString, IdentityEntry> m_eventIdentities = [];
         private ConditionalWeakTable<IFilterTarget, IdentityStamp> m_eventIdentityTargets = new();
-        private ConditionalWeakTable<EventFieldList, EventFieldsStamp> m_eventFieldIdentities = new();
         private StatusCode m_identityContinuityStatus = StatusCodes.Good;
         private bool m_identityRequired;
         private bool m_identityDisposed;
-        private static readonly ArrayOf<string> s_identityFields =
+        private static readonly ArrayOf<QualifiedName> s_eventIdPath = [QualifiedName.From(Ua.BrowseNames.EventId)];
+        private static readonly ArrayOf<QualifiedName> s_timePath = [QualifiedName.From(Ua.BrowseNames.Time)];
+        private static readonly ArrayOf<ArrayOf<QualifiedName>> s_identityFields =
         [
-            Ua.BrowseNames.EventType, Ua.BrowseNames.SourceNode, Ua.BrowseNames.SourceName,
-            Ua.BrowseNames.Time, Ua.BrowseNames.Message, Ua.BrowseNames.Severity
+            [QualifiedName.From(Ua.BrowseNames.EventType)],
+            [QualifiedName.From(Ua.BrowseNames.SourceNode)],
+            [QualifiedName.From(Ua.BrowseNames.SourceName)],
+            s_timePath,
+            [QualifiedName.From(Ua.BrowseNames.Message)],
+            [QualifiedName.From(Ua.BrowseNames.Severity)]
         ];
         private static readonly ArrayOf<ArrayOf<QualifiedName>> s_conditionIdentityFields =
         [

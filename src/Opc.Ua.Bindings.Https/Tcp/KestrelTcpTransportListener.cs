@@ -1,31 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 #if NET8_0_OR_GREATER
 using System;
@@ -110,6 +84,7 @@ namespace Opc.Ua.Bindings
     /// </remarks>
     public sealed class KestrelTcpTransportListener
         : ITransportListener,
+            ITransportListenerAcceptControl,
             ITcpChannelListener,
             ITransportListenerCertificateRotation,
             ITransportListenerPeerCertificateChainRotation
@@ -236,6 +211,21 @@ namespace Opc.Ua.Bindings
                 m_quotas.HandshakeTimeout,
                 telemetry: Telemetry);
 
+            // The provider's connection capacity is shared with the other
+            // listeners of the server: let them reclaim unused channels here.
+            // Pending reverse connections are never reclaimed for another listener.
+            if (!m_reverseConnectListener)
+            {
+                m_admission.SetSharedCapacityReclaimer(TryReclaimChannelForSharedCapacity);
+            }
+            // The channel table is enforced after admission: no other listener's
+            // connection is reclaimed for a connection the full table refuses.
+            m_admission.SetListenerCapacityCheck(HasChannelCapacity);
+
+            // Kestrel accepts as soon as it is bound, so a deferred listener
+            // holds the accepted connections at the gate until it is opened.
+            m_acceptGate = CreateAcceptGate(accepting: !settings.DeferAccept);
+
             m_host = BuildHost(baseAddress);
             await m_host.StartAsync(ct).ConfigureAwait(false);
 
@@ -275,8 +265,54 @@ namespace Opc.Ua.Bindings
         }
 
         /// <inheritdoc/>
+        public bool IsAccepting => m_host != null &&
+            m_acceptGate.Task.Status == TaskStatus.RanToCompletion &&
+            m_acceptGate.Task.Result;
+
+        /// <inheritdoc/>
+        public ValueTask StartAcceptingAsync(CancellationToken ct = default)
+        {
+            ct.ThrowIfCancellationRequested();
+            m_acceptGate.TrySetResult(true);
+            return default;
+        }
+
+        /// <summary>
+        /// Waits until the listener serves connections. Returns <c>false</c>
+        /// when the listener stops first or the connection closes.
+        /// </summary>
+        internal async ValueTask<bool> WaitUntilAcceptingAsync(CancellationToken ct)
+        {
+            Task<bool> gate = m_acceptGate.Task;
+            if (gate.Status == TaskStatus.RanToCompletion)
+            {
+                return gate.Result;
+            }
+            try
+            {
+                return await gate.WaitAsync(ct).ConfigureAwait(false);
+            }
+            catch (OperationCanceledException) when (ct.IsCancellationRequested)
+            {
+                return false;
+            }
+        }
+
+        private static TaskCompletionSource<bool> CreateAcceptGate(bool accepting)
+        {
+            var gate = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            if (accepting)
+            {
+                gate.TrySetResult(true);
+            }
+            return gate;
+        }
+
+        /// <inheritdoc/>
         public async ValueTask StopAsync(CancellationToken ct = default)
         {
+            // release connections held at the gate of a listener that never opened.
+            m_acceptGate.TrySetResult(false);
             m_inactivityDetectionTimer?.Dispose();
             m_inactivityDetectionTimer = null;
             try
@@ -639,10 +675,32 @@ namespace Opc.Ua.Bindings
         }
 
         /// <summary>
+        /// Reclaims an unused channel for another listener whose new connection
+        /// found the shared connection capacity exhausted; a channel whose
+        /// connection holds only protected capacity cannot relieve it.
+        /// </summary>
+        private bool TryReclaimChannelForSharedCapacity()
+        {
+            return TryReclaimUnusedChannel([], sharedCapacityOnly: true);
+        }
+
+        /// <summary>
+        /// Whether the channel table admits another accepted connection.
+        /// </summary>
+        private bool HasChannelCapacity()
+        {
+            lock (m_lock)
+            {
+                return m_channels != null &&
+                    (m_maxChannelCount <= 0 || m_channels.Count + m_pendingAccepts < m_maxChannelCount);
+            }
+        }
+
+        /// <summary>
         /// Closes the least recently active open channel that serves no
         /// session, mirroring <see cref="TcpTransportListener"/>.
         /// </summary>
-        private bool TryReclaimUnusedChannel(HashSet<TcpListenerChannel> attempted)
+        private bool TryReclaimUnusedChannel(HashSet<TcpListenerChannel> attempted, bool sharedCapacityOnly = false)
         {
             ConcurrentDictionary<uint, (TcpListenerChannel Channel, TaskCompletionSource<bool> Done)>? channels;
             TcpListenerChannel[] candidates;
@@ -655,10 +713,12 @@ namespace Opc.Ua.Bindings
                 }
                 candidates = [.. channels.Values.Select(entry => entry.Channel)];
             }
-            foreach (TcpListenerChannel candidate in candidates.OrderByDescending(
-                channel => channel.ElapsedSinceLastActiveTime))
+            foreach (TcpListenerChannel candidate in candidates
+                .OrderBy(channel => channel.HoldsPartialMessage)
+                .ThenByDescending(channel => channel.ElapsedSinceLastActiveTime))
             {
-                if (attempted.Contains(candidate) || candidate.UsedBySession)
+                if (attempted.Contains(candidate) || candidate.UsedBySession ||
+                    (sharedCapacityOnly && !UaScConnectionAdmission.Lease.CanRelieveSharedCapacity(candidate.Transport)))
                 {
                     continue;
                 }
@@ -714,7 +774,10 @@ namespace Opc.Ua.Bindings
             {
                 foreach ((TcpListenerChannel Channel, TaskCompletionSource<bool> _) in channels.Values)
                 {
-                    if (Channel.ElapsedSinceLastActiveTime > quotas.ChannelLifetime)
+                    // a send that waits for a peer that stopped reading also closes a
+                    // channel that a Session keeps active
+                    if (Channel.ElapsedSinceLastActiveTime > quotas.ChannelLifetime ||
+                        Channel.GetWriteStallTime().TotalMilliseconds > quotas.ChannelLifetime)
                     {
                         Logger.KestrelTcpInactiveChannelCleanup(Channel.Id);
                         Channel.IdleCleanup();
@@ -929,7 +992,7 @@ namespace Opc.Ua.Bindings
                     channel.ChannelThumbprint,
                     (channel.Transport?.RemoteEndpoint as IPEndPoint)?.Address);
                 IServiceResponse response = await m_callback
-                    .ProcessRequestAsync(context, request)
+                    .ProcessRequestAsync(context, request, channel.RequestCancellationToken)
                     .ConfigureAwait(false);
                 if (!await ((TcpServerChannel)channel).SendResponseAsync(requestId, response).ConfigureAwait(false))
                 {
@@ -1053,6 +1116,7 @@ namespace Opc.Ua.Bindings
         }
 
         private IHost? m_host;
+        private TaskCompletionSource<bool> m_acceptGate = CreateAcceptGate(accepting: true);
         private List<EndpointDescription>? m_descriptions;
         private ChannelQuotas? m_quotas;
         private BufferManager? m_bufferManager;

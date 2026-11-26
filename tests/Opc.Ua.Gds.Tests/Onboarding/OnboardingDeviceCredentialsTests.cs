@@ -1,36 +1,19 @@
-/* ========================================================================
- * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person obtaining a copy
- * of this software and associated documentation files (the "Software"), to deal
- * in the Software without restriction, including without limitation the rights
- * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the Software is
- * furnished to do so, subject to the following conditions:
- *
- * The above copyright notice and this permission notice shall be included in
- * all copies or substantial portions of the Software.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
- * OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL
- * THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR
- * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
- * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using System.Collections.Generic;
 using System.Formats.Asn1;
+using System.IO;
 using System.Security.Cryptography;
+using System.Security.Cryptography.X509Certificates;
 using System.Threading;
 using System.Threading.Tasks;
 using Moq;
 using NUnit.Framework;
 using OnboardingClientSample;
+using OnboardingDevice;
+using OnboardingRegistrar;
 using Opc.Ua.Gds.Client;
 using Opc.Ua.Security.Certificates;
 using Opc.Ua.Tests;
@@ -392,6 +375,47 @@ namespace Opc.Ua.Gds.Tests.Onboarding
             VerifyNoInstallation(verifyNoValidation: false);
         }
 
+        [Test]
+        public async Task KeyPairInstallationRejectsStoreThatCannotReloadPrivateKeyAsync()
+        {
+            var store = new Mock<ICertificateStore>(MockBehavior.Strict);
+            store.Setup(s => s.Open(m_identifier.StorePath!, false));
+            store.Setup(s => s.Dispose());
+            store.Setup(s => s.FindByThumbprintAsync(m_identity.Thumbprint, CancellationToken.None))
+                .ReturnsAsync(() => new CertificateCollection());
+            store.Setup(s => s.AddAsync(It.IsAny<Certificate>(), It.IsAny<char[]>(), CancellationToken.None))
+                .Returns(Task.CompletedTask);
+            store.Setup(s => s.LoadPrivateKeyAsync(
+                    m_identity.Thumbprint, null, null, CoreObjectTypeIds.RsaSha256ApplicationCertificateType,
+                    It.IsAny<char[]>(), CancellationToken.None))
+                .ReturnsAsync((Certificate?)null);
+            var provider = new Mock<ICertificateStoreProvider>(MockBehavior.Strict);
+            provider.SetupGet(p => p.StoreTypeName).Returns("SampleCredentialStore");
+            provider.Setup(p => p.CreateStore(m_telemetry)).Returns(store.Object);
+            m_identifier.StoreType = "SampleCredentialStore";
+            m_credentials = new OnboardingDeviceCredentials(m_configuration, m_telemetry, [provider.Object]);
+            m_manager.Setup(m => m.ValidateAsync(
+                    It.IsAny<CertificateCollection>(), TrustListIdentifier.Peers,
+                    It.IsAny<ValidationOptions>(), CancellationToken.None))
+                .ReturnsAsync(CertificateValidationResult.Success);
+            var credentials = new PullDcaCredentials(Encoded(m_identity), [], CompleteTrustList());
+            byte[] pfx = m_identity.Export(X509ContentType.Pfx);
+            try
+            {
+                ServiceResultException? error = await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                    await m_credentials.InstallNewKeyPairAsync(s_applicationId, s_profile, credentials,
+                        ByteString.From(pfx)).ConfigureAwait(false));
+                Assert.That(error!.StatusCode, Is.EqualTo(StatusCodes.BadSecurityChecksFailed));
+                store.Verify(s => s.AddAsync(It.IsAny<Certificate>(), It.IsAny<char[]>(), CancellationToken.None),
+                    Times.Once);
+                VerifyNoInstallation(verifyNoValidation: false);
+            }
+            finally
+            {
+                CryptoUtils.ZeroMemory(pfx);
+            }
+        }
+
         /// <summary>
         /// Certificate storage precedes trust replacement and activation; each failure stops subsequent effects.
         /// </summary>
@@ -513,6 +537,445 @@ namespace Opc.Ua.Gds.Tests.Onboarding
                     .ConfigureAwait(false));
             m_provider.VerifyNoOtherCalls();
             m_manager.VerifyNoOtherCalls();
+        }
+
+        /// <summary>
+        /// A received certificate that is not applied remains pending without replacing the active identity.
+        /// </summary>
+        [Test]
+        public async Task ReceivedPullReceiptWithDifferentActiveCertificateDoesNotPromoteAsync()
+        {
+            SetupActiveKey();
+            m_provider.Setup(value => value.GetPrivateKeyCertificateAsync(
+                    It.IsAny<CertificateIdentifier>(), It.IsAny<ICertificatePasswordProvider>(), null,
+                    It.IsAny<CancellationToken>()))
+                .Returns(new ValueTask<Certificate?>((Certificate?)null));
+            using Certificate issued = CreateIdentity(kApplicationUri);
+            var checkpoint = new DevicePullJournalCheckpoint(
+                DevicePullJournalStage.Received, CreatePullBinding(issued), null,
+                new PullDcaCredentials(Encoded(issued), [], CompleteTrustList()));
+
+            bool installed = await m_credentials.RecoverAppliedPullReceiptAsync(
+                checkpoint, CancellationToken.None).ConfigureAwait(false);
+
+            Assert.That(installed, Is.False);
+            VerifyNoInstallation();
+        }
+
+        /// <summary>
+        /// An installed receipt whose certificate is no longer applied reports the mismatch without reinstalling it.
+        /// </summary>
+        [Test]
+        public async Task InstalledPullReceiptWithDifferentActiveCertificateIsRejectedAsync()
+        {
+            SetupActiveKey();
+            m_provider.Setup(value => value.GetPrivateKeyCertificateAsync(
+                    It.IsAny<CertificateIdentifier>(), It.IsAny<ICertificatePasswordProvider>(), null,
+                    It.IsAny<CancellationToken>()))
+                .Returns(new ValueTask<Certificate?>((Certificate?)null));
+            using Certificate issued = CreateIdentity(kApplicationUri);
+            var checkpoint = new DevicePullJournalCheckpoint(
+                DevicePullJournalStage.Installed, CreatePullBinding(issued), null,
+                new PullDcaCredentials(Encoded(issued), [], CompleteTrustList()));
+
+            ServiceResultException? failure = await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                await m_credentials.RecoverAppliedPullReceiptAsync(
+                    checkpoint, CancellationToken.None).ConfigureAwait(false));
+
+            Assert.That(failure!.StatusCode, Is.EqualTo(StatusCodes.BadSecurityChecksFailed));
+            VerifyNoInstallation();
+        }
+
+        /// <summary>
+        /// A receipt cannot recover an installed certificate belonging to a different retained signing key.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task PullReceiptWithDifferentSigningKeyIsRejectedBeforeStoreAccessAsync(
+            bool installed)
+        {
+            using Certificate issued = CreateIdentity(kApplicationUri);
+            var checkpoint = new DevicePullJournalCheckpoint(
+                installed ? DevicePullJournalStage.Installed : DevicePullJournalStage.Received,
+                CreatePullBinding(m_identity), null,
+                new PullDcaCredentials(Encoded(issued), [], CompleteTrustList()));
+
+            ServiceResultException? failure = await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                await m_credentials.RecoverAppliedPullReceiptAsync(
+                    checkpoint, CancellationToken.None).ConfigureAwait(false));
+
+            Assert.That(failure!.StatusCode, Is.EqualTo(StatusCodes.BadSecurityChecksFailed));
+            m_provider.VerifyNoOtherCalls();
+            m_manager.VerifyNoOtherCalls();
+            VerifyNoInstallation();
+        }
+
+        /// <summary>
+        /// Recovery rejects a missing, public-only, or replaced persisted identity
+        /// even when its cached identity matches.
+        /// </summary>
+        [TestCase(false, "missing")]
+        [TestCase(true, "missing")]
+        [TestCase(false, "public-only")]
+        [TestCase(true, "public-only")]
+        [TestCase(false, "replaced")]
+        [TestCase(true, "replaced")]
+        public async Task CachedPullIdentityWithoutMatchingPersistedKeyDoesNotPromoteAsync(
+            bool installed,
+            string persistedIdentity)
+        {
+            SetupActiveKey();
+            using Certificate replacement = CreateIdentity(kApplicationUri);
+            m_provider.Setup(value => value.GetPrivateKeyCertificateAsync(
+                    It.Is<CertificateIdentifier>(identifier =>
+                        identifier.StoreType == m_identifier.StoreType &&
+                        identifier.StorePath == m_identifier.StorePath &&
+                        identifier.Thumbprint == m_identity.Thumbprint),
+                    It.IsAny<ICertificatePasswordProvider>(), null, It.IsAny<CancellationToken>()))
+                .Returns(() => new ValueTask<Certificate?>(persistedIdentity switch
+                {
+                    "missing" => null,
+                    "public-only" => Certificate.FromRawData(m_identity.RawData),
+                    _ => replacement.AddRef()
+                }));
+            var checkpoint = new DevicePullJournalCheckpoint(
+                installed ? DevicePullJournalStage.Installed : DevicePullJournalStage.Received,
+                CreatePullBinding(m_identity), null,
+                new PullDcaCredentials(Encoded(m_identity), [], CompleteTrustList()));
+
+            if (installed)
+            {
+                ServiceResultException? failure = await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                    await m_credentials.RecoverAppliedPullReceiptAsync(checkpoint, CancellationToken.None)
+                        .ConfigureAwait(false)).ConfigureAwait(false);
+                Assert.That(failure!.StatusCode, Is.EqualTo(StatusCodes.BadSecurityChecksFailed));
+            }
+            else
+            {
+                bool promoted = await m_credentials.RecoverAppliedPullReceiptAsync(checkpoint, CancellationToken.None)
+                    .ConfigureAwait(false);
+                Assert.That(promoted, Is.False);
+            }
+
+            m_provider.Verify(value => value.GetPrivateKeyCertificateAsync(
+                It.IsAny<CertificateIdentifier>(), It.IsAny<ICertificatePasswordProvider>(), null,
+                It.IsAny<CancellationToken>()), Times.Exactly(2));
+            VerifyNoInstallation();
+        }
+
+        /// <summary>
+        /// A matching cached and persisted identity cannot authorize recovery when any received trust set differs.
+        /// </summary>
+        [TestCase("trusted-certificates")]
+        [TestCase("issuer-certificates")]
+        [TestCase("trusted-crls")]
+        [TestCase("issuer-crls")]
+        public async Task CachedPullIdentityWithDifferentTrustSetDoesNotPromoteAsync(string trustSet)
+        {
+            SetupActiveKey();
+            m_provider.Setup(value => value.GetPrivateKeyCertificateAsync(
+                    It.Is<CertificateIdentifier>(identifier => identifier.Thumbprint == m_identity.Thumbprint),
+                    It.IsAny<ICertificatePasswordProvider>(), null, It.IsAny<CancellationToken>()))
+                .Returns(() => new ValueTask<Certificate?>(m_identity.AddRef()));
+            m_manager.Setup(value => value.ValidateAsync(
+                    It.IsAny<CertificateCollection>(), TrustListIdentifier.Peers,
+                    It.IsAny<ValidationOptions>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync(CertificateValidationResult.Success);
+            m_manager.Setup(value => value.ReadTrustListAsync(
+                    TrustListIdentifier.Peers, TrustListMasks.All, It.IsAny<CancellationToken>()))
+                .ReturnsAsync(() => new TrustListData());
+            TrustListDataType expected = CompleteTrustList();
+            ByteString certificate = Encoded(m_identity);
+            ByteString crl = ByteString.From(CrlBuilder.Create(m_identity.SubjectName)
+                .SetThisUpdate(DateTime.UtcNow.AddMinutes(-1))
+                .SetNextUpdate(DateTime.UtcNow.AddDays(1))
+                .CreateForRSA(m_identity).RawData.AsSpan());
+            switch (trustSet)
+            {
+                case "trusted-certificates":
+                    expected.TrustedCertificates = [certificate];
+                    break;
+                case "issuer-certificates":
+                    expected.IssuerCertificates = [certificate];
+                    break;
+                case "trusted-crls":
+                    expected.TrustedCrls = [crl];
+                    break;
+                case "issuer-crls":
+                    expected.IssuerCrls = [crl];
+                    break;
+            }
+            var checkpoint = new DevicePullJournalCheckpoint(
+                DevicePullJournalStage.Received, CreatePullBinding(m_identity), null,
+                new PullDcaCredentials(certificate, [], expected));
+
+            ServiceResultException? failure = await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                await m_credentials.RecoverAppliedPullReceiptAsync(checkpoint, CancellationToken.None)
+                    .ConfigureAwait(false)).ConfigureAwait(false);
+
+            Assert.That(failure!.StatusCode, Is.EqualTo(StatusCodes.BadSecurityChecksFailed));
+            m_manager.Verify(value => value.ReadTrustListAsync(
+                TrustListIdentifier.Peers, TrustListMasks.All, It.IsAny<CancellationToken>()), Times.Exactly(2));
+            VerifyNoInstallation(verifyNoValidation: false);
+        }
+
+        /// <summary>
+        /// Exact persisted credentials promote the receipt and resume activation only when the cache is not applied.
+        /// </summary>
+        [TestCase(false, true, false)]
+        [TestCase(true, true, false)]
+        [TestCase(false, false, false)]
+        [TestCase(true, false, false)]
+        [TestCase(false, false, true)]
+        [TestCase(true, false, true)]
+        public async Task ExactPersistedPullCredentialsRecoverWithoutStoreWritesAsync(
+            bool alreadyInstalled,
+            bool alreadyActive,
+            bool activationInterrupted)
+        {
+            const string registrarUri = "urn:sample:registrar";
+            using Certificate authority = CertificateBuilder.Create("CN=Recovery registrar")
+                .SetCAConstraint()
+                .AddExtension(new X509SubjectAltNameExtension(registrarUri, ["localhost"]))
+                .SetRSAKeySize(2048)
+                .CreateForRSA();
+            byte[] csr = DefaultCertificateFactory.Instance.CreateSigningRequest(m_identity);
+            var request = new Pkcs10CertificationRequest(csr);
+            using Certificate issued = CertificateBuilder.Create(request.Subject)
+                .AddExtension(new X509SubjectAltNameExtension(kApplicationUri, ["localhost"]))
+                .SetIssuer(authority)
+                .SetRSAPublicKey(request.SubjectPublicKeyInfo)
+                .CreateForRSA();
+            using Certificate paired = DefaultCertificateFactory.Instance.CreateWithPrivateKey(issued, m_identity);
+            IX509CRL trustedCrl = CrlBuilder.Create(authority.SubjectName)
+                .SetThisUpdate(DateTime.UtcNow.AddMinutes(-1))
+                .SetNextUpdate(DateTime.UtcNow.AddDays(1))
+                .CreateForRSA(authority);
+            IX509CRL issuerCrl = CrlBuilder.Create(authority.SubjectName)
+                .SetThisUpdate(DateTime.UtcNow.AddMinutes(-2))
+                .SetNextUpdate(DateTime.UtcNow.AddDays(2))
+                .CreateForRSA(authority);
+            var credentials = new PullDcaCredentials(Encoded(issued), [Encoded(authority)],
+                new TrustListDataType
+                {
+                    SpecifiedLists = (uint)TrustListMasks.All,
+                    TrustedCertificates = [Encoded(authority)],
+                    IssuerCertificates = [Encoded(authority)],
+                    TrustedCrls = [ByteString.From(trustedCrl.RawData.AsSpan())],
+                    IssuerCrls = [ByteString.From(issuerCrl.RawData.AsSpan())]
+                });
+            bool activated = alreadyActive;
+            int activationCalls = 0;
+            var interruption = new InvalidOperationException("Activation did not complete.");
+            m_manager.Setup(value => value.AcquireApplicationCertificateByType(
+                    CoreObjectTypeIds.RsaSha256ApplicationCertificateType))
+                .Returns(() =>
+                {
+                    using var issuers = new CertificateCollection();
+                    if (!activated)
+                    {
+                        return new CertificateEntry(
+                            m_identity, issuers, CoreObjectTypeIds.RsaSha256ApplicationCertificateType);
+                    }
+                    issuers.Add(authority);
+                    return new CertificateEntry(
+                        paired, issuers, CoreObjectTypeIds.RsaSha256ApplicationCertificateType);
+                });
+            if (!alreadyActive)
+            {
+                m_manager.Setup(value => value.UpdateApplicationCertificateAsync(
+                        CoreObjectTypeIds.RsaSha256ApplicationCertificateType,
+                        It.IsAny<Certificate>(), It.IsAny<CertificateCollection>(),
+                        It.IsAny<CancellationToken>()))
+                    .Callback<NodeId, Certificate, CertificateCollection?, CancellationToken>((_, value, chain, _) =>
+                    {
+                        Assert.That(value.RawData, Is.EqualTo(issued.RawData));
+                        Assert.That(value.HasPrivateKey, Is.True);
+                        Assert.That(chain, Has.Count.EqualTo(1));
+                        Assert.That(chain![0].RawData, Is.EqualTo(authority.RawData));
+                        activationCalls++;
+                        if (activationInterrupted && activationCalls == 1)
+                        {
+                            throw interruption;
+                        }
+                        activated = true;
+                    })
+                    .Returns(Task.CompletedTask);
+            }
+            m_provider.Setup(value => value.GetPrivateKeyCertificateAsync(
+                    It.Is<CertificateIdentifier>(identifier =>
+                        identifier.StoreType == m_identifier.StoreType &&
+                        identifier.StorePath == m_identifier.StorePath &&
+                        identifier.Thumbprint == issued.Thumbprint),
+                    It.IsAny<ICertificatePasswordProvider>(), null, It.IsAny<CancellationToken>()))
+                .Returns(() => new ValueTask<Certificate?>(paired.AddRef()));
+            m_manager.Setup(value => value.ValidateAsync(
+                    It.IsAny<CertificateCollection>(), TrustListIdentifier.Peers,
+                    It.IsAny<ValidationOptions>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync(CertificateValidationResult.Success);
+            m_manager.Setup(value => value.ReadTrustListAsync(
+                    TrustListIdentifier.Peers, TrustListMasks.All, It.IsAny<CancellationToken>()))
+                .ReturnsAsync(() => new TrustListData
+                {
+                    TrustedCertificates = new CertificateCollection { authority },
+                    IssuerCertificates = new CertificateCollection { authority },
+                    TrustedCrls = [new X509CRL(trustedCrl)],
+                    IssuerCrls = [new X509CRL(issuerCrl)]
+                });
+            string directory = Path.Combine(
+                Path.GetTempPath(), nameof(OnboardingDeviceCredentialsTests), Guid.NewGuid().ToString("N"));
+            try
+            {
+                using var files = new PushRegistrarCheckpointFiles(directory);
+                var journal = new DevicePullJournal(files, kApplicationUri, registrarUri, m_telemetry);
+                PullDcaSigningBinding binding = CreatePullBinding(m_identity) with
+                {
+                    RequestId = NodeId.Null,
+                    SigningRequest = ByteString.From(csr.AsSpan()),
+                    RegistrarChannelCertificate = Encoded(authority)
+                };
+                await journal.RecordDispatchAsync(binding).ConfigureAwait(false);
+                binding = binding with { RequestId = new NodeId(3u) };
+                await journal.RecordStartedAsync(binding).ConfigureAwait(false);
+                await journal.GetOrCreateAsync(binding.Registrar, binding.ApplicationId, binding.RequestId,
+                    binding.Profile, _ => new ValueTask<PullDcaCertificateReceipt>(
+                        new PullDcaCertificateReceipt(credentials.Certificate, credentials.IssuerCertificates)))
+                    .ConfigureAwait(false);
+                await journal.RecordReceivedAsync(binding, credentials).ConfigureAwait(false);
+                if (alreadyInstalled)
+                {
+                    await journal.RecordInstalledAsync(
+                        binding.AttemptId, Encoded(authority), credentials).ConfigureAwait(false);
+                }
+                m_credentials.UsePullJournal(journal);
+                DevicePullJournalCheckpoint checkpoint = (await journal.ReadAsync().ConfigureAwait(false))!;
+
+                if (activationInterrupted)
+                {
+                    InvalidOperationException? failure = await Assert.ThrowsAsync<InvalidOperationException>(
+                        async () => await m_credentials.RecoverAppliedPullReceiptAsync(
+                            checkpoint, CancellationToken.None)
+                            .ConfigureAwait(false)).ConfigureAwait(false);
+                    Assert.That(failure, Is.SameAs(interruption));
+                    Assert.That(activated, Is.False);
+                    Assert.That(m_identifier.RawData, Is.EqualTo(m_identity.RawData));
+                    DevicePullJournalCheckpoint interrupted = (await journal.ReadAsync().ConfigureAwait(false))!;
+                    Assert.That(interrupted.Stage, Is.EqualTo(checkpoint.Stage));
+                    Assert.That(interrupted.Binding.AttemptId, Is.EqualTo(binding.AttemptId));
+                    Assert.That(interrupted.Credentials!.Certificate, Is.EqualTo(credentials.Certificate));
+                }
+                bool recovered = await m_credentials.RecoverAppliedPullReceiptAsync(checkpoint, CancellationToken.None)
+                    .ConfigureAwait(false);
+                DevicePullJournalCheckpoint retained = (await journal.ReadAsync().ConfigureAwait(false))!;
+
+                Assert.That(recovered, Is.True);
+                Assert.That(retained.Stage, Is.EqualTo(DevicePullJournalStage.Installed));
+                Assert.That(retained.Binding.AttemptId, Is.EqualTo(binding.AttemptId));
+                PullDcaCredentials retainedCredentials = retained.Credentials ??
+                    throw new AssertionException("The installed journal lost its credentials.");
+                Assert.That(retainedCredentials.Certificate, Is.EqualTo(credentials.Certificate));
+                Assert.That(retainedCredentials.IssuerCertificates, Is.EqualTo(credentials.IssuerCertificates));
+                Assert.That(retainedCredentials.TrustList.TrustedCertificates,
+                    Is.EqualTo(credentials.TrustList.TrustedCertificates));
+                Assert.That(retainedCredentials.TrustList.IssuerCertificates,
+                    Is.EqualTo(credentials.TrustList.IssuerCertificates));
+                Assert.That(retainedCredentials.TrustList.TrustedCrls,
+                    Is.EqualTo(credentials.TrustList.TrustedCrls));
+                Assert.That(retainedCredentials.TrustList.IssuerCrls,
+                    Is.EqualTo(credentials.TrustList.IssuerCrls));
+                m_provider.VerifyAll();
+                m_manager.Verify(value => value.ReadTrustListAsync(
+                    TrustListIdentifier.Peers, TrustListMasks.All, It.IsAny<CancellationToken>()),
+                    Times.Exactly(alreadyActive ? 1 : activationInterrupted ? 3 : 2));
+                m_manager.Verify(value => value.UpdateApplicationCertificateAsync(
+                    It.IsAny<NodeId>(), It.IsAny<Certificate>(), It.IsAny<CertificateCollection>(),
+                    It.IsAny<CancellationToken>()),
+                    Times.Exactly(alreadyActive ? 0 : activationInterrupted ? 2 : 1));
+                m_manager.Verify(value => value.WriteTrustListAsync(
+                    It.IsAny<TrustListIdentifier>(), It.IsAny<TrustListData>(),
+                    It.IsAny<TrustListMasks>(), It.IsAny<CancellationToken>()), Times.Never);
+                Assert.That(activated, Is.True);
+                Assert.That(m_identifier.RawData, alreadyActive ? Is.EqualTo(m_identity.RawData) : Is.Null);
+                Assert.That(m_identifier.Thumbprint,
+                    Is.EqualTo(alreadyActive ? m_identity.Thumbprint : issued.Thumbprint));
+            }
+            finally
+            {
+                if (Directory.Exists(directory))
+                {
+                    Directory.Delete(directory, recursive: true);
+                }
+            }
+        }
+
+        /// <summary>
+        /// A persisted issued key pair cannot authorize recovery while the complete trust stores differ.
+        /// </summary>
+        [Test]
+        public async Task PullRecoveryWithPersistedKeyAndDifferentTrustDoesNotReplaceTrustAsync()
+        {
+            SetupActiveKey();
+            using Certificate issued = CreateIdentity(kApplicationUri);
+            m_provider.Setup(value => value.GetPrivateKeyCertificateAsync(
+                    It.IsAny<CertificateIdentifier>(), It.IsAny<ICertificatePasswordProvider>(), null,
+                    It.IsAny<CancellationToken>()))
+                .Returns(() => new ValueTask<Certificate?>(issued.AddRef()));
+            m_manager.Setup(value => value.ValidateAsync(
+                    It.IsAny<CertificateCollection>(), TrustListIdentifier.Peers,
+                    It.IsAny<ValidationOptions>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync(CertificateValidationResult.Success);
+            m_manager.Setup(value => value.ReadTrustListAsync(
+                    TrustListIdentifier.Peers, TrustListMasks.All, It.IsAny<CancellationToken>()))
+                .ReturnsAsync(() => new TrustListData());
+            TrustListDataType expected = CompleteTrustList();
+            expected.TrustedCertificates = [Encoded(issued)];
+            var checkpoint = new DevicePullJournalCheckpoint(
+                DevicePullJournalStage.Received, CreatePullBinding(issued), null,
+                new PullDcaCredentials(Encoded(issued), [], expected));
+
+            ServiceResultException? failure = await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                await m_credentials.RecoverAppliedPullReceiptAsync(
+                    checkpoint, CancellationToken.None).ConfigureAwait(false));
+
+            Assert.That(failure!.StatusCode, Is.EqualTo(StatusCodes.BadSecurityChecksFailed));
+            m_provider.VerifyAll();
+            m_manager.Verify(value => value.ReadTrustListAsync(
+                TrustListIdentifier.Peers, TrustListMasks.All, It.IsAny<CancellationToken>()), Times.Once);
+            VerifyNoInstallation(verifyNoValidation: false);
+        }
+
+        /// <summary>
+        /// Receipt recovery checks the issued certificate's application URI before consulting stores.
+        /// </summary>
+        [Test]
+        public async Task PullRecoveryWithDifferentApplicationUriIsRejectedBeforeStoreAccessAsync()
+        {
+            using Certificate issued = CreateIdentity("urn:other:application");
+            var checkpoint = new DevicePullJournalCheckpoint(
+                DevicePullJournalStage.Received, CreatePullBinding(issued), null,
+                new PullDcaCredentials(Encoded(issued), [], CompleteTrustList()));
+
+            ServiceResultException? failure = await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                await m_credentials.RecoverAppliedPullReceiptAsync(
+                    checkpoint, CancellationToken.None).ConfigureAwait(false));
+
+            Assert.That(failure!.StatusCode, Is.EqualTo(StatusCodes.BadCertificateUriInvalid));
+            m_provider.VerifyNoOtherCalls();
+            m_manager.VerifyNoOtherCalls();
+            VerifyNoInstallation();
+        }
+
+        /// <summary>
+        /// Creates complete public request evidence for local recovery checks without a transport.
+        /// </summary>
+        private PullDcaSigningBinding CreatePullBinding(Certificate signingKey)
+        {
+            return new PullDcaSigningBinding(
+                new PullDcaRegistrar(new Uri("opc.tcp://registrar.example:4840"),
+                    new NodeId(1u), new NodeId(2u)),
+                s_applicationId, new NodeId(3u), s_profile, default,
+                Encoded(signingKey), Encoded(m_identity), Encoded(m_identity),
+                "urn:sample:registrar", [Namespaces.OpcUa], Guid.NewGuid());
         }
 
         /// <summary>

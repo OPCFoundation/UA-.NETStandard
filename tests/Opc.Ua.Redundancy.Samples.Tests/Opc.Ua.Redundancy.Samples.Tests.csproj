@@ -1,10 +1,14 @@
+<!--
+SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+SPDX-License-Identifier: MIT
+-->
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <!--
       These are process-level integration tests that launch the RedundantServer,
       RedundantClient and RedundantPubSub sample applications and assert on
       their high-availability log output. The samples are .NET 8+ only and
-      follow CustomTestTarget, so the tests do too: a net8.0 / net9.0 / net10.0
+      follow CustomTestTarget, so the tests do too: a net10.0 / net11.0
       profile builds and runs them on that framework. On the net48 profile
       the samples are empty
       RestrictForLegacyTfm shells, so RestrictForLegacyTfm makes this project
@@ -64,6 +68,8 @@
     into their assemblies directly.
   -->
   <ItemGroup Condition="'$(_SamplesPlaceholder)' != 'true'">
+    <Compile Include="..\..\samples\Redundancy\Common\SampleCluster.cs" Link="Common\SampleCluster.cs" />
+    <ProjectReference Include="..\..\src\Opc.Ua.Redundancy\Opc.Ua.Redundancy.csproj" />
     <ProjectReference Include="..\..\samples\Redundancy\RedundantServer\RedundantServer.csproj"
                       ReferenceOutputAssembly="false" />
     <ProjectReference Include="..\..\samples\Redundancy\RedundantClient\RedundantClient.csproj"

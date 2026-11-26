@@ -1,31 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using System.Collections.Concurrent;
@@ -100,6 +74,39 @@ namespace Opc.Ua.XRegistry.Tests
             {
                 release.TrySetResult(true);
             }
+        }
+
+        /// <summary>
+        /// Verifies that a reconcile skips a versioned Resource whose change token did not
+        /// change and reapplies it once the token changes, so one registry change does not
+        /// revisit every projected Resource.
+        /// </summary>
+        [Test]
+        public async Task UnchangedChangeTokenSkipsTheVersionedResourceReconcileAsync()
+        {
+            var strategy = new VersionedTestStrategy();
+            ProjectionHarness harness = ProjectionHarness.Create(suppliedStrategy: strategy);
+            using XRegistryProjectionEngine engine = harness.Engine;
+            await engine.AttachAsync(harness.Registry, CancellationToken.None).ConfigureAwait(false);
+            var unchanged = new object();
+            strategy.Snapshot = new TestSnapshot(
+                [new TestGroup("schemas", [new TokenVersionedTestResource("schemas", "pump", "v1", unchanged)])]);
+            await engine.ReconcileAsync(CancellationToken.None).ConfigureAwait(false);
+            var pump = new NodeId("TestRegistry/groups/schemas/resources/pump", 1);
+            ResourceState logical = harness.Added.OfType<ResourceState>().Single(node => node.NodeId == pump);
+            Assert.That(logical.Name!.Value, Is.EqualTo("pump"));
+
+            // A marker the engine would overwrite if it reapplied the Resource.
+            logical.Name.Value = "not reapplied";
+            strategy.Snapshot = new TestSnapshot(
+                [new TestGroup("schemas", [new TokenVersionedTestResource("schemas", "pump", "v1", unchanged)])]);
+            await engine.ReconcileAsync(CancellationToken.None).ConfigureAwait(false);
+            Assert.That(logical.Name.Value, Is.EqualTo("not reapplied"));
+
+            strategy.Snapshot = new TestSnapshot(
+                [new TestGroup("schemas", [new TokenVersionedTestResource("schemas", "pump", "v1", new object())])]);
+            await engine.ReconcileAsync(CancellationToken.None).ConfigureAwait(false);
+            Assert.That(logical.Name.Value, Is.EqualTo("pump"));
         }
 
         /// <summary>
@@ -2351,6 +2358,42 @@ namespace Opc.Ua.XRegistry.Tests
         }
 
         /// <summary>
+        /// Live FileType state (Open/Close changing OpenCount) changes without a new
+        /// change token. A reconcile that skips the unchanged Resource metadata must still
+        /// mirror the default Version's FileType Properties and publish their changes.
+        /// </summary>
+        [Test]
+        public async Task LogicalResourceMirrorsDefaultVersionFileTypePropertiesWithStableTokenAsync()
+        {
+            var strategy = new VersionedTestStrategy();
+            ProjectionHarness harness = ProjectionHarness.Create(suppliedStrategy: strategy);
+            await harness.Engine.AttachAsync(harness.Registry, CancellationToken.None)
+                .ConfigureAwait(false);
+            var stable = new object();
+            strategy.Snapshot = new TestSnapshot(
+                [new TestGroup("schemas", [new TokenVersionedTestResource("schemas", "pump", "v1", stable)])]);
+            await harness.Engine.ReconcileAsync(CancellationToken.None).ConfigureAwait(false);
+
+            ResourceState logicalNode = FindLogicalResourceNode(harness, "pump");
+            ResourceState v1Node = FindVersionNode(harness, "v1");
+            v1Node.Size!.Value = 12345UL;
+            v1Node.OpenCount!.Value = 2;
+
+            strategy.Snapshot = new TestSnapshot(
+                [new TestGroup("schemas", [new TokenVersionedTestResource("schemas", "pump", "v1", stable)])]);
+            await harness.Engine.ReconcileAsync(CancellationToken.None).ConfigureAwait(false);
+
+            Assert.Multiple(
+                () =>
+                {
+                    Assert.That(logicalNode.Size!.Value, Is.EqualTo(12345UL));
+                    Assert.That(logicalNode.OpenCount!.Value, Is.EqualTo((ushort)2));
+                    Assert.That(logicalNode.OpenCount.ChangeMasks, Is.EqualTo(NodeStateChangeMasks.None));
+                    Assert.That(v1Node.OpenCount.ChangeMasks, Is.EqualTo(NodeStateChangeMasks.None));
+                });
+        }
+
+        /// <summary>
         /// Reviewer issue #4 regression (read side): the logical Resource's
         /// (non-Meta) Labels container was created but never synced, leaving it
         /// permanently empty regardless of the selected default Version's
@@ -3987,6 +4030,43 @@ namespace Opc.Ua.XRegistry.Tests
 
             public ImmutableSortedDictionary<string, string> Labels { get; }
                 = ImmutableSortedDictionary<string, string>.Empty;
+        }
+
+        private sealed class TokenVersionedTestResource :
+            IXRegistryProjectionResource,
+            IXRegistryProjectionResourceMeta,
+            IXRegistryProjectionResourceChangeToken
+        {
+            public TokenVersionedTestResource(
+                string groupId,
+                string resourceId,
+                string versionId,
+                object changeToken)
+            {
+                m_inner = new VersionedTestResource(groupId, resourceId, versionId);
+                ChangeToken = changeToken;
+            }
+
+            public object ChangeToken { get; }
+            public string GroupId => m_inner.GroupId;
+            public string ResourceId => m_inner.ResourceId;
+            public string VersionId => m_inner.VersionId;
+            public string Xid => m_inner.Xid;
+            public string Name => m_inner.Name;
+            public string Description => m_inner.Description;
+            public string Format => m_inner.Format;
+            public string ContentType => m_inner.ContentType;
+            public long Epoch => m_inner.Epoch;
+            public DateTime CreatedAt => m_inner.CreatedAt;
+            public DateTime ModifiedAt => m_inner.ModifiedAt;
+            public ImmutableSortedDictionary<string, string> Labels => m_inner.Labels;
+            public long MetaEpoch => m_inner.MetaEpoch;
+            public ImmutableSortedDictionary<string, string> MetaLabels => m_inner.MetaLabels;
+            public DateTime MetaCreatedAt => m_inner.MetaCreatedAt;
+            public DateTime MetaModifiedAt => m_inner.MetaModifiedAt;
+            public bool IsDefaultVersion => m_inner.IsDefaultVersion;
+
+            private readonly VersionedTestResource m_inner;
         }
 
         private sealed class VersionedTestResource :

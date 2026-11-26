@@ -1,38 +1,14 @@
-/* ========================================================================
- * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
+using System.Buffers;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.Linq;
+using System.Runtime.InteropServices;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
@@ -408,21 +384,30 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
         /// </summary>
         /// <param name="notification"></param>
         /// <param name="acknowledgement">The acknowledgement of the message.</param>
+        /// <param name="pooled">Rent the array from <see cref="ArrayPool{T}.Shared"/>;
+        /// the caller returns it with <see cref="ReturnNotification{T}"/> after the
+        /// handler returned.</param>
         /// <returns></returns>
         internal ReadOnlyMemory<DataValueChange> CreateNotification(
             DataChangeNotification notification,
-            AcknowledgementHandle acknowledgement = default)
+            AcknowledgementHandle acknowledgement = default,
+            bool pooled = false)
         {
-            var memory = new DataValueChange[notification.MonitoredItems.Count];
+            ReadOnlySpan<MonitoredItemNotification> items = notification.MonitoredItems.Span;
+            ReadOnlySpan<DiagnosticInfo> diagnosticInfos = notification.DiagnosticInfos.Span;
+            int count = items.Length;
+            DataValueChange[] memory = pooled && count > 0
+                ? ArrayPool<DataValueChange>.Shared.Rent(count)
+                : new DataValueChange[count];
             uint partitionId = m_context.Id;
             lock (m_monitoredItemsLock)
             {
-                for (int i = 0; i < notification.MonitoredItems.Count; i++)
+                for (int i = 0; i < items.Length; i++)
                 {
-                    MonitoredItemNotification item = notification.MonitoredItems[i];
+                    ref readonly MonitoredItemNotification item = ref items[i];
                     m_monitoredItems.TryGetValue(item.ClientHandle, out MonitoredItem? monitored);
                     memory[i] = new DataValueChange(monitored,
-                        item.Value, i < notification.DiagnosticInfos.Count ? notification.DiagnosticInfos[i] : null)
+                        item.Value, i < diagnosticInfos.Length ? diagnosticInfos[i] : null)
                     {
                         ClientHandle = item.ClientHandle,
                         PartitionServerId = partitionId,
@@ -433,7 +418,7 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
             // TODO: Sort on order of monitored items
             // memory.AsSpan().Sort((x, y) => x.MonitoredItem!.ClientHandle.CompareTo(
             //     y.MonitoredItem!.ClientHandle));
-            return memory;
+            return memory.AsMemory(0, count);
         }
 
         /// <summary>
@@ -441,12 +426,19 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
         /// </summary>
         /// <param name="notification"></param>
         /// <param name="acknowledgement">The acknowledgement of the message.</param>
+        /// <param name="pooled">Rent the array from <see cref="ArrayPool{T}.Shared"/>;
+        /// the caller returns it with <see cref="ReturnNotification{T}"/> after the
+        /// handler returned.</param>
         /// <returns></returns>
         internal ReadOnlyMemory<EventNotification> CreateNotification(
             EventNotificationList notification,
-            AcknowledgementHandle acknowledgement = default)
+            AcknowledgementHandle acknowledgement = default,
+            bool pooled = false)
         {
-            var memory = new EventNotification[notification.Events.Count];
+            int count = notification.Events.Count;
+            EventNotification[] memory = pooled && count > 0
+                ? ArrayPool<EventNotification>.Shared.Rent(count)
+                : new EventNotification[count];
             uint partitionId = m_context.Id;
             lock (m_monitoredItemsLock)
             {
@@ -464,7 +456,24 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
             }
             // memory.AsSpan().Sort((x, y) => x.MonitoredItem!.ClientHandle.CompareTo(
             //     y.MonitoredItem!.ClientHandle));
-            return memory;
+            return memory.AsMemory(0, count);
+        }
+
+        /// <summary>
+        /// Returns a notification array that <see cref="CreateNotification(EventNotificationList, AcknowledgementHandle, bool)"/>
+        /// or <see cref="CreateNotification(DataChangeNotification, AcknowledgementHandle, bool)"/>
+        /// rented, clearing the references it holds.
+        /// </summary>
+        /// <typeparam name="T">The notification type.</typeparam>
+        /// <param name="notification">The notifications returned for a pooled call.</param>
+        internal static void ReturnNotification<T>(ReadOnlyMemory<T> notification)
+        {
+            if (notification.Length > 0 &&
+                MemoryMarshal.TryGetArray(notification, out ArraySegment<T> segment) &&
+                segment.Array != null)
+            {
+                ArrayPool<T>.Shared.Return(segment.Array, clearArray: true);
+            }
         }
 
         /// <summary>

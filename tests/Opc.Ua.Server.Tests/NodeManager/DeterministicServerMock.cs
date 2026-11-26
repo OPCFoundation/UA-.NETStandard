@@ -1,31 +1,7 @@
-/* ========================================================================
- * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
+
+#pragma warning disable CS0618, UA0031 // Test doubles implement or inspect the legacy IAsyncNodeManager.SyncNodeManager view.
 
 using System;
 using System.Threading;
@@ -57,7 +33,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             }
             var mockMasterNodeManager = new Mock<IMasterNodeManager>();
             var mockConfigurationNodeManager = new Mock<IConfigurationNodeManager>();
-            NamespaceMetadataState? noMetadata = null;
+            NamespaceMetadataNode? noMetadata = null;
             mockConfigurationNodeManager.As<INamespaceMetadataSnapshot>()
                 .Setup(manager => manager.TryGetNamespaceMetadataState(It.IsAny<ushort>(), out noMetadata))
                 .Returns(true);
@@ -80,6 +56,13 @@ namespace Opc.Ua.Server.Tests.NodeManager
 
             var mockTelemetry = new Mock<ITelemetryContext>();
             mockServer.Setup(s => s.Telemetry).Returns(mockTelemetry.Object);
+            mockServer.Setup(s => s.MessageContext).Returns(new ServiceMessageContext(
+                mockTelemetry.Object,
+                mockServer.Object.Factory)
+            {
+                NamespaceUris = namespaceTable,
+                ServerUris = mockServer.Object.ServerUris
+            });
 
             queueFactory = new MonitoredItemQueueFactory(mockTelemetry.Object);
             mockServer.Setup(s => s.MonitoredItemQueueFactory).Returns(queueFactory);
@@ -88,6 +71,50 @@ namespace Opc.Ua.Server.Tests.NodeManager
             mockServer.Setup(s => s.DefaultSystemContext).Returns(serverSystemContext);
 
             return mockServer;
+        }
+
+        /// <summary>
+        /// Creates a socket-free routing owner and connects it to the supplied mock server.
+        /// </summary>
+        /// <param name="server">The deterministic server whose services the master borrows.</param>
+        /// <param name="managers">The application managers included in the initial view.</param>
+        /// <returns>The master owned and disposed by the caller.</returns>
+        public static MasterNodeManager CreateMasterNodeManager(
+            Mock<IServerInternal> server,
+            ArrayOf<IAsyncNodeManager> managers)
+        {
+            var factory = new Mock<IMainNodeManagerFactory>();
+            factory.Setup(value => value.CreateConfigurationNodeManager())
+                .Returns(server.Object.NodeManager.ConfigurationNodeManager!);
+            factory.Setup(value => value.CreateCoreNodeManager(It.IsAny<ushort>()))
+                .Returns(server.Object.CoreNodeManager);
+            server.SetupGet(value => value.MainNodeManagerFactory).Returns(factory.Object);
+            var master = new MasterNodeManager(
+                server.Object,
+                new ApplicationConfiguration { ServerConfiguration = new ServerConfiguration() },
+                null,
+                managers.ToList(),
+                null);
+            server.SetupGet(value => value.NodeManager).Returns(master);
+            return master;
+        }
+
+        /// <summary>
+        /// Probes whether an untagged Server event incorrectly inherits an application's source generation.
+        /// </summary>
+        /// <param name="server">The server whose routing owner is under test.</param>
+        /// <param name="source">The application manager that must require explicit provenance.</param>
+        /// <returns>Whether the untagged capture borrowed this application source.</returns>
+        public static bool HasImplicitEventSource(IServerInternal server, IAsyncNodeManager source)
+        {
+            var master = (MasterNodeManager)server.NodeManager;
+            if (!MasterNodeManager.TryCaptureSourceEmission(
+                server, master.CoreNodeManager!, out var probe, isGlobalServerEventSink: true))
+            {
+                throw new InvalidOperationException("The serving core event source unexpectedly refused the probe.");
+            }
+            using var admission = probe;
+            return ReferenceEquals(probe?.Generation.NodeManager, source);
         }
 
         /// <summary>
@@ -100,8 +127,9 @@ namespace Opc.Ua.Server.Tests.NodeManager
         {
             Mock<IConfigurationNodeManager> configuration = Mock.Get(
                 server.Object.NodeManager.ConfigurationNodeManager!);
+            NamespaceMetadataNode? node = NamespaceMetadataNode.From(metadata);
             configuration.As<INamespaceMetadataSnapshot>()
-                .Setup(manager => manager.TryGetNamespaceMetadataState(namespaceIndex, out metadata))
+                .Setup(manager => manager.TryGetNamespaceMetadataState(namespaceIndex, out node))
                 .Returns(true);
             configuration.Setup(manager => manager.GetNamespaceMetadataStateAsync(
                     namespaceIndex, It.IsAny<CancellationToken>()))
@@ -116,7 +144,8 @@ namespace Opc.Ua.Server.Tests.NodeManager
             IServerInternal template,
             ApplicationConfiguration configuration,
             ArrayOf<INodeManager> additionalManagers = default,
-            ArrayOf<IAsyncNodeManager> additionalAsyncManagers = default)
+            ArrayOf<IAsyncNodeManager> additionalAsyncManagers = default,
+            Action<Mock<IServerInternal>>? configure = null)
         {
             _ = template ?? throw new ArgumentNullException(nameof(template));
             _ = configuration ?? throw new ArgumentNullException(nameof(configuration));
@@ -197,6 +226,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             server.Setup(s => s.ReportAuditEvent(It.IsAny<ISystemContext>(), It.IsAny<AuditEventState>()))
                 .Callback((ISystemContext context, AuditEventState notification) =>
                     template.ReportAuditEvent(context, notification));
+            configure?.Invoke(server);
 
             manager = new MasterNodeManager(
                 server.Object, configuration, null,

@@ -1,31 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 // CA2007: tests run without a SynchronizationContext; ConfigureAwait(false)
 // adds noise without a behavioural benefit. Disabled file-level for the suite.
@@ -36,8 +10,10 @@ using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging.Abstractions;
+using Microsoft.Extensions.Time.Testing;
 using Moq;
 using NUnit.Framework;
+using Opc.Ua.Redundancy;
 using Opc.Ua.Redundancy.Server;
 using Opc.Ua.Tests;
 
@@ -295,15 +271,13 @@ namespace Opc.Ua.Server.Tests.Redundancy
         }
 
         [Test]
-        public async Task RequestAcceptsRestartFlagAsync()
+        public async Task RequestRejectsRestartBecauseTheServerCannotRestartItselfAsync()
         {
             using LoadedDiagnosticsServer loaded = await CreateLoadedServerAsync().ConfigureAwait(false);
-            RequestServerStateChangeStartupTask task = CreateTask();
+            using RequestServerStateChangeStartupTask task = CreateTask();
 
             await task.OnServerStartedAsync(loaded.Server.Object).ConfigureAwait(false);
-            RequestServerStateChangeMethodState method =
-                loaded.Manager.FindPredefinedNode<RequestServerStateChangeMethodState>(
-                    MethodIds.Server_RequestServerStateChange);
+            RequestServerStateChangeMethodState method = FindMethod(loaded);
             ServiceResult result = method.OnCall!(
                 loaded.Server.Object.DefaultSystemContext,
                 method,
@@ -314,16 +288,375 @@ namespace Opc.Ua.Server.Tests.Redundancy
                 LocalizedText.Null,
                 restart: true);
 
+            Assert.That(result.StatusCode.Code, Is.EqualTo(StatusCodes.BadNotSupported));
+            Assert.That(ReadState(loaded), Is.EqualTo(ServerState.Running));
+        }
+
+        [Test]
+        public async Task RequestSuspendedIsReturnedByServerStatusReadAsync()
+        {
+            using LoadedDiagnosticsServer loaded = await CreateLoadedServerAsync().ConfigureAwait(false);
+            using RequestServerStateChangeStartupTask task = CreateTask();
+
+            await task.OnServerStartedAsync(loaded.Server.Object).ConfigureAwait(false);
+            RequestServerStateChangeMethodState method = FindMethod(loaded);
+            ServiceResult result = method.OnCall!(
+                loaded.Server.Object.DefaultSystemContext,
+                method,
+                ObjectIds.Server,
+                ServerState.Suspended,
+                DateTimeUtc.MinValue,
+                0,
+                new LocalizedText("maintenance"),
+                restart: false);
+
             Assert.That(result, Is.EqualTo(ServiceResult.Good));
+            Assert.That(ReadState(loaded), Is.EqualTo(ServerState.Suspended));
+            Assert.That(loaded.Status.Value.State, Is.EqualTo(ServerState.Suspended));
+            Assert.That(loaded.Server.Object.CurrentState, Is.EqualTo(ServerState.Suspended));
+
+            Variant statusValue = ReadValue(loaded.StatusVariable, loaded);
+            Assert.That(statusValue.TryGetStructure<ServerStatusDataType>(out ServerStatusDataType? status), Is.True);
+            Assert.That(status!.State, Is.EqualTo(ServerState.Suspended));
+            Assert.That(status.ShutdownReason.Text, Is.EqualTo("maintenance"));
+        }
+
+        [Test]
+        public async Task RequestShutdownIsReturnedByServerStatusChildReadsAsync()
+        {
+            using LoadedDiagnosticsServer loaded = await CreateLoadedServerAsync().ConfigureAwait(false);
+            using RequestServerStateChangeStartupTask task = CreateTask();
+
+            await task.OnServerStartedAsync(loaded.Server.Object).ConfigureAwait(false);
+            RequestServerStateChangeMethodState method = FindMethod(loaded);
+            ServiceResult result = method.OnCall!(
+                loaded.Server.Object.DefaultSystemContext,
+                method,
+                ObjectIds.Server,
+                ServerState.Shutdown,
+                DateTimeUtc.MinValue,
+                300,
+                new LocalizedText("Planned maintenance"),
+                restart: false);
+
+            Assert.That(result, Is.EqualTo(ServiceResult.Good));
+            Assert.That(ReadState(loaded), Is.EqualTo(ServerState.Shutdown));
+            Assert.That(
+                ReadValue(loaded.StatusVariable.SecondsTillShutdown!, loaded).TryGetValue(out uint seconds),
+                Is.True);
+            Assert.That(seconds, Is.EqualTo(300));
+            Assert.That(
+                ReadValue(loaded.StatusVariable.ShutdownReason!, loaded).TryGetValue(out LocalizedText reason),
+                Is.True);
+            Assert.That(reason.Text, Is.EqualTo("Planned maintenance"));
+        }
+
+        [TestCase(ServerState.Unknown)]
+        [TestCase((ServerState)8)]
+        [TestCase((ServerState)(-1))]
+        [TestCase((ServerState)int.MaxValue)]
+        public async Task RequestRejectsStateThatIsNotAllowedAsync(ServerState state)
+        {
+            using LoadedDiagnosticsServer loaded = await CreateLoadedServerAsync().ConfigureAwait(false);
+            Mock<IServiceLevelController> controller = new();
+            using RequestServerStateChangeStartupTask task = CreateTask(controller.Object);
+
+            await task.OnServerStartedAsync(loaded.Server.Object).ConfigureAwait(false);
+            RequestServerStateChangeMethodState method = FindMethod(loaded);
+            ServiceResult result = method.OnCall!(
+                loaded.Server.Object.DefaultSystemContext,
+                method,
+                ObjectIds.Server,
+                state,
+                DateTimeUtc.MinValue,
+                0,
+                LocalizedText.Null,
+                restart: false);
+
+            Assert.That(result.StatusCode.Code, Is.EqualTo(StatusCodes.BadInvalidState));
+            Assert.That(ReadState(loaded), Is.EqualTo(ServerState.Running));
+            controller.Verify(c => c.SetServiceLevel(It.IsAny<byte>()), Times.Never);
+        }
+
+        [Test]
+        public async Task RequestRunningSetsEstimatedReturnTimeToNullAsync()
+        {
+            using LoadedDiagnosticsServer loaded = await CreateLoadedServerAsync().ConfigureAwait(false);
+            using RequestServerStateChangeStartupTask task = CreateTask();
+
+            await task.OnServerStartedAsync(loaded.Server.Object).ConfigureAwait(false);
+            RequestServerStateChangeMethodState method = FindMethod(loaded);
+            PropertyState<DateTimeUtc> estimatedReturnTimeNode =
+                loaded.Manager.FindPredefinedNode<PropertyState<DateTimeUtc>>(
+                    VariableIds.Server_EstimatedReturnTime);
+
+            ServiceResult suspend = method.OnCall!(
+                loaded.Server.Object.DefaultSystemContext,
+                method,
+                ObjectIds.Server,
+                ServerState.Suspended,
+                new DateTimeUtc(638000000000000000),
+                0,
+                new LocalizedText("maintenance"),
+                restart: false);
+            Assert.That(suspend, Is.EqualTo(ServiceResult.Good));
+            Assert.That(estimatedReturnTimeNode.Value, Is.EqualTo(new DateTimeUtc(638000000000000000)));
+
+            ServiceResult resume = method.OnCall!(
+                loaded.Server.Object.DefaultSystemContext,
+                method,
+                ObjectIds.Server,
+                ServerState.Running,
+                new DateTimeUtc(638000000000000000),
+                0,
+                new LocalizedText("ignored"),
+                restart: false);
+
+            Assert.That(resume, Is.EqualTo(ServiceResult.Good));
+            Assert.That(estimatedReturnTimeNode.Value, Is.EqualTo(DateTimeUtc.MinValue));
+            Assert.That(ReadState(loaded), Is.EqualTo(ServerState.Running));
+            Assert.That(loaded.Status.Value.ShutdownReason.IsNullOrEmpty, Is.True);
+            Assert.That(loaded.Server.Object.ServerObject.ServiceLevel!.Value, Is.EqualTo(ServiceLevels.Maximum));
+        }
+
+        [TestCase(RedundancySupport.Cold, ServiceLevels.NoData)]
+        [TestCase(RedundancySupport.Warm, (byte)178)]
+        public async Task RequestRunningRestoresStandbyRoleAndHealthAsync(RedundancySupport mode, byte expected)
+        {
+            using LoadedDiagnosticsServer loaded = await CreateLoadedServerAsync().ConfigureAwait(false);
+            var clock = new FakeTimeProvider();
+            await using var election = new StaticLeaderElection(false);
+            byte health = ServiceLevels.Maximum;
+            using var provider = new LeaderServiceLevelProvider(election, mode, getHealthServiceLevel: () => health);
+            using var publisher = new ServiceLevelStartupTask(provider, clock);
+            using var task = new RequestServerStateChangeStartupTask(
+                new RequestServerStateChangeOptions
+                {
+                    AdminAccessValidator = _ => { },
+                    ServiceLevelSelector = _ => ServiceLevels.Maximum,
+                    TimeProvider = clock
+                },
+                provider);
+            await publisher.OnServerStartedAsync(loaded.Server.Object).ConfigureAwait(false);
+            await task.OnServerStartedAsync(loaded.Server.Object).ConfigureAwait(false);
+            RequestServerStateChangeMethodState method = FindMethod(loaded);
+            PropertyState<byte> serviceLevel = loaded.Server.Object.ServerObject.ServiceLevel!;
+            var estimate = new DateTimeUtc(638000000000000000);
+            ServiceResult suspend = method.OnCall!(
+                loaded.Server.Object.DefaultSystemContext,
+                method,
+                ObjectIds.Server,
+                ServerState.Suspended,
+                estimate,
+                0,
+                LocalizedText.Null,
+                restart: false);
+            Assert.That(suspend, Is.EqualTo(ServiceResult.Good));
+            Assert.That(serviceLevel.Value, Is.EqualTo(ServiceLevels.Maintenance));
+
+            health = 178;
+            clock.Advance(TimeSpan.FromSeconds(1));
+            Assert.That(serviceLevel.Value, Is.EqualTo(ServiceLevels.Maintenance));
+
+            ServiceResult resume = method.OnCall!(
+                loaded.Server.Object.DefaultSystemContext,
+                method,
+                ObjectIds.Server,
+                ServerState.Running,
+                estimate,
+                0,
+                LocalizedText.Null,
+                restart: false);
+            Assert.That(resume, Is.EqualTo(ServiceResult.Good));
+            Assert.That(serviceLevel.Value, Is.EqualTo(expected));
+            Assert.That(loaded.Server.Object.ServerObject.EstimatedReturnTime!.Value, Is.EqualTo(DateTimeUtc.MinValue));
+        }
+
+        [Test]
+        public async Task RequestIgnoresSecondsTillShutdownForStatesOtherThanShutdownAsync()
+        {
+            using LoadedDiagnosticsServer loaded = await CreateLoadedServerAsync().ConfigureAwait(false);
+            var timeProvider = new CountingTimeProvider();
+            using RequestServerStateChangeStartupTask task = CreateTask(timeProvider: timeProvider);
+
+            await task.OnServerStartedAsync(loaded.Server.Object).ConfigureAwait(false);
+            RequestServerStateChangeMethodState method = FindMethod(loaded);
+            ServiceResult result = method.OnCall!(
+                loaded.Server.Object.DefaultSystemContext,
+                method,
+                ObjectIds.Server,
+                ServerState.Suspended,
+                DateTimeUtc.MinValue,
+                30,
+                LocalizedText.Null,
+                restart: false);
+
+            Assert.That(result, Is.EqualTo(ServiceResult.Good));
+            Assert.That(loaded.Status.Value.SecondsTillShutdown, Is.Zero);
+            Assert.That(timeProvider.ActiveTimers, Is.Zero);
+        }
+
+        [Test]
+        public async Task RequestShutdownCountsSecondsTillShutdownDownAsync()
+        {
+            using LoadedDiagnosticsServer loaded = await CreateLoadedServerAsync().ConfigureAwait(false);
+            var timeProvider = new CountingTimeProvider();
+            using RequestServerStateChangeStartupTask task = CreateTask(timeProvider: timeProvider);
+
+            await task.OnServerStartedAsync(loaded.Server.Object).ConfigureAwait(false);
+            RequestServerStateChangeMethodState method = FindMethod(loaded);
+            ServiceResult result = method.OnCall!(
+                loaded.Server.Object.DefaultSystemContext,
+                method,
+                ObjectIds.Server,
+                ServerState.Shutdown,
+                DateTimeUtc.MinValue,
+                3,
+                new LocalizedText("maintenance"),
+                restart: false);
+
+            Assert.That(result, Is.EqualTo(ServiceResult.Good));
+            Assert.That(loaded.Status.Value.SecondsTillShutdown, Is.EqualTo(3));
+
+            timeProvider.Advance(TimeSpan.FromSeconds(1));
+            Assert.That(loaded.Status.Value.SecondsTillShutdown, Is.EqualTo(2));
+            Assert.That(loaded.StatusVariable.SecondsTillShutdown!.Value, Is.EqualTo(2));
+
+            timeProvider.Advance(TimeSpan.FromSeconds(2));
+            Assert.That(loaded.Status.Value.SecondsTillShutdown, Is.Zero);
+            Assert.That(loaded.Status.Value.State, Is.EqualTo(ServerState.Shutdown));
+            Assert.That(timeProvider.ActiveTimers, Is.Zero);
+        }
+
+        [Test]
+        public async Task RequestRunningStopsPendingShutdownCountdownAsync()
+        {
+            using LoadedDiagnosticsServer loaded = await CreateLoadedServerAsync().ConfigureAwait(false);
+            var timeProvider = new CountingTimeProvider();
+            using RequestServerStateChangeStartupTask task = CreateTask(timeProvider: timeProvider);
+
+            await task.OnServerStartedAsync(loaded.Server.Object).ConfigureAwait(false);
+            RequestServerStateChangeMethodState method = FindMethod(loaded);
+            method.OnCall!(
+                loaded.Server.Object.DefaultSystemContext,
+                method,
+                ObjectIds.Server,
+                ServerState.Shutdown,
+                DateTimeUtc.MinValue,
+                10,
+                LocalizedText.Null,
+                restart: false);
+            ServiceResult result = method.OnCall!(
+                loaded.Server.Object.DefaultSystemContext,
+                method,
+                ObjectIds.Server,
+                ServerState.Running,
+                DateTimeUtc.MinValue,
+                0,
+                LocalizedText.Null,
+                restart: false);
+
+            Assert.That(result, Is.EqualTo(ServiceResult.Good));
+            Assert.That(timeProvider.ActiveTimers, Is.Zero);
+            timeProvider.Advance(TimeSpan.FromSeconds(5));
+            Assert.That(ReadState(loaded), Is.EqualTo(ServerState.Running));
+            Assert.That(loaded.Status.Value.SecondsTillShutdown, Is.Zero);
+        }
+
+        [Test]
+        public async Task CountdownDoesNotOverwriteStateRestoredByHostAsync()
+        {
+            using LoadedDiagnosticsServer loaded = await CreateLoadedServerAsync().ConfigureAwait(false);
+            var timeProvider = new CountingTimeProvider();
+            using RequestServerStateChangeStartupTask task = CreateTask(timeProvider: timeProvider);
+
+            await task.OnServerStartedAsync(loaded.Server.Object).ConfigureAwait(false);
+            RequestServerStateChangeMethodState method = FindMethod(loaded);
+            method.OnCall!(
+                loaded.Server.Object.DefaultSystemContext,
+                method,
+                ObjectIds.Server,
+                ServerState.Shutdown,
+                DateTimeUtc.MinValue,
+                10,
+                LocalizedText.Null,
+                restart: false);
+
+            // the host restores Running after the tick read a stale Shutdown state; the
+            // tick must check the state under the status lock it writes with.
+            loaded.Server.Object.UpdateServerStatus(status => status.Value.State = ServerState.Running);
+            loaded.Server.Setup(s => s.CurrentState).Returns(ServerState.Shutdown);
+            timeProvider.Advance(TimeSpan.FromSeconds(1));
+
+            Assert.That(loaded.Status.Value.State, Is.EqualTo(ServerState.Running));
+            Assert.That(loaded.Status.Value.SecondsTillShutdown, Is.EqualTo(10));
+            Assert.That(timeProvider.ActiveTimers, Is.Zero);
+        }
+
+        [Test]
+        public async Task DisposeStopsPendingShutdownCountdownAsync()
+        {
+            using LoadedDiagnosticsServer loaded = await CreateLoadedServerAsync().ConfigureAwait(false);
+            var timeProvider = new CountingTimeProvider();
+            RequestServerStateChangeStartupTask task = CreateTask(timeProvider: timeProvider);
+
+            await task.OnServerStartedAsync(loaded.Server.Object).ConfigureAwait(false);
+            RequestServerStateChangeMethodState method = FindMethod(loaded);
+            method.OnCall!(
+                loaded.Server.Object.DefaultSystemContext,
+                method,
+                ObjectIds.Server,
+                ServerState.Shutdown,
+                DateTimeUtc.MinValue,
+                10,
+                LocalizedText.Null,
+                restart: false);
+            task.Dispose();
+            timeProvider.Advance(TimeSpan.FromSeconds(5));
+
+            Assert.That(timeProvider.ActiveTimers, Is.Zero);
+            Assert.That(loaded.Status.Value.SecondsTillShutdown, Is.EqualTo(10));
+        }
+
+        private static RequestServerStateChangeMethodState FindMethod(LoadedDiagnosticsServer loaded)
+        {
+            return loaded.Manager.FindPredefinedNode<RequestServerStateChangeMethodState>(
+                MethodIds.Server_RequestServerStateChange);
+        }
+
+        /// <summary>
+        /// Reads <c>ServerStatus.State</c> the way the Read service does, through the
+        /// variable's value handlers rather than the node's cached <c>Value</c>.
+        /// </summary>
+        private static ServerState ReadState(LoadedDiagnosticsServer loaded)
+        {
+            Variant value = ReadValue(loaded.StatusVariable.State!, loaded);
+            Assert.That(value.TryGetValue(out ServerState state), Is.True);
+            return state;
+        }
+
+        private static Variant ReadValue(NodeState node, LoadedDiagnosticsServer loaded)
+        {
+            Variant value = Variant.Null;
+            DateTimeUtc timestamp = DateTimeUtc.MinValue;
+            ServiceResult result = node.ReadAttribute(
+                loaded.Server.Object.DefaultSystemContext,
+                Attributes.Value,
+                ref value,
+                ref timestamp);
+            Assert.That(ServiceResult.IsGood(result), Is.True, result.ToString());
+            return value;
         }
 
         private static RequestServerStateChangeStartupTask CreateTask(
-            IServiceLevelController? controller = null)
+            IServiceLevelController? controller = null,
+            TimeProvider? timeProvider = null)
         {
             return new RequestServerStateChangeStartupTask(
                 new RequestServerStateChangeOptions
                 {
-                    AdminAccessValidator = _ => { }
+                    AdminAccessValidator = _ => { },
+                    TimeProvider = timeProvider ?? TimeProvider.System
                 },
                 controller);
         }
@@ -377,13 +710,36 @@ namespace Opc.Ua.Server.Tests.Redundancy
             await manager.CreateAddressSpaceAsync(new Dictionary<NodeId, IList<IReference>>()).ConfigureAwait(false);
             ServerObjectState serverObject = manager.FindPredefinedNode<ServerObjectState>(ObjectIds.Server);
             server.Setup(s => s.ServerObject).Returns(serverObject);
+
+            // back ServerStatus with the status object the server serves Reads from, as
+            // ServerInternalData does.
+            var statusLock = new Lock();
+            var status = new ServerStatusValue(
+                serverObject.ServerStatus!,
+                new ServerStatusDataType { State = ServerState.Running },
+                statusLock);
+            server.Setup(s => s.UpdateServerStatus(It.IsAny<Action<ServerStatusValue>>()))
+                .Callback((Action<ServerStatusValue> action) =>
+                {
+                    lock (statusLock)
+                    {
+                        action(status);
+                    }
+                });
+            server.Setup(s => s.CurrentState).Returns(() =>
+            {
+                lock (statusLock)
+                {
+                    return status.Value.State;
+                }
+            });
             server.Setup(s => s.DiagnosticsNodeManager).Returns(manager);
             server.Setup(s => s.FindNodeManagers<IConfigurationNodeManager>())
                 .Returns([configurationNodeManager.Object]);
             server.Setup(s => s.FindPredefinedNode<RequestServerStateChangeMethodState>(
                 It.IsAny<NodeId>()))
                 .Returns((NodeId nodeId) => manager.FindPredefinedNode<RequestServerStateChangeMethodState>(nodeId));
-            return new LoadedDiagnosticsServer(server, manager, configurationNodeManager);
+            return new LoadedDiagnosticsServer(server, manager, configurationNodeManager, status);
         }
 
         private sealed class LoadedDiagnosticsServer : IDisposable
@@ -391,14 +747,20 @@ namespace Opc.Ua.Server.Tests.Redundancy
             public LoadedDiagnosticsServer(
                 Mock<IServerInternal> server,
                 DiagnosticsNodeManager manager,
-                Mock<IConfigurationNodeManager> configurationNodeManager)
+                Mock<IConfigurationNodeManager> configurationNodeManager,
+                ServerStatusValue status)
             {
                 Server = server;
                 Manager = manager;
                 ConfigurationNodeManager = configurationNodeManager;
+                Status = status;
             }
 
             public Mock<IServerInternal> Server { get; }
+
+            public ServerStatusValue Status { get; }
+
+            public ServerStatusState StatusVariable => Status.Variable;
 
             public DiagnosticsNodeManager Manager { get; }
 
@@ -408,6 +770,59 @@ namespace Opc.Ua.Server.Tests.Redundancy
             {
                 Manager.Dispose();
             }
+        }
+
+        /// <summary>
+        /// A fake time provider that counts the timers that were created and not yet disposed.
+        /// </summary>
+        private sealed class CountingTimeProvider : FakeTimeProvider
+        {
+            public int ActiveTimers => Volatile.Read(ref m_activeTimers);
+
+            public override ITimer CreateTimer(
+                TimerCallback callback,
+                object? state,
+                TimeSpan dueTime,
+                TimeSpan period)
+            {
+                Interlocked.Increment(ref m_activeTimers);
+                return new CountedTimer(this, base.CreateTimer(callback, state, dueTime, period));
+            }
+
+            private sealed class CountedTimer : ITimer
+            {
+                public CountedTimer(CountingTimeProvider owner, ITimer inner)
+                {
+                    m_owner = owner;
+                    m_inner = inner;
+                }
+
+                public bool Change(TimeSpan dueTime, TimeSpan period)
+                {
+                    return m_inner.Change(dueTime, period);
+                }
+
+                public void Dispose()
+                {
+                    if (Interlocked.Exchange(ref m_disposed, 1) == 0)
+                    {
+                        Interlocked.Decrement(ref m_owner.m_activeTimers);
+                    }
+                    m_inner.Dispose();
+                }
+
+                public ValueTask DisposeAsync()
+                {
+                    Dispose();
+                    return default;
+                }
+
+                private readonly CountingTimeProvider m_owner;
+                private readonly ITimer m_inner;
+                private int m_disposed;
+            }
+
+            private int m_activeTimers;
         }
     }
 }

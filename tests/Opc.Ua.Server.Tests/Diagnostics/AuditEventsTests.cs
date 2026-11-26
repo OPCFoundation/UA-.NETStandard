@@ -1,31 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using System.Collections.Generic;
@@ -185,6 +159,61 @@ namespace Opc.Ua.Server.Tests.Diagnostics
                 Assert.That(auditEvent.SourceName?.Value, Is.EqualTo(expectation.SourceName), expectation.Name);
                 Assert.That(auditEvent.Status?.Value, Is.EqualTo(expectation.Status), expectation.Name);
             }
+        }
+
+        /// <summary>
+        /// Part 4 §6.5.8: a HistoryUpdate operation rejected before it reaches a node
+        /// manager is audited as a failed invocation with the event type of its details.
+        /// </summary>
+        [Test]
+        public void ReportAuditHistoryUpdateRejectedEventEmitsFailedEventPerDetailsType()
+        {
+            CapturingAuditEventServer server = CreateAuditServer();
+            (HistoryUpdateDetails Details, Type EventType)[] cases =
+            [
+                (CreateUpdateDataDetails(), typeof(AuditHistoryValueUpdateEventState)),
+                (CreateUpdateStructureDataDetails(), typeof(AuditHistoryValueUpdateEventState)),
+                (CreateUpdateEventDetails(), typeof(AuditHistoryEventUpdateEventState)),
+                (CreateDeleteRawModifiedDetails(), typeof(AuditHistoryRawModifyDeleteEventState)),
+                (CreateDeleteAtTimeDetails(), typeof(AuditHistoryAtTimeDeleteEventState)),
+                (CreateDeleteEventDetails(), typeof(AuditHistoryEventDeleteEventState))
+            ];
+
+            foreach ((HistoryUpdateDetails details, Type eventType) in cases)
+            {
+                int before = server.Events.Count;
+
+                server.ReportAuditHistoryUpdateRejectedEvent(
+                    CreateSystemContext(RequestType.HistoryUpdate),
+                    details,
+                    StatusCodes.BadUserAccessDenied,
+                    s_logger);
+
+                Assert.That(server.Events, Has.Count.EqualTo(before + 1), details.GetType().Name);
+                Assert.That(server.Events[^1], Is.TypeOf(eventType), details.GetType().Name);
+                Assert.That(server.Events[^1].Status!.Value, Is.False, details.GetType().Name);
+            }
+        }
+
+        /// <summary>
+        /// A rejected annotation update (UpdateStructureDataDetails on the Annotations
+        /// property) is audited as an annotation update, not a value update.
+        /// </summary>
+        [Test]
+        public void ReportAuditHistoryUpdateRejectedEventAuditsAnnotationUpdates()
+        {
+            CapturingAuditEventServer server = CreateAuditServer();
+
+            server.ReportAuditHistoryUpdateRejectedEvent(
+                CreateSystemContext(RequestType.HistoryUpdate),
+                CreateUpdateStructureDataDetails(),
+                StatusCodes.BadUserAccessDenied,
+                s_logger,
+                isAnnotationUpdate: true);
+
+            Assert.That(server.Events, Has.Count.EqualTo(1));
+            Assert.That(server.Events[0], Is.TypeOf<AuditHistoryAnnotationUpdateEventState>());
+            Assert.That(server.Events[0].Status!.Value, Is.False);
         }
 
         /// <summary>
@@ -414,6 +443,121 @@ namespace Opc.Ua.Server.Tests.Diagnostics
             Assert.That(auditEvent.SessionId!.Value, Is.EqualTo(session.Id));
             Assert.That(auditEvent.RequestHandle!.Value, Is.EqualTo(7u));
             Assert.That(auditEvent.SourceName!.Value, Is.EqualTo("Session/Cancel"));
+        }
+
+        /// <summary>
+        /// OPC 10000-5 6.4.3: the ClientUserId of a UserName token is the user name,
+        /// not the display name of the identity.
+        /// </summary>
+        [Test]
+        public void ReportAuditWriteUpdateEventUsesUserNameAsClientUserId()
+        {
+            var identity = new UserIdentity("operator", [])
+            {
+                DisplayName = "Operator Display Name"
+            };
+            CapturingAuditEventServer server = CreateAuditServer();
+
+            server.ReportAuditWriteUpdateEvent(
+                CreateSystemContext(RequestType.Write, identity),
+                CreateWriteValue(),
+                new Variant("old"),
+                StatusCodes.Good,
+                s_logger);
+
+            var auditEvent = (AuditWriteUpdateEventState)server.Events.Single();
+            Assert.That(auditEvent.ClientUserId!.Value, Is.EqualTo("operator"));
+        }
+
+        /// <summary>
+        /// OPC 10000-5 6.4.3: the ClientUserId of an anonymous user is null in the
+        /// audit events reported for its requests and for its Session.
+        /// </summary>
+        [Test]
+        public void AuditEventsOfAnonymousUserHaveNullClientUserId()
+        {
+            var server = new CapturingAuditEventServer(CreateSystemContextWithoutOperation(), true);
+            ISession session = CreateSession(new UserIdentity());
+            var context = new OperationContext(
+                new RequestHeader { AuditEntryId = "op-1", RequestHandle = 1 },
+                null!,
+                RequestType.Cancel,
+                RequestLifetime.None,
+                session);
+
+            server.ReportAuditCancelEvent(context, 1, StatusCodes.Good, s_logger);
+            server.ReportAuditCloseSessionEvent(AuditEntryId, session, s_logger);
+            server.ReportAuditEvent(
+                CreateOperationContext(RequestType.Call, new UserIdentity()),
+                "Call",
+                new ServiceResultException(StatusCodes.BadNothingToDo),
+                s_logger);
+
+            Assert.That(server.Events, Has.Count.EqualTo(3));
+            foreach (AuditEventState auditEvent in server.Events)
+            {
+                Assert.That(auditEvent.ClientUserId?.Value, Is.Null, auditEvent.GetType().Name);
+            }
+        }
+
+        /// <summary>
+        /// OPC 10000-5 6.4.3: the ClientUserId of a JWT is its 'iss' and 'sub'
+        /// claims concatenated.
+        /// </summary>
+        [Test]
+        public void AuditCancelEventOfJwtUserUsesIssuerAndSubject()
+        {
+            var token = new IssuedIdentityTokenHandler(new IssuedIdentityToken
+            {
+                PolicyId = Profiles.JwtUserToken
+            });
+            var identity = new JwtUserIdentity(
+                token,
+                new Dictionary<string, object?>(),
+                [],
+                [],
+                "https://issuer.example/",
+                "subject-7");
+            var server = new CapturingAuditEventServer(CreateSystemContextWithoutOperation(), true);
+            var context = new OperationContext(
+                new RequestHeader { AuditEntryId = "op-2", RequestHandle = 2 },
+                null!,
+                RequestType.Cancel,
+                RequestLifetime.None,
+                CreateSession(identity));
+
+            server.ReportAuditCancelEvent(context, 2, StatusCodes.Good, s_logger);
+
+            var auditEvent = (AuditCancelEventState)server.Events.Single();
+            Assert.That(auditEvent.ClientUserId!.Value, Is.EqualTo("https://issuer.example/subject-7"));
+        }
+
+        /// <summary>
+        /// OPC 10000-5 6.4.3: a failed ActivateSession names the user of the rejected
+        /// token, not the user that activated the Session before.
+        /// </summary>
+        [Test]
+        public void FailedActivateSessionAuditEventUsesTheRejectedTokenUser()
+        {
+            CapturingAuditEventServer server = CreateAuditServer();
+            ISession session = CreateSession();
+
+            server.ReportAuditActivateSessionEvent(
+                s_logger,
+                AuditEntryId,
+                session,
+                new UserNameIdentityToken { UserName = "intruder", Password = ByteString.Empty },
+                new ServiceResultException(StatusCodes.BadUserAccessDenied));
+            server.ReportAuditActivateSessionEvent(
+                s_logger,
+                AuditEntryId,
+                session,
+                new AnonymousIdentityToken(),
+                new ServiceResultException(StatusCodes.BadIdentityTokenRejected));
+
+            Assert.That(server.Events, Has.Count.EqualTo(2));
+            Assert.That(server.Events[0].ClientUserId!.Value, Is.EqualTo("intruder"));
+            Assert.That(server.Events[1].ClientUserId?.Value, Is.Null);
         }
 
         /// <summary>
@@ -900,7 +1044,9 @@ namespace Opc.Ua.Server.Tests.Diagnostics
             return new CapturingAuditEventServer(CreateSystemContext(RequestType.Call), auditing);
         }
 
-        private static ServerSystemContext CreateSystemContext(RequestType requestType)
+        private static ServerSystemContext CreateSystemContext(
+            RequestType requestType,
+            IUserIdentity? identity = null)
         {
             NamespaceTable namespaceUris = new();
             StringTable serverUris = new();
@@ -913,7 +1059,7 @@ namespace Opc.Ua.Server.Tests.Diagnostics
             server.Setup(s => s.Factory).Returns(EncodeableFactory.Create());
             server.Setup(s => s.Telemetry).Returns(telemetry);
 
-            return new ServerSystemContext(server.Object, CreateOperationContext(requestType));
+            return new ServerSystemContext(server.Object, CreateOperationContext(requestType, identity));
         }
 
         private static ServerSystemContext CreateSystemContextWithoutOperation()
@@ -928,9 +1074,11 @@ namespace Opc.Ua.Server.Tests.Diagnostics
             return new ServerSystemContext(server.Object);
         }
 
-        private static OperationContext CreateOperationContext(RequestType requestType)
+        private static OperationContext CreateOperationContext(
+            RequestType requestType,
+            IUserIdentity? identity = null)
         {
-            var identity = new UserIdentity("audit-user", [])
+            identity ??= new UserIdentity("audit-user", [])
             {
                 DisplayName = UserDisplayName
             };
@@ -949,9 +1097,9 @@ namespace Opc.Ua.Server.Tests.Diagnostics
                 identity);
         }
 
-        private static ISession CreateSession()
+        private static ISession CreateSession(IUserIdentity? identity = null)
         {
-            var identity = new UserIdentity("session-user", [])
+            identity ??= new UserIdentity("session-user", [])
             {
                 DisplayName = SessionUserDisplayName
             };

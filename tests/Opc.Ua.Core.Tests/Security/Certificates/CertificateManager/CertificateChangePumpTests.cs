@@ -1,31 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using System.Collections.Concurrent;
@@ -103,6 +77,73 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             Assert.That(errors, Is.EqualTo(failProcess ? 1 : 0));
             Assert.That(disposed[CertificateChangeKind.CrlUpdated], Is.EqualTo(1));
             Assert.That(disposed.Values, Is.All.EqualTo(1));
+        }
+
+        [TestCase(true)]
+        [TestCase(false)]
+        public async Task PauseDrainsAcceptedBatchAndDefersLaterNotificationsAsync(bool resume)
+        {
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+            var subject = new CertificateChangeSubject();
+            var firstEntered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var releaseFirst = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var laterProcessed = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var processed = new ConcurrentQueue<CertificateChangeKind>();
+            var released = new ConcurrentQueue<CertificateChangeKind>();
+            using var pump = new CertificateChangePump<CertificateChangeEvent>(
+                _ => true,
+                (_, evt) => evt,
+                async (evt, _) =>
+                {
+                    if (evt.Kind == CertificateChangeKind.CrlUpdated)
+                    {
+                        firstEntered.TrySetResult(true);
+                        await releaseFirst.Task.ConfigureAwait(false);
+                    }
+                    processed.Enqueue(evt.Kind);
+                    if (evt.Kind == CertificateChangeKind.CertificateRejected)
+                    {
+                        laterProcessed.TrySetResult(true);
+                    }
+                },
+                release: evt => released.Enqueue(evt.Kind));
+            pump.Subscribe(subject);
+            subject.Notify(Event(CertificateChangeKind.CrlUpdated));
+            try
+            {
+                await firstEntered.Task.WaitAsync(timeout.Token).ConfigureAwait(false);
+                subject.Notify(Event(CertificateChangeKind.TrustListUpdated));
+                CertificateChangePump<CertificateChangeEvent>.DrainPause pause = pump.PauseAfterPending();
+                subject.Notify(Event(CertificateChangeKind.CertificateRejected));
+                Assert.That(pause.Drained.IsCompleted, Is.False);
+                Assert.That(() => pump.PauseAfterPending(), Throws.TypeOf<ServiceResultException>());
+
+                releaseFirst.TrySetResult(true);
+                await pause.Drained.WaitAsync(timeout.Token).ConfigureAwait(false);
+                Assert.That(processed, Is.EqualTo(new[]
+                {
+                    CertificateChangeKind.CrlUpdated,
+                    CertificateChangeKind.TrustListUpdated
+                }));
+                Assert.That(released, Does.Not.Contain(CertificateChangeKind.CertificateRejected));
+
+                pause.Finish(resume);
+                if (resume)
+                {
+                    await laterProcessed.Task.WaitAsync(timeout.Token).ConfigureAwait(false);
+                    Assert.That(processed, Does.Contain(CertificateChangeKind.CertificateRejected));
+                }
+                else
+                {
+                    Assert.That(released, Does.Contain(CertificateChangeKind.CertificateRejected));
+                    Assert.That(laterProcessed.Task.IsCompleted, Is.False);
+                    Assert.That(() => pump.PauseAfterPending(), Throws.TypeOf<ServiceResultException>());
+                }
+            }
+            finally
+            {
+                releaseFirst.TrySetResult(true);
+            }
         }
 
         private static CertificateChangeEvent Event(

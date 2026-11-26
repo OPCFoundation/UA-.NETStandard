@@ -1,31 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 
@@ -69,6 +43,9 @@ namespace Opc.Ua.Machinery.Server.Results
             m_filter = filter;
             m_context = context;
             m_target = target;
+            m_states = new ElementState[filter.Elements.Count];
+            m_values = new Variant[filter.Elements.Count];
+            m_likeSteps = ContentFilter.MaxLikeMatchSteps;
         }
 
         /// <summary>
@@ -89,7 +66,7 @@ namespace Opc.Ua.Machinery.Server.Results
                 return true;
             }
             var evaluator = new MachineryResultFilterEvaluator(filter, context, target);
-            return evaluator.EvaluateElement(0, depth: 0).TryGetValue(out bool selected) &&
+            return evaluator.EvaluateElement(0).TryGetValue(out bool selected) &&
                 selected;
         }
 
@@ -129,43 +106,70 @@ namespace Opc.Ua.Machinery.Server.Results
             return true;
         }
 
-        private Variant EvaluateElement(int index, int depth)
+        /// <summary>
+        /// Evaluates one element at most once per result.
+        /// </summary>
+        /// <remarks>
+        /// Several operands may refer to the same element, so evaluating an
+        /// element again for every reference costs a number of evaluations
+        /// exponential in the number of elements: each element of a chain of
+        /// <c>And(Element(i+1), Element(i+1))</c> doubles the work of the one
+        /// before it. An element's value depends only on the result under
+        /// evaluation, so it is kept and every later reference reads it. The
+        /// same record answers a cycle, which <c>Validate()</c> does not refuse:
+        /// an element reached again while it is still being evaluated has no
+        /// value and is NULL.
+        /// </remarks>
+        private Variant EvaluateElement(int index)
         {
-            // Validate() refuses a dangling ElementOperand but not a cycle;
-            // no acyclic filter nests deeper than it has elements.
-            if (index < 0 || index >= m_filter.Elements.Count || depth > m_filter.Elements.Count)
+            if (index < 0 || index >= m_states.Length)
             {
                 return Variant.Null;
             }
+            switch (m_states[index])
+            {
+                case ElementState.Evaluated:
+                    return m_values[index];
+                case ElementState.Evaluating:
+                    return Variant.Null;
+            }
 
-            ContentFilterElement element = m_filter.Elements[index];
+            m_states[index] = ElementState.Evaluating;
+            Variant value = EvaluateOperator(m_filter.Elements[index]);
+            m_values[index] = value;
+            m_states[index] = ElementState.Evaluated;
+            return value;
+        }
+
+        private Variant EvaluateOperator(ContentFilterElement element)
+        {
             FilterOperand[] operands = GetOperands(element);
             return element.FilterOperator switch
             {
-                FilterOperator.Equals => Equal(operands, depth),
-                FilterOperator.IsNull => Variant.From(Value(operands, 0, depth).IsNull),
-                FilterOperator.GreaterThan => Ordered(operands, depth, static c => c > 0),
-                FilterOperator.LessThan => Ordered(operands, depth, static c => c < 0),
-                FilterOperator.GreaterThanOrEqual => Ordered(operands, depth, static c => c >= 0),
-                FilterOperator.LessThanOrEqual => Ordered(operands, depth, static c => c <= 0),
-                FilterOperator.Like => Like(operands, depth),
-                FilterOperator.Not => Not(operands, depth),
-                FilterOperator.Between => Between(operands, depth),
-                FilterOperator.InList => InList(operands, depth),
-                FilterOperator.And => And(operands, depth),
-                FilterOperator.Or => Or(operands, depth),
-                FilterOperator.OfType => OfType(operands, depth),
-                FilterOperator.BitwiseAnd => Bitwise(operands, depth, and: true),
-                FilterOperator.BitwiseOr => Bitwise(operands, depth, and: false),
+                FilterOperator.Equals => Equal(operands),
+                FilterOperator.IsNull => Variant.From(Value(operands, 0).IsNull),
+                FilterOperator.GreaterThan => Ordered(operands,static c => c > 0),
+                FilterOperator.LessThan => Ordered(operands,static c => c < 0),
+                FilterOperator.GreaterThanOrEqual => Ordered(operands,static c => c >= 0),
+                FilterOperator.LessThanOrEqual => Ordered(operands,static c => c <= 0),
+                FilterOperator.Like => Like(operands),
+                FilterOperator.Not => Not(operands),
+                FilterOperator.Between => Between(operands),
+                FilterOperator.InList => InList(operands),
+                FilterOperator.And => And(operands),
+                FilterOperator.Or => Or(operands),
+                FilterOperator.OfType => OfType(operands),
+                FilterOperator.BitwiseAnd => Bitwise(operands,and: true),
+                FilterOperator.BitwiseOr => Bitwise(operands,and: false),
                 FilterOperator.InView or FilterOperator.RelatedTo => Variant.From(false),
                 _ => Variant.Null
             };
         }
 
-        private Variant Equal(FilterOperand[] operands, int depth)
+        private Variant Equal(FilterOperand[] operands)
         {
-            Variant left = Value(operands, 0, depth);
-            Variant right = Value(operands, 1, depth);
+            Variant left = Value(operands, 0);
+            Variant right = Value(operands, 1);
             if (left.IsNull || right.IsNull)
             {
                 return Variant.Null;
@@ -180,10 +184,10 @@ namespace Opc.Ua.Machinery.Server.Results
             return Variant.From(left.ValueEquals(right));
         }
 
-        private Variant Ordered(FilterOperand[] operands, int depth, Func<int, bool> accept)
+        private Variant Ordered(FilterOperand[] operands,Func<int, bool> accept)
         {
-            Variant left = Value(operands, 0, depth);
-            Variant right = Value(operands, 1, depth);
+            Variant left = Value(operands, 0);
+            Variant right = Value(operands, 1);
             if (left.IsNull || right.IsNull)
             {
                 return Variant.Null;
@@ -194,11 +198,11 @@ namespace Opc.Ua.Machinery.Server.Results
             return Variant.From(TryCompare(left, right, out int result) && accept(result));
         }
 
-        private Variant Between(FilterOperand[] operands, int depth)
+        private Variant Between(FilterOperand[] operands)
         {
-            Variant value = Value(operands, 0, depth);
-            Variant low = Value(operands, 1, depth);
-            Variant high = Value(operands, 2, depth);
+            Variant value = Value(operands, 0);
+            Variant low = Value(operands, 1);
+            Variant high = Value(operands, 2);
             if (value.IsNull || low.IsNull || high.IsNull)
             {
                 return Variant.Null;
@@ -208,9 +212,9 @@ namespace Opc.Ua.Machinery.Server.Results
                 TryCompare(value, high, out int belowHigh) && belowHigh <= 0);
         }
 
-        private Variant InList(FilterOperand[] operands, int depth)
+        private Variant InList(FilterOperand[] operands)
         {
-            Variant value = Value(operands, 0, depth);
+            Variant value = Value(operands, 0);
             if (value.IsNull)
             {
                 return Variant.Null;
@@ -220,7 +224,7 @@ namespace Opc.Ua.Machinery.Server.Results
             bool nullCandidate = false;
             for (int ii = 1; ii < operands.Length; ii++)
             {
-                Variant candidate = Value(operands, ii, depth);
+                Variant candidate = Value(operands, ii);
                 if (candidate.IsNull)
                 {
                     nullCandidate = true;
@@ -241,37 +245,58 @@ namespace Opc.Ua.Machinery.Server.Results
             return nullCandidate ? Variant.Null : Variant.From(false);
         }
 
-        private Variant Like(FilterOperand[] operands, int depth)
+        private Variant Like(FilterOperand[] operands)
         {
-            Variant value = Value(operands, 0, depth);
-            Variant pattern = Value(operands, 1, depth);
+            Variant value = Value(operands, 0);
+            Variant pattern = Value(operands, 1);
             if (value.IsNull || pattern.IsNull)
             {
                 return Variant.Null;
             }
             string? text = AsText(value);
             string? patternText = AsText(pattern);
-            return Variant.From(
-                text != null && patternText != null && LikePattern.IsMatch(text, patternText));
+            if (text == null || patternText == null)
+            {
+                return Variant.From(false);
+            }
+
+            // The Like elements of one evaluation share a budget of matching
+            // steps, as they do in the stack's evaluator: parsing costs a step
+            // per pattern character and matching up to the product of both
+            // lengths. An element that runs out of it is NULL, like any other
+            // element that cannot be evaluated.
+            if (patternText.Length > m_likeSteps)
+            {
+                m_likeSteps = 0;
+                return Variant.Null;
+            }
+            m_likeSteps -= patternText.Length;
+            if (!LikePattern.TryParse(patternText, out LikePattern? likePattern))
+            {
+                return Variant.From(false);
+            }
+            return likePattern.TryMatch(text, ref m_likeSteps, out bool isMatch)
+                ? Variant.From(isMatch)
+                : Variant.Null;
         }
 
-        private Variant Not(FilterOperand[] operands, int depth)
+        private Variant Not(FilterOperand[] operands)
         {
-            return Value(operands, 0, depth).TryGetValue(out bool value)
+            return Value(operands, 0).TryGetValue(out bool value)
                 ? Variant.From(!value)
                 : Variant.Null;
         }
 
         // Tables 123 and 124: FALSE dominates AND, TRUE dominates OR, and
         // anything else involving NULL stays NULL.
-        private Variant And(FilterOperand[] operands, int depth)
+        private Variant And(FilterOperand[] operands)
         {
-            bool? left = AsBoolean(Value(operands, 0, depth));
+            bool? left = AsBoolean(Value(operands, 0));
             if (left == false)
             {
                 return Variant.From(false);
             }
-            bool? right = AsBoolean(Value(operands, 1, depth));
+            bool? right = AsBoolean(Value(operands, 1));
             if (right == false)
             {
                 return Variant.From(false);
@@ -279,14 +304,14 @@ namespace Opc.Ua.Machinery.Server.Results
             return left == true && right == true ? Variant.From(true) : Variant.Null;
         }
 
-        private Variant Or(FilterOperand[] operands, int depth)
+        private Variant Or(FilterOperand[] operands)
         {
-            bool? left = AsBoolean(Value(operands, 0, depth));
+            bool? left = AsBoolean(Value(operands, 0));
             if (left == true)
             {
                 return Variant.From(true);
             }
-            bool? right = AsBoolean(Value(operands, 1, depth));
+            bool? right = AsBoolean(Value(operands, 1));
             if (right == true)
             {
                 return Variant.From(true);
@@ -294,17 +319,17 @@ namespace Opc.Ua.Machinery.Server.Results
             return left == false && right == false ? Variant.From(false) : Variant.Null;
         }
 
-        private Variant OfType(FilterOperand[] operands, int depth)
+        private Variant OfType(FilterOperand[] operands)
         {
             return Variant.From(
-                Value(operands, 0, depth).TryGetValue(out NodeId typeDefinitionId) &&
+                Value(operands, 0).TryGetValue(out NodeId typeDefinitionId) &&
                 m_target.IsTypeOf(m_context, typeDefinitionId));
         }
 
-        private Variant Bitwise(FilterOperand[] operands, int depth, bool and)
+        private Variant Bitwise(FilterOperand[] operands,bool and)
         {
-            Variant left = Value(operands, 0, depth);
-            Variant right = Value(operands, 1, depth);
+            Variant left = Value(operands, 0);
+            Variant right = Value(operands, 1);
             if (left.IsNull || right.IsNull)
             {
                 return Variant.Null;
@@ -312,7 +337,7 @@ namespace Opc.Ua.Machinery.Server.Results
             return and ? left & right : left | right;
         }
 
-        private Variant Value(FilterOperand[] operands, int index, int depth)
+        private Variant Value(FilterOperand[] operands, int index)
         {
             if (index >= operands.Length)
             {
@@ -327,7 +352,9 @@ namespace Opc.Ua.Machinery.Server.Results
                     attribute.BrowsePath,
                     attribute.AttributeId,
                     attribute.ParsedIndexRange),
-                ElementOperand element => EvaluateElement((int)element.Index, depth + 1),
+                ElementOperand element => element.Index < (uint)m_states.Length
+                    ? EvaluateElement((int)element.Index)
+                    : Variant.Null,
                 _ => Variant.Null
             };
         }
@@ -361,5 +388,15 @@ namespace Opc.Ua.Machinery.Server.Results
         private readonly ContentFilter m_filter;
         private readonly IFilterContext m_context;
         private readonly IFilterTarget m_target;
+        private readonly ElementState[] m_states;
+        private readonly Variant[] m_values;
+        private int m_likeSteps;
+
+        private enum ElementState : byte
+        {
+            NotEvaluated,
+            Evaluating,
+            Evaluated
+        }
     }
 }

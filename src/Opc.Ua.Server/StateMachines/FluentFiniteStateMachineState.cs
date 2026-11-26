@@ -1,34 +1,10 @@
-/* ========================================================================
- * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using System.Collections.Generic;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace Opc.Ua.Server.StateMachines
 {
@@ -97,7 +73,7 @@ namespace Opc.Ua.Server.StateMachines
         /// <see cref="StateMachineBuilder{TState}.WithSubStateMachine"/>
         /// lifecycle hooks via <see cref="SetSuspended"/>.
         /// </summary>
-        public bool IsSuspended { get; private set; }
+        public bool IsSuspended => CurrentState?.StatusCode == StatusCodes.BadStateNotActive;
 
         /// <summary>
         /// Suspends or resumes the machine. Per OPC 10000-16 §4.4.6, an
@@ -108,8 +84,19 @@ namespace Opc.Ua.Server.StateMachines
         /// </summary>
         internal void SetSuspended(ISystemContext context, bool suspended)
         {
-            IsSuspended = suspended;
             SetActive(context, !suspended);
+        }
+
+        /// <summary>
+        /// Applies suspension and optional state selection through native asynchronous child notification delivery.
+        /// </summary>
+        internal async ValueTask SetSuspendedAsync(
+            ISystemContext context,
+            bool suspended,
+            uint? stateId,
+            CancellationToken cancellationToken = default)
+        {
+            await SetStateAndActiveAsync(context, stateId, !suspended, cancellationToken).ConfigureAwait(false);
         }
 
         /// <inheritdoc/>
@@ -133,6 +120,10 @@ namespace Opc.Ua.Server.StateMachines
             ArrayOf<Variant> inputArguments,
             System.Collections.Generic.List<Variant> outputArguments)
         {
+            if (IsAsyncTransitionActive)
+            {
+                return StatusCodes.BadInvalidState;
+            }
             if (IsSuspended)
             {
                 return StatusCodes.BadStateNotActive;
@@ -148,11 +139,49 @@ namespace Opc.Ua.Server.StateMachines
             ArrayOf<Variant> inputArguments,
             System.Collections.Generic.List<Variant> outputArguments)
         {
+            if (IsAsyncTransitionActive)
+            {
+                return StatusCodes.BadInvalidState;
+            }
             if (IsSuspended)
             {
                 return StatusCodes.BadStateNotActive;
             }
             return base.DoTransition(context, transitionId, causeId, inputArguments, outputArguments);
+        }
+
+        /// <inheritdoc/>
+        public override ValueTask<ServiceResult> DoCauseAsync(
+            ISystemContext context,
+            MethodState? causeMethod,
+            uint causeId,
+            ArrayOf<Variant> inputArguments,
+            System.Collections.Generic.List<Variant> outputArguments,
+            CancellationToken cancellationToken = default)
+        {
+            if (IsSuspended)
+            {
+                return new ValueTask<ServiceResult>(StatusCodes.BadStateNotActive);
+            }
+            return base.DoCauseAsync(
+                context, causeMethod, causeId, inputArguments, outputArguments, cancellationToken);
+        }
+
+        /// <inheritdoc/>
+        public override ValueTask<ServiceResult> DoTransitionAsync(
+            ISystemContext context,
+            uint transitionId,
+            uint causeId,
+            ArrayOf<Variant> inputArguments,
+            System.Collections.Generic.List<Variant> outputArguments,
+            CancellationToken cancellationToken = default)
+        {
+            if (IsSuspended)
+            {
+                return new ValueTask<ServiceResult>(StatusCodes.BadStateNotActive);
+            }
+            return base.DoTransitionAsync(
+                context, transitionId, causeId, inputArguments, outputArguments, cancellationToken);
         }
 
         /// <summary>

@@ -1,34 +1,9 @@
-/* ========================================================================
- * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using System.IO;
+using System.Linq;
 using NUnit.Framework;
 
 namespace Opc.Ua.OpenUsd.Client.Tests
@@ -303,6 +278,64 @@ namespace Opc.Ua.OpenUsd.Client.Tests
             batch.Dispose();
             Assert.That(File.Exists(m_path), Is.True, "Closing the batch must flush the layer once.");
             Assert.That(ReadLayer(), Does.Contain("double radius = 1.0000"));
+        }
+
+        /// <summary>
+        /// Prim paths come from the server. One segment is one nesting level
+        /// of the layer, so a path deeper than the limit is not authored.
+        /// </summary>
+        [Test]
+        public void PrimPathDeeperThanTheLimitIsNotAuthored()
+        {
+            var sink = new UsdFileSink(m_path);
+            string tooDeep = PrimPath(UsdFileSink.MaxPrimPathDepth + 1);
+
+            sink.ComposePrim(tooDeep, OpenUsdCompositionArc.Child, null, active: true);
+            sink.SetAttribute(tooDeep, "radius", new Variant(1.0));
+            sink.SetTimeSample(tooDeep, "radius", DateTime.UtcNow, new Variant(1.0));
+            sink.ComposePrim(PrimPath(20000), OpenUsdCompositionArc.Child, null, active: true);
+
+            Assert.That(File.Exists(m_path), Is.False);
+        }
+
+        [Test]
+        public void PrimPathLongerThanTheLimitIsNotAuthored()
+        {
+            var sink = new UsdFileSink(m_path);
+            string tooLong = "/" + new string('a', UsdFileSink.MaxPrimPathLength);
+
+            sink.ComposePrim(tooLong, OpenUsdCompositionArc.Child, null, active: true);
+
+            Assert.That(File.Exists(m_path), Is.False);
+        }
+
+        [Test]
+        public void PrimPathAtTheDepthLimitIsAuthoredWithBalancedBlocks()
+        {
+            var sink = new UsdFileSink(m_path);
+            string deepest = PrimPath(UsdFileSink.MaxPrimPathDepth);
+
+            sink.SetAttribute(deepest, "radius", new Variant(2.5));
+            sink.SetAttribute("/a/Sibling", "radius", new Variant(1.0));
+
+            string layer = ReadLayer();
+            string[] lines = layer.Split('\n');
+            Assert.Multiple(() =>
+            {
+                Assert.That(lines.Count(l => l.TrimStart().StartsWith("over \"", StringComparison.Ordinal)),
+                    Is.EqualTo(UsdFileSink.MaxPrimPathDepth + 1));
+                Assert.That(lines.Count(l => l.Trim() == "{"), Is.EqualTo(UsdFileSink.MaxPrimPathDepth + 1));
+                Assert.That(lines.Count(l => l.Trim() == "}"), Is.EqualTo(UsdFileSink.MaxPrimPathDepth + 1));
+                Assert.That(layer, Does.Contain(
+                    new string(' ', 4 * UsdFileSink.MaxPrimPathDepth) + "double radius = 2.5000\n"));
+                // the sibling is written after the whole subtree of the first child
+                Assert.That(layer, Does.Contain("    }\n    over \"Sibling\"\n    {\n        double radius = 1.0000\n    }\n}\n"));
+            });
+        }
+
+        private static string PrimPath(int depth)
+        {
+            return "/" + string.Join("/", Enumerable.Repeat("a", depth));
         }
     }
 }

@@ -1,31 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using System.Collections.Generic;
@@ -45,7 +19,8 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
         long connectionLimit = 8,
         long ownerLimit = 8,
         ResourceIsolationStage? rejectedStage = null,
-        ResourceIsolationFailureReason rejectedReason = ResourceIsolationFailureReason.Capacity)
+        ResourceIsolationFailureReason rejectedReason = ResourceIsolationFailureReason.Capacity,
+        string? protectedOwnerKey = null)
         : IServerResourceIsolationProvider
     {
         public bool UseFairScheduling => true;
@@ -115,7 +90,7 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
                 }
                 m_active[(int)stage] += amount;
                 m_owners[key] = active + amount;
-                lease = new CountedLease(() =>
+                lease = new CountedLease(owner.Key != protectedOwnerKey, () =>
                 {
                     lock (m_lock)
                     {
@@ -159,8 +134,11 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             }
         }
 
-        private sealed class CountedLease(Action release) : IDisposable
+        private sealed class CountedLease(bool usesSharedCapacity, Action release)
+            : IDisposable, IResourceIsolationLeaseCapacity
         {
+            public bool UsesSharedCapacity { get; } = usesSharedCapacity;
+
             public void Dispose()
             {
                 Interlocked.Exchange(ref m_release, null)?.Invoke();
@@ -178,6 +156,45 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
     [Parallelizable]
     public sealed class UaScConnectionAdmissionTests
     {
+        /// <summary>
+        /// The local connection ceiling invokes the same reclamation hook as aggregate resource exhaustion.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public void ChannelLimitReclaimsCapacityWithoutConsumingAnotherRateToken(bool withProvider)
+        {
+            var provider = withProvider ? new CountingIsolationProvider() : null;
+            var limiter = new SwitchableLimiter();
+            var admission = new UaScConnectionAdmission(1, limiter, provider);
+            Assert.That(admission.TryAcquire(null, out UaScConnectionAdmission.Lease? first), Is.True);
+            using (first)
+            {
+                int reclaimed = 0;
+                bool admitted = admission.TryAcquire(null, out UaScConnectionAdmission.Lease? replacement, () =>
+                {
+                    reclaimed++;
+                    first!.Close();
+                    return true;
+                });
+                using (replacement)
+                {
+                    Assert.That(admitted, Is.True);
+                    Assert.That(reclaimed, Is.EqualTo(1));
+                    Assert.That(limiter.Calls, Is.EqualTo(2), "one rate token per incoming connection");
+                    if (provider != null)
+                    {
+                        Assert.That(provider.Active(ResourceIsolationStage.Connection), Is.EqualTo(1));
+                        Assert.That(provider.Active(ResourceIsolationStage.Handshake), Is.EqualTo(1));
+                    }
+                }
+            }
+            if (provider != null)
+            {
+                Assert.That(provider.Active(ResourceIsolationStage.Connection), Is.Zero);
+                Assert.That(provider.Active(ResourceIsolationStage.Handshake), Is.Zero);
+            }
+        }
+
         [Test]
         public void HandshakeOwnerRejectionPreventsReclamationEvenWhenConnectionsAreFull()
         {

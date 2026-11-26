@@ -1,31 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using System.Collections.Generic;
@@ -128,11 +102,11 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 owner.SetupGet(value => value.NamespaceUris).Returns([uri]);
                 owner.Setup(value => value.GetManagerHandleAsync(
                         source.NodeId, It.IsAny<CancellationToken>()))
-                    .Returns(new ValueTask<object>(source));
+                    .Returns(new ValueTask<object?>(source));
                 owner.Setup(value => value.GetNodeMetadataAsync(
                         It.IsAny<OperationContext>(), It.IsAny<object>(),
                         It.IsAny<BrowseResultMask>(), It.IsAny<CancellationToken>()))
-                    .Returns(new ValueTask<NodeMetadata>(new NodeMetadata(source, source.NodeId)
+                    .Returns(new ValueTask<NodeMetadata?>(new NodeMetadata(source, source.NodeId)
                     {
                         NodeClass = NodeClass.Object,
                         EventNotifier = EventNotifiers.SubscribeToEvents
@@ -296,10 +270,26 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     var item = new Mock<IEventMonitoredItem>();
                     item.SetupGet(value => value.Id).Returns((uint)i + 1);
                     item.SetupGet(value => value.NodeManager).Returns(m_owners[i + 1]);
+                    item.SetupGet(value => value.ManagerHandle).Returns(new NodeHandle());
+                    bool monitorsAllEvents = i == 0 && allEvents;
                     item.SetupGet(value => value.MonitoredItemType).Returns(
-                        i == 0 && allEvents
+                        monitorsAllEvents
                             ? MonitoredItemTypeMask.Events | MonitoredItemTypeMask.AllEvents
                             : MonitoredItemTypeMask.Events);
+                    item.SetupGet(value => value.MonitoringAllEvents).Returns(monitorsAllEvents);
+                    if (monitorsAllEvents)
+                    {
+                        // Deletion releases existing subscriptions; it cannot invent bindings for this mock item.
+                        foreach (IAsyncNodeManager owner in m_owners)
+                        {
+                            Assert.That(m_master.TryGetCurrentGeneration(owner, out NodeManagerGeneration? generation),
+                                Is.True);
+                            GenerationEventBindingRecord? binding = generation!.GetEventBinding(
+                                item.Object, unsubscribe: false);
+                            Assert.That(binding, Is.Not.Null);
+                            binding!.State = GenerationEventBindingState.Bound;
+                        }
+                    }
                     m_items[i] = item.Object;
                 }
                 m_items[2] = null!;

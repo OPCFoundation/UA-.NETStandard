@@ -1,33 +1,7 @@
-/* ========================================================================
- * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
-#if NET10_0
+#if NET10_0_OR_GREATER
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -45,6 +19,7 @@ using Opc.Ua.Client;
 using Opc.Ua.Client.Subscriptions;
 using Opc.Ua.Client.TestFramework;
 using Opc.Ua.Mcp;
+using Opc.Ua.Server;
 using Opc.Ua.Server.TestFramework;
 using Opc.Ua.Tests;
 using Opc.Ua.WotCon.Server;
@@ -84,9 +59,14 @@ namespace Opc.Ua.Tools.Tests.McpCompanion
                 AllowAnonymous = true,
                 RequiredRoleId = ObjectIds.WellKnownRole_Anonymous
             };
-            await m_server.NodeManagerLifecycle.AddAsync(new WotConnectivityNodeManagerFactory(
-                new WotConnectivityServerOptions { ManagementAccess = policy }), callerContext: null)
-                .ConfigureAwait(false);
+            await using (IPreparedChanges connectivity = await m_server.NodeManagerLifecycle.PrepareAsync(
+                [LifecycleChange.Add(new ConnectivityFactory(
+                    new WotConnectivityServerOptions { ManagementAccess = policy }))]).ConfigureAwait(false))
+            {
+                LifecycleResult result = await connectivity.CommitAsync(static _ => default)
+                    .ConfigureAwait(false);
+                Assert.That(result.CleanupFailure, Is.Null);
+            }
             var identities = new WotRegistryIdentityBindings
             {
                 Groups =
@@ -109,18 +89,23 @@ namespace Opc.Ua.Tools.Tests.McpCompanion
                 null, identities);
             m_coordinator = new WotMaterializationCoordinator(
                 m_registry, new LifecycleWotProjectionHost(m_server.NodeManagerLifecycle));
-            await m_server.NodeManagerLifecycle.AddAsync(new WotRegistryNodeManagerFactory(
-                new WotRegistryServerOptions
-                {
-                    AutoRefresh = false,
-                    IdentityBindings = identities,
-                    ManagementAccess = policy,
-                    XRegistryEvents = new XRegistryServerOptions
+            await using (IPreparedChanges registry = await m_server.NodeManagerLifecycle.PrepareAsync(
+                [LifecycleChange.Add(new WotRegistryNodeManagerFactory(
+                    new WotRegistryServerOptions
                     {
-                        EventsEnabled = true,
-                        EventSourceUrl = "https://wot-mcp.example.test"
-                    }
-                }, m_registry, m_coordinator), callerContext: null).ConfigureAwait(false);
+                        AutoRefresh = false,
+                        IdentityBindings = identities,
+                        ManagementAccess = policy,
+                        XRegistryEvents = new XRegistryServerOptions
+                        {
+                            EventsEnabled = true,
+                            EventSourceUrl = "https://wot-mcp.example.test"
+                        }
+                    }, m_registry, m_coordinator))]).ConfigureAwait(false))
+            {
+                LifecycleResult result = await registry.CommitAsync(static _ => default).ConfigureAwait(false);
+                Assert.That(result.CleanupFailure, Is.Null);
+            }
 
             var services = new ServiceCollection();
             services.AddOpcUaMcpCore(new OpcUaMcpOptions
@@ -451,6 +436,25 @@ namespace Opc.Ua.Tools.Tests.McpCompanion
         {
             return fields.EnumerateObject().Single(field =>
                 field.Name == name || field.Name.EndsWith(":" + name, StringComparison.Ordinal)).Value;
+        }
+
+        /// <summary>
+        /// Creates the native async manager without invoking the legacy synchronous factory contract.
+        /// </summary>
+        private sealed class ConnectivityFactory(WotConnectivityServerOptions options) : IAsyncNodeManagerFactory
+        {
+            /// <inheritdoc/>
+            public ArrayOf<string> NamespacesUris => [options.AssetNamespaceUri, WotCon.Namespaces.WotCon];
+
+            /// <inheritdoc/>
+            public ValueTask<IAsyncNodeManager> CreateAsync(
+                IServerInternal server,
+                ApplicationConfiguration configuration,
+                CancellationToken cancellationToken = default)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                return new ValueTask<IAsyncNodeManager>(new WotConnectivityNodeManager(server, configuration, options));
+            }
         }
 
         private string? m_root;

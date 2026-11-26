@@ -1,31 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using System.Collections.Generic;
@@ -1311,7 +1285,8 @@ namespace Opc.Ua.Wot
             string[]? namespaceUris,
             UANodeSet nodeSet,
             Dictionary<string, UANode> index,
-            string defaultLocale)
+            string defaultLocale,
+            ReadableScalarContext scalarContext)
         {
             if (projection.IsCondition)
             {
@@ -1333,7 +1308,7 @@ namespace Opc.Ua.Wot
             Dictionary<string, UAVariable> declared = CollectDeclaredEventFields(eventType, index);
 
             WriteEventDataSchema(
-                writer, standard, declared, namespaceUris, nodeSet, defaultLocale);
+                writer, standard, declared, namespaceUris, nodeSet, defaultLocale, scalarContext);
         }
 
         /// <summary>
@@ -1358,7 +1333,8 @@ namespace Opc.Ua.Wot
             Dictionary<string, UAVariable> declared,
             string[]? namespaceUris,
             UANodeSet nodeSet,
-            string defaultLocale)
+            string defaultLocale,
+            ReadableScalarContext scalarContext)
         {
             writer.WritePropertyName(DataMember);
             writer.WriteStartObject();
@@ -1423,7 +1399,7 @@ namespace Opc.Ua.Wot
                 }
                 writer.WritePropertyName(field.Key);
                 WriteDeclaredEventField(
-                    writer, field.Value, namespaceUris, nodeSet, defaultLocale);
+                    writer, field.Value, namespaceUris, nodeSet, defaultLocale, scalarContext);
                 if (IsMandatory(field.Value))
                 {
                     required.Add(field.Key);
@@ -1455,16 +1431,18 @@ namespace Opc.Ua.Wot
             string[]? namespaceUris,
             UANodeSet nodeSet,
             Dictionary<string, UANode> index,
-            string defaultLocale)
+            string defaultLocale,
+            string? resolvedEventAncestor = null)
         {
             WotConditionProjection projection = ResolveConditionProjection(eventType, index);
             WriteEventDataSchema(
                 writer,
-                CollectStandardEventFields(projection.StandardTypeNodeId),
+                CollectStandardEventFields(resolvedEventAncestor ?? projection.StandardTypeNodeId),
                 CollectDeclaredEventFields(eventType, index),
                 namespaceUris,
                 nodeSet,
-                defaultLocale);
+                defaultLocale,
+                new ReadableScalarContext(nodeSet, index));
         }
 
         /// <summary>
@@ -1628,11 +1606,12 @@ namespace Opc.Ua.Wot
             UAVariable field,
             string[]? namespaceUris,
             UANodeSet nodeSet,
-            string defaultLocale)
+            string defaultLocale,
+            ReadableScalarContext scalarContext)
         {
             writer.WriteStartObject();
             WriteLocalizedTextContext(writer, field.DisplayName, field.Description, defaultLocale);
-            WriteRankedJsonType(writer, field.DataType, field.ValueRank);
+            WriteRankedJsonType(writer, field.DataType, field.ValueRank, scalarContext);
             WriteLocalizedTitle(writer, field.DisplayName, defaultLocale);
             WriteLocalizedDescription(writer, field.Description, defaultLocale);
             WriteOptional(

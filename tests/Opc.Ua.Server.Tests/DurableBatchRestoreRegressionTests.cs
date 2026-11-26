@@ -1,31 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using System.Collections.Generic;
@@ -45,6 +19,65 @@ namespace Opc.Ua.Server.Tests
     [Parallelizable]
     public sealed class DurableBatchRestoreRegressionTests
     {
+        /// <summary>
+        /// An empty restored data queue must still share its enqueue and dequeue batch.
+        /// A nonempty queue must not serve a duplicated batch after it is drained.
+        /// </summary>
+        [TestCase(0, 0)]
+        [TestCase(3, 0)]
+        [TestCase(3, 1)]
+        [TestCase(3, 3)]
+        [TestCase(1000, 0)]
+        [TestCase(1500, 0)]
+        [TestCase(1500, 1000)]
+        [TestCase(1500, 1500)]
+        public void RestoredDataQueuePreservesBatchIdentity(int count, int removed)
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            var persistor = new Mock<IBatchPersistor>();
+            using var queue = new DurableDataChangeMonitoredItemQueue(true, 101, persistor.Object, telemetry);
+            queue.ResetQueue(2000, true);
+            for (int i = 1; i <= count; i++)
+            {
+                queue.Enqueue(new DataValue(Variant.From(i)), null!);
+            }
+            for (int i = 0; i < removed; i++)
+            {
+                Assert.That(queue.Dequeue(out _, out _), Is.True);
+            }
+
+            IServiceMessageContext context = ServiceMessageContext.Create(telemetry);
+            StorableDataChangeQueue template;
+            using (var stream = new MemoryStream())
+            {
+                using (var encoder = new BinaryEncoder(stream, context, true))
+                {
+                    DurableMonitoredItemQueueFactory.EncodeDataChangeQueue(encoder, queue.ToStorableQueue());
+                }
+                stream.Position = 0;
+                using var decoder = new BinaryDecoder(stream, context, true);
+                template = DurableMonitoredItemQueueFactory.DecodeDataChangeQueue(decoder);
+            }
+
+            using var restored = new DurableDataChangeMonitoredItemQueue(template, persistor.Object);
+            Assert.That(restored.ItemsInQueue, Is.EqualTo(count - removed));
+            restored.Enqueue(new DataValue(Variant.From(count + 1)), null!);
+            Assert.That(restored.TryPeekOldestValue(out DataValue oldest), Is.True);
+            Assert.That(oldest.WrappedValue, Is.EqualTo(Variant.From(removed + 1)));
+            for (int i = removed + 1; i <= count + 1; i++)
+            {
+                Assert.That(restored.Dequeue(out DataValue value, out _), Is.True);
+                Assert.That(value.WrappedValue, Is.EqualTo(Variant.From(i)));
+            }
+            Assert.That(restored.Dequeue(out _, out _), Is.False);
+            Assert.That(restored.ItemsInQueue, Is.Zero);
+
+            restored.Enqueue(new DataValue(Variant.From(4242)), null!);
+            Assert.That(restored.Dequeue(out DataValue next, out _), Is.True);
+            Assert.That(next.WrappedValue, Is.EqualTo(Variant.From(4242)));
+            Assert.That(restored.ItemsInQueue, Is.Zero);
+        }
+
         /// <summary>
         /// Verifies that a nonresident data-change batch requests restoration without losing its queued value.
         /// </summary>
@@ -107,14 +140,14 @@ namespace Opc.Ua.Server.Tests
                 batch.PersistingInProgress = true;
             }
 
-            Assert.That(queue.Dequeue(out EventFieldList pending), Is.False);
-            Assert.That(pending, Is.Null);
+            Assert.That(queue.Dequeue(out QueuedEvent pending), Is.False);
+            Assert.That(pending.Fields, Is.Default);
             Assert.That(queue.ItemsInQueue, Is.EqualTo(1));
             persistor.Verify(p => p.RequestBatchRestore(batch), Times.Once);
 
             batch.PersistingInProgress = false;
             batch.Restore([expected]);
-            Assert.That(queue.Dequeue(out EventFieldList actual), Is.True);
+            Assert.That(queue.Dequeue(out QueuedEvent actual), Is.True);
             Assert.That(actual.ClientHandle, Is.EqualTo(42));
             Assert.That(queue.ItemsInQueue, Is.Zero);
         }
@@ -135,7 +168,7 @@ namespace Opc.Ua.Server.Tests
             {
                 queue.Enqueue(new EventFieldList { ClientHandle = i });
             }
-            queue.Enqueue(new EventFieldList { ClientHandle = kEventBatchSize, Handle = instance });
+            queue.Enqueue(new QueuedEvent(new EventFieldList { ClientHandle = kEventBatchSize }, instance));
 
             StorableEventQueue stored = queue.ToStorableQueue();
             Assert.That(stored.DequeueBatch, Is.Not.SameAs(stored.EnqueueBatch));
@@ -156,7 +189,7 @@ namespace Opc.Ua.Server.Tests
                 true, 1, persistor.Object, NUnitTelemetryContext.Create());
             queue.SetQueueSize(10, false);
             IFilterTarget instance = new Mock<IFilterTarget>().Object;
-            queue.Enqueue(new EventFieldList { ClientHandle = 1, Handle = new FilteredRetainTarget(instance) });
+            queue.Enqueue(new QueuedEvent(new EventFieldList { ClientHandle = 1 }, new FilteredRetainTarget(instance)));
 
             Assert.That(queue.IsEventContainedInQueue(instance), Is.True);
             Assert.That(queue.IsEventContainedInQueue(new Mock<IFilterTarget>().Object), Is.False);
@@ -188,7 +221,7 @@ namespace Opc.Ua.Server.Tests
             Assert.That(restored.ItemsInQueue, Is.EqualTo((int)count));
             for (uint i = 1; i <= count; i++)
             {
-                Assert.That(restored.Dequeue(out EventFieldList value), Is.True);
+                Assert.That(restored.Dequeue(out QueuedEvent value), Is.True);
                 Assert.That(value.ClientHandle, Is.EqualTo(i));
             }
             Assert.That(restored.ItemsInQueue, Is.Zero);
@@ -196,7 +229,7 @@ namespace Opc.Ua.Server.Tests
 
             // the restored queue keeps working without serving stale events.
             restored.Enqueue(new EventFieldList { ClientHandle = 4242 });
-            Assert.That(restored.Dequeue(out EventFieldList next), Is.True);
+            Assert.That(restored.Dequeue(out QueuedEvent next), Is.True);
             Assert.That(next.ClientHandle, Is.EqualTo(4242u));
             Assert.That(restored.Dequeue(out _), Is.False);
         }
@@ -257,7 +290,7 @@ namespace Opc.Ua.Server.Tests
                 Assert.That(restored.ItemsInQueue, Is.EqualTo((int)count));
                 for (uint i = 1; i <= count; i++)
                 {
-                    Assert.That(restored.Dequeue(out EventFieldList value), Is.True, $"event {i}");
+                    Assert.That(restored.Dequeue(out QueuedEvent value), Is.True, $"event {i}");
                     Assert.That(value.ClientHandle, Is.EqualTo(i));
                 }
                 Assert.That(restored.Dequeue(out _), Is.False);
@@ -305,7 +338,7 @@ namespace Opc.Ua.Server.Tests
             Assert.That(restored.ItemsInQueue, Is.EqualTo((int)count));
             for (uint i = 1; i <= count; i++)
             {
-                Assert.That(restored.Dequeue(out EventFieldList value), Is.True, $"event {i}");
+                Assert.That(restored.Dequeue(out QueuedEvent value), Is.True, $"event {i}");
                 Assert.That(value.ClientHandle, Is.EqualTo(i));
             }
         }
@@ -319,11 +352,11 @@ namespace Opc.Ua.Server.Tests
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
             IServiceMessageContext context = ServiceMessageContext.Create(telemetry);
-            var events = new List<EventFieldList>
+            var events = new List<QueuedEvent>
             {
-                new() { ClientHandle = 1 },
-                new() { ClientHandle = 2 },
-                new() { ClientHandle = 3 }
+                new EventFieldList { ClientHandle = 1 },
+                new EventFieldList { ClientHandle = 2 },
+                new EventFieldList { ClientHandle = 3 }
             };
             var batch = new EventBatch(events, kEventBatchSize, 5);
 
@@ -349,10 +382,125 @@ namespace Opc.Ua.Server.Tests
             Assert.That(restored.ItemsInQueue, Is.EqualTo(3));
             for (uint i = 1; i <= 3; i++)
             {
-                Assert.That(restored.Dequeue(out EventFieldList value), Is.True);
+                Assert.That(restored.Dequeue(out QueuedEvent value), Is.True);
                 Assert.That(value.ClientHandle, Is.EqualTo(i));
             }
             Assert.That(restored.Dequeue(out _), Is.False);
+        }
+
+        /// <summary>
+        /// A stored data-change queue whose single batch is both the enqueue and the dequeue
+        /// batch restores one shared batch, so values enqueued after the restore are dequeued
+        /// in order instead of faulting the publish with an empty dequeue batch.
+        /// </summary>
+        [TestCase(0)]
+        [TestCase(3)]
+        public void RestoredDataChangeQueueDeliversValuesEnqueuedAfterRestore(int count)
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            var persistor = new Mock<IBatchPersistor>();
+            using var queue = new DurableDataChangeMonitoredItemQueue(
+                true, 1, persistor.Object, telemetry);
+            queue.ResetQueue(100, false);
+            for (int i = 1; i <= count; i++)
+            {
+                queue.Enqueue(new DataValue(new Variant(i)), null!);
+            }
+
+            StorableDataChangeQueue stored = RoundTrip(
+                queue.ToStorableQueue(),
+                ServiceMessageContext.Create(telemetry));
+            Assert.That(stored.DequeueBatch, Is.Null);
+            using var restored = new DurableDataChangeMonitoredItemQueue(stored, persistor.Object);
+            restored.Enqueue(new DataValue(new Variant(count + 1)), null!);
+
+            Assert.That(restored.ItemsInQueue, Is.EqualTo(count + 1));
+            for (int i = 1; i <= count + 1; i++)
+            {
+                Assert.That(restored.Dequeue(out DataValue value, out _), Is.True, $"value {i}");
+                Assert.That(value.WrappedValue.TryGetValue(out int actual), Is.True);
+                Assert.That(actual, Is.EqualTo(i));
+            }
+            Assert.That(restored.Dequeue(out _, out _), Is.False);
+        }
+
+        /// <summary>
+        /// Files written before the shared data-change batch was stored once hold the same
+        /// batch in both slots; it is restored once, so every value is delivered once.
+        /// </summary>
+        [Test]
+        public void LegacyFileWithSharedDataChangeBatchInBothSlotsRestoresOnce()
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            IServiceMessageContext context = ServiceMessageContext.Create(telemetry);
+            var batch = new DataChangeBatch(
+                [
+                    (new DataValue(new Variant(1)), null),
+                    (new DataValue(new Variant(2)), null)
+                ],
+                1000,
+                6);
+
+            using var stream = new MemoryStream();
+            using (var encoder = new BinaryEncoder(stream, context, true))
+            {
+                // the previous writer: queue header, then the same batch as enqueue and dequeue batch.
+                encoder.WriteBoolean(null, true);
+                encoder.WriteUInt32(null, 6);
+                encoder.WriteInt32(null, 2);
+                encoder.WriteUInt32(null, 100);
+                WriteLegacyDataChangeBatch(encoder, batch);
+                WriteLegacyDataChangeBatch(encoder, batch);
+                encoder.WriteInt32(null, 0);
+            }
+            stream.Position = 0;
+            StorableDataChangeQueue template;
+            using (var decoder = new BinaryDecoder(stream, context, true))
+            {
+                template = DurableMonitoredItemQueueFactory.DecodeDataChangeQueue(decoder);
+            }
+            Assert.That(template.DequeueBatch, Is.Null);
+
+            using var restored = new DurableDataChangeMonitoredItemQueue(
+                template, new Mock<IBatchPersistor>().Object);
+            restored.Enqueue(new DataValue(new Variant(3)), null!);
+            Assert.That(restored.ItemsInQueue, Is.EqualTo(3));
+            for (int i = 1; i <= 3; i++)
+            {
+                Assert.That(restored.Dequeue(out DataValue value, out _), Is.True, $"value {i}");
+                Assert.That(value.WrappedValue.TryGetValue(out int actual), Is.True);
+                Assert.That(actual, Is.EqualTo(i));
+            }
+            Assert.That(restored.Dequeue(out _, out _), Is.False);
+        }
+
+        private static void WriteLegacyDataChangeBatch(BinaryEncoder encoder, DataChangeBatch batch)
+        {
+            encoder.WriteBoolean(null, true);
+            encoder.WriteGuid(null, batch.Id);
+            encoder.WriteUInt32(null, batch.BatchSize);
+            encoder.WriteUInt32(null, batch.MonitoredItemId);
+            encoder.WriteBoolean(null, false);
+            encoder.WriteInt32(null, batch.Values.Count);
+            foreach ((DataValue value, ServiceResult? _) in batch.Values)
+            {
+                encoder.WriteDataValue(null, value);
+                encoder.WriteStatusCode(null, StatusCodes.Good);
+            }
+        }
+
+        private static StorableDataChangeQueue RoundTrip(
+            StorableDataChangeQueue original,
+            IServiceMessageContext context)
+        {
+            using var stream = new MemoryStream();
+            using (var encoder = new BinaryEncoder(stream, context, true))
+            {
+                DurableMonitoredItemQueueFactory.EncodeDataChangeQueue(encoder, original);
+            }
+            stream.Position = 0;
+            using var decoder = new BinaryDecoder(stream, context, true);
+            return DurableMonitoredItemQueueFactory.DecodeDataChangeQueue(decoder);
         }
 
         private static void WriteLegacyEventBatch(BinaryEncoder encoder, EventBatch batch)
@@ -363,9 +511,9 @@ namespace Opc.Ua.Server.Tests
             encoder.WriteUInt32(null, batch.MonitoredItemId);
             encoder.WriteBoolean(null, false);
             encoder.WriteInt32(null, batch.Events.Count);
-            foreach (EventFieldList value in batch.Events)
+            foreach (QueuedEvent value in batch.Events)
             {
-                encoder.WriteEncodeableAsExtensionObject(null, value);
+                encoder.WriteEncodeableAsExtensionObject(null, value.Fields);
             }
         }
 

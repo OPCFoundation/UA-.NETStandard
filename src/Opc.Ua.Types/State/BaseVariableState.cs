@@ -1,31 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using System.Collections.Generic;
@@ -98,6 +72,9 @@ namespace Opc.Ua
                 m_minimumSamplingInterval = instance.m_minimumSamplingInterval;
                 m_historizing = instance.m_historizing;
                 m_valueTouched = instance.m_valueTouched;
+                // after the copy, which takes no lock: a decode that read a version taken
+                // before or during it no longer matches.
+                Interlocked.Increment(ref m_valueVersion);
             }
 
             base.Initialize(context, source);
@@ -325,11 +302,19 @@ namespace Opc.Ua
                     }
 
                     m_value = value;
+                    Interlocked.Increment(ref m_valueVersion);
 
                     m_valueTouched = true;
                 }
             }
         }
+
+        /// <summary>
+        /// A counter moved by every assignment of the value or its status code, including one
+        /// equal to the current value, which sets no change mask. Read without a lock, it lets a
+        /// cache of something derived from the value detect any later assignment.
+        /// </summary>
+        internal long ValueVersion => Interlocked.Read(ref m_valueVersion);
 
         /// <summary>
         /// The value of the variable as a Variant.
@@ -391,6 +376,7 @@ namespace Opc.Ua
                     }
 
                     m_statusCode = value;
+                    Interlocked.Increment(ref m_valueVersion);
                 }
             }
         }
@@ -620,7 +606,7 @@ namespace Opc.Ua
         /// <summary>
         /// Asynchronous sibling of <see cref="OnWriteValue"/>. When set,
         /// the async path through
-        /// <see cref="WriteAttributeAsync(ISystemContext, uint, NumericRange, DataValue, CancellationToken)"/>
+        /// <see cref="NodeState.WriteAttributeAsync"/>
         /// invokes this delegate without holding <c>lock(this)</c>; on
         /// success the framework updates the cached value, status code
         /// and timestamp. Indexed writes merge into the cached value; if the
@@ -1015,6 +1001,7 @@ namespace Opc.Ua
             if ((attributesToLoad & AttributesToSave.StatusCode) != 0)
             {
                 m_statusCode = decoder.ReadStatusCode(null);
+                Interlocked.Increment(ref m_valueVersion);
             }
 
             if ((attributesToLoad & AttributesToSave.DataType) != 0)
@@ -1713,7 +1700,7 @@ namespace Opc.Ua
             }
 
             // verify the data type before any handler sees the value (Part 4 5.11.4.2).
-            ServiceResult? typeResult = CheckValueType(context, value);
+            ServiceResult? typeResult = CheckValueType(context, value, indexRange);
 
             if (typeResult != null)
             {
@@ -1744,6 +1731,7 @@ namespace Opc.Ua
                 lock (m_attributeLock)
                 {
                     m_value = MergeIndexRange(indexRange, value);
+                    Interlocked.Increment(ref m_valueVersion);
                     m_statusCode = statusCode;
                     m_timestamp = sourceTimestamp == DateTimeUtc.MinValue
                         ? DateTimeUtc.Now
@@ -1792,6 +1780,7 @@ namespace Opc.Ua
                 // apply the index range to the current value and commit it in one critical
                 // section, so concurrent writers of different ranges cannot lose each other's
                 // update (UpdateRange is pure and runs no callbacks).
+                bool validateMerged = IsTrimmedStringCharacterWrite(context, indexRange, value);
                 lock (m_attributeLock)
                 {
                     Variant target = m_value;
@@ -1802,7 +1791,16 @@ namespace Opc.Ua
                         return result;
                     }
 
+                    // validated against the value it is merged into, in the same critical
+                    // section that commits it.
+                    if (validateMerged &&
+                        HasUntrimmedTrimmedStringValue(context, m_dataType, target))
+                    {
+                        return CreateUntrimmedResult();
+                    }
+
                     m_value = target;
+                    Interlocked.Increment(ref m_valueVersion);
                     m_statusCode = statusCode;
                     m_timestamp = sourceTimestamp;
                 }
@@ -1817,6 +1815,7 @@ namespace Opc.Ua
             lock (m_attributeLock)
             {
                 m_value = value;
+                Interlocked.Increment(ref m_valueVersion);
                 m_statusCode = statusCode;
                 m_timestamp = sourceTimestamp;
             }
@@ -1906,8 +1905,16 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="context">The context of the write.</param>
         /// <param name="value">The written value (the slice when an IndexRange is used).</param>
+        /// <param name="indexRange">The IndexRange of the write, if any.</param>
         /// <returns><c>null</c> if the value is acceptable; the error otherwise.</returns>
-        private ServiceResult? CheckValueType(ISystemContext context, Variant value)
+        /// <remarks>
+        /// A String value written to a TrimmedString Variable (or subtype) with leading or
+        /// trailing white space is rejected with Bad_TypeMismatch (Part 5 12.43).
+        /// </remarks>
+        private ServiceResult? CheckValueType(
+            ISystemContext context,
+            Variant value,
+            NumericRange indexRange)
         {
             NodeId dataType = m_dataType;
 
@@ -1951,7 +1958,189 @@ namespace Opc.Ua
                     "The value is not a defined value of the Enumeration DataType.");
             }
 
+            if (WritesWholeStringElements(indexRange, value))
+            {
+                if (HasUntrimmedTrimmedStringValue(context, dataType, value))
+                {
+                    return CreateUntrimmedResult();
+                }
+            }
+            else if (IsTrimmedStringCharacterWrite(context, indexRange, value) &&
+                (OnWriteValue != null || OnWriteValueAsync != null))
+            {
+                // a slice that addresses characters inside a string element only changes
+                // part of it; a handler owns the value the slice is merged into, so the result
+                // cannot be validated here (Part 4 5.11.4.4: Bad_WriteNotSupported "is also
+                // used if writing of IndexRanges is not supported for a Node"). Without a
+                // handler, the merged value is validated where it is committed.
+                return ServiceResult.Create(
+                    StatusCodes.BadWriteNotSupported,
+                    "Character IndexRange writes to a TrimmedString value with a write handler are not supported.");
+            }
+
             return null;
+        }
+
+        /// <summary>
+        /// Returns <c>true</c> if a String slice addresses characters inside the elements of a
+        /// TrimmedString Variable (or subtype), so only the merged value can be trim-validated.
+        /// </summary>
+        private bool IsTrimmedStringCharacterWrite(
+            ISystemContext context,
+            NumericRange indexRange,
+            in Variant value)
+        {
+            if (indexRange.IsNull ||
+                !MayContainString(value) ||
+                WritesWholeStringElements(indexRange, value))
+            {
+                return false;
+            }
+
+            NodeId dataType = m_dataType;
+            return dataType == TrimmedStringDataTypeId ||
+                (!dataType.IsNull &&
+                    context.TypeTable != null &&
+                    context.TypeTable.IsTypeOf(dataType, TrimmedStringDataTypeId));
+        }
+
+        private static ServiceResult CreateUntrimmedResult()
+        {
+            return ServiceResult.Create(
+                StatusCodes.BadTypeMismatch,
+                "A TrimmedString value must not have leading or trailing white space.");
+        }
+
+        /// <summary>
+        /// The TrimmedString DataType (i=31918, Part 5 12.43).
+        /// </summary>
+        internal static readonly NodeId TrimmedStringDataTypeId = new(31918u);
+
+        /// <summary>
+        /// Returns <c>true</c> if <paramref name="dataType"/> is TrimmedString or a subtype
+        /// of it and the String value (or one element of the String array or matrix, or
+        /// one String element of a Variant array or matrix) has leading or trailing white
+        /// space (Unicode White_Space, Part 5 12.43). Returns <c>false</c> for any value
+        /// that cannot hold a String without consulting the type table.
+        /// </summary>
+        internal static bool HasUntrimmedTrimmedStringValue(
+            ISystemContext context,
+            NodeId dataType,
+            in Variant value)
+        {
+            if (!MayContainString(value) ||
+                dataType.IsNull ||
+                dataType == DataTypeIds.String ||
+                dataType == DataTypeIds.BaseDataType)
+            {
+                return false;
+            }
+
+            if (dataType != TrimmedStringDataTypeId &&
+                (context.TypeTable == null ||
+                    !context.TypeTable.IsTypeOf(dataType, TrimmedStringDataTypeId)))
+            {
+                return false;
+            }
+
+            return ContainsOuterWhiteSpace(value);
+        }
+
+        /// <summary>
+        /// Returns <c>true</c> for a non-null String value and for a Variant array or
+        /// matrix, whose elements are accepted for a String DataType when each one is a
+        /// String.
+        /// </summary>
+        private static bool MayContainString(in Variant value)
+        {
+            if (value.IsNull)
+            {
+                return false;
+            }
+
+            BuiltInType builtInType = value.TypeInfo.BuiltInType;
+            return builtInType == BuiltInType.String ||
+                (builtInType == BuiltInType.Variant && !value.TypeInfo.IsScalar);
+        }
+
+        private static bool ContainsOuterWhiteSpace(in Variant value)
+        {
+            if (value.TypeInfo.BuiltInType == BuiltInType.Variant)
+            {
+                if (value.TypeInfo.IsArray && value.TryGetValue(out ArrayOf<Variant> variants))
+                {
+                    foreach (Variant element in variants)
+                    {
+                        if (MayContainString(element) && ContainsOuterWhiteSpace(element))
+                        {
+                            return true;
+                        }
+                    }
+                }
+                else if (value.TypeInfo.IsMatrix && value.TryGetValue(out MatrixOf<Variant> variantMatrix))
+                {
+                    foreach (Variant element in variantMatrix)
+                    {
+                        if (MayContainString(element) && ContainsOuterWhiteSpace(element))
+                        {
+                            return true;
+                        }
+                    }
+                }
+
+                return false;
+            }
+
+            if (value.TypeInfo.IsScalar)
+            {
+                return value.TryGetValue(out string scalar) && HasOuterWhiteSpace(scalar);
+            }
+
+            if (value.TypeInfo.IsArray && value.TryGetValue(out ArrayOf<string> array))
+            {
+                foreach (string element in array)
+                {
+                    if (HasOuterWhiteSpace(element))
+                    {
+                        return true;
+                    }
+                }
+            }
+            else if (value.TypeInfo.IsMatrix && value.TryGetValue(out MatrixOf<string> matrix))
+            {
+                foreach (string element in matrix)
+                {
+                    if (HasOuterWhiteSpace(element))
+                    {
+                        return true;
+                    }
+                }
+            }
+
+            return false;
+        }
+
+        /// <summary>
+        /// Returns <c>true</c> if the written value replaces whole string elements: there
+        /// is no IndexRange, or the IndexRange has no dimension beyond the rank of the
+        /// written slice (a further dimension addresses characters inside a string).
+        /// </summary>
+        private static bool WritesWholeStringElements(NumericRange indexRange, in Variant value)
+        {
+            if (indexRange.IsNull)
+            {
+                return true;
+            }
+
+            int sliceRank = value.TypeInfo.IsScalar ? 0 : Math.Max(value.TypeInfo.ValueRank, 1);
+            int rangeRank = indexRange.SubRanges?.Length ?? 1;
+            return rangeRank <= sliceRank;
+        }
+
+        private static bool HasOuterWhiteSpace(string? value)
+        {
+            return !string.IsNullOrEmpty(value) &&
+                (char.IsWhiteSpace(value![0]) || char.IsWhiteSpace(value[value.Length - 1]));
         }
 
         /// <summary>
@@ -2201,21 +2390,56 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Asynchronous override of
-        /// <see cref="NodeState.WriteAttributeAsync(ISystemContext, uint, NumericRange, DataValue, CancellationToken)"/>.
-        /// Dispatches to <see cref="OnWriteValueAsync"/> or
-        /// <see cref="OnSimpleWriteValueAsync"/> when set; otherwise falls
-        /// through to the synchronous write flow under <c>lock(this)</c>.
+        /// Dispatches a Value write to the configured native asynchronous handler.
         /// </summary>
-        /// <param name="context">The system context used to validate access and the value's data type.</param>
+        /// <remarks>
+        /// When neither asynchronous write hook is configured, delegates to the base core. Executor-bound
+        /// Value writes then return BadNotSupported without calling synchronous write handlers or updating
+        /// the cache, including when no write handlers are configured. Unbound Value writes and non-Value
+        /// attributes retain the ordinary synchronous fallback.
+        /// </remarks>
+        /// <param name="context">The system context used to validate access and value type.</param>
         /// <param name="attributeId">The attribute to write.</param>
         /// <param name="indexRange">The elements to replace, or a null range to replace the whole value.</param>
         /// <param name="value">The replacement value and its requested status code and source timestamp.</param>
         /// <param name="cancellationToken">The cancellation token passed to the asynchronous handler.</param>
+        /// <returns>The validation, handler, or cache-commit result.</returns>
+        protected override async ValueTask<ServiceResult> WriteAttributeCoreAsync(
+            ISystemContext context,
+            uint attributeId,
+            NumericRange indexRange,
+            DataValue value,
+            CancellationToken cancellationToken = default)
+        {
+            AttributeWriteResult result = await WriteAttributeWithResultAsync(
+                context, attributeId, indexRange, value, cancellationToken).ConfigureAwait(false);
+            return result.Result;
+        }
+
+        /// <summary>
+        /// Returns a string representation of the node.
+        /// </summary>
         /// <returns>
-        /// The validation failure or handler result, independent of whether an accepted indexed write can be cached.
+        /// A <see cref="string"/> that represents the current <see cref="object"/>.
         /// </returns>
-        public override async ValueTask<ServiceResult> WriteAttributeAsync(
+        public override string ToString()
+        {
+            return Value.ToString();
+        }
+
+        /// <summary>
+        /// Writes an attribute while preserving whether the asynchronous handler owns cache publication.
+        /// </summary>
+        /// <remarks>
+        /// Derived variables must not update cached or derived values when the handler suppresses cache updates.
+        /// </remarks>
+        /// <param name="context">The context used for access and value validation.</param>
+        /// <param name="attributeId">The attribute to write.</param>
+        /// <param name="indexRange">The elements to replace, or a null range for the whole value.</param>
+        /// <param name="value">The value, status and source timestamp requested by the caller.</param>
+        /// <param name="cancellationToken">The cancellation token passed to the asynchronous handler.</param>
+        /// <returns>The operation result with the handler's cache-publication ownership preserved.</returns>
+        protected async ValueTask<AttributeWriteResult> WriteAttributeWithResultAsync(
             ISystemContext context,
             uint attributeId,
             NumericRange indexRange,
@@ -2224,19 +2448,83 @@ namespace Opc.Ua
         {
             NodeValueWriteEventHandlerAsync? onWriteValueAsync = OnWriteValueAsync;
             NodeValueSimpleWriteEventHandlerAsync? onSimpleWriteValueAsync = OnSimpleWriteValueAsync;
-
+            if (onSimpleWriteValueAsync != null &&
+                onWriteValueAsync == m_writeValueAsyncPolicyWithSimpleOverride)
+            {
+                onWriteValueAsync = null;
+            }
             if (attributeId != Attributes.Value ||
                 (onWriteValueAsync == null && onSimpleWriteValueAsync == null))
             {
-                return await base.WriteAttributeAsync(
-                    context, attributeId, indexRange, value, cancellationToken)
-                    .ConfigureAwait(false);
+                ServiceResult result = await base.WriteAttributeCoreAsync(
+                    context, attributeId, indexRange, value, cancellationToken).ConfigureAwait(false);
+                return new AttributeWriteResult(result);
             }
+
+            return await WriteValueAttributeAsyncCore(
+                context,
+                indexRange,
+                value,
+                onWriteValueAsync,
+                onSimpleWriteValueAsync,
+                cancellationToken).ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// Installs a framework write policy that yields to a later asynchronous simple-write handler.
+        /// </summary>
+        /// <param name="handler">The framework write policy.</param>
+        internal void SetWriteValueAsyncPolicyWithSimpleOverride(NodeValueWriteEventHandlerAsync handler)
+        {
+            if (handler == null)
+            {
+                throw new ArgumentNullException(nameof(handler));
+            }
+            OnWriteValueAsync = handler;
+            m_writeValueAsyncPolicyWithSimpleOverride = handler;
+        }
+
+        /// <summary>
+        /// Validates a Value write after standard access, metadata and type checks.
+        /// </summary>
+        /// <param name="context">The context used for the write.</param>
+        /// <param name="indexRange">The elements to replace, or a null range for the whole value.</param>
+        /// <param name="value">The value being written.</param>
+        /// <returns>
+        /// The validation result and an optional dependent-state update run after a successful cache
+        /// commit.
+        /// </returns>
+        protected virtual AttributeWriteResult ValidateAsyncValueWrite(
+            ISystemContext context,
+            NumericRange indexRange,
+            Variant value)
+        {
+            return new AttributeWriteResult(ServiceResult.Good);
+        }
+
+        /// <summary>
+        /// Runs asynchronous Value validation, callback dispatch, and cache commit as one operation.
+        /// </summary>
+        /// <param name="context">The system context used to validate access and value type.</param>
+        /// <param name="indexRange">The elements to replace, or a null range to replace the whole value.</param>
+        /// <param name="value">The replacement value and requested status and source timestamp.</param>
+        /// <param name="onWriteValueAsync">The full write handler captured at entry.</param>
+        /// <param name="onSimpleWriteValueAsync">The simple write handler captured at entry.</param>
+        /// <param name="cancellationToken">The token passed to the asynchronous handler.</param>
+        /// <returns>The validation, handler, or cache-commit result.</returns>
+        private async ValueTask<AttributeWriteResult> WriteValueAttributeAsyncCore(
+            ISystemContext context,
+            NumericRange indexRange,
+            DataValue value,
+            NodeValueWriteEventHandlerAsync? onWriteValueAsync,
+            NodeValueSimpleWriteEventHandlerAsync? onSimpleWriteValueAsync,
+            CancellationToken cancellationToken)
+        {
             if (value.ServerTimestamp != DateTimeUtc.MinValue)
             {
-                return ServiceResult.Create(
+                return new AttributeWriteResult(ServiceResult.Create(
                     StatusCodes.BadWriteNotSupported,
-                    "Cannot write to server timestamp");
+                    "Cannot write to server timestamp"));
             }
 
             try
@@ -2252,14 +2540,14 @@ namespace Opc.Ua
 
                 if ((accessLevel & AccessLevels.CurrentWrite) == 0)
                 {
-                    return StatusCodes.BadNotWritable;
+                    return new AttributeWriteResult(StatusCodes.BadNotWritable);
                 }
 
                 OnReadUserAccessLevel?.Invoke(context, this, ref userAccessLevel);
 
                 if ((userAccessLevel & AccessLevels.CurrentWrite) == 0)
                 {
-                    return StatusCodes.BadUserAccessDenied;
+                    return new AttributeWriteResult(StatusCodes.BadUserAccessDenied);
                 }
 
                 Variant valueToWrite = value.WrappedValue;
@@ -2273,15 +2561,23 @@ namespace Opc.Ua
 
                 if (statusOrTimestampResult != null)
                 {
-                    return statusOrTimestampResult;
+                    return new AttributeWriteResult(statusOrTimestampResult);
                 }
 
-                ServiceResult? typeResult = CheckValueType(context, valueToWrite);
+                ServiceResult? typeResult = CheckValueType(context, valueToWrite, indexRange);
 
                 if (typeResult != null)
                 {
-                    return typeResult;
+                    return new AttributeWriteResult(typeResult);
                 }
+
+                AttributeWriteResult valueValidationResult = ValidateAsyncValueWrite(
+                    context, indexRange, valueToWrite);
+                if (ServiceResult.IsBad(valueValidationResult.Result))
+                {
+                    return valueValidationResult;
+                }
+                Action? afterOrdinaryCacheCommit = valueValidationResult.AfterOrdinaryCacheCommit;
 
                 if (onWriteValueAsync != null)
                 {
@@ -2291,12 +2587,46 @@ namespace Opc.Ua
 
                     if (ServiceResult.IsBad(writeResult.Result) || writeResult.SuppressCacheUpdate)
                     {
-                        return writeResult.Result;
+                        return writeResult;
+                    }
+
+                    if (writeResult.AfterOrdinaryCacheCommit == null)
+                    {
+                        writeResult = writeResult with { AfterOrdinaryCacheCommit = afterOrdinaryCacheCommit };
                     }
 
                     DateTimeUtc effectiveTimestamp = sourceTimestamp == DateTimeUtc.MinValue
                         ? DateTimeUtc.Now
                         : sourceTimestamp;
+
+                    if (writeResult.UseOrdinaryCacheWrite)
+                    {
+                        if (CopyPolicy is VariableCopyPolicy.CopyOnWrite or VariableCopyPolicy.Always)
+                        {
+                            valueToWrite = CoreUtils.Clone(valueToWrite);
+                        }
+                        lock (m_attributeLock)
+                        {
+                            if (!indexRange.IsNull)
+                            {
+                                Variant cachedValue = m_value;
+                                StatusCode cacheResult = indexRange.UpdateRange(ref cachedValue, valueToWrite);
+                                if (StatusCode.IsBad(cacheResult))
+                                {
+                                    return new AttributeWriteResult(new ServiceResult(cacheResult));
+                                }
+                                valueToWrite = cachedValue;
+                            }
+                            m_value = valueToWrite;
+                            Interlocked.Increment(ref m_valueVersion);
+                            m_statusCode = statusCode;
+                            m_timestamp = effectiveTimestamp;
+                            ChangeMasks |= NodeStateChangeMasks.Value;
+                        }
+                        // Complete dependent state even if cancellation arrived after the cache commit.
+                        writeResult.AfterOrdinaryCacheCommit?.Invoke();
+                        return writeResult;
+                    }
 
                     lock (m_attributeLock)
                     {
@@ -2317,12 +2647,14 @@ namespace Opc.Ua
                             }
                         }
                         m_value = valueToWrite;
+                        Interlocked.Increment(ref m_valueVersion);
                         m_statusCode = statusCode;
                         m_timestamp = effectiveTimestamp;
                         ChangeMasks |= NodeStateChangeMasks.Value;
                     }
 
-                    return writeResult.Result;
+                    writeResult.AfterOrdinaryCacheCommit?.Invoke();
+                    return writeResult;
                 }
 
                 // simple async write path mirrors OnSimpleWriteValue:
@@ -2330,7 +2662,7 @@ namespace Opc.Ua
                 // (Part 4 5.11.4.4: Bad_WriteNotSupported).
                 if (!indexRange.IsNull)
                 {
-                    return StatusCodes.BadWriteNotSupported;
+                    return new AttributeWriteResult(StatusCodes.BadWriteNotSupported);
                 }
 
                 if (sourceTimestamp == DateTimeUtc.MinValue)
@@ -2349,37 +2681,33 @@ namespace Opc.Ua
 
                 if (ServiceResult.IsBad(simpleResult.Result) || simpleResult.SuppressCacheUpdate)
                 {
-                    return simpleResult.Result;
+                    return simpleResult;
+                }
+
+                if (simpleResult.AfterOrdinaryCacheCommit == null)
+                {
+                    simpleResult = simpleResult with { AfterOrdinaryCacheCommit = afterOrdinaryCacheCommit };
                 }
 
                 lock (m_attributeLock)
                 {
                     m_value = valueToWrite;
+                    Interlocked.Increment(ref m_valueVersion);
                     m_statusCode = statusCode;
                     m_timestamp = sourceTimestamp;
                     ChangeMasks |= NodeStateChangeMasks.Value;
                 }
 
-                return simpleResult.Result;
+                simpleResult.AfterOrdinaryCacheCommit?.Invoke();
+                return simpleResult;
             }
             catch (Exception e)
             {
-                return ServiceResult.Create(
+                return new AttributeWriteResult(ServiceResult.Create(
                     e,
                     StatusCodes.BadUnexpectedError,
-                    "Failed to write value attribute.");
+                    "Failed to write value attribute."));
             }
-        }
-
-        /// <summary>
-        /// Returns a string representation of the node.
-        /// </summary>
-        /// <returns>
-        /// A <see cref="string"/> that represents the current <see cref="object"/>.
-        /// </returns>
-        public override string ToString()
-        {
-            return Value.ToString();
         }
 
         /// <summary>
@@ -2393,7 +2721,13 @@ namespace Opc.Ua
         /// guards is a field read or write in this file.
         /// </remarks>
         private readonly Lock m_attributeLock = new();
+
+        /// <summary>
+        /// Stores the framework write policy that yields to a later asynchronous simple-write handler.
+        /// </summary>
+        private NodeValueWriteEventHandlerAsync? m_writeValueAsyncPolicyWithSimpleOverride;
         private Variant m_value;
+        private long m_valueVersion;
         private DateTimeUtc m_timestamp;
         private bool m_valueTouched;
         private StatusCode m_statusCode;

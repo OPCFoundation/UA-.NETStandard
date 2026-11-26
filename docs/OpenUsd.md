@@ -285,6 +285,8 @@ dotnet run --project tools/Opc.Ua.OpenUsd.Connector -- \
 | `--seconds N` | Stop after `N` seconds instead of waiting for Ctrl+C. |
 | `--fetch-assets <dir>` | Download the served USD layer closure (§5.15) and compose a self-contained `stage.usda`. |
 | `--insecure` | Demo only: unsecured endpoint and blanket certificate acceptance. |
+| `--trust-server` | Trust the `--server` certificate on first use and store it; endpoint security is selected as without the flag (signed at least). |
+| `--pki <dir>` | PKI root. Defaults to a stable per-user directory, so a trusted server stays trusted across runs. |
 | `--enable-commands` | Opt in to actuating `UsdToUaCommand` bindings (fail-closed by default). |
 | `--command-value <double>` | Setpoint written once at start when commands are enabled. |
 | `--view` | Render the composed stage and stream the same live values into it. |
@@ -335,7 +337,7 @@ the command-prim watcher only when renderer picking is unavailable, `Renderer` r
 relationship, string attribute, or token attribute on `UsdViewOptions.CommandPrimPath` (default `/World/IntentCommand`)
 and the callback fires when that target changes.
 
-> The viewport requires .NET 8 or later, a matching optional viewer assembly, and the OpenUSD packages
+> The viewport requires .NET 10 or later, a matching optional viewer assembly, and the OpenUSD packages
 > (`OpenUsd`, `OpenUsd.Viewer`, `OpenUsd.Runtime.Imaging`),
 > which are published on nuget.org, so a plain restore is enough. The RID-agnostic runtime metapackages resolve the
 > correct native payload per RID; `win-x64`, `linux-x64` and `osx-arm64` are all supported. With `0.8.0-alpha`, a

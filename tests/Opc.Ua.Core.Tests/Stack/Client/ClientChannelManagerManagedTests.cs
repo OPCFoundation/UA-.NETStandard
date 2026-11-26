@@ -1,32 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using System.Collections.Concurrent;
@@ -1791,8 +1764,71 @@ namespace Opc.Ua.Core.Tests.Stack.Client
                 Assert.That(diagnostic.Refcount, Is.EqualTo(1));
                 Assert.That(diagnostic.ParticipantCount, Is.EqualTo(1));
                 Assert.That(participant.NotificationCount, Is.GreaterThanOrEqualTo(2));
+                Assert.That(
+                    ((ChannelEntry)freshEntry).MessageContext,
+                    Is.SameAs(((ChannelEntry)originalEntry).MessageContext),
+                    "The replacement entry must keep the encoding tables the participant adopted.");
 
                 ch.Dispose();
+            }
+            finally
+            {
+                await sut.DisposeAsync().ConfigureAwait(false);
+                serverCert.Dispose();
+            }
+        }
+
+        [Test]
+        public async Task EntryOpenedWhileLeaseIsFaultedKeepsTheLeaseMessageContextAsync()
+        {
+            var timeProvider = new ObservableFakeTimeProvider();
+            var reconnectPolicy = new ExponentialBackoffChannelReconnectPolicy
+            {
+                MinDelay = TimeSpan.Zero,
+                MaxDelay = TimeSpan.Zero,
+                MaxAttempts = 1
+            };
+            (ClientChannelManager sut, Certificate serverCert, _) =
+                CreateMockedSut(reconnectPolicy: reconnectPolicy, timeProvider: timeProvider);
+            try
+            {
+                ConfiguredEndpoint endpoint = GetTestEndpoint(serverCert);
+                IManagedTransportChannel ch1 = await sut.GetAsync(
+                    new TestParticipant("p1", endpoint), default).ConfigureAwait(false);
+                var original = (ChannelEntry)GetLeaseEntry(ch1);
+                var faulted = new TaskCompletionSource<bool>(
+                    TaskCreationOptions.RunContinuationsAsynchronously);
+                ch1.StateChanged += (_, change) =>
+                {
+                    if (change.NewState == ChannelState.Faulted)
+                    {
+                        faulted.TrySetResult(true);
+                    }
+                };
+
+                Task faultedReconnect = sut
+                    .ReconnectAsync(ch1, new RetryBudget(TimeSpan.Zero, timeProvider), default)
+                    .AsTask();
+                await faulted.Task.WaitAsync(s_completionTimeout).ConfigureAwait(false);
+                await AssertThrowsAsync<ServiceResultException>(
+                    faultedReconnect,
+                    s_completionTimeout).ConfigureAwait(false);
+
+                // Another participant acquires the key while the faulted lease
+                // waits for its swap: the entry it opens must not fork the tables.
+                IManagedTransportChannel ch2 = await sut.GetAsync(
+                    new TestParticipant("p2", endpoint), default).ConfigureAwait(false);
+                var joined = (ChannelEntry)GetLeaseEntry(ch2);
+                Assert.That(joined, Is.Not.SameAs(original));
+                Assert.That(joined.MessageContext, Is.SameAs(original.MessageContext));
+
+                await sut.ReconnectAsync(ch1, default).AsTask()
+                    .WaitAsync(s_completionTimeout).ConfigureAwait(false);
+                Assert.That(GetLeaseEntry(ch1), Is.SameAs(joined),
+                    "The faulted lease should swap onto the entry the other participant opened.");
+
+                ch2.Dispose();
+                ch1.Dispose();
             }
             finally
             {

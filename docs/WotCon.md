@@ -1,3 +1,6 @@
+<!-- SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL -->
+<!-- SPDX-License-Identifier: MIT -->
+
 # OPC UA WoT Connectivity (OPC 10100-1)
 
 This repository implements the OPC UA **WoT Connectivity** companion specification (OPC 10100-1, "WoT Connectivity for OPC UA") through the model, client, server, and protocol-binding libraries plus integration tests and runnable aggregation samples:
@@ -7,7 +10,7 @@ This repository implements the OPC UA **WoT Connectivity** companion specificati
 | `Opc.Ua.WotCon`                  | Source-generated information model (NodeStates, NodeIds, generated ObjectType client proxies) generated once from the combined **WoT Connectivity 1.1** NodeSet2 (incorporating the OPC 10100-1 v1.02 model plus additive registry nodes in one namespace) and the draft **xRegistry** base NodeSet2 (see §11) |
 | `Opc.Ua.WotCon.Server`           | Server-side node manager (`WotConnectivityNodeManager` → `AsyncCustomNodeManager`) and the extensible provider model |
 | `Opc.Ua.WotCon.Client`           | Client wrappers + extension methods that compose the generated proxies without inheritance, covering both the OPC 10100-1 v1.02 asset-connection surface (`WotConnectivityClient`) and the WoT Connectivity 1.1 registry surface (`WotRegistryClient`, see §11.8) |
-| `Opc.Ua.WotCon.Bindings`         | Protocol-binding abstractions, planners, codecs, credential references, HTTP/Modbus/OPC UA executors on net8+, and the generic target-mapping channel factory |
+| `Opc.Ua.WotCon.Bindings`         | Protocol-binding abstractions, planners, codecs, credential references, HTTP/Modbus/OPC UA executors on net10+, and the generic target-mapping channel factory |
 | `Opc.Ua.WotCon.Bindings.Mqtt`    | Optional MQTT executor package |
 | `Opc.Ua.WotCon.Tests`            | NUnit tests covering the TD parser, mappers, simulated provider, discovery facade |
 
@@ -84,7 +87,7 @@ options.Bindings.Add(new MyHttpWotAssetProviderFactory());
 options.Bindings.Add(new MyModbusWotAssetProviderFactory());
 options.Discovery = new MyDiscoveryProvider();   // optional
 
-server.NodeManagerFactories.Add(new WotConnectivityNodeManagerFactory(options));
+server.AddNodeManager(new WotConnectivityNodeManagerFactory(options));
 ```
 
 The factory advertises two namespaces:
@@ -638,13 +641,11 @@ The 1.1 runtime separates a **stable registry** from **ephemeral projections**:
   registry snapshot (see §11.7).
 * Registry documents are projected into the AddressSpace as **separate
   runtime NodeManagers** through the public `INodeManagerLifecycle`
-  (`AddRuntimeNodeSetAsync` for first activation,
-  `ShadowReloadRuntimeNodeSetAsync` or
-  `ImmediateReloadRuntimeNodeSetAsync` for updates). Graceful retirement
-  keeps the previous generation serving existing monitored items until
-  they drain. Immediate retirement reports `BadNodeIdUnknown` for affected
-  monitored items and disposes the previous generation without waiting
-  for drain.
+  transaction provider (`LifecycleChange.Add` for first activation and
+  `LifecycleChange.Reload` for updates). Compatible monitored items migrate
+  to the replacement with their identity preserved; items whose Nodes are no
+  longer available receive `BadNodeIdUnknown`. Invalidation is available when
+  clients must recreate every affected monitored item.
 
 Register it on an OPC UA server host:
 
@@ -656,7 +657,7 @@ builder
         options.StorageFolder = Path.Combine(AppContext.BaseDirectory, "wot-registry");
         options.AutoRefresh = true;      // re-project after every content mutation
         options.StrictBindings = false;  // materialize degraded nodes for unsupported forms
-        options.RetirementPolicy = WotProjectionRetirementPolicy.Graceful;
+        options.RetirementPolicy = WotProjectionRetirementPolicy.Migrate;
     });
 ```
 
@@ -803,8 +804,8 @@ The target's own blob is the one exception: it is being removed anyway, so its r
    join closures; semantic reference cycles can coactivate, while inheritance/
    ordering cycles and missing dependencies produce diagnostics.
 4. Converts each closure to one or more NodeSet2 documents and projects
-   the closure as one runtime NodeManager (Add, or graceful/immediate
-   reload on update according to `RetirementPolicy`).
+   the closure as one runtime NodeManager (Add, or migrate/invalidate
+   replacement according to `RetirementPolicy`).
 
 Behaviours:
 
@@ -822,12 +823,13 @@ Behaviours:
   **retains its previous active generations**.
 * An **unchanged** closure (same content digest, options and binder
   version) returns `WoTOutcomeEnum.Unchanged` and emits no model change.
-* `WotProjectionRetirementPolicy.Graceful` preserves existing monitored
-  items on the previous generation until drain.
-  `WotProjectionRetirementPolicy.Immediate` invalidates affected items
-  with `BadNodeIdUnknown` and disposes the previous generation. The proof
-  rejects immediate retirement when the old generation owns a durable
-  monitored item; configure `Graceful` for that closure.
+* `WotProjectionRetirementPolicy.Migrate` transfers compatible monitored
+  items to the replacement generation while preserving their identity.
+  Items whose Nodes disappeared or became incompatible receive one
+  `BadNodeIdUnknown` notification.
+  `WotProjectionRetirementPolicy.Invalidate` makes every affected monitored
+  item terminally unresolved, so clients must resubscribe. Neither mode keeps
+  the old generation alive for outstanding continuations.
 * `Refresh` returns a detailed `WoTRefreshSummaryDataType` plus a
   per-resource `WoTResourceLoadResultDataType[]` and the new generation,
   matching the generated Method signature.
@@ -869,9 +871,15 @@ for arbitrary federated or non-registry providers. Validate reports unperformed 
 
 ### 11.4 Binder integration seam
 
-`IWotBinderRegistry` is the runtime-neutral seam the coordinator uses during Prepare/Activate/Deactivate. `WotProtocolBinderRegistry` implements that seam and `IWotBindingChannelFactory`, compiling immutable plans from the registered binders and opening channels through independently registered executors. The base `Opc.Ua.WotCon.Bindings` package ships all eight planners and bundles HTTP, Modbus TCP, and OPC UA executors on `net8.0`, `net9.0`, and `net10.0`; MQTT remains in `Opc.Ua.WotCon.Bindings.Mqtt`. The base package retains the full `net48;net8.0;net9.0;net10.0` matrix, where planner-only validation remains available even when concrete executor namespaces are not compiled.
+`IWotBinderRegistry` is the runtime-neutral seam the coordinator uses during Prepare/Activate/Deactivate. `WotProtocolBinderRegistry` implements that seam and `IWotBindingChannelFactory`, compiling immutable plans from the registered binders and opening channels through independently registered executors. The base `Opc.Ua.WotCon.Bindings` package ships all eight planners and bundles HTTP, Modbus TCP, and OPC UA executors on `net10.0` and `net11.0`; MQTT remains in `Opc.Ua.WotCon.Bindings.Mqtt`. The base package retains the full `net48;net10.0;net11.0` matrix, where planner-only validation remains available even when concrete executor namespaces are not compiled.
 
-The generic projection runtime is implemented in `Opc.Ua.WotCon.Server.Materialization`. It resolves affordance-level OPC 10101 target mappings against freshly imported runtime NodeSets, wires async read/write handlers, opens one lazy channel per compiled form per generation, lets local monitored items sample the same read handler, supports reflection-free structured field mapping, and disposes channels with their owning generation. Updates use shadow reload, so existing monitored items keep the retired generation alive until they drain while new reads and monitored items use the replacement generation.
+The generic projection runtime is implemented in `Opc.Ua.WotCon.Server.Materialization`. It resolves affordance-level OPC 10101 target mappings against freshly imported runtime NodeSets, wires async read/write handlers, opens one lazy channel per compiled form per generation, lets local monitored items sample the same read handler, supports reflection-free structured field mapping, and disposes channels with their owning generation.
+
+Updates use shadow reload. New requests use the replacement generation; compatible
+monitored items migrate to it, and incompatible items are invalidated. Admitted
+work can finish on the retiring generation; idle monitored items and parked
+Publish requests do not keep it alive. Provenance remains tied to its producing
+generation while it drains and returns `BadNoData` after physical reclamation.
 
 The default `NullWotBinderRegistry` remains the no-binding baseline. With it, affordance forms either **fail a strict closure** (`StrictBindings = true`) or **materialize as degraded nodes** (`BadConfigurationError`) when non-strict. Protocol support is opt-in: `AddWotProtocolBinders()` registers all eight planners, while `AddHttpWotBinding()`, `AddMqttWotBinding()`, `AddModbusWotBinding()`, and `AddOpcUaWotBinding()` add their concrete executors. The core server registers none of these by default; see [WoT protocol bindings](WotBindings.md).
 
@@ -1596,7 +1604,33 @@ last completion summary.
 ### Provider requirements
 
 `LifecycleWotProjectionHost` and `LifecycleWotViewProjectionHost` require the same
-actual `INodeManagerBatchLifecycle`. The default lifecycle and file registry with
+`INodeManagerLifecycle` transaction provider. The source adapter prepares through
+`ILifecycleWriter.PrepareAsync(ArrayOf<LifecycleChange>, ct)` and retains
+`IPreparedChanges` until commit or abort. `CaptureChanges()` captures routing,
+type and factory revisions before input acquisition; beginning that capture does
+not replace stale evidence. No request context is forwarded to the lifecycle.
+Dry runs use `writer.ValidateAsync` to inspect and validate a noncommittable
+candidate without publishing namespaces, routes or readiness notifications.
+Source and canonical View changes bind metadata for the unchanged registry manager
+through `prepared.SetMetadata(image)`, so one durable decision publishes both
+the new topology and its registry read image.
+Per-generation binding records coordinate callbacks without global binding admission;
+publication still awaits reconciliation and readiness before returning.
+
+For the immediate compatibility path, `LifecycleWotViewProjectionHost.InitializationResult`
+exposes the native, non-owning result of its shared View owner's initialization.
+If that committed initialization reports reconciliation issues, explicitly call
+`await viewHost.RetryReconciliationAsync(ct)` to retry only unfinished native stages.
+This does not prepare another manager, repeat the decision or republish routing;
+before initialization it is a no-op. Concurrent retries join native work, and
+canceling a caller's wait does not cancel admitted recovery. Subsequent `ApplyAsync`
+handles report current issues and omit warnings only after recovery; already returned
+handles remain immutable. `InitializationResult.CleanupFailure` retains the original
+failure even after `Issues` becomes empty. Superseded or non-retryable issues remain
+unresolved warnings, and a failure without issue evidence is not assumed recovered.
+Canonical publication recovery remains the source coordinator's responsibility.
+
+The default lifecycle and file registry with
 genuine immutable-content leases support the four modes. Immediate-only custom
 hosts and `InMemoryWotRegistryStore` do not provide Refresh publication;
 unsupported capabilities fail `BadNotSupported` before acquisition/effects.
@@ -1610,6 +1644,16 @@ deployments must inject a genuine immutable version/key lease provider.
 Custom source hosts bind registry read images before the deciding commit;
 topology-free observations use `PrepareReadImagesAsync` without source reload.
 Custom View owners expose `IWotCanonicalViewReadImage` for captured native reads.
+Their `IWotPreparedViewPublication.Changes` contributes `ArrayOf<LifecycleChange>`
+to the source host's transaction; replacements target the prior owner's stable slot.
+Native digest readers enumerate owners with `master.GetNodeManagers(operationContext)`,
+so a retained read cannot combine an old View token with a newer membership digest.
+Native source publication also exposes `IWotPreparedProjectionNamespaceSource.CapturedNamespaceUris`
+for resolving roots before their namespaces become public. Source-host decorators must forward
+this mapping; an empty mapping means that the provider uses only published namespaces. Do not
+append staged namespaces to the serving table during validation or dry runs. Metadata tables are
+shared and additive after publication; native application read images remain explicitly pinned
+through `OperationContext` as described in [Node managers](NodeManagers.md#datatypes).
 
 ### Dependency capture and observations
 

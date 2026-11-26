@@ -1,31 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using System.Collections.Generic;
@@ -1194,6 +1168,46 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             object value = ssc.GetValue();
             Assert.That(value, Is.TypeOf<StatusCode>());
             Assert.That(((StatusCode)value).Code, Is.EqualTo(0x80010000));
+        }
+
+        private const uint kBadTimeout = 0x800A0000;
+
+        [Test]
+        public void SymbolicIdOfUnknownSymbolIsNotInterned()
+        {
+            string symbol = "Symbol" + Guid.NewGuid().ToString("N");
+            Assert.That(string.IsInterned(new string(symbol.ToCharArray())), Is.Null);
+
+            var statusCode = new StatusCode(kBadTimeout, new string(symbol.ToCharArray()));
+            var fromException = new StatusCode(new InvalidOperationException(), kBadTimeout, new string(symbol.ToCharArray()));
+
+            Assert.That(statusCode.SymbolicId, Is.EqualTo(symbol));
+            Assert.That(fromException.SymbolicId, Is.EqualTo(symbol));
+            Assert.That(string.IsInterned(new string(symbol.ToCharArray())), Is.Null);
+        }
+
+        [Test]
+        public void SymbolicIdFromServiceDiagnosticsIsNotInterned()
+        {
+            string symbol = "Symbol" + Guid.NewGuid().ToString("N");
+            var diagnostics = new DiagnosticInfo(0, -1, -1, -1, null);
+
+            ArrayOf<string> stringTable = new[] { new string(symbol.ToCharArray()) };
+
+            var result = new ServiceResult(new StatusCode(kBadTimeout), diagnostics, stringTable);
+
+            Assert.That(result.SymbolicId, Is.EqualTo(symbol));
+            Assert.That(string.IsInterned(new string(symbol.ToCharArray())), Is.Null);
+        }
+
+        [Test]
+        public void SymbolicIdOfKnownSymbolSharesTheKnownString()
+        {
+            string symbol = new(StatusCodes.BadNodeIdUnknown.SymbolicId!.ToCharArray());
+
+            var statusCode = new StatusCode(StatusCodes.BadNodeIdUnknown.Code, symbol);
+
+            Assert.That(statusCode.SymbolicId, Is.SameAs(StatusCodes.BadNodeIdUnknown.SymbolicId));
         }
     }
 }

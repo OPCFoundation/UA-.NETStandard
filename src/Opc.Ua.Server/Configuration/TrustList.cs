@@ -1,31 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using System.Collections.Generic;
@@ -331,10 +305,21 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
-        /// Disposes the trusted and issuer store instances this TrustList
-        /// holds open across its operations. The owner of the TrustList
-        /// (the node manager hosting the handler) calls this at shutdown;
-        /// a later operation would simply re-open the stores.
+        /// Reports whether this attachment owns any TrustList handles.
+        /// </summary>
+        internal bool HasOpenHandles
+        {
+            get
+            {
+                lock (m_lock)
+                {
+                    return m_handles.Count != 0;
+                }
+            }
+        }
+
+        /// <summary>
+        /// Disposes the trusted and issuer store instances and open handles.
         /// </summary>
         public void Dispose()
         {
@@ -478,6 +463,40 @@ namespace Opc.Ua.Server
         public delegate void SecureAccess(
             ISystemContext context,
             CertificateStoreIdentifier trustedStore);
+
+        /// <summary>
+        /// A <see cref="SecureAccess"/> read check that asks the server's
+        /// <see cref="IServerAuthorizationPolicy"/> for <see cref="ServerAuthorizationDecision.TrustListRead"/>.
+        /// Pass it as the read access of a TrustList so host policy applies to it.
+        /// </summary>
+        /// <param name="context">The calling context.</param>
+        /// <param name="trustedStore">The trusted store of the TrustList.</param>
+        /// <exception cref="ServiceResultException">The policy denies the read.</exception>
+        public static void AuthorizeReadByPolicy(ISystemContext context, CertificateStoreIdentifier trustedStore)
+        {
+            ThrowIfBad(RoleAuthorizationGate.Check(context, ServerAuthorizationDecision.TrustListRead));
+        }
+
+        /// <summary>
+        /// A <see cref="SecureAccess"/> write check that asks the server's
+        /// <see cref="IServerAuthorizationPolicy"/> for <see cref="ServerAuthorizationDecision.TrustListWrite"/>.
+        /// Pass it as the write access of a TrustList so host policy applies to it.
+        /// </summary>
+        /// <param name="context">The calling context.</param>
+        /// <param name="trustedStore">The trusted store of the TrustList.</param>
+        /// <exception cref="ServiceResultException">The policy denies the write.</exception>
+        public static void AuthorizeWriteByPolicy(ISystemContext context, CertificateStoreIdentifier trustedStore)
+        {
+            ThrowIfBad(RoleAuthorizationGate.Check(context, ServerAuthorizationDecision.TrustListWrite));
+        }
+
+        private static void ThrowIfBad(ServiceResult result)
+        {
+            if (ServiceResult.IsBad(result))
+            {
+                throw new ServiceResultException(result);
+            }
+        }
 
         /// <summary>
         /// Closes every open read/write handle of this TrustList owned by
@@ -786,6 +805,17 @@ namespace Opc.Ua.Server
                 : default;
         }
 
+        /// <summary>
+        /// Rejects per-entry certificate and CRL writes when the coordinator requires atomic publication.
+        /// </summary>
+        private void ValidateUnfencedTrustStoreMutation()
+        {
+            if (m_coordinator is IPushConfigurationTrustStoreMutationGate gate)
+            {
+                gate.ValidateUnfencedTrustStoreMutation();
+            }
+        }
+
         private ServiceResult Open(
             ISystemContext context,
             MethodState method,
@@ -875,6 +905,7 @@ namespace Opc.Ua.Server
             else if ((int)mode == ((int)OpenFileMode.Write | (int)OpenFileMode.EraseExisting))
             {
                 await HasSecureWriteAccessAsync(context, cancellationToken).ConfigureAwait(false);
+                ValidateUnfencedTrustStoreMutation();
                 // Per OPC UA Part 12 §7.10.2, opening a TrustList for
                 // writing participates in owner-Session validation: a
                 // different Session's active transaction rejects this
@@ -1299,6 +1330,7 @@ namespace Opc.Ua.Server
             {
                 try
                 {
+                    ValidateUnfencedTrustStoreMutation();
                     await AcquireTransactionOwnershipAsync(sessionId, cancellationToken).ConfigureAwait(false);
                     m_coordinator.ValidateSessionCanParticipate(sessionId);
                 }
@@ -1523,45 +1555,20 @@ namespace Opc.Ua.Server
                 };
             }
 
-            // Transactional: snapshot the pre-transaction store contents
-            // for rollback, then stage the decoded payload instead of
-            // applying it now.
+            // Staging requires the file to be closed. Capture the rollback
+            // baseline only once ApplyChanges owns the transaction.
+            ReleaseHandle(fileHandle, strm!);
             CertificateCollection? originalIssuerCertificates = null;
             CertificateCollection? originalTrustedCertificates = null;
             X509CRLCollection? originalIssuerCrls = null;
             X509CRLCollection? originalTrustedCrls = null;
             try
             {
-                if (issuerCertificates != null)
-                {
-                    ICertificateStore store = GetStore(m_issuerStore);
-                    originalIssuerCertificates = await store.EnumerateAsync(cancellationToken).ConfigureAwait(false);
-                }
-                if (issuerCrls != null)
-                {
-                    ICertificateStore store = GetStore(m_issuerStore);
-                    originalIssuerCrls = await store.EnumerateCRLsAsync(cancellationToken).ConfigureAwait(false);
-                }
-                if (trustedCertificates != null)
-                {
-                    ICertificateStore store = GetStore(m_trustedStore);
-                    originalTrustedCertificates = await store.EnumerateAsync(cancellationToken).ConfigureAwait(false);
-                }
-                if (trustedCrls != null)
-                {
-                    ICertificateStore store = GetStore(m_trustedStore);
-                    originalTrustedCrls = await store.EnumerateCRLsAsync(cancellationToken).ConfigureAwait(false);
-                }
-
                 NodeId trustListId = m_node.NodeId;
                 CertificateCollection? stagedIssuerCertificates = issuerCertificates;
                 CertificateCollection? stagedTrustedCertificates = trustedCertificates;
                 X509CRLCollection? stagedIssuerCrls = issuerCrls;
                 X509CRLCollection? stagedTrustedCrls = trustedCrls;
-                CertificateCollection? stagedOriginalIssuerCertificates = originalIssuerCertificates;
-                CertificateCollection? stagedOriginalTrustedCertificates = originalTrustedCertificates;
-                X509CRLCollection? stagedOriginalIssuerCrls = originalIssuerCrls;
-                X509CRLCollection? stagedOriginalTrustedCrls = originalTrustedCrls;
                 DateTimeUtc previousUpdateTime = default;
                 bool updateTimeChanged = false;
 
@@ -1575,24 +1582,26 @@ namespace Opc.Ua.Server
                 async Task RestoreOriginalTrustListAsync(CancellationToken ct)
                 {
                     bool restored = true;
-                    if (stagedOriginalIssuerCertificates != null)
+                    if (originalIssuerCertificates != null)
                     {
-                        restored &= await UpdateStoreCertificatesAsync(m_issuerStore, stagedOriginalIssuerCertificates, ct)
+                        restored &= await UpdateStoreCertificatesAsync(
+                            m_issuerStore, originalIssuerCertificates, ct)
                             .ConfigureAwait(false);
                     }
-                    if (stagedOriginalIssuerCrls != null)
+                    if (originalIssuerCrls != null)
                     {
-                        restored &= await UpdateStoreCrlsAsync(m_issuerStore, stagedOriginalIssuerCrls, ct)
+                        restored &= await UpdateStoreCrlsAsync(m_issuerStore, originalIssuerCrls, ct)
                             .ConfigureAwait(false);
                     }
-                    if (stagedOriginalTrustedCertificates != null)
+                    if (originalTrustedCertificates != null)
                     {
-                        restored &= await UpdateStoreCertificatesAsync(m_trustedStore, stagedOriginalTrustedCertificates, ct)
+                        restored &= await UpdateStoreCertificatesAsync(
+                            m_trustedStore, originalTrustedCertificates, ct)
                             .ConfigureAwait(false);
                     }
-                    if (stagedOriginalTrustedCrls != null)
+                    if (originalTrustedCrls != null)
                     {
-                        restored &= await UpdateStoreCrlsAsync(m_trustedStore, stagedOriginalTrustedCrls, ct)
+                        restored &= await UpdateStoreCrlsAsync(m_trustedStore, originalTrustedCrls, ct)
                             .ConfigureAwait(false);
                     }
                     if (!restored)
@@ -1609,8 +1618,32 @@ namespace Opc.Ua.Server
                 m_coordinator.Stage(sessionId, new PushConfigurationOperation
                 {
                     AffectedTrustList = trustListId,
+                    WritesUnfencedTrustStore = true,
                     CommitAsync = async ct =>
                     {
+                        // Capture every affected store before mutating any of them.
+                        // A snapshot failure must not trigger compensation.
+                        if (stagedIssuerCertificates != null)
+                        {
+                            originalIssuerCertificates = await GetStore(m_issuerStore).EnumerateAsync(ct)
+                                .ConfigureAwait(false);
+                        }
+                        if (stagedIssuerCrls != null)
+                        {
+                            originalIssuerCrls = await GetStore(m_issuerStore).EnumerateCRLsAsync(ct)
+                                .ConfigureAwait(false);
+                        }
+                        if (stagedTrustedCertificates != null)
+                        {
+                            originalTrustedCertificates = await GetStore(m_trustedStore).EnumerateAsync(ct)
+                                .ConfigureAwait(false);
+                        }
+                        if (stagedTrustedCrls != null)
+                        {
+                            originalTrustedCrls = await GetStore(m_trustedStore).EnumerateCRLsAsync(ct)
+                                .ConfigureAwait(false);
+                        }
+
                         bool ok = true;
                         try
                         {
@@ -1673,23 +1706,18 @@ namespace Opc.Ua.Server
                     {
                         stagedIssuerCertificates?.Dispose();
                         stagedTrustedCertificates?.Dispose();
-                        stagedOriginalIssuerCertificates?.Dispose();
-                        stagedOriginalTrustedCertificates?.Dispose();
+                        originalIssuerCertificates?.Dispose();
+                        originalTrustedCertificates?.Dispose();
                     }
                 });
 
                 issuerCertificates = null;
                 trustedCertificates = null;
-                originalIssuerCertificates = null;
-                originalTrustedCertificates = null;
             }
             finally
             {
                 issuerCertificates?.Dispose();
                 trustedCertificates?.Dispose();
-                originalIssuerCertificates?.Dispose();
-                originalTrustedCertificates?.Dispose();
-
                 ReleaseHandle(fileHandle, strm!);
             }
 
@@ -1775,6 +1803,7 @@ namespace Opc.Ua.Server
             {
                 try
                 {
+                    ValidateUnfencedTrustStoreMutation();
                     await AcquireTransactionOwnershipAsync(sessionId, cancellationToken).ConfigureAwait(false);
                     m_coordinator.ValidateSessionCanParticipate(sessionId);
                 }
@@ -1876,6 +1905,7 @@ namespace Opc.Ua.Server
                         m_coordinator.Stage(sessionId, new PushConfigurationOperation
                         {
                             AffectedTrustList = trustListId,
+                            WritesUnfencedTrustStore = true,
                             CommitAsync = async ct =>
                             {
                                 CertificateStoreIdentifier storeIdentifier = isTrustedCertificate
@@ -1997,6 +2027,7 @@ namespace Opc.Ua.Server
             {
                 try
                 {
+                    ValidateUnfencedTrustStoreMutation();
                     await AcquireTransactionOwnershipAsync(sessionId, cancellationToken).ConfigureAwait(false);
                     m_coordinator.ValidateSessionCanParticipate(sessionId);
                 }
@@ -2147,6 +2178,7 @@ namespace Opc.Ua.Server
                             m_coordinator.Stage(sessionId, new PushConfigurationOperation
                             {
                                 AffectedTrustList = trustListId,
+                                WritesUnfencedTrustStore = true,
                                 CommitAsync = async ct =>
                                 {
                                     ICertificateStore commitStore = GetStore(storeIdentifier);

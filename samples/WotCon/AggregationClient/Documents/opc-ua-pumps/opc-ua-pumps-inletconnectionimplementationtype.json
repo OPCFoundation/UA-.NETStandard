@@ -5,6 +5,7 @@
       "ns1": "http://opcfoundation.org/UA/Pumps/",
       "ns2": "http://opcfoundation.org/UA/Machinery/",
       "ns3": "http://opcfoundation.org/UA/DI/",
+      "qudt": "http://qudt.org/schema/qudt/",
       "ua": "http://opcfoundation.org/UA/",
       "uav": "http://opcfoundation.org/UA/WoT-Binding/"
     },
@@ -53,9 +54,6 @@
       "title": "Definition",
       "type": "string",
       "uav:browseName": "Definition",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=9407"
-      ],
       "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=9411",
       "uav:mapToType": "i=12",
       "uav:modellingRule": "Optional"
@@ -84,9 +82,6 @@
       "title": "Definition",
       "type": "string",
       "uav:browseName": "Definition",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=9408"
-      ],
       "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=9414",
       "uav:mapToType": "i=12",
       "uav:modellingRule": "Optional"
@@ -115,9 +110,6 @@
       "title": "Definition",
       "type": "string",
       "uav:browseName": "Definition",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=9409"
-      ],
       "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=9417",
       "uav:mapToType": "i=12",
       "uav:modellingRule": "Optional"
@@ -146,9 +138,6 @@
       "title": "Definition",
       "type": "string",
       "uav:browseName": "Definition",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=9410"
-      ],
       "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=9420",
       "uav:mapToType": "i=12",
       "uav:modellingRule": "Optional"
@@ -176,9 +165,6 @@
       "readOnly": true,
       "title": "EURange",
       "uav:browseName": "EURange",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=9407"
-      ],
       "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=9412",
       "uav:mapToType": "i=884",
       "uav:modellingRule": "Optional"
@@ -206,9 +192,6 @@
       "readOnly": true,
       "title": "EURange",
       "uav:browseName": "EURange",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=9408"
-      ],
       "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=9415",
       "uav:mapToType": "i=884",
       "uav:modellingRule": "Optional"
@@ -236,9 +219,6 @@
       "readOnly": true,
       "title": "EURange",
       "uav:browseName": "EURange",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=9409"
-      ],
       "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=9418",
       "uav:mapToType": "i=884",
       "uav:modellingRule": "Optional"
@@ -266,9 +246,6 @@
       "readOnly": true,
       "title": "EURange",
       "uav:browseName": "EURange",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=9410"
-      ],
       "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=9421",
       "uav:mapToType": "i=884",
       "uav:modellingRule": "Optional"
@@ -297,9 +274,6 @@
       "title": "EngineeringUnits",
       "type": "string",
       "uav:browseName": "EngineeringUnits",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=9407"
-      ],
       "uav:engineeringUnits": {
         "description": "metre",
         "displayName": "m",
@@ -334,9 +308,6 @@
       "title": "EngineeringUnits",
       "type": "string",
       "uav:browseName": "EngineeringUnits",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=9408"
-      ],
       "uav:engineeringUnits": {
         "description": "metre per second",
         "displayName": "m/s",
@@ -371,9 +342,6 @@
       "title": "EngineeringUnits",
       "type": "string",
       "uav:browseName": "EngineeringUnits",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=9409"
-      ],
       "uav:engineeringUnits": {
         "description": "pascal",
         "displayName": "Pa",
@@ -408,9 +376,6 @@
       "title": "EngineeringUnits",
       "type": "string",
       "uav:browseName": "EngineeringUnits",
-      "uav:componentOf": [
-        "nsu=http://opcfoundation.org/UA/Pumps/;i=9410"
-      ],
       "uav:engineeringUnits": {
         "description": "metre",
         "displayName": "m",
@@ -441,6 +406,12 @@
         }
       ],
       "observable": true,
+      "qudt:hasQuantityKind": {
+        "@id": "http://qudt.org/vocab/quantitykind/Length"
+      },
+      "qudt:hasUnit": {
+        "@id": "http://qudt.org/vocab/unit/M"
+      },
       "title": "HeightOfTheInletConnection",
       "type": "number",
       "uav:browseName": "ns1:HeightOfTheInletConnection",
@@ -470,6 +441,12 @@
         }
       ],
       "observable": true,
+      "qudt:hasQuantityKind": {
+        "@id": "http://qudt.org/vocab/quantitykind/Velocity"
+      },
+      "qudt:hasUnit": {
+        "@id": "http://qudt.org/vocab/unit/M-PER-SEC"
+      },
       "title": "MeanRatedVelocityAtInlet",
       "type": "number",
       "uav:browseName": "ns1:MeanRatedVelocityAtInlet",
@@ -499,6 +476,12 @@
         }
       ],
       "observable": true,
+      "qudt:hasQuantityKind": {
+        "@id": "http://qudt.org/vocab/quantitykind/Pressure"
+      },
+      "qudt:hasUnit": {
+        "@id": "http://qudt.org/vocab/unit/PA"
+      },
       "title": "RatedInletPressure",
       "type": "number",
       "uav:browseName": "ns1:RatedInletPressure",
@@ -528,6 +511,12 @@
         }
       ],
       "observable": true,
+      "qudt:hasQuantityKind": {
+        "@id": "http://qudt.org/vocab/quantitykind/Length"
+      },
+      "qudt:hasUnit": {
+        "@id": "http://qudt.org/vocab/unit/M"
+      },
       "title": "TotalHeadAtInletAreaOfThePump",
       "type": "number",
       "uav:browseName": "ns1:TotalHeadAtInletAreaOfThePump",
@@ -539,6 +528,24 @@
     }
   },
   "title": "InletConnectionImplementationType",
+  "tm:optional": [
+    "/properties/HeightOfTheInletConnection",
+    "/properties/MeanRatedVelocityAtInlet",
+    "/properties/RatedInletPressure",
+    "/properties/TotalHeadAtInletAreaOfThePump",
+    "/properties/Definition",
+    "/properties/EngineeringUnits",
+    "/properties/EURange",
+    "/properties/Definition_2",
+    "/properties/EngineeringUnits_2",
+    "/properties/EURange_2",
+    "/properties/Definition_3",
+    "/properties/EngineeringUnits_3",
+    "/properties/EURange_3",
+    "/properties/Definition_4",
+    "/properties/EngineeringUnits_4",
+    "/properties/EURange_4"
+  ],
   "uav:bindingVersion": "1.1",
   "uav:browseName": "ns1:InletConnectionImplementationType",
   "uav:id": "nsu=http://opcfoundation.org/UA/Pumps/;i=1047",
@@ -760,6 +767,7 @@
         "browseName": "1:InletConnectionImplementationType",
         "displayName": [
           {
+            "locale": "",
             "value": "InletConnectionImplementationType"
           }
         ],
@@ -793,15 +801,18 @@
       },
       {
         "accessLevel": 3,
+        "arrayDimensions": "",
         "browseName": "1:HeightOfTheInletConnection",
         "dataType": "Double",
         "description": [
           {
+            "locale": "",
             "value": "Height of the center of the inlet connection of the pump"
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "HeightOfTheInletConnection"
           }
         ],
@@ -839,10 +850,12 @@
         "typeDefinition": "i=15318"
       },
       {
+        "arrayDimensions": "",
         "browseName": "Definition",
         "dataType": "String",
         "displayName": [
           {
+            "locale": "",
             "value": "Definition"
           }
         ],
@@ -868,10 +881,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "EngineeringUnits",
         "dataType": "EUInformation",
         "displayName": [
           {
+            "locale": "",
             "value": "EngineeringUnits"
           }
         ],
@@ -898,10 +913,12 @@
         "valueXml": "<uax:ExtensionObject xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">\n        <uax:TypeId>\n          <uax:Identifier>i=888</uax:Identifier>\n        </uax:TypeId>\n        <uax:Body>\n          <uax:EUInformation>\n            <uax:NamespaceUri>http://www.opcfoundation.org/UA/units/un/cefact</uax:NamespaceUri>\n            <uax:UnitId>5067858</uax:UnitId>\n            <uax:DisplayName>\n              <uax:Text>m</uax:Text>\n            </uax:DisplayName>\n            <uax:Description>\n              <uax:Text>metre</uax:Text>\n            </uax:Description>\n          </uax:EUInformation>\n        </uax:Body>\n      </uax:ExtensionObject>"
       },
       {
+        "arrayDimensions": "",
         "browseName": "EURange",
         "dataType": "Range",
         "displayName": [
           {
+            "locale": "",
             "value": "EURange"
           }
         ],
@@ -928,15 +945,18 @@
       },
       {
         "accessLevel": 3,
+        "arrayDimensions": "",
         "browseName": "1:MeanRatedVelocityAtInlet",
         "dataType": "Double",
         "description": [
           {
+            "locale": "",
             "value": "Rated flow at pump inlet connection divided by the inlet area of the pump"
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "MeanRatedVelocityAtInlet"
           }
         ],
@@ -974,10 +994,12 @@
         "typeDefinition": "i=15318"
       },
       {
+        "arrayDimensions": "",
         "browseName": "Definition",
         "dataType": "String",
         "displayName": [
           {
+            "locale": "",
             "value": "Definition"
           }
         ],
@@ -1003,10 +1025,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "EngineeringUnits",
         "dataType": "EUInformation",
         "displayName": [
           {
+            "locale": "",
             "value": "EngineeringUnits"
           }
         ],
@@ -1033,10 +1057,12 @@
         "valueXml": "<uax:ExtensionObject xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">\n        <uax:TypeId>\n          <uax:Identifier>i=888</uax:Identifier>\n        </uax:TypeId>\n        <uax:Body>\n          <uax:EUInformation>\n            <uax:NamespaceUri>http://www.opcfoundation.org/UA/units/un/cefact</uax:NamespaceUri>\n            <uax:UnitId>5067859</uax:UnitId>\n            <uax:DisplayName>\n              <uax:Text>m/s</uax:Text>\n            </uax:DisplayName>\n            <uax:Description>\n              <uax:Text>metre per second</uax:Text>\n            </uax:Description>\n          </uax:EUInformation>\n        </uax:Body>\n      </uax:ExtensionObject>"
       },
       {
+        "arrayDimensions": "",
         "browseName": "EURange",
         "dataType": "Range",
         "displayName": [
           {
+            "locale": "",
             "value": "EURange"
           }
         ],
@@ -1063,15 +1089,18 @@
       },
       {
         "accessLevel": 3,
+        "arrayDimensions": "",
         "browseName": "1:RatedInletPressure",
         "dataType": "Double",
         "description": [
           {
+            "locale": "",
             "value": "Inlet pressure of the operating conditions at the guarantee point"
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "RatedInletPressure"
           }
         ],
@@ -1109,10 +1138,12 @@
         "typeDefinition": "i=15318"
       },
       {
+        "arrayDimensions": "",
         "browseName": "Definition",
         "dataType": "String",
         "displayName": [
           {
+            "locale": "",
             "value": "Definition"
           }
         ],
@@ -1138,10 +1169,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "EngineeringUnits",
         "dataType": "EUInformation",
         "displayName": [
           {
+            "locale": "",
             "value": "EngineeringUnits"
           }
         ],
@@ -1168,10 +1201,12 @@
         "valueXml": "<uax:ExtensionObject xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">\n        <uax:TypeId>\n          <uax:Identifier>i=888</uax:Identifier>\n        </uax:TypeId>\n        <uax:Body>\n          <uax:EUInformation>\n            <uax:NamespaceUri>http://www.opcfoundation.org/UA/units/un/cefact</uax:NamespaceUri>\n            <uax:UnitId>5259596</uax:UnitId>\n            <uax:DisplayName>\n              <uax:Text>Pa</uax:Text>\n            </uax:DisplayName>\n            <uax:Description>\n              <uax:Text>pascal</uax:Text>\n            </uax:Description>\n          </uax:EUInformation>\n        </uax:Body>\n      </uax:ExtensionObject>"
       },
       {
+        "arrayDimensions": "",
         "browseName": "EURange",
         "dataType": "Range",
         "displayName": [
           {
+            "locale": "",
             "value": "EURange"
           }
         ],
@@ -1198,15 +1233,18 @@
       },
       {
         "accessLevel": 3,
+        "arrayDimensions": "",
         "browseName": "1:TotalHeadAtInletAreaOfThePump",
         "dataType": "Double",
         "description": [
           {
+            "locale": "",
             "value": "Head observed at inlet area of the pump, corresponding to the sum of the height, pressure head and velocity head"
           }
         ],
         "displayName": [
           {
+            "locale": "",
             "value": "TotalHeadAtInletAreaOfThePump"
           }
         ],
@@ -1244,10 +1282,12 @@
         "typeDefinition": "i=15318"
       },
       {
+        "arrayDimensions": "",
         "browseName": "Definition",
         "dataType": "String",
         "displayName": [
           {
+            "locale": "",
             "value": "Definition"
           }
         ],
@@ -1273,10 +1313,12 @@
         "typeDefinition": "i=68"
       },
       {
+        "arrayDimensions": "",
         "browseName": "EngineeringUnits",
         "dataType": "EUInformation",
         "displayName": [
           {
+            "locale": "",
             "value": "EngineeringUnits"
           }
         ],
@@ -1303,10 +1345,12 @@
         "valueXml": "<uax:ExtensionObject xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">\n        <uax:TypeId>\n          <uax:Identifier>i=888</uax:Identifier>\n        </uax:TypeId>\n        <uax:Body>\n          <uax:EUInformation>\n            <uax:NamespaceUri>http://www.opcfoundation.org/UA/units/un/cefact</uax:NamespaceUri>\n            <uax:UnitId>5067858</uax:UnitId>\n            <uax:DisplayName>\n              <uax:Text>m</uax:Text>\n            </uax:DisplayName>\n            <uax:Description>\n              <uax:Text>metre</uax:Text>\n            </uax:Description>\n          </uax:EUInformation>\n        </uax:Body>\n      </uax:ExtensionObject>"
       },
       {
+        "arrayDimensions": "",
         "browseName": "EURange",
         "dataType": "Range",
         "displayName": [
           {
+            "locale": "",
             "value": "EURange"
           }
         ],

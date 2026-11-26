@@ -1,31 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using System.Collections.Generic;
@@ -71,6 +45,30 @@ namespace Opc.Ua.Client.Subscriptions
         /// Publish request even though notifications can be dispatched to it.
         /// </remarks>
         int SessionSubscriptionCount { get; }
+
+        /// <summary>
+        /// Gets the operation timeout of the session's channel in milliseconds, after
+        /// which the client abandons a request. Zero or less when not known.
+        /// </summary>
+        int OperationTimeout { get; }
+
+        /// <summary>
+        /// Whether a Publish response for an identifier that resolves to no
+        /// subscription may be taken as an abandoned subscription and deleted on the
+        /// server. It may not while the session transfers or restores subscriptions,
+        /// while a subscription of the session is still waiting for its identifier,
+        /// or when the session keeps its subscriptions on close.
+        /// </summary>
+        /// <param name="subscriptionId">The unresolved identifier.</param>
+        bool MayDeleteUnknownSubscription(uint subscriptionId);
+
+        /// <summary>
+        /// Gets the acknowledgement scope of the current lifetime of the subscription
+        /// with this identifier that the session holds outside this manager's
+        /// registry, or <c>null</c> when the session holds none.
+        /// </summary>
+        /// <param name="subscriptionId">The server-assigned identifier.</param>
+        AcknowledgementScope? GetSessionSubscriptionScope(uint subscriptionId);
 
         /// <summary>
         /// Create a managed subscription
@@ -189,5 +187,23 @@ namespace Opc.Ua.Client.Subscriptions
             ArrayOf<uint> availableSequenceNumbers,
             ArrayOf<string> stringTable,
             bool moreNotifications);
+
+        /// <summary>
+        /// Waits until a subscription the session holds outside this manager has
+        /// room for another message. Such a subscription acknowledges a message
+        /// when it is saved, so a full queue would give up older messages that the
+        /// server can no longer republish.
+        /// </summary>
+        /// <param name="subscriptionId">The identifier from the publish response.</param>
+        /// <param name="waitPolicy">Decides whether the caller may wait.</param>
+        /// <param name="ct">Cancels the wait.</param>
+        /// <returns><c>false</c> when the subscription is full and the caller may
+        /// not wait: the message must then stay unacknowledged on the server.
+        /// <c>true</c> otherwise, also when the session does not hold the
+        /// identifier.</returns>
+        ValueTask<bool> WaitForSessionSubscriptionRoomAsync(
+            uint subscriptionId,
+            IIngressWaitPolicy waitPolicy,
+            CancellationToken ct);
     }
 }

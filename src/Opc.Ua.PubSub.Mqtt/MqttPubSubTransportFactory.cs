@@ -1,32 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using Microsoft.Extensions.Options;
@@ -195,6 +168,7 @@ namespace Opc.Ua.PubSub.Mqtt
             }
 
             MqttEndpoint endpoint = MqttEndpointParser.Parse(url);
+            EnsureCredentialsBoundToEndpoint(m_defaultOptions, endpoint, connection.Name);
             MqttConnectionOptions options = CloneOptionsWithEndpoint(m_defaultOptions, url);
             ApplyAuthenticationSettings(connection, options);
             ResolvePassword(options);
@@ -209,6 +183,68 @@ namespace Opc.Ua.PubSub.Mqtt
                 telemetry,
                 timeProvider,
                 m_diagnostics);
+        }
+
+        /// <summary>
+        /// The broker URL of a connection comes from the PubSub configuration,
+        /// which a configuration client can change remotely, while user name and
+        /// password come from the host options. Host credentials are only sent to
+        /// the broker the host named: <see cref="MqttConnectionOptions.Endpoint"/>
+        /// or an entry of <see cref="MqttConnectionOptions.CredentialEndpoints"/>.
+        /// </summary>
+        /// <exception cref="InvalidOperationException">
+        /// The host options carry credentials and the connection names another broker.
+        /// </exception>
+        internal static void EnsureCredentialsBoundToEndpoint(
+            MqttConnectionOptions source,
+            MqttEndpoint endpoint,
+            string? connectionName)
+        {
+            if (string.IsNullOrEmpty(source.UserName) && string.IsNullOrEmpty(source.PasswordSecretId))
+            {
+                return;
+            }
+            if (IsSameBroker(source.Endpoint, endpoint))
+            {
+                return;
+            }
+            foreach (string allowed in source.CredentialEndpoints)
+            {
+                if (IsSameBroker(allowed, endpoint))
+                {
+                    return;
+                }
+            }
+            throw new InvalidOperationException(
+                $"MQTT connection '{connectionName}' names a broker that is not " +
+                "MqttConnectionOptions.Endpoint or listed in MqttConnectionOptions.CredentialEndpoints. " +
+                "The configured MQTT credentials are only sent to those brokers.");
+        }
+
+        private static bool IsSameBroker(string? allowed, MqttEndpoint endpoint)
+        {
+            if (string.IsNullOrWhiteSpace(allowed))
+            {
+                return false;
+            }
+            string candidate = allowed!.Trim();
+            if (!candidate.Contains("://", StringComparison.Ordinal))
+            {
+                // host[:port] form: the port defaults to the port of the
+                // connection's own scheme.
+                candidate = endpoint.Uri.Scheme + "://" + candidate;
+            }
+            MqttEndpoint parsed;
+            try
+            {
+                parsed = MqttEndpointParser.Parse(candidate);
+            }
+            catch (FormatException)
+            {
+                return false;
+            }
+            return string.Equals(parsed.Host, endpoint.Host, StringComparison.OrdinalIgnoreCase) &&
+                parsed.Port == endpoint.Port;
         }
 
         private static MqttConnectionOptions CloneOptionsWithEndpoint(
@@ -235,8 +271,15 @@ namespace Opc.Ua.PubSub.Mqtt
                 Topics = source.Topics,
                 ConnectTimeout = source.ConnectTimeout,
                 MaxConcurrentSubscriptions = source.MaxConcurrentSubscriptions,
-                MaxNetworkMessageSize = source.MaxNetworkMessageSize
+                MaxNetworkMessageSize = source.MaxNetworkMessageSize,
+                AutoReconnect = source.AutoReconnect,
+                ReconnectDelay = source.ReconnectDelay,
+                MaxReconnectDelay = source.MaxReconnectDelay
             };
+            foreach (string credentialEndpoint in source.CredentialEndpoints)
+            {
+                clone.CredentialEndpoints.Add(credentialEndpoint);
+            }
 #if NET8_0_OR_GREATER
             if (source.GetStreamProvider() is { } streamProvider)
             {

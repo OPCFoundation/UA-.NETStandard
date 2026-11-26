@@ -1,31 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using System.Collections.Concurrent;
@@ -70,7 +44,7 @@ namespace Opc.Ua.Client.Tests
             set.Backup.SetServiceLevel(250);
 
             await using UaManagedSession session = await set.ConnectAsync(
-                new ServerRedundancyOptions(), timeout.Token).ConfigureAwait(false);
+                new ServerRedundancyOptions { ProbeMemberServiceLevel = false }, timeout.Token).ConfigureAwait(false);
 
             Assert.That(ServerUriOf(session), Is.EqualTo(set.Primary.ApplicationUri));
             ServerRedundancyInfo info = await WaitForResolvedMemberAsync(session, set.Backup, timeout.Token)
@@ -91,15 +65,15 @@ namespace Opc.Ua.Client.Tests
         /// higher ServiceLevel.
         /// </summary>
         [Test]
-        public async Task ConnectWithProbingSelectsMemberWithHigherServiceLevelAsync()
+        public async Task DefaultSelectionMovesFromDegradedToHealthyMemberAsync()
         {
             using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(60));
             await using RedundantSet set = await RedundantSet.StartAsync(timeout.Token).ConfigureAwait(false);
-            set.Primary.SetServiceLevel(210);
+            set.Primary.SetServiceLevel(150);
             set.Backup.SetServiceLevel(250);
 
             await using UaManagedSession session = await set.ConnectAsync(
-                new ServerRedundancyOptions { ProbeMemberServiceLevel = true }, timeout.Token).ConfigureAwait(false);
+                new ServerRedundancyOptions(), timeout.Token).ConfigureAwait(false);
 
             Assert.That(ServerUriOf(session), Is.EqualTo(set.Backup.ApplicationUri));
             ServerRedundancyInfo? info = session.RedundancyInfo;
@@ -115,6 +89,123 @@ namespace Opc.Ua.Client.Tests
         }
 
         /// <summary>
+        /// Ordinary connections can use URL-only discovery; redundancy requires independent URI authority.
+        /// </summary>
+        [TestCase(false, false)]
+        [TestCase(true, false)]
+        [TestCase(true, true)]
+        public async Task UrlDiscoveryDoesNotChooseRedundancyPeerIdentityAsync(
+            bool enableRedundancy, bool configureExpectedUri)
+        {
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(60));
+            await using RedundantSet set = await RedundantSet.StartAsync(timeout.Token).ConfigureAwait(false);
+            set.Primary.SetServiceLevel(ServiceLevels.Maximum);
+            var builder = new ManagedSessionBuilder(set.Client.Config, set.Telemetry)
+                .UseEndpoint(set.Primary.Url)
+                .WithUserIdentity(new UserIdentity("user1", "password"u8))
+                .WithServerRedundancyOptions(new ServerRedundancyOptions
+                {
+                    ExpectedServerApplicationUri = configureExpectedUri ? set.Primary.ApplicationUri : null
+                });
+            if (enableRedundancy)
+            {
+                builder.WithServerRedundancy();
+            }
+
+            if (enableRedundancy && !configureExpectedUri)
+            {
+                await Assert.ThatAsync(
+                    () => builder.ConnectAsync(timeout.Token),
+                    Throws.TypeOf<ServiceResultException>().With.Property(nameof(ServiceResultException.StatusCode))
+                        .EqualTo((StatusCode)StatusCodes.BadCertificateUriInvalid)).ConfigureAwait(false);
+                Assert.That(set.Primary.CreatedSessionCount, Is.Zero);
+            }
+            else
+            {
+                await using UaManagedSession session = await builder.ConnectAsync(timeout.Token).ConfigureAwait(false);
+                Assert.That(ServerUriOf(session), Is.EqualTo(set.Primary.ApplicationUri));
+                Assert.That(session.Identity.TokenType, Is.EqualTo(UserTokenType.UserName));
+                Assert.That(session.RedundancyInfo != null, Is.EqualTo(enableRedundancy));
+            }
+        }
+
+        /// <summary>
+        /// A fully populated discovery result is still routing metadata, not client trust configuration.
+        /// </summary>
+        [TestCase(false, false)]
+        [TestCase(true, false)]
+        [TestCase(false, true)]
+        [TestCase(true, true)]
+        public async Task DiscoveredEndpointDoesNotAuthorizeCredentialedRedundancyAsync(
+            bool configureExpectedUri, bool tokenReuseOnly)
+        {
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(60));
+            await using RedundantSet set = await RedundantSet.StartAsync(timeout.Token).ConfigureAwait(false);
+            set.Primary.SetServiceLevel(ServiceLevels.Maximum);
+            ConfiguredEndpoint discoveryResult = set.Primary.Endpoint;
+            Assert.That(discoveryResult.Description.Server.ApplicationUri, Is.EqualTo(set.Primary.ApplicationUri));
+            Assert.That(discoveryResult.Description.ServerCertificate.IsEmpty, Is.False);
+            var builder = new ManagedSessionBuilder(set.Client.Config, set.Telemetry)
+                .UseEndpoint(discoveryResult)
+                .WithUserIdentity(new UserIdentity("user1", "password"u8));
+            if (tokenReuseOnly)
+            {
+                builder.WithTokenReuseFailover();
+            }
+            else
+            {
+                builder.WithServerRedundancy();
+            }
+
+            if (!configureExpectedUri)
+            {
+                await Assert.ThatAsync(
+                    () => builder.ConnectAsync(timeout.Token),
+                    Throws.TypeOf<ServiceResultException>().With.Property(nameof(ServiceResultException.StatusCode))
+                        .EqualTo((StatusCode)StatusCodes.BadCertificateUriInvalid)).ConfigureAwait(false);
+                Assert.That(set.Primary.ActivatedIdentityTypes, Is.Empty);
+                Assert.That(set.Primary.CreatedSessionCount, Is.Zero);
+                return;
+            }
+
+            builder.WithServerRedundancyOptions(new ServerRedundancyOptions
+            {
+                ExpectedServerApplicationUri = set.Primary.ApplicationUri
+            });
+            await using UaManagedSession session = await builder.ConnectAsync(timeout.Token).ConfigureAwait(false);
+            Assert.That(session.Identity.TokenType, Is.EqualTo(UserTokenType.UserName));
+            Assert.That(ServerUriOf(session), Is.EqualTo(set.Primary.ApplicationUri));
+        }
+
+        /// <summary>
+        /// A cached endpoint is not sufficient authority to resume a redundancy session.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task RedundantTakeoverRequiresIndependentPeerConfigurationAsync(bool supplyCachedEndpoint)
+        {
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(60));
+            await using RedundantSet set = await RedundantSet.StartAsync(timeout.Token).ConfigureAwait(false);
+            await using UaManagedSession original = await set.ConnectAsync(
+                new ServerRedundancyOptions(), timeout.Token).ConfigureAwait(false);
+            SessionHandoff handoff = await original.RetireAsync(timeout.Token).ConfigureAwait(false);
+            int activations = set.Primary.ActivatedIdentityTypes.Count;
+            var builder = new ManagedSessionBuilder(set.Client.Config, set.Telemetry)
+                .WithServerRedundancy()
+                .TakeOver(handoff);
+            if (supplyCachedEndpoint)
+            {
+                builder.UseEndpoint(CoreUtils.Clone(handoff.Session.ConfiguredEndpoint)!);
+            }
+
+            await Assert.ThatAsync(
+                () => builder.ConnectAsync(timeout.Token),
+                Throws.TypeOf<ServiceResultException>().With.Property(nameof(ServiceResultException.StatusCode))
+                    .EqualTo((StatusCode)StatusCodes.BadCertificateUriInvalid)).ConfigureAwait(false);
+            Assert.That(set.Primary.ActivatedIdentityTypes, Has.Count.EqualTo(activations));
+        }
+
+        /// <summary>
         /// A member whose resolved endpoint does not keep the security mode and
         /// policy of the session in use is not probed.
         /// </summary>
@@ -123,16 +214,16 @@ namespace Opc.Ua.Client.Tests
         {
             using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(60));
             await using RedundantSet set = await RedundantSet.StartAsync(timeout.Token).ConfigureAwait(false);
-            set.Primary.SetServiceLevel(210);
+            set.Primary.SetServiceLevel(150);
             set.Backup.SetServiceLevel(250);
-            ConfiguredEndpoint secured = await set.Client.GetEndpointAsync(
-                new Uri(set.Backup.Url), SecurityPolicies.Basic256Sha256).ConfigureAwait(false);
-            Assert.That(secured.Description.SecurityMode, Is.Not.EqualTo(MessageSecurityMode.None));
+            ConfiguredEndpoint unsecured = await set.Client.GetEndpointAsync(
+                new Uri(set.Backup.Url), SecurityPolicies.None).ConfigureAwait(false);
+            Assert.That(unsecured.Description.SecurityMode, Is.EqualTo(MessageSecurityMode.None));
 
             await using UaManagedSession session = await set.ConnectAsync(
                 new ServerRedundancyOptions { ProbeMemberServiceLevel = true },
                 timeout.Token,
-                backupEndpoint: secured).ConfigureAwait(false);
+                backupEndpoint: unsecured).ConfigureAwait(false);
 
             Assert.That(ServerUriOf(session), Is.EqualTo(set.Primary.ApplicationUri));
             RedundantServer backup = Member(session.RedundancyInfo!, set.Backup);
@@ -147,36 +238,98 @@ namespace Opc.Ua.Client.Tests
         }
 
         /// <summary>
-        /// A probe works on a copy of the resolved endpoint and of the identity in
-        /// use, so it changes neither.
+        /// A probe uses only the configured probe user, or anonymous by default.
         /// </summary>
-        [Test]
-        public async Task ProbeUsesCopiesOfEndpointAndIdentityAsync()
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task ProbeDoesNotForwardTheActiveIdentityAsync(bool useDedicatedIdentity)
         {
             using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(60));
             await using RedundantSet set = await RedundantSet.StartAsync(timeout.Token).ConfigureAwait(false);
-            set.Primary.SetServiceLevel(ServiceLevels.Maximum);
-            set.Backup.SetServiceLevel(230);
+            set.Primary.SetServiceLevel(150);
+            set.Backup.SetServiceLevel(180);
+            set.Backup.RefuseRead(VariableIds.Server_NamespaceArray);
+            IUserIdentity? probeIdentity = useDedicatedIdentity ? new UserIdentity("user2", "password1"u8) : null;
             set.Backup.Endpoint.UpdateBeforeConnect = true;
-            var factory = new RecordingSessionFactory(set.Telemetry);
-
             await using UaManagedSession session = await set.ConnectAsync(
-                new ServerRedundancyOptions { ProbeMemberServiceLevel = true },
+                new ServerRedundancyOptions { ProbeIdentity = probeIdentity, ServiceLevelMonitoringInterval = null },
                 timeout.Token,
-                sessionFactory: factory,
-                identity: new UserIdentity()).ConfigureAwait(false);
+                identity: new UserIdentity("user1", "password"u8)).ConfigureAwait(false);
 
             Assert.That(ServerUriOf(session), Is.EqualTo(set.Primary.ApplicationUri));
-            Assert.That(Member(session.RedundancyInfo!, set.Backup).ServiceLevel, Is.EqualTo(230));
-            (ConfiguredEndpoint endpoint, IUserIdentity? identity) = factory.Calls
-                .First(c => c.Endpoint.Description.Server?.ApplicationUri == set.Backup.ApplicationUri);
+            Assert.That(Member(session.RedundancyInfo!, set.Backup).ServiceLevel, Is.EqualTo(180));
             Assert.Multiple(() =>
             {
                 Assert.That(set.Backup.Endpoint.UpdateBeforeConnect, Is.True);
-                Assert.That(endpoint, Is.Not.SameAs(set.Backup.Endpoint));
-                Assert.That(identity, Is.Not.Null);
-                Assert.That(identity, Is.Not.SameAs(session.Identity));
-                Assert.That(identity!.TokenHandler, Is.Not.SameAs(session.Identity.TokenHandler));
+                Assert.That(session.Identity.TokenType, Is.EqualTo(UserTokenType.UserName));
+                Assert.That(set.Backup.ActivatedIdentityTypes,
+                    Is.EqualTo(new[] { useDedicatedIdentity ? UserTokenType.UserName : UserTokenType.Anonymous }));
+                if (useDedicatedIdentity)
+                {
+                    Assert.That(set.Backup.ActivatedIdentityNames.Single(), Is.EqualTo("user2"));
+                }
+            });
+        }
+
+        /// <summary>
+        /// A configured application URI must agree with the channel certificate before a switch can activate.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task FailoverRejectsPeerCertificateWithDifferentApplicationUriAsync(bool reuseToken)
+        {
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(60));
+            const string expectedMemberUri = "urn:redundancy:misconfigured-member";
+            await using RedundantSet set = await RedundantSet.StartAsync(timeout.Token, expectedMemberUri)
+                .ConfigureAwait(false);
+            await using UaManagedSession session = await set.ConnectAsync(
+                new ServerRedundancyOptions(), timeout.Token,
+                identity: new UserIdentity("user1", "password"u8)).ConfigureAwait(false);
+            session.EnableTokenReuseFailover = reuseToken;
+
+            var target = new ConfiguredEndpoint(
+                null,
+                CoreUtils.Clone(set.Backup.Endpoint.Description)!,
+                set.Backup.Endpoint.Configuration);
+            target.Description.Server.ApplicationUri = expectedMemberUri;
+
+            await Assert.ThatAsync(
+                () => session.FailoverAsync(target, timeout.Token),
+                Throws.TypeOf<ServiceResultException>().With.Property(nameof(ServiceResultException.StatusCode))
+                    .EqualTo((StatusCode)StatusCodes.BadCertificateUriInvalid)).ConfigureAwait(false);
+            Assert.Multiple(() =>
+            {
+                Assert.That(set.Backup.CreatedSessionCount, Is.Zero);
+                Assert.That(set.Backup.ActivatedIdentityTypes, Is.Empty);
+            });
+        }
+
+        /// <summary>
+        /// Resolution cannot substitute the configured URI of a different member.
+        /// </summary>
+        [Test]
+        public async Task ProbeRequiresEndpointToIdentifyTheListedMemberAsync()
+        {
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(60));
+            await using RedundantSet set = await RedundantSet.StartAsync(timeout.Token).ConfigureAwait(false);
+            set.Primary.SetServiceLevel(150);
+            var target = new ConfiguredEndpoint(
+                null,
+                CoreUtils.Clone(set.Backup.Endpoint.Description)!,
+                set.Backup.Endpoint.Configuration);
+            target.Description.Server.ApplicationUri = "urn:redundancy:misconfigured-member";
+            await using UaManagedSession session = await set.ConnectAsync(
+                new ServerRedundancyOptions { ProbeMemberServiceLevel = true },
+                timeout.Token,
+                backupEndpoint: target).ConfigureAwait(false);
+
+            RedundantServer backup = Member(session.RedundancyInfo!, set.Backup);
+            Assert.Multiple(() =>
+            {
+                Assert.That(backup.ResolutionError?.StatusCode,
+                    Is.EqualTo((StatusCode)StatusCodes.BadCertificateUriInvalid));
+                Assert.That(backup.ServiceLevelKnown, Is.False);
+                Assert.That(set.Backup.CreatedSessionCount, Is.Zero);
             });
         }
 
@@ -189,8 +342,8 @@ namespace Opc.Ua.Client.Tests
         {
             using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(60));
             await using RedundantSet set = await RedundantSet.StartAsync(timeout.Token).ConfigureAwait(false);
-            set.Primary.SetServiceLevel(ServiceLevels.Maximum);
-            set.Backup.SetServiceLevel(230);
+            set.Primary.SetServiceLevel(ServiceLevels.HealthyMinimum);
+            set.Backup.SetServiceLevel(ServiceLevels.Maximum);
             var options = new ServerRedundancyOptions
             {
                 ProbeMemberServiceLevel = true,
@@ -206,7 +359,7 @@ namespace Opc.Ua.Client.Tests
             Assert.Multiple(() =>
             {
                 Assert.That(ServerUriOf(session), Is.EqualTo(set.Primary.ApplicationUri));
-                Assert.That(probesAfterConnect, Is.EqualTo(1));
+                Assert.That(probesAfterConnect, Is.Zero);
                 Assert.That(set.Backup.CreatedSessionCount, Is.EqualTo(probesAfterConnect));
             });
         }
@@ -220,7 +373,7 @@ namespace Opc.Ua.Client.Tests
         {
             using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(60));
             await using RedundantSet set = await RedundantSet.StartAsync(timeout.Token).ConfigureAwait(false);
-            set.Primary.SetServiceLevel(210);
+            set.Primary.SetServiceLevel(150);
             set.Backup.SetServiceLevel(250);
             set.Backup.RefuseRead(VariableIds.Server_ServiceLevel);
 
@@ -247,7 +400,7 @@ namespace Opc.Ua.Client.Tests
         {
             using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(60));
             await using RedundantSet set = await RedundantSet.StartAsync(timeout.Token).ConfigureAwait(false);
-            set.Primary.SetServiceLevel(210);
+            set.Primary.SetServiceLevel(150);
             set.Backup.SetServiceLevel(250);
             set.Backup.RefuseRead(VariableIds.Server_ServerStatus_State);
 
@@ -311,8 +464,8 @@ namespace Opc.Ua.Client.Tests
             await using UaManagedSession session = await set.ConnectAsync(options, timeout.Token)
                 .ConfigureAwait(false);
             Assert.That(ServerUriOf(session), Is.EqualTo(set.Primary.ApplicationUri));
-            var states = new ConcurrentQueue<ConnectionState>();
-            session.ConnectionStateChanged += (_, e) => states.Enqueue(e.NewState);
+            var stateChanges = new ConcurrentQueue<ConnectionStateChangedEventArgs>();
+            session.ConnectionStateChanged += (_, e) => stateChanges.Enqueue(e);
 
             var recorder = new DataChangeRecorder();
             ISubscriptionManager manager = session.RequireSubscriptionManager();
@@ -335,9 +488,18 @@ namespace Opc.Ua.Client.Tests
                 }),
                 out _), Is.True);
             await WaitUntilAsync(() => recorder.Count >= 3, timeout.Token).ConfigureAwait(false);
-            Assert.That(states, Is.Empty);
+            Assert.That(
+                stateChanges.ToArray().Where(static change =>
+                    change.PreviousState == ConnectionState.Connected),
+                Is.Empty,
+                "The connected session must not transition before the primary is degraded.");
 
             set.Primary.SetServiceLevel(150);
+            await WaitUntilAsync(
+                () => stateChanges.ToArray().Any(static change =>
+                    change.PreviousState == ConnectionState.Failover &&
+                    change.NewState == ConnectionState.Connected),
+                timeout.Token).ConfigureAwait(false);
             await WaitUntilAsync(
                 () => ServerUriOf(session) == set.Backup.ApplicationUri &&
                     session.StateMachine.State == ConnectionState.Connected,
@@ -348,7 +510,12 @@ namespace Opc.Ua.Client.Tests
 
             Assert.Multiple(() =>
             {
-                Assert.That(states.ToArray(), Is.EqualTo(new[] { ConnectionState.Failover, ConnectionState.Connected }));
+                Assert.That(
+                    stateChanges.ToArray()
+                        .Where(static change =>
+                            change.PreviousState is ConnectionState.Connected or ConnectionState.Failover)
+                        .Select(static change => change.NewState),
+                    Is.EqualTo(new[] { ConnectionState.Failover, ConnectionState.Connected }));
                 Assert.That(manager.Items.Single(), Is.SameAs(subscription));
                 Assert.That(session.RedundancyInfo?.ServiceLevel, Is.EqualTo(230));
                 Assert.That(recorder.Errors, Is.Empty);
@@ -357,6 +524,32 @@ namespace Opc.Ua.Client.Tests
                 await EventuallyAsync(() => set.Primary.SessionCount == 0).ConfigureAwait(false),
                 Is.True,
                 "The session on the Server left must be closed there.");
+        }
+
+        /// <summary>
+        /// A connected session withholds service when the only reachable member enters Maintenance.
+        /// </summary>
+        [Test]
+        public async Task MaintenanceWithNoEligiblePeerWithholdsServicesAsync()
+        {
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(60));
+            await using RedundantSet set = await RedundantSet.StartAsync(timeout.Token).ConfigureAwait(false);
+            set.Primary.SetServiceLevel(ServiceLevels.Maximum);
+            set.Backup.SetServiceLevel(ServiceLevels.NoData);
+            await using UaManagedSession session = await set.ConnectAsync(
+                new ServerRedundancyOptions { ServiceLevelMonitoringInterval = TimeSpan.FromMilliseconds(100) },
+                timeout.Token).ConfigureAwait(false);
+
+            set.Primary.SetServiceLevel(ServiceLevels.Maintenance);
+            await WaitUntilAsync(() => session.StateMachine.State == ConnectionState.Disconnected, timeout.Token)
+                .ConfigureAwait(false);
+
+            await Assert.ThatAsync(
+                () => session.ReadValueAsync(VariableIds.Server_ServiceLevel, timeout.Token),
+                Throws.TypeOf<ServiceResultException>().With.Property(nameof(ServiceResultException.StatusCode))
+                    .EqualTo((StatusCode)StatusCodes.BadServerHalted)).ConfigureAwait(false);
+            session.StateMachine.TriggerReconnect();
+            Assert.That(session.StateMachine.State, Is.EqualTo(ConnectionState.Disconnected));
         }
 
         /// <summary>
@@ -377,14 +570,19 @@ namespace Opc.Ua.Client.Tests
             await using UaManagedSession session = await set.ConnectAsync(
                 new ServerRedundancyOptions(), timeout.Token, channelManager: channels).ConfigureAwait(false);
             Assert.That(set.Primary.SessionCount, Is.EqualTo(1));
-            var states = new ConcurrentQueue<ConnectionState>();
-            session.ConnectionStateChanged += (_, e) => states.Enqueue(e.NewState);
+            ConcurrentQueue<ConnectionState> states = RecordStatesAfterConnect(session);
 
             await session.FailoverAsync(set.Backup.Endpoint, timeout.Token).ConfigureAwait(false);
-            await WaitUntilAsync(() => states.Contains(ConnectionState.Connected), timeout.Token).ConfigureAwait(false);
+            await WaitUntilAsync(
+                () => states.SkipWhile(s => s != ConnectionState.Failover).Contains(ConnectionState.Connected),
+                timeout.Token).ConfigureAwait(false);
 
             Assert.That(ServerUriOf(session), Is.EqualTo(set.Backup.ApplicationUri));
-            Assert.That(states.ToArray(), Is.EqualTo(new[] { ConnectionState.Failover, ConnectionState.Connected }));
+            // the Connected change of the initial connect can be raised after the handler is
+            // attached; only the transitions from the failover on belong to this call.
+            Assert.That(
+                states.SkipWhile(s => s != ConnectionState.Failover).ToArray(),
+                Is.EqualTo(new[] { ConnectionState.Failover, ConnectionState.Connected }));
             DataValue level = await session.ReadValueAsync(VariableIds.Server_ServiceLevel, timeout.Token)
                 .ConfigureAwait(false);
             Assert.That(level.GetValue<byte>(0), Is.EqualTo(230));
@@ -440,6 +638,24 @@ namespace Opc.Ua.Client.Tests
         private static string? ServerUriOf(UaManagedSession session)
         {
             return session.ConfiguredEndpoint.Description.Server?.ApplicationUri;
+        }
+
+        /// <summary>
+        /// Records the connection states the session enters from now on. The connect
+        /// call can return before the notification of the initial Connecting to Connected
+        /// transition is delivered, so that late notification is not recorded.
+        /// </summary>
+        private static ConcurrentQueue<ConnectionState> RecordStatesAfterConnect(UaManagedSession session)
+        {
+            var states = new ConcurrentQueue<ConnectionState>();
+            session.ConnectionStateChanged += (_, e) =>
+            {
+                if (e.PreviousState != ConnectionState.Connecting)
+                {
+                    states.Enqueue(e.NewState);
+                }
+            };
+            return states;
         }
 
         private static async Task WaitUntilAsync(Func<bool> condition, CancellationToken ct)
@@ -507,7 +723,7 @@ namespace Opc.Ua.Client.Tests
 
             public ITelemetryContext Telemetry { get; }
 
-            public static async Task<RedundantSet> StartAsync(CancellationToken ct)
+            public static async Task<RedundantSet> StartAsync(CancellationToken ct, string? backupMemberUri = null)
             {
                 ITelemetryContext telemetry = NUnitTelemetryContext.Create();
                 string root = Path.Combine(Path.GetTempPath(), "redundancy-" + Guid.NewGuid().ToString("N")[..8]);
@@ -516,13 +732,14 @@ namespace Opc.Ua.Client.Tests
                 {
                     set.Primary = await RedundantMember.StartAsync(root, "Primary").ConfigureAwait(false);
                     set.Backup = await RedundantMember.StartAsync(root, "Backup").ConfigureAwait(false);
-                    await set.Primary.PublishSetAsync([set.Backup.ApplicationUri], ct).ConfigureAwait(false);
+                    await set.Primary.PublishSetAsync([backupMemberUri ?? set.Backup.ApplicationUri], ct)
+                        .ConfigureAwait(false);
                     await set.Backup.PublishSetAsync([set.Primary.ApplicationUri], ct).ConfigureAwait(false);
                     await set.Client.LoadClientConfigurationAsync(root, "RedundancyClient").ConfigureAwait(false);
                     set.Primary.Endpoint = await set.Client.GetEndpointAsync(
-                        new Uri(set.Primary.Url), SecurityPolicies.None).ConfigureAwait(false);
+                        new Uri(set.Primary.Url), SecurityPolicies.Basic256Sha256).ConfigureAwait(false);
                     set.Backup.Endpoint = await set.Client.GetEndpointAsync(
-                        new Uri(set.Backup.Url), SecurityPolicies.None).ConfigureAwait(false);
+                        new Uri(set.Backup.Url), SecurityPolicies.Basic256Sha256).ConfigureAwait(false);
                     return set;
                 }
                 catch
@@ -537,7 +754,6 @@ namespace Opc.Ua.Client.Tests
                 CancellationToken ct,
                 bool withRedundancyHandler = true,
                 ConfiguredEndpoint? backupEndpoint = null,
-                ISessionFactory? sessionFactory = null,
                 IUserIdentity? identity = null,
                 IClientChannelManager? channelManager = null)
             {
@@ -549,14 +765,14 @@ namespace Opc.Ua.Client.Tests
                 return UaManagedSession.CreateAsync(
                     Client.Config,
                     Primary.Endpoint,
-                    sessionFactory ?? Client.SessionFactory,
+                    Client.SessionFactory,
                     identity: identity,
                     redundancyHandler: withRedundancyHandler
                         ? new DefaultServerRedundancyHandler(resolver, options: options)
                         : null,
                     telemetry: Telemetry,
                     channelManager: channelManager,
-                    serverRedundancy: options,
+                    serverRedundancy: options with { ExpectedServerApplicationUri = Primary.ApplicationUri },
                     ct: ct);
             }
 
@@ -602,6 +818,12 @@ namespace Opc.Ua.Client.Tests
                 m_setServiceLevel = ((IServerServiceLevelControl)server.CurrentInstance).ClaimServiceLevelControl();
                 server.CurrentInstance.SessionManager.SessionCreated +=
                     (_, _) => Interlocked.Increment(ref m_createdSessions);
+                server.CurrentInstance.SessionManager.SessionActivated +=
+                    (session, _) =>
+                    {
+                        ActivatedIdentityTypes.Enqueue(session.EffectiveIdentity.TokenType);
+                        ActivatedIdentityNames.Enqueue(session.EffectiveIdentity.DisplayName);
+                    };
             }
 
             public string ApplicationUri { get; }
@@ -620,6 +842,10 @@ namespace Opc.Ua.Client.Tests
             /// </summary>
             public int CreatedSessionCount => Volatile.Read(ref m_createdSessions);
 
+            public ConcurrentQueue<UserTokenType> ActivatedIdentityTypes { get; } = new();
+
+            public ConcurrentQueue<string> ActivatedIdentityNames { get; } = new();
+
             public static async Task<RedundantMember> StartAsync(string root, string name, int reverseConnectTimeout = 0)
             {
                 var fixture = new ServerFixture<ReferenceServer>(context => new ReferenceServer(context))
@@ -631,6 +857,8 @@ namespace Opc.Ua.Client.Tests
                 string pki = Path.Combine(root, name);
                 await fixture.LoadConfigurationAsync(pki).ConfigureAwait(false);
                 fixture.Config.ApplicationUri = Utils.ReplaceLocalhost("urn:localhost:UA:RedundantMember:" + name);
+                fixture.Config.ServerConfiguration!.UserTokenPolicies =
+                    [new(UserTokenType.Anonymous), new(UserTokenType.UserName)];
                 ReferenceServer server = await fixture.StartAsync(pki).ConfigureAwait(false);
                 return new RedundantMember(fixture, server);
             }
@@ -687,7 +915,9 @@ namespace Opc.Ua.Client.Tests
                     ? serverObject.ServiceLevel!
                     : variableId == VariableIds.Server_ServerStatus_State
                         ? serverObject.ServerStatus!.State!
-                        : serverObject.ServerRedundancy!.RedundantServerArray!;
+                        : variableId == VariableIds.Server_NamespaceArray
+                            ? serverObject.NamespaceArray!
+                            : serverObject.ServerRedundancy!.RedundantServerArray!;
                 variable.AccessLevel = AccessLevels.None;
                 variable.UserAccessLevel = AccessLevels.None;
                 variable.ClearChangeMasks(server.DefaultSystemContext, false);
@@ -708,44 +938,6 @@ namespace Opc.Ua.Client.Tests
             private readonly Action<byte> m_setServiceLevel;
             private int m_disposed;
             private int m_createdSessions;
-        }
-
-        /// <summary>
-        /// Records the endpoint and identity of every session the factory creates
-        /// without a reverse connection.
-        /// </summary>
-        private sealed class RecordingSessionFactory : DefaultSessionFactory
-        {
-            public RecordingSessionFactory(ITelemetryContext telemetry)
-                : base(telemetry)
-            {
-            }
-
-            public ConcurrentQueue<(ConfiguredEndpoint Endpoint, IUserIdentity? Identity)> Calls { get; } = new();
-
-            public override Task<ISession> CreateAsync(
-                ApplicationConfiguration configuration,
-                ConfiguredEndpoint endpoint,
-                bool updateBeforeConnect,
-                bool checkDomain,
-                string sessionName,
-                uint sessionTimeout,
-                IUserIdentity? identity,
-                ArrayOf<string> preferredLocales,
-                CancellationToken ct = default)
-            {
-                Calls.Enqueue((endpoint, identity));
-                return base.CreateAsync(
-                    configuration,
-                    endpoint,
-                    updateBeforeConnect,
-                    checkDomain,
-                    sessionName,
-                    sessionTimeout,
-                    identity,
-                    preferredLocales,
-                    ct);
-            }
         }
 
         /// <summary>

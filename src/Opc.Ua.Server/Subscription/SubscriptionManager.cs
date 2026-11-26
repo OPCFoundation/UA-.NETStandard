@@ -1,31 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using System.Collections.Concurrent;
@@ -58,6 +32,18 @@ namespace Opc.Ua.Server
             IServerInternal server,
             ApplicationConfiguration configuration,
             TimeProvider? timeProvider)
+            : this(server, configuration, timeProvider, publishWorkerDecorator: null)
+        {
+        }
+
+        /// <summary>
+        /// Initializes the manager with a decorator for the real subscription-publish worker task.
+        /// </summary>
+        internal SubscriptionManager(
+            IServerInternal server,
+            ApplicationConfiguration configuration,
+            TimeProvider? timeProvider,
+            Func<Task, Task>? publishWorkerDecorator)
         {
             if (configuration == null)
             {
@@ -66,6 +52,7 @@ namespace Opc.Ua.Server
 
             m_server = server ?? throw new ArgumentNullException(nameof(server));
             m_logger = server.Telemetry.CreateLogger<SubscriptionManager>();
+            m_publishWorkerDecorator = publishWorkerDecorator;
             m_timeProvider = timeProvider
                 ?? (server as ITimeProviderProvider)?.TimeProvider
                 ?? TimeProvider.System;
@@ -90,6 +77,9 @@ namespace Opc.Ua.Server
                 .MaxNotificationsPerPublish;
             m_maxPublishRequestCount = configuration.ServerConfiguration.MaxPublishRequestCount;
             m_maxSubscriptionCount = configuration.ServerConfiguration.MaxSubscriptionCount;
+            m_maxStatusMessagesPerSession = Math.Min(
+                Math.Max(m_maxSubscriptionCount, kMinStatusMessagesPerSession),
+                kMaxStatusMessagesPerSession);
             m_maxMonitoredItemCount = configuration.ServerConfiguration.MaxMonitoredItemCount;
             m_maxMonitoredItemsPerSubscription = configuration.ServerConfiguration
                 .MaxMonitoredItemsPerSubscription;
@@ -126,6 +116,13 @@ namespace Opc.Ua.Server
         /// is only logged and the subscriptions concerned are lost.
         /// </summary>
         public bool ContinueOnRestoreFailure { get; set; }
+
+        /// <summary>
+        /// Gets the cancellation token of the current subscription-publish worker.
+        /// </summary>
+        /// <exception cref="InvalidOperationException">The subscription worker is not running.</exception>
+        internal CancellationToken PublishWorkerCancellationToken =>
+            (m_workerCts ?? throw new InvalidOperationException("The subscription worker is not running.")).Token;
 
         /// <summary>
         /// Frees any unmanaged resources.
@@ -303,7 +300,8 @@ namespace Opc.Ua.Server
                 m_workerCts?.Dispose();
                 m_workerCts = new CancellationTokenSource();
 
-                m_publishWorkerTask = StartPublishWorker(m_workerCts.Token);
+                Task worker = StartPublishWorker(m_workerCts.Token);
+                m_publishWorkerTask = m_publishWorkerDecorator is { } decorate ? decorate(worker) : worker;
                 m_conditionRefreshWorkerTask = StartConditionRefreshWorker();
             }
             finally
@@ -321,20 +319,46 @@ namespace Opc.Ua.Server
             // Expiration claims performed by a publish sweep take the same
             // semaphore synchronously.
             SignalConditionRefreshWorkerShutdown();
-            m_workerCts?.Cancel();
+            var failures = new List<Exception>();
+            try
+            {
+                m_workerCts?.Cancel();
+            }
+            catch (Exception failure) when (failure is not OutOfMemoryException)
+            {
+                failures.Add(failure);
+            }
 
             Task? publishWorkerTask = m_publishWorkerTask;
             if (publishWorkerTask is not null)
             {
-                await publishWorkerTask.ConfigureAwait(false);
+                try
+                {
+                    await publishWorkerTask.ConfigureAwait(false);
+                }
+                catch (Exception failure) when (failure is not OutOfMemoryException)
+                {
+                    failures.Add(failure);
+                }
                 m_publishWorkerTask = null;
             }
 
             Task? conditionRefreshWorkerTask = m_conditionRefreshWorkerTask;
             if (conditionRefreshWorkerTask is not null)
             {
-                await conditionRefreshWorkerTask.ConfigureAwait(false);
+                try
+                {
+                    await conditionRefreshWorkerTask.ConfigureAwait(false);
+                }
+                catch (Exception failure) when (failure is not OutOfMemoryException)
+                {
+                    failures.Add(failure);
+                }
                 m_conditionRefreshWorkerTask = null;
+            }
+            if (failures.Count != 0)
+            {
+                throw new AggregateException("Subscription workers failed during shutdown.", failures);
             }
 
             // Expired-subscription cleanups scheduled by the publish sweep still
@@ -1323,7 +1347,7 @@ namespace Opc.Ua.Server
                         subscription.SessionId,
                         out Queue<StatusMessage>? queue))
                 {
-                    queue.Enqueue(message);
+                    EnqueueStatusMessage(queue, message);
                 }
             }
         }
@@ -1443,6 +1467,9 @@ namespace Opc.Ua.Server
                 out ArrayOf<StatusCode> acknowledgeResults,
                 out ArrayOf<DiagnosticInfo> acknowledgeDiagnosticInfos);
 
+            // not kept by the state machine while the request waits below
+            subscriptionAcknowledgements = default;
+
             // update diagnostics.
             context.Session?.UpdateDiagnostics(
                     diagnostics => diagnostics.CurrentPublishRequestsInQueue++);
@@ -1477,6 +1504,23 @@ namespace Opc.Ua.Server
                         parkSink,
                         cancellationToken).ConfigureAwait(false);
 
+                    // OPC 10000-4 7.40.6: the request was validated when it arrived, but it
+                    // may have waited past the expiration of the session's identity token.
+                    // Nothing is delivered then, neither notifications nor a status message
+                    // such as GoodSubscriptionTransferred: the subscription keeps its
+                    // notifications for the next request after the client has activated the
+                    // session again.
+                    if (context.Session is Session session && session.HaveCredentialsExpired())
+                    {
+                        if (subscription != null)
+                        {
+                            queue.Requeue(subscription);
+                        }
+                        throw new ServiceResultException(
+                            StatusCodes.BadIdentityTokenInvalid,
+                            "The user identity token has expired. Activate the session with a new token.");
+                    }
+
                     // check for pending status message that may have arrived while waiting.
                     if (ReturnPendingStatusMessage(context, out statusMessage, out statusSubscriptionId))
                     {
@@ -1502,6 +1546,7 @@ namespace Opc.Ua.Server
                         requeue = true;
                         continue;
                     }
+
 
                     bool moreNotifications = false;
 
@@ -2133,7 +2178,7 @@ namespace Opc.Ua.Server
                                     SubscriptionId = subscription.Id,
                                     Message = subscription.SubscriptionTransferred()
                                 };
-                                queue.Enqueue(message);
+                                EnqueueStatusMessage(queue, message);
                                 statusQueued = true;
                             }
                         }
@@ -3318,6 +3363,38 @@ namespace Opc.Ua.Server
             logger.ServerCleanupSubscriptionsTaskCompleted();
         }
 
+        /// <summary>
+        /// Queues a status message for a session and drops the oldest ones beyond the
+        /// per-session bound.
+        /// </summary>
+        /// <remarks>
+        /// The caller holds <c>m_statusMessagesLock</c>. Only a Publish of the session
+        /// dequeues these messages, and they are queued for subscriptions the session no
+        /// longer owns (transferred away or expired), which no subscription quota counts.
+        /// A session that does not publish would otherwise collect them without bound.
+        /// The bound is the server's subscription limit, at least
+        /// <see cref="kMinStatusMessagesPerSession"/> and at most
+        /// <see cref="kMaxStatusMessagesPerSession"/>.
+        /// </remarks>
+        private void EnqueueStatusMessage(Queue<StatusMessage> queue, StatusMessage message)
+        {
+            while (queue.Count >= m_maxStatusMessagesPerSession)
+            {
+                queue.Dequeue();
+            }
+            queue.Enqueue(message);
+        }
+
+        /// <summary>
+        /// The fewest status messages a session keeps.
+        /// </summary>
+        internal const int kMinStatusMessagesPerSession = 16;
+
+        /// <summary>
+        /// The most status messages a session keeps.
+        /// </summary>
+        internal const int kMaxStatusMessagesPerSession = 1000;
+
         private class StatusMessage
         {
             public uint SubscriptionId;
@@ -3538,6 +3615,10 @@ namespace Opc.Ua.Server
         private readonly ILogger m_logger;
         private readonly IServerInternal m_server;
         private readonly TimeProvider m_timeProvider;
+
+        /// <summary>Decorates the real subscription-publish worker task at startup.</summary>
+        private readonly Func<Task, Task>? m_publishWorkerDecorator;
+
         private readonly double m_minPublishingInterval;
         private readonly double m_maxPublishingInterval;
         private readonly int m_publishingResolution;
@@ -3549,6 +3630,7 @@ namespace Opc.Ua.Server
         private readonly uint m_maxNotificationsPerPublish;
         private readonly int m_maxPublishRequestCount;
         private readonly int m_maxSubscriptionCount;
+        private readonly int m_maxStatusMessagesPerSession;
         private readonly int m_maxMonitoredItemCount;
         private readonly int m_maxMonitoredItemsPerSubscription;
         private readonly Lock m_monitoredItemReservationLock = new();

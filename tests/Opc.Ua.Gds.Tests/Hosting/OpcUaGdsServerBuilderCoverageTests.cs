@@ -1,31 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using System.Collections.Generic;
@@ -34,6 +8,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Moq;
 using NUnit.Framework;
 using Opc.Ua.Gds.Server;
 using Opc.Ua.Gds.Server.Database;
@@ -128,6 +103,145 @@ namespace Opc.Ua.Gds.Tests.Hosting
             Assert.That(
                 provider.GetRequiredService<ICertificateRequest>(),
                 Is.InstanceOf<LinqApplicationsDatabase>());
+            Assert.That(
+                provider.GetRequiredService<IClientCertificateBoundCertificateRequestStore>(),
+                Is.InstanceOf<LinqApplicationsDatabase>());
+        }
+
+        [Test]
+        public void AddCertificateRequestGenericUsesLastBindingAwareStore()
+        {
+            IServiceCollection services = CreateServicesWithStoreDependencies();
+            services.AddOpcUa()
+                .AddGdsServer(options => options.ApplicationName = "TestGds")
+                .AddCertificateRequest<LinqApplicationsDatabase>()
+                .AddCertificateRequest<SecondBoundCertificateRequestStore>();
+
+            using ServiceProvider provider = services.BuildServiceProvider();
+
+            SecondBoundCertificateRequestStore requestStore =
+                provider.GetRequiredService<SecondBoundCertificateRequestStore>();
+            Assert.That(provider.GetRequiredService<ICertificateRequest>(), Is.SameAs(requestStore));
+            Assert.That(
+                provider.GetRequiredService<IClientCertificateBoundCertificateRequestStore>(),
+                Is.SameAs(requestStore));
+        }
+
+        [Test]
+        public void AddInMemoryStoresThenBoundRequestUsesReplacement()
+        {
+            IServiceCollection services = CreateServicesWithStoreDependencies();
+            services.AddOpcUa()
+                .AddGdsServer(options => options.ApplicationName = "TestGds")
+                .AddInMemoryStores()
+                .AddCertificateRequest<SecondBoundCertificateRequestStore>();
+
+            using ServiceProvider provider = services.BuildServiceProvider();
+
+            SecondBoundCertificateRequestStore requestStore =
+                provider.GetRequiredService<SecondBoundCertificateRequestStore>();
+            Assert.That(provider.GetRequiredService<ICertificateRequest>(), Is.SameAs(requestStore));
+            Assert.That(
+                provider.GetRequiredService<IClientCertificateBoundCertificateRequestStore>(),
+                Is.SameAs(requestStore));
+        }
+
+        [Test]
+        public void AddLegacyCertificateRequestThenInMemoryStoresDoesNotRegisterBoundStore()
+        {
+            IServiceCollection services = CreateServicesWithStoreDependencies();
+            services.AddOpcUa()
+                .AddGdsServer(options => options.ApplicationName = "TestGds")
+                .AddCertificateRequest<LinqApplicationsDatabase>()
+                .AddCertificateRequest<LegacyCertificateRequestStore>()
+                .AddInMemoryStores();
+
+            using ServiceProvider provider = services.BuildServiceProvider();
+
+            Assert.That(provider.GetService<IClientCertificateBoundCertificateRequestStore>(), Is.Null);
+            Assert.That(
+                provider.GetRequiredService<ICertificateRequest>(),
+                Is.InstanceOf<LegacyCertificateRequestStore>());
+        }
+
+        [Test]
+        public void AddInMemoryStoresThenLegacyRequestDoesNotRegisterBoundStore()
+        {
+            IServiceCollection services = CreateServicesWithStoreDependencies();
+            services.AddOpcUa()
+                .AddGdsServer(options => options.ApplicationName = "TestGds")
+                .AddInMemoryStores()
+                .AddCertificateRequest<LegacyCertificateRequestStore>();
+
+            using ServiceProvider provider = services.BuildServiceProvider();
+
+            Assert.That(provider.GetService<IClientCertificateBoundCertificateRequestStore>(), Is.Null);
+            Assert.That(
+                provider.GetRequiredService<ICertificateRequest>(),
+                Is.InstanceOf<LegacyCertificateRequestStore>());
+        }
+
+        [TestCase(true)]
+        [TestCase(false)]
+        public void AddCertificateRequestPreservesSeparateBoundStoreRegistration(
+            bool registerBoundStoreBeforeBuilder)
+        {
+            IServiceCollection services = CreateServicesWithStoreDependencies();
+            IClientCertificateBoundCertificateRequestStore boundStore =
+                new Mock<IClientCertificateBoundCertificateRequestStore>().Object;
+            if (registerBoundStoreBeforeBuilder)
+            {
+                services.AddSingleton<IClientCertificateBoundCertificateRequestStore>(boundStore);
+            }
+            IGdsServerBuilder builder = services.AddOpcUa()
+                .AddGdsServer(options => options.ApplicationName = "TestGds")
+                .AddCertificateRequest<LinqApplicationsDatabase>();
+            if (!registerBoundStoreBeforeBuilder)
+            {
+                services.AddSingleton<IClientCertificateBoundCertificateRequestStore>(boundStore);
+            }
+            builder.AddCertificateRequest<LegacyCertificateRequestStore>()
+                .AddInMemoryStores();
+
+            using ServiceProvider provider = services.BuildServiceProvider();
+
+            IClientCertificateBoundCertificateRequestStore? managerStore = null;
+            GdsServerHostedService.ConfigureClientCertificateBoundRequestStore(
+                provider.GetRequiredService<IClientCertificateBoundCertificateRequestStore>(),
+                requestStore => managerStore = requestStore);
+
+            Assert.That(
+                provider.GetRequiredService<IClientCertificateBoundCertificateRequestStore>(),
+                Is.SameAs(boundStore));
+            Assert.That(managerStore, Is.SameAs(boundStore));
+
+            bool configuredWithoutStore = false;
+            GdsServerHostedService.ConfigureClientCertificateBoundRequestStore(
+                null,
+                _ => configuredWithoutStore = true);
+            Assert.That(configuredWithoutStore, Is.False);
+        }
+
+        /// <summary>
+        /// A separate binding-aware store takes precedence, with a cast of the legacy store as fallback.
+        /// </summary>
+        [Test]
+        public void ResolveClientCertificateBoundRequestStorePrefersRegistrationAndFallsBackToLegacyStore()
+        {
+            IClientCertificateBoundCertificateRequestStore registeredStore =
+                new Mock<IClientCertificateBoundCertificateRequestStore>().Object;
+            var legacyStore = new LinqApplicationsDatabase();
+
+            Assert.That(
+                GdsServerHostedService.ResolveClientCertificateBoundRequestStore(registeredStore, legacyStore),
+                Is.SameAs(registeredStore));
+            Assert.That(
+                GdsServerHostedService.ResolveClientCertificateBoundRequestStore(null, legacyStore),
+                Is.SameAs(legacyStore));
+            Assert.That(
+                GdsServerHostedService.ResolveClientCertificateBoundRequestStore(
+                    null, new Mock<ICertificateRequest>().Object),
+                Is.Null);
         }
 
         [Test]
@@ -407,6 +521,79 @@ namespace Opc.Ua.Gds.Tests.Hosting
         private static int CountRegistrations<T>(IServiceCollection services)
         {
             return services.Count(d => d.ServiceType == typeof(T));
+        }
+
+        /// <summary>
+        /// Provides a second binding-aware store type for replacement registration tests.
+        /// </summary>
+        private sealed class SecondBoundCertificateRequestStore : LinqApplicationsDatabase;
+
+        private sealed class LegacyCertificateRequestStore : ICertificateRequest
+        {
+            public ushort NamespaceIndex { get; set; }
+
+            public void Initialize()
+            {
+                throw new NotImplementedException();
+            }
+
+            public NodeId StartSigningRequest(
+                NodeId applicationId,
+                string certificateGroupId,
+                string certificateTypeId,
+                ByteString certificateRequest,
+                string authorityId)
+            {
+                throw new NotImplementedException();
+            }
+
+            public NodeId StartNewKeyPairRequest(
+                NodeId applicationId,
+                string certificateGroupId,
+                string certificateTypeId,
+                string subjectName,
+                ArrayOf<string> domainNames,
+                string privateKeyFormat,
+                ReadOnlySpan<char> privateKeyPassword,
+                string authorityId)
+            {
+                throw new NotImplementedException();
+            }
+
+            public void ApproveRequest(NodeId requestId, bool isRejected)
+            {
+                throw new NotImplementedException();
+            }
+
+            public void AcceptRequest(NodeId requestId, ByteString certificate)
+            {
+                throw new NotImplementedException();
+            }
+
+            public CertificateRequestState FinishRequest(
+                NodeId applicationId,
+                NodeId requestId,
+                out string? certificateGroupId,
+                out string? certificateTypeId,
+                out ByteString signedCertificate,
+                out ByteString privateKey)
+            {
+                throw new NotImplementedException();
+            }
+
+            public CertificateRequestState ReadRequest(
+                NodeId applicationId,
+                NodeId requestId,
+                out string? certificateGroupId,
+                out string? certificateTypeId,
+                out ByteString certificateRequest,
+                out string? subjectName,
+                out string[]? domainNames,
+                out string? privateKeyFormat,
+                out ReadOnlySpan<char> privateKeyPassword)
+            {
+                throw new NotImplementedException();
+            }
         }
 
         private sealed class TestIdentityHandler : IIdentityAugmenter, IUserTokenAuthenticator

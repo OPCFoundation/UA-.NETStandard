@@ -1,31 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using System.Net;
@@ -128,47 +102,39 @@ namespace Opc.Ua.Bindings
             using CancellationTokenSource linkedCts = await EnterSendAsync(ct).ConfigureAwait(false);
             try
             {
-                // WebSocket does not support a vectored send out of the box; concat the
-                // gathered segments into a single contiguous chunk for the frame.
-                int totalSize = buffers.TotalSize;
-                byte[] frame = m_bufferManager.TakeBuffer(
-                    totalSize,
-                    nameof(SendChunkAsync),
-                    linkedCts.Token);
-                try
+                // The channel hands over a whole message: one or more complete chunks
+                // (a response larger than the negotiated buffer size is several), each
+                // possibly gathered from several segments. opcua+uacp carries exactly one
+                // chunk per WebSocket message (Part 6 §7.5.2), so split at the chunk
+                // headers. Sending them as one message would make every receiver reject
+                // it as larger than its receive buffer.
+                var reader = new ChunkReader(buffers);
+                while (reader.Remaining > 0)
                 {
-                    int offset = 0;
-                    foreach (ArraySegment<byte> segment in buffers)
+                    int chunkSize = reader.PeekChunkSize();
+                    if (reader.TryTakeContiguous(chunkSize, out ArraySegment<byte> contiguous))
                     {
-                        if (segment.Array == null)
-                        {
-                            continue;
-                        }
-                        Buffer.BlockCopy(segment.Array, segment.Offset, frame, offset, segment.Count);
-                        offset += segment.Count;
+                        await SendFrameAsync(socket, contiguous, linkedCts.Token).ConfigureAwait(false);
+                        continue;
                     }
 
-#if NET5_0_OR_GREATER
-                    await socket
-                        .SendAsync(
-                            new ReadOnlyMemory<byte>(frame, 0, totalSize),
-                            WebSocketMessageType.Binary,
-                            endOfMessage: true,
-                            linkedCts.Token)
-                        .ConfigureAwait(false);
-#else
-                    await socket
-                        .SendAsync(
-                            new ArraySegment<byte>(frame, 0, totalSize),
-                            WebSocketMessageType.Binary,
-                            endOfMessage: true,
-                            linkedCts.Token)
-                        .ConfigureAwait(false);
-#endif
-                }
-                finally
-                {
-                    m_bufferManager.ReturnBuffer(frame, nameof(SendChunkAsync));
+                    // the chunk spans segments; WebSocket has no vectored send.
+                    byte[] frame = m_bufferManager.TakeBuffer(
+                        chunkSize,
+                        nameof(SendChunkAsync),
+                        linkedCts.Token);
+                    try
+                    {
+                        reader.CopyTo(frame, chunkSize);
+                        await SendFrameAsync(
+                            socket,
+                            new ArraySegment<byte>(frame, 0, chunkSize),
+                            linkedCts.Token).ConfigureAwait(false);
+                    }
+                    finally
+                    {
+                        m_bufferManager.ReturnBuffer(frame, nameof(SendChunkAsync));
+                    }
                 }
             }
             catch (OperationCanceledException) when (!ct.IsCancellationRequested)
@@ -181,6 +147,140 @@ namespace Opc.Ua.Bindings
             {
                 m_sendLock.Release();
             }
+        }
+
+        private static ValueTask SendFrameAsync(WebSocket socket, ArraySegment<byte> frame, CancellationToken ct)
+        {
+#if NET5_0_OR_GREATER
+            return socket.SendAsync(
+                frame.AsMemory(),
+                WebSocketMessageType.Binary,
+                endOfMessage: true,
+                ct);
+#else
+            return new ValueTask(socket.SendAsync(
+                frame,
+                WebSocketMessageType.Binary,
+                endOfMessage: true,
+                ct));
+#endif
+        }
+
+        /// <summary>
+        /// Walks the segments of a <see cref="BufferCollection"/> chunk by chunk,
+        /// reading each chunk's size from its UASC header.
+        /// </summary>
+        private struct ChunkReader
+        {
+            public ChunkReader(BufferCollection buffers)
+            {
+                m_buffers = buffers;
+                m_index = 0;
+                m_offset = 0;
+                Remaining = buffers.TotalSize;
+            }
+
+            /// <summary>
+            /// The bytes not yet taken.
+            /// </summary>
+            public int Remaining { get; private set; }
+
+            /// <summary>
+            /// Reads the MessageSize of the chunk at the current position, which
+            /// may span segments, and checks that the whole chunk is present.
+            /// </summary>
+            public readonly int PeekChunkSize()
+            {
+                if (Remaining < TcpMessageLimits.MessageTypeAndSize)
+                {
+                    throw InvalidChunks();
+                }
+                int size = 0;
+                int index = m_index;
+                int offset = m_offset;
+                for (int ii = 0; ii < TcpMessageLimits.MessageTypeAndSize; ii++)
+                {
+                    while (offset >= Count(m_buffers[index]))
+                    {
+                        index++;
+                        offset = 0;
+                    }
+                    ArraySegment<byte> segment = m_buffers[index];
+                    if (ii >= 4)
+                    {
+                        size |= segment.Array![segment.Offset + offset] << (8 * (ii - 4));
+                    }
+                    offset++;
+                }
+                if (size < TcpMessageLimits.MessageTypeAndSize || size > Remaining)
+                {
+                    throw InvalidChunks();
+                }
+                return size;
+            }
+
+            /// <summary>
+            /// Takes the next <paramref name="count"/> bytes without a copy when
+            /// they lie in one segment.
+            /// </summary>
+            public bool TryTakeContiguous(int count, out ArraySegment<byte> chunk)
+            {
+                SkipExhausted();
+                ArraySegment<byte> segment = m_buffers[m_index];
+                if (segment.Count - m_offset < count)
+                {
+                    chunk = default;
+                    return false;
+                }
+                chunk = new ArraySegment<byte>(segment.Array!, segment.Offset + m_offset, count);
+                m_offset += count;
+                Remaining -= count;
+                return true;
+            }
+
+            /// <summary>
+            /// Copies the next <paramref name="count"/> bytes into
+            /// <paramref name="destination"/>.
+            /// </summary>
+            public void CopyTo(byte[] destination, int count)
+            {
+                int copied = 0;
+                while (copied < count)
+                {
+                    SkipExhausted();
+                    ArraySegment<byte> segment = m_buffers[m_index];
+                    int take = Math.Min(count - copied, segment.Count - m_offset);
+                    Buffer.BlockCopy(segment.Array!, segment.Offset + m_offset, destination, copied, take);
+                    m_offset += take;
+                    copied += take;
+                }
+                Remaining -= count;
+            }
+
+            private void SkipExhausted()
+            {
+                while (m_offset >= Count(m_buffers[m_index]))
+                {
+                    m_index++;
+                    m_offset = 0;
+                }
+            }
+
+            private static int Count(ArraySegment<byte> segment)
+            {
+                return segment.Array == null ? 0 : segment.Count;
+            }
+
+            private static ServiceResultException InvalidChunks()
+            {
+                return ServiceResultException.Create(
+                    StatusCodes.BadTcpInternalError,
+                    "The buffers to send are not a sequence of complete UASC chunks.");
+            }
+
+            private readonly BufferCollection m_buffers;
+            private int m_index;
+            private int m_offset;
         }
 
         /// <inheritdoc/>

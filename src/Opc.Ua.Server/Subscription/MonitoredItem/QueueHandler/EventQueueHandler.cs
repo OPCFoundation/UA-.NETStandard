@@ -1,31 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using System.Collections.Generic;
@@ -69,7 +43,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Adds an event to the queue.
         /// </summary>
-        void QueueEvent(EventFieldList fields);
+        void QueueEvent(QueuedEvent fields);
 
         /// <summary>
         /// Publish Events
@@ -80,7 +54,7 @@ namespace Opc.Ua.Server
         /// <returns>the number of events that were added to the notification queue</returns>
         uint Publish(
             OperationContext context,
-            Queue<EventFieldList> notifications,
+            Queue<QueuedEvent> notifications,
             uint maxNotificationsPerPublish);
     }
 
@@ -343,7 +317,7 @@ namespace Opc.Ua.Server
         /// Adds an event to the queue.
         /// </summary>
         /// <exception cref="InvalidOperationException"></exception>
-        public virtual void QueueEvent(EventFieldList fields)
+        public virtual void QueueEvent(QueuedEvent fields)
         {
             // make space in the queue.
             if (m_eventQueue.ItemsInQueue >= m_eventQueue.QueueSize)
@@ -356,7 +330,7 @@ namespace Opc.Ua.Server
                     throw new InvalidOperationException(
                         "Queue is full and no discarding of old values is allowed");
                 }
-                if (m_eventQueue.Dequeue(out EventFieldList discarded))
+                if (m_eventQueue.Dequeue(out QueuedEvent discarded))
                 {
                     RemovePendingTransforms(1, true);
                     TrackDiscardedEvent(discarded.Handle);
@@ -375,7 +349,7 @@ namespace Opc.Ua.Server
         /// <param name="maxNotificationsPerPublish">the maximum number of notifications to enqueue per call</param>
         public uint Publish(
             OperationContext context,
-            Queue<EventFieldList> notifications,
+            Queue<QueuedEvent> notifications,
             uint maxNotificationsPerPublish)
         {
             return Publish(context, notifications, maxNotificationsPerPublish, out _);
@@ -395,7 +369,7 @@ namespace Opc.Ua.Server
         /// </param>
         internal uint Publish(
             OperationContext context,
-            Queue<EventFieldList> notifications,
+            Queue<QueuedEvent> notifications,
             uint maxNotificationsPerPublish,
             out bool overflowEventDue)
         {
@@ -412,10 +386,10 @@ namespace Opc.Ua.Server
             bool eventsDropped = false;
             while (notificationCount < maxNotificationsPerPublish &&
                 consumed < eventsBeforeOverflow &&
-                m_eventQueue.Dequeue(out EventFieldList fields))
+                m_eventQueue.Dequeue(out QueuedEvent fields))
             {
                 int position = consumed++;
-                EventFieldList? transformed = ApplyPendingTransform(fields);
+                QueuedEvent? transformed = ApplyPendingTransform(fields);
                 if (transformed == null)
                 {
                     // the event cannot be expressed with the current select clauses: it is
@@ -437,7 +411,7 @@ namespace Opc.Ua.Server
                     continue;
                 }
 
-                fields = transformed;
+                fields = transformed.Value;
                 foreach (Variant field in fields.EventFields)
                 {
                     StatusResult tmpStatus;
@@ -517,20 +491,28 @@ namespace Opc.Ua.Server
         /// The queue is not drained: a durable queue may not hand back every queued event at
         /// once, and events taken out of a FIFO queue cannot be put back in front of the
         /// ones that stay, so a drain could reorder events (Part 4 5.13.1.5). Transforms of
-        /// successive modifications are composed per segment of queued events.
+        /// successive modifications are combined per segment of queued events with
+        /// <see cref="QueuedEventTransform.Then"/>: they are applied one after the other,
+        /// never by nested calls, and a transform that supersedes the previous ones
+        /// replaces them.
         /// </remarks>
         /// <param name="transform">Produces the replacement for a queued event.</param>
-        internal void TransformQueuedEvents(Func<EventFieldList, EventFieldList?> transform)
+        internal void TransformQueuedEvents(Func<QueuedEvent, QueuedEvent?> transform)
+        {
+            TransformQueuedEvents(new DelegateTransform(transform));
+        }
+
+        /// <summary>
+        /// Brings every event queued now in line with a modification, see
+        /// the delegate overload of <c>TransformQueuedEvents</c>.
+        /// </summary>
+        /// <param name="transform">Produces the replacement for a queued event.</param>
+        internal void TransformQueuedEvents(QueuedEventTransform transform)
         {
             int covered = 0;
             foreach (PendingTransform pending in m_pendingTransforms)
             {
-                Func<EventFieldList, EventFieldList?> previous = pending.Transform;
-                pending.Transform = fields =>
-                {
-                    EventFieldList? intermediate = previous(fields);
-                    return intermediate == null ? null : transform(intermediate);
-                };
+                pending.Transform = pending.Transform.Then(transform);
                 covered += pending.Count;
             }
 
@@ -542,11 +524,27 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
+        /// The largest number of transforms a queued event goes through when it is published.
+        /// </summary>
+        internal int PendingTransformSteps
+        {
+            get
+            {
+                int steps = 0;
+                foreach (PendingTransform pending in m_pendingTransforms)
+                {
+                    steps = Math.Max(steps, pending.Transform.StepCount);
+                }
+                return steps;
+            }
+        }
+
+        /// <summary>
         /// Applies the pending transform of the oldest queued events to an event that was
         /// just dequeued for publishing.
         /// </summary>
         /// <returns>The event to publish, or <c>null</c> when it is dropped.</returns>
-        private EventFieldList? ApplyPendingTransform(EventFieldList fields)
+        private QueuedEvent? ApplyPendingTransform(QueuedEvent fields)
         {
             if (m_pendingTransforms.Count == 0)
             {
@@ -561,7 +559,7 @@ namespace Opc.Ua.Server
 
             try
             {
-                return pending.Transform(fields);
+                return pending.Transform.Apply(fields);
             }
             catch (Exception ex)
             {
@@ -613,7 +611,7 @@ namespace Opc.Ua.Server
         /// </summary>
         private sealed class PendingTransform
         {
-            public PendingTransform(int count, Func<EventFieldList, EventFieldList?> transform)
+            public PendingTransform(int count, QueuedEventTransform transform)
             {
                 Count = count;
                 Transform = transform;
@@ -621,7 +619,25 @@ namespace Opc.Ua.Server
 
             public int Count { get; set; }
 
-            public Func<EventFieldList, EventFieldList?> Transform { get; set; }
+            public QueuedEventTransform Transform { get; set; }
+        }
+
+        /// <summary>
+        /// A transform given as a delegate.
+        /// </summary>
+        private sealed class DelegateTransform : QueuedEventTransform
+        {
+            public DelegateTransform(Func<QueuedEvent, QueuedEvent?> transform)
+            {
+                m_transform = transform;
+            }
+
+            public override QueuedEvent? Apply(QueuedEvent fields)
+            {
+                return m_transform(fields);
+            }
+
+            private readonly Func<QueuedEvent, QueuedEvent?> m_transform;
         }
 
         private readonly List<PendingTransform> m_pendingTransforms = [];
