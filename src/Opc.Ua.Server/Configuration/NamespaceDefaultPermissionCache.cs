@@ -61,7 +61,7 @@ namespace Opc.Ua.Server
                     entry.Value.Generation == NamespaceDefaultPermissionReader.Generation &&
                     entry.IsCurrent())
                 {
-                    permissions = entry.Value;
+                    permissions = Copy(entry.Value);
                     return true;
                 }
             }
@@ -79,16 +79,20 @@ namespace Opc.Ua.Server
         /// <param name="rolePermissions">The DefaultRolePermissions property that was read.</param>
         /// <param name="userRolePermissions">The DefaultUserRolePermissions property that was read.</param>
         /// <param name="permissions">The decoded defaults.</param>
+        /// <param name="staticBeforeDecode">Whether the three properties were static before the
+        /// decode; a callback that removed itself while it ran produced a caller-specific result.</param>
         public void TryAdd(
             NamespaceMetadataNode? metadata,
             BaseVariableState? accessRestrictions,
             BaseVariableState? rolePermissions,
             BaseVariableState? userRolePermissions,
-            NamespaceDefaultPermissions permissions)
+            NamespaceDefaultPermissions permissions,
+            bool staticBeforeDecode)
         {
             // a namespace without metadata is not cached: the registry answers that from its own
             // miss cache, which also observes unreported changes of Server/Namespaces.
             if (metadata == null ||
+                !staticBeforeDecode ||
                 metadata.IsIncomplete ||
                 !StatusCode.IsGood(permissions.Status) ||
                 permissions.Generation != NamespaceDefaultPermissionReader.Generation ||
@@ -99,7 +103,7 @@ namespace Opc.Ua.Server
                 return;
             }
 
-            var entry = new Entry(metadata, accessRestrictions, rolePermissions, userRolePermissions, permissions);
+            var entry = new Entry(metadata, accessRestrictions, rolePermissions, userRolePermissions, Copy(permissions));
             if (!entry.IsCurrent())
             {
                 return;
@@ -148,6 +152,40 @@ namespace Opc.Ua.Server
             }
         }
 
+        /// <summary>
+        /// Copies the role permission entries, which are mutable: callers receive them through
+        /// public <see cref="NodeMetadata"/>, and a caller that changes them must not change the
+        /// defaults of later requests. A service request shares one copy across its nodes.
+        /// </summary>
+        private static NamespaceDefaultPermissions Copy(NamespaceDefaultPermissions permissions)
+        {
+            return new NamespaceDefaultPermissions(
+                permissions.NamespaceIndex,
+                permissions.DefaultAccessRestrictions,
+                Copy(permissions.DefaultRolePermissions),
+                Copy(permissions.DefaultUserRolePermissions),
+                permissions.Generation,
+                permissions.Status,
+                permissions.HasDefaultAccessRestrictions,
+                permissions.HasDefaultRolePermissions,
+                permissions.HasDefaultUserRolePermissions);
+        }
+
+        private static ArrayOf<RolePermissionType> Copy(ArrayOf<RolePermissionType> roles)
+        {
+            if (roles.IsNull || roles.Count == 0)
+            {
+                return roles;
+            }
+
+            var copy = new RolePermissionType[roles.Count];
+            for (int ii = 0; ii < copy.Length; ii++)
+            {
+                copy[ii] = (RolePermissionType)roles[ii]?.Clone()!;
+            }
+
+            return copy;
+        }
 
         /// <summary>
         /// A decoded result and the properties it was decoded from.

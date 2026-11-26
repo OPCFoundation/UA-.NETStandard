@@ -203,6 +203,8 @@ namespace Opc.Ua.Server
             if (configuration is INamespaceDefaultPermissionCacheProvider provider &&
                 provider.DefaultPermissionCache.TryGet(namespaceIndex, out permissions))
             {
+                // the hit is a private copy: share it with the rest of this request only.
+                operationContext?.SetDefaultPermissions(permissions);
                 return true;
             }
 
@@ -226,11 +228,16 @@ namespace Opc.Ua.Server
             BaseVariableState? accessRestrictions = state?.DefaultAccessRestrictions;
             BaseVariableState? rolePermissions = state?.DefaultRolePermissions;
             BaseVariableState? userRolePermissions = state?.DefaultUserRolePermissions;
+            // a callback that removes itself while it runs must not make its result look static.
+            bool staticBeforeDecode = IsStatic(accessRestrictions) &&
+                IsStatic(rolePermissions) &&
+                IsStatic(userRolePermissions);
             NamespaceDefaultPermissions result = Decode(callerContext, state, namespaceIndex, generation);
             if (configuration is INamespaceDefaultPermissionCacheProvider provider)
             {
                 provider.DefaultPermissionCache.TryAdd(
-                    state, accessRestrictions, rolePermissions, userRolePermissions, result);
+                    state, accessRestrictions, rolePermissions, userRolePermissions, result,
+                    staticBeforeDecode);
             }
 
             operationContext?.SetDefaultPermissions(result);

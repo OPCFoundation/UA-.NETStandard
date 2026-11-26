@@ -156,6 +156,58 @@ namespace Opc.Ua.Server.Tests.Configuration
         }
 
         /// <summary>
+        /// A read callback that removes itself while it runs produced a caller-specific result,
+        /// which must not be shared server-wide.
+        /// </summary>
+        [Test]
+        public async Task SelfRemovingCallbackResultIsNotCachedAsync()
+        {
+            (ushort namespaceIndex, NamespaceMetadataState metadata) = await CreateNamespaceAsync(
+                "http://test.org/UA/DefaultsCache/SelfRemoving").ConfigureAwait(false);
+            SetRoles(metadata, PermissionType.Browse, report: true);
+            PropertyState<ArrayOf<RolePermissionType>> property = metadata.DefaultRolePermissions!;
+            property.OnSimpleReadValue = (ISystemContext _, NodeState _, ref Variant value) =>
+            {
+                property.OnSimpleReadValue = null;
+                value = Variant.FromStructure(Roles(PermissionType.Call));
+                return ServiceResult.Good;
+            };
+
+            ServerSystemContext itemContext = CreateMonitoredItemContext();
+            NamespaceDefaultPermissions first = NamespaceDefaultPermissionReader.Read(
+                m_server!, itemContext, namespaceIndex);
+            Assert.That(Permissions(first), Is.EqualTo((uint)PermissionType.Call));
+            Assert.That(Cache.TryGet(namespaceIndex, out _), Is.False, "the callback result is not cached");
+
+            NamespaceDefaultPermissions second = NamespaceDefaultPermissionReader.Read(
+                m_server!, itemContext, namespaceIndex);
+            Assert.That(Permissions(second), Is.EqualTo((uint)PermissionType.Browse));
+        }
+
+        /// <summary>
+        /// Changing the role entries a caller received does not change the cached defaults.
+        /// </summary>
+        [Test]
+        public async Task ReturnedRolesAreCopiesAsync()
+        {
+            (ushort namespaceIndex, NamespaceMetadataState metadata) = await CreateNamespaceAsync(
+                "http://test.org/UA/DefaultsCache/Copies").ConfigureAwait(false);
+            SetRoles(metadata, PermissionType.Browse, report: true);
+            ServerSystemContext itemContext = CreateMonitoredItemContext();
+
+            NamespaceDefaultPermissions first = NamespaceDefaultPermissionReader.Read(
+                m_server!, itemContext, namespaceIndex);
+            first.DefaultRolePermissions[0].Permissions = (uint)PermissionType.Write;
+            NamespaceDefaultPermissions hit = NamespaceDefaultPermissionReader.Read(
+                m_server!, itemContext, namespaceIndex);
+            Assert.That(Permissions(hit), Is.EqualTo((uint)PermissionType.Browse));
+
+            hit.DefaultRolePermissions[0].Permissions = (uint)PermissionType.Write;
+            Assert.That(Cache.TryGet(namespaceIndex, out NamespaceDefaultPermissions cached), Is.True);
+            Assert.That(Permissions(cached), Is.EqualTo((uint)PermissionType.Browse));
+        }
+
+        /// <summary>
         /// Removing a namespace's metadata, as when its node manager is removed or reloaded,
         /// leaves no stale defaults behind.
         /// </summary>
@@ -191,7 +243,7 @@ namespace Opc.Ua.Server.Tests.Configuration
             var cache = new NamespaceDefaultPermissionCache();
             var metadata = NamespaceMetadataNode.From(new NamespaceMetadataState(null))!;
             cache.TryAdd(metadata, null, null, null, new NamespaceDefaultPermissions(
-                300, AccessRestrictionType.None, default, default));
+                300, AccessRestrictionType.None, default, default), true);
             Assert.That(cache.TryGet(300, out _), Is.True, "indices beyond the initial size grow the cache");
 
             cache.Clear();
