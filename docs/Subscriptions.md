@@ -1,3 +1,8 @@
+<!--
+SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+SPDX-License-Identifier: MIT
+-->
+
 # Subscriptions and Monitored Items Service Set
 
 The OPC UA Subscription and MonitoredItems service sets (Part 4 §5.13
@@ -47,6 +52,7 @@ pools, when to pick which) see
   - [Acknowledgement providers](#acknowledgement-providers)
   - [Legacy acknowledgement event](#legacy-acknowledgement-event)
 - [Publishing during session recovery](#publishing-during-session-recovery)
+  - [Refreshing classic monitored values when ResendData fails](#refreshing-classic-monitored-values-when-resenddata-fails)
 - [Triggering (SetTriggering)](#triggering-settriggering)
   - [Declarative triggering](#declarative-triggering)
   - [Imperative triggering](#imperative-triggering)
@@ -709,6 +715,58 @@ cancels recovery and hands control to the outer reconnect policy. After expiry,
 any replacement attempt still waits for cancelled Publish attempts to roll back
 their acknowledgements and release their active counts before replacing session
 and subscription state.
+
+### Refreshing classic monitored values when ResendData fails
+
+[`Server.ResendData`](https://reference.opcfoundation.org/v105/Core/docs/Part5/9.2)
+is optional. After reconnect, check the `bool` returned by
+`Subscription.ResendDataAsync(ct)`: the SDK logs a method failure and returns
+`false`, so awaiting the call without checking its result can leave unchanged
+items without a value. `ReactivateSubscriptionsAsync(..., sendInitialValues: true)`
+also logs resend failures; its return value reports reactivation, not resend
+success. If your application controls reactivation and needs to detect resend
+failures, pass `sendInitialValues: false` and call `ResendDataAsync` explicitly on
+each successfully reactivated subscription.
+
+On `false`, if the subscription is still active on the recovered session:
+
+1. Snapshot the created, reporting `Value` items to refresh, keeping each
+   item's identity alongside its request. Use the applied settings from
+   `item.Status` (`NodeId`, `AttributeId`, `IndexRange`, and `DataEncoding`),
+   not a pending configuration change or the start node of a relative path.
+   Skip items with an unknown target, event items, and items that are disabled
+   or only sampling.
+2. Record each item's application update revision before sending the read.
+   If there are any requests, issue a batched read on the recovered session
+   (`requests` is an `ArrayOf<ReadValueId>`). Split the batch if necessary to
+   respect the server's `MaxNodesPerRead` operation limit.
+
+   ```csharp
+   ReadResponse response = await session.ReadAsync(
+       null, 0, TimestampsToReturn.Both, requests, ct);
+   ```
+
+3. Check that the result count matches the request count, then match each
+   result to its request by index and inspect its `StatusCode`. Handle service
+   failures and bad per-item results without treating them as fresh values;
+   let cancellation stop the refresh. Discard results for items removed or
+   changed during the read, or if recovery started again.
+4. Apply accepted results through the same application value handler as real
+   notifications, not by synthesizing a Publish message. Serialize the check
+   and update with notification handling: if a Publish update advanced the
+   item's revision since the read started, keep the published update. If the
+   application's current value state already has an update, compare source
+   timestamps when both are available, or use comparable server timestamps
+   when source timestamps are unavailable. Do not mix timestamp kinds. Keep
+   the existing update if the read is older or you cannot establish that it
+   is newer. If the application has no value after recovery and no Publish
+   update raced the read, a successful read can supply the initial value even
+   if its source timestamp is unchanged since before reconnect. Track this
+   metadata without retaining a separate cache of value payloads.
+
+The read provides a current snapshot, not missed samples, events, or
+notifications. It does not change subscription queues, filters, or Publish
+acknowledgements.
 
 ## Triggering (SetTriggering)
 
