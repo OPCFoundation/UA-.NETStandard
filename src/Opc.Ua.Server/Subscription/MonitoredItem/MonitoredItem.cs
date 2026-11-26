@@ -4,6 +4,7 @@
 using System;
 using System.Collections.Generic;
 using System.Globalization;
+using System.Runtime.CompilerServices;
 using System.Threading;
 using Microsoft.Extensions.Logging;
 
@@ -210,7 +211,7 @@ namespace Opc.Ua.Server
                 throw new ArgumentNullException(nameof(itemToMonitor));
             }
 
-            m_logger = server.Telemetry.CreateLogger<MonitoredItem>();
+            m_logger = GetSharedLogger(server);
             m_timeProvider = timeProvider
                 ?? (server as ITimeProviderProvider)?.TimeProvider
                 ?? TimeProvider.System;
@@ -361,7 +362,7 @@ namespace Opc.Ua.Server
             {
                 throw new ArgumentNullException(nameof(storedMonitoredItem));
             }
-            m_logger = server.Telemetry.CreateLogger<MonitoredItem>();
+            m_logger = GetSharedLogger(server);
             m_timeProvider = timeProvider
                 ?? (server as ITimeProviderProvider)?.TimeProvider
                 ?? TimeProvider.System;
@@ -513,7 +514,7 @@ namespace Opc.Ua.Server
         /// Gets the metadata snapshot of the source node captured when the item was created or last rebound, which
         /// lets a detached item be modified after its source node left the address space.
         /// </summary>
-        internal NodeState? SourceMetadata { get; private set; }
+        internal SourceMetadataSnapshot? SourceMetadata { get; private set; }
 
         /// <summary>
         /// Sets the lost-node status and updates slot ownership while the item lock is held.
@@ -1162,7 +1163,7 @@ namespace Opc.Ua.Server
             NodeManagerGeneration? sourceGeneration = null,
             MonitoredItemAdoption? adoption = null)
         {
-            NodeState? metadata = CaptureSourceMetadata(m_server, managerHandle);
+            SourceMetadataSnapshot? metadata = CaptureSourceMetadata(m_server, managerHandle);
             lock (m_lock)
             {
                 boundRevision = m_sourceRevision;
@@ -1530,7 +1531,7 @@ namespace Opc.Ua.Server
                     return (StatusCodes.BadInvalidState, null);
                 }
                 MonitoringParameters parameters = request.RequestedParameters;
-                NodeState? metadata = SourceMetadata;
+                NodeState? metadata = SourceMetadata?.ToNodeState();
                 if (metadata is null && !parameters.Filter.IsNull)
                 {
                     return (StatusCodes.BadMonitoredItemFilterUnsupported, null);
@@ -3629,12 +3630,22 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
-        /// Captures a detached copy of the source node metadata needed to revise and validate item modifications.
+        /// Returns the logger shared by all items created with the server's logger factory.
+        /// </summary>
+        private static ILogger GetSharedLogger(IServerInternal server)
+        {
+            return s_loggers.GetValue(
+                server.Telemetry.GetLoggerFactory(),
+                static factory => factory.CreateLogger<MonitoredItem>());
+        }
+
+        /// <summary>
+        /// Captures the source node metadata needed to revise and validate item modifications.
         /// </summary>
         /// <param name="server">The server providing the type tree and system context.</param>
         /// <param name="managerHandle">The node manager handle of the monitored source node.</param>
         /// <returns>The metadata snapshot, or null when the handle does not carry a node.</returns>
-        private static NodeState? CaptureSourceMetadata(IServerInternal server, object managerHandle)
+        private static SourceMetadataSnapshot? CaptureSourceMetadata(IServerInternal server, object managerHandle)
         {
             if (managerHandle is not NodeHandle { Node: { } source })
             {
@@ -3642,27 +3653,96 @@ namespace Opc.Ua.Server
             }
             if (source is not BaseVariableState variable)
             {
-                return new BaseObjectState(null) { NodeId = source.NodeId };
+                return new SourceMetadataSnapshot(source.NodeId);
             }
-            var metadata = new BaseDataVariableState(null)
-            {
-                NodeId = source.NodeId,
-                DataType = server.TypeTree.IsTypeOf(variable.DataType, DataTypeIds.Number)
-                    ? DataTypeIds.Number
-                    : variable.DataType,
-                MinimumSamplingInterval = variable.MinimumSamplingInterval
-            };
+            Range? euRange = null;
             if (variable.FindChild(server.DefaultSystemContext, QualifiedName.From(BrowseNames.EURange)) is
                 PropertyState property &&
                 property.Value.TryGetStructure<Range>(out Range? range))
             {
-                metadata.AddChild(new PropertyState(metadata)
-                {
-                    BrowseName = QualifiedName.From(BrowseNames.EURange),
-                    Value = new Variant(new ExtensionObject(new Range { Low = range.Low, High = range.High }))
-                });
+                euRange = new Range { Low = range.Low, High = range.High };
             }
-            return metadata;
+            return new SourceMetadataSnapshot(
+                source.NodeId,
+                server.TypeTree.IsTypeOf(variable.DataType, DataTypeIds.Number)
+                    ? DataTypeIds.Number
+                    : variable.DataType,
+                variable.MinimumSamplingInterval,
+                euRange);
+        }
+
+        /// <summary>
+        /// The few source node attributes a detached item needs when it is modified. Every
+        /// item holds one, so it stays small; the node form the validation code expects is
+        /// only built when a detached item is actually modified.
+        /// </summary>
+        internal sealed class SourceMetadataSnapshot
+        {
+            /// <summary>
+            /// Creates the snapshot of a source that is not a variable.
+            /// </summary>
+            public SourceMetadataSnapshot(NodeId nodeId)
+            {
+                NodeId = nodeId;
+            }
+
+            /// <summary>
+            /// Creates the snapshot of a variable source.
+            /// </summary>
+            public SourceMetadataSnapshot(
+                NodeId nodeId,
+                NodeId dataType,
+                double minimumSamplingInterval,
+                Range? euRange)
+            {
+                NodeId = nodeId;
+                IsVariable = true;
+                DataType = dataType;
+                MinimumSamplingInterval = minimumSamplingInterval;
+                m_euRange = euRange;
+            }
+
+            /// <summary>The source node id.</summary>
+            public NodeId NodeId { get; }
+
+            /// <summary>Whether the source is a variable.</summary>
+            public bool IsVariable { get; }
+
+            /// <summary>The data type, folded to Number for numeric types.</summary>
+            public NodeId DataType { get; }
+
+            /// <summary>The minimum sampling interval of a variable source.</summary>
+            public double MinimumSamplingInterval { get; }
+
+            /// <summary>
+            /// Builds a detached node carrying the captured metadata, in the form
+            /// sampling interval revision and filter validation expect.
+            /// </summary>
+            public NodeState ToNodeState()
+            {
+                if (!IsVariable)
+                {
+                    return new BaseObjectState(null) { NodeId = NodeId };
+                }
+                var metadata = new BaseDataVariableState(null)
+                {
+                    NodeId = NodeId,
+                    DataType = DataType,
+                    MinimumSamplingInterval = MinimumSamplingInterval
+                };
+                if (m_euRange is { } range)
+                {
+                    metadata.AddChild(new PropertyState(metadata)
+                    {
+                        BrowseName = QualifiedName.From(BrowseNames.EURange),
+                        Value = new Variant(new ExtensionObject(new Range { Low = range.Low, High = range.High }))
+                    });
+                }
+                return metadata;
+            }
+
+            /// <summary>The engineering unit range, never handed out so it stays immutable.</summary>
+            private readonly Range? m_euRange;
         }
 
         private void QueueNodeIdUnknown()
@@ -4251,6 +4331,12 @@ namespace Opc.Ua.Server
             DeadbandType = (uint)DeadbandType.None,
             DeadbandValue = 0.0
         };
+
+        /// <summary>
+        /// One logger per logger factory, shared by every item: creating a logger
+        /// per item allocated a wrapper per item and cost CPU during creation.
+        /// </summary>
+        private static readonly ConditionalWeakTable<ILoggerFactory, ILogger> s_loggers = new();
 
         private readonly ILogger m_logger;
         private bool m_isDisposed;

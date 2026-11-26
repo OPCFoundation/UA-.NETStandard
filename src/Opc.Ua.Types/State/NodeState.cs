@@ -80,13 +80,18 @@ namespace Opc.Ua
                     return false;
                 }
 
-                lock (m_childrenLock)
+                BaseInstanceState[]? children = null;
+                if (Volatile.Read(ref m_childrenLock) is { } childrenLock)
                 {
-                    if (!ArrayEqualityComparer<BaseInstanceState>.Default.Equals(
-                        m_children?.ToArray(), node.m_children?.ToArray()))
+                    lock (childrenLock)
                     {
-                        return false;
+                        children = m_children?.ToArray();
                     }
+                }
+                if (!ArrayEqualityComparer<BaseInstanceState>.Default.Equals(
+                    children, node.m_children?.ToArray()))
+                {
+                    return false;
                 }
                 return true;
             }
@@ -178,13 +183,10 @@ namespace Opc.Ua
                 target.AddReferences(references);
             }
 
-            List<BaseInstanceState>? children;
-            lock (m_childrenLock)
-            {
-                children = m_children != null ? [.. m_children] : null;
-            }
+            List<BaseInstanceState>? children = CopyChildrenList();
             if (children != null)
             {
+                target.GetOrCreateChildrenLock();
                 target.m_children = new List<BaseInstanceState>(children.Count);
                 for (int ii = 0; ii < children.Count; ii++)
                 {
@@ -214,15 +216,11 @@ namespace Opc.Ua
         /// </summary>
         protected object CloneChildren(NodeState clone)
         {
-            List<BaseInstanceState>? children;
-
-            lock (m_childrenLock)
-            {
-                children = m_children != null ? [.. m_children] : null;
-            }
+            List<BaseInstanceState>? children = CopyChildrenList();
 
             if (children != null)
             {
+                clone.GetOrCreateChildrenLock();
                 clone.m_children = new List<BaseInstanceState>(children.Count);
 
                 for (int ii = 0; ii < children.Count; ii++)
@@ -5757,7 +5755,12 @@ namespace Opc.Ua
                 return child;
             }
 
-            lock (m_childrenLock)
+            if (Volatile.Read(ref m_childrenLock) is not { } childrenLock)
+            {
+                return null;
+            }
+
+            lock (childrenLock)
             {
                 if (m_children == null)
                 {
@@ -5971,7 +5974,12 @@ namespace Opc.Ua
 
         private bool ContainsBaseChildReference(BaseInstanceState child)
         {
-            lock (m_childrenLock)
+            if (Volatile.Read(ref m_childrenLock) is not { } childrenLock)
+            {
+                return false;
+            }
+
+            lock (childrenLock)
             {
                 if (m_children is null)
                 {
@@ -6027,7 +6035,7 @@ namespace Opc.Ua
                 }
             }
 
-            lock (m_childrenLock)
+            lock (GetOrCreateChildrenLock())
             {
                 (m_children ??= []).Add(child);
                 m_changeMasks |= NodeStateChangeMasks.Children;
@@ -6088,7 +6096,7 @@ namespace Opc.Ua
         /// </summary>
         public virtual void RemoveChild(BaseInstanceState child)
         {
-            lock (m_childrenLock)
+            lock (GetOrCreateChildrenLock())
             {
                 if (m_children != null)
                 {
@@ -6672,7 +6680,12 @@ namespace Opc.Ua
         /// </remarks>
         public virtual void GetChildren(ISystemContext context, IList<BaseInstanceState> children)
         {
-            lock (m_childrenLock)
+            if (Volatile.Read(ref m_childrenLock) is not { } childrenLock)
+            {
+                return;
+            }
+
+            lock (childrenLock)
             {
                 if (m_children != null)
                 {
@@ -6808,34 +6821,12 @@ namespace Opc.Ua
             BaseInstanceState? found = null;
             bool adopted = false;
 
-            lock (m_childrenLock)
+            // without a children lock there are no children to find or replace.
+            if (Volatile.Read(ref m_childrenLock) is { } childrenLock)
             {
-                if (m_children != null)
+                lock (childrenLock)
                 {
-                    BaseInstanceState? child = m_children.Count >= kChildNameIndexThreshold
-                        ? FindIndexedChild(m_children, browseName)
-                        : FindFirstChild(m_children, browseName);
-
-                    if (child != null)
-                    {
-                        if (createOrReplace && replacement != null)
-                        {
-                            for (int ii = 0; ii < m_children.Count; ii++)
-                            {
-                                if (ReferenceEquals(m_children[ii], child))
-                                {
-                                    m_children[ii] = child = replacement;
-                                    break;
-                                }
-                            }
-
-                            m_changeMasks |= NodeStateChangeMasks.Children;
-                            adopted = true;
-                            s_childNameIndexes.Remove(m_children);
-                        }
-
-                        found = child;
-                    }
+                    found = FindOrReplaceChild(browseName, createOrReplace, replacement, out adopted);
                 }
             }
 
@@ -6867,6 +6858,45 @@ namespace Opc.Ua
         }
 
         /// <summary>
+        /// Finds the child with the browse name and replaces it when asked.
+        /// Must be called while holding the children lock.
+        /// </summary>
+        private BaseInstanceState? FindOrReplaceChild(
+            QualifiedName browseName,
+            bool createOrReplace,
+            BaseInstanceState? replacement,
+            out bool adopted)
+        {
+            adopted = false;
+            if (m_children == null)
+            {
+                return null;
+            }
+
+            BaseInstanceState? child = m_children.Count >= kChildNameIndexThreshold
+                ? FindIndexedChild(m_children, browseName)
+                : FindFirstChild(m_children, browseName);
+
+            if (child != null && createOrReplace && replacement != null)
+            {
+                for (int ii = 0; ii < m_children.Count; ii++)
+                {
+                    if (ReferenceEquals(m_children[ii], child))
+                    {
+                        m_children[ii] = child = replacement;
+                        break;
+                    }
+                }
+
+                m_changeMasks |= NodeStateChangeMasks.Children;
+                adopted = true;
+                s_childNameIndexes.Remove(m_children);
+            }
+
+            return child;
+        }
+
+        /// <summary>
         /// Returns the first child in <paramref name="children"/> with the browse name.
         /// </summary>
         private static BaseInstanceState? FindFirstChild(
@@ -6887,7 +6917,7 @@ namespace Opc.Ua
         /// <summary>
         /// Returns the first child with the browse name using the browse name index of
         /// the children list, building the index when it is missing or out of date.
-        /// Must be called while holding <see cref="m_childrenLock"/>.
+        /// Must be called while holding the children lock.
         /// </summary>
         private BaseInstanceState? FindIndexedChild(
             List<BaseInstanceState> children,
@@ -6944,7 +6974,10 @@ namespace Opc.Ua
                 return;
             }
 
-            lock (parent.m_childrenLock)
+            // always under the parent's lock, even if it has no children yet: a rename that
+            // skipped the lock could interleave with a concurrent AddChild of this node and
+            // an index build, which would then keep the previous name.
+            lock (parent.GetOrCreateChildrenLock())
             {
                 m_browseName = browseName;
 
@@ -6960,7 +6993,9 @@ namespace Opc.Ua
         /// </summary>
         internal void InvalidateChildNameIndex()
         {
-            lock (m_childrenLock)
+            // like the rename, never skip the lock: an index built concurrently with a
+            // lock-free check could otherwise keep the re-parented child.
+            lock (GetOrCreateChildrenLock())
             {
                 if (m_children != null)
                 {
@@ -7127,6 +7162,40 @@ namespace Opc.Ua
             return Interlocked.CompareExchange(ref m_browseLock, candidate, null) ?? candidate;
         }
 
+        /// <summary>
+        /// Gets the existing children lock or publishes a fresh one. Every path that
+        /// assigns or fills <see cref="m_children"/> calls this first.
+        /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private Lock GetOrCreateChildrenLock()
+        {
+            Lock? existing = Volatile.Read(ref m_childrenLock);
+            if (existing is not null)
+            {
+                return existing;
+            }
+
+            var candidate = new Lock();
+            return Interlocked.CompareExchange(ref m_childrenLock, candidate, null) ?? candidate;
+        }
+
+        /// <summary>
+        /// Copies the children list under the children lock, or returns null when the
+        /// node has no children.
+        /// </summary>
+        private List<BaseInstanceState>? CopyChildrenList()
+        {
+            if (Volatile.Read(ref m_childrenLock) is not { } childrenLock)
+            {
+                return null;
+            }
+
+            lock (childrenLock)
+            {
+                return m_children != null ? [.. m_children] : null;
+            }
+        }
+
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private NodeStateDesignMetadata GetOrCreateDesignMetadata()
         {
@@ -7280,7 +7349,17 @@ namespace Opc.Ua
         private Lock? m_notifiersLock;
 
         private readonly Lock m_referencesLock = new();
-        private readonly Lock m_childrenLock = new();
+
+        /// <summary>
+        /// Lazily published; see <see cref="GetOrCreateChildrenLock"/>. Leaf nodes never
+        /// add a child, so most nodes of a large address space never allocate it.
+        /// </summary>
+        /// <remarks>
+        /// Invariant: <see cref="m_children"/> is only ever assigned a list after this lock
+        /// was published. A reader that finds no lock may therefore treat the node as
+        /// having no children without taking any lock.
+        /// </remarks>
+        private Lock? m_childrenLock;
 
         /// <summary>Lazily published; see <see cref="GetOrCreateBrowseLock"/>.</summary>
         private Lock? m_browseLock;

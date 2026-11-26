@@ -100,7 +100,11 @@ namespace Opc.Ua.Server
             m_timeProvider = timeProvider
                 ?? (server as ITimeProviderProvider)?.TimeProvider
                 ?? TimeProvider.System;
-            m_logger = server.Telemetry?.CreateLogger<MonitoredNode2>();
+            m_logger = server.Telemetry is { } telemetry
+                ? s_loggers.GetValue(
+                    telemetry.GetLoggerFactory(),
+                    static factory => factory.CreateLogger<MonitoredNode2>())
+                : null;
             m_parallelEventDeliveryBudget = m_timeProvider.TimestampFrequency / k_parallelEventDeliveryBudgetDivisor;
             m_useMultipleConsumers = enableMultipleEventConsumers || node.NodeId == ObjectIds.Server;
             m_channel = Channel.CreateBounded<INodeNotification>(new BoundedChannelOptions(k_defaultChannelCapacity)
@@ -411,7 +415,7 @@ namespace Opc.Ua.Server
                 }
 
                 item.SetSemanticsChanged();
-                m_pendingSemanticResamples.Enqueue(new SemanticResample(
+                LazyInitializer.EnsureInitialized(ref m_pendingSemanticResamples).Enqueue(new SemanticResample(
                     GetSubscriberContextTemplate(),
                     source,
                     item));
@@ -1004,6 +1008,7 @@ namespace Opc.Ua.Server
                     return null;
                 }
 
+                m_eventBatch ??= new EventDelivery[k_maxEventsPerBatch];
                 m_eventBatch[events++] = CreateEventDelivery(snapshot, 0, count);
                 if (!m_useMultipleConsumers)
                 {
@@ -1107,7 +1112,10 @@ namespace Opc.Ua.Server
                 }
                 // no reference to an item or event outlives the batch in the buffers.
                 Array.Clear(m_eventDeliveries, 0, collected);
-                Array.Clear(m_eventBatch, 0, events);
+                if (events > 0)
+                {
+                    Array.Clear(m_eventBatch!, 0, events);
+                }
             }
         }
 
@@ -1156,7 +1164,7 @@ namespace Opc.Ua.Server
         {
             for (int eventIndex = 0; eventIndex < events; eventIndex++)
             {
-                EventDelivery delivery = m_eventBatch[eventIndex];
+                EventDelivery delivery = m_eventBatch![eventIndex];
                 NodeManagerGeneration? generation = delivery.SourceGeneration;
                 if (generation is null || delivery.ReadinessEventId == 0 ||
                     (!delivery.SourceReadinessPending && !generation.IsDeferringEvents))
@@ -1396,7 +1404,7 @@ namespace Opc.Ua.Server
             for (int ii = 0; ii < events; ii++)
             {
                 List<Task>? pending = null;
-                StartEventDeliveries(m_eventBatch[ii], start, end, ref pending, cancellationToken);
+                StartEventDeliveries(m_eventBatch![ii], start, end, ref pending, cancellationToken);
                 if (pending != null)
                 {
                     // an item gets the next event only after it got this one.
@@ -1956,7 +1964,8 @@ namespace Opc.Ua.Server
             {
                 return false;
             }
-            slot = m_eventRestrictionVerdicts.GetValue(endpoint, static _ => new EventRestrictionVerdictSlot());
+            slot = LazyInitializer.EnsureInitialized(ref m_eventRestrictionVerdicts)
+                .GetValue(endpoint, static _ => new EventRestrictionVerdictSlot());
             EventRestrictionVerdict? verdict = Volatile.Read(ref slot.Current);
             return verdict != null &&
                 verdict.Matches(generation, defaultsGeneration, defaults, endpoint, restrictions) &&
@@ -2194,7 +2203,8 @@ namespace Opc.Ua.Server
 
         private async Task ProcessPendingSemanticResamplesAsync(CancellationToken cancellationToken)
         {
-            while (m_pendingSemanticResamples.TryDequeue(out SemanticResample? request))
+            ConcurrentQueue<SemanticResample>? pending = Volatile.Read(ref m_pendingSemanticResamples);
+            while (pending != null && pending.TryDequeue(out SemanticResample? request))
             {
                 await ProcessSemanticResampleAsync(request, cancellationToken).ConfigureAwait(false);
             }
@@ -2710,16 +2720,18 @@ namespace Opc.Ua.Server
         }
 
 
-        private readonly ConcurrentDictionary<uint, CachedDataChangePermission> m_permissionCache = new();
+        private readonly ConcurrentDictionary<uint, CachedDataChangePermission> m_permissionCache =
+            CreateNodeDictionary<uint, CachedDataChangePermission>();
 
         private readonly ConcurrentDictionary<EventPermissionCacheKey, CachedEventPermission>
-            m_eventPermissionCache = new();
+            m_eventPermissionCache = CreateNodeDictionary<EventPermissionCacheKey, CachedEventPermission>();
 
         /// <summary>
         /// The good event restriction verdicts of the notifier, one per subscriber endpoint.
+        /// Created on first use: only event notifiers need it.
         /// </summary>
-        private readonly ConditionalWeakTable<EndpointDescription, EventRestrictionVerdictSlot>
-            m_eventRestrictionVerdicts = new();
+        private ConditionalWeakTable<EndpointDescription, EventRestrictionVerdictSlot>?
+            m_eventRestrictionVerdicts;
 
         private long m_permissionGeneration;
 
@@ -2893,10 +2905,12 @@ namespace Opc.Ua.Server
             }
         }
 
-        private readonly ConcurrentDictionary<uint, IDataChangeMonitoredItem2> m_dataChangeMonitoredItems = new();
+        private readonly ConcurrentDictionary<uint, IDataChangeMonitoredItem2> m_dataChangeMonitoredItems =
+            CreateNodeDictionary<uint, IDataChangeMonitoredItem2>();
         private DataChangeItemSet? m_dataChangeItems;
         private bool m_dataChangeItemsExposed;
-        private readonly ConcurrentDictionary<uint, IEventMonitoredItem> m_eventMonitoredItems = new();
+        private readonly ConcurrentDictionary<uint, IEventMonitoredItem> m_eventMonitoredItems =
+            CreateNodeDictionary<uint, IEventMonitoredItem>();
         private IEventMonitoredItem[]? m_eventItems;
         private bool m_eventItemsExposed;
 
@@ -2912,17 +2926,40 @@ namespace Opc.Ua.Server
         private NodeManagerGenerationReference? m_generation;
         private NodeManagerGenerationReference? m_retirementOwner;
         private readonly TimeProvider m_timeProvider;
+
+        /// <summary>
+        /// Creates a per-node table. A node usually has one or two items, its items are
+        /// added and removed under the rebind lock and its permission caches see little
+        /// write contention, while lookups stay lock free: one lock and a small table
+        /// instead of the per-processor locks and counters of the default constructor,
+        /// which cost about a kilobyte per dictionary on many-core machines.
+        /// </summary>
+        /// <typeparam name="TKey">The key type.</typeparam>
+        /// <typeparam name="TValue">The value type.</typeparam>
+        private static ConcurrentDictionary<TKey, TValue> CreateNodeDictionary<TKey, TValue>()
+            where TKey : notnull
+        {
+            return new ConcurrentDictionary<TKey, TValue>(concurrencyLevel: 1, capacity: 1);
+        }
+
+        /// <summary>One logger per logger factory, shared by every monitored node.</summary>
+        private static readonly ConditionalWeakTable<ILoggerFactory, ILogger> s_loggers = new();
+
         private readonly ILogger? m_logger;
         private readonly Channel<INodeNotification> m_channel;
         private readonly CancellationTokenSource m_consumerCts;
         private readonly Task m_consumerTask;
         private readonly bool m_useMultipleConsumers;
         private EventItemDelivery[] m_eventDeliveries = [];
-        private readonly EventDelivery[] m_eventBatch = new EventDelivery[k_maxEventsPerBatch];
+
+        /// <summary>The event batch of the consumer loop, created with the first event.</summary>
+        private EventDelivery[]? m_eventBatch;
         private long m_parallelEventDeliveryBudget;
         private int m_minItemsPerEventDeliveryRange = k_minItemsPerEventDeliveryRange;
         private readonly Lock m_rebindLock = new();
-        private readonly ConcurrentQueue<SemanticResample> m_pendingSemanticResamples = new();
+
+        /// <summary>Created with the first semantic resample request.</summary>
+        private ConcurrentQueue<SemanticResample>? m_pendingSemanticResamples;
         private bool m_disposed;
         private bool m_draining;
 
