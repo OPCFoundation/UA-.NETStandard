@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: MIT
 
 using System;
+using System.Reflection;
 using System.Threading;
 
 namespace Opc.Ua.Server
@@ -169,6 +170,9 @@ namespace Opc.Ua.Server
                 !NamespaceDefaultPermissionReader.IsStatic(accessRestrictions) ||
                 !NamespaceDefaultPermissionReader.IsStatic(rolePermissions) ||
                 !NamespaceDefaultPermissionReader.IsStatic(userRolePermissions) ||
+                !IsStackType(accessRestrictions) ||
+                !IsStackType(rolePermissions) ||
+                !IsStackType(userRolePermissions) ||
                 (m_isTracked != null &&
                     !m_isTracked(metadata, accessRestrictions, rolePermissions, userRolePermissions)))
             {
@@ -220,6 +224,23 @@ namespace Opc.Ua.Server
             // a store into an array that a concurrent grow just replaced is lost; that only
             // costs a second decode.
             Volatile.Write(ref entries[namespaceIndex], entry);
+        }
+
+        /// <summary>
+        /// Returns <c>true</c> for a property whose type is defined by the stack. Such a type reads
+        /// its stored value unless a callback is set, which <see cref="NamespaceDefaultPermissionReader.IsStatic"/>
+        /// rules out. A subclass from another assembly can override the read and return a
+        /// caller-specific value without a callback, so its defaults are read live as before.
+        /// </summary>
+        private static bool IsStackType(BaseVariableState? property)
+        {
+            if (property == null)
+            {
+                return true;
+            }
+
+            Assembly assembly = property.GetType().Assembly;
+            return assembly == s_typesAssembly || assembly == s_coreAssembly;
         }
 
         /// <summary>
@@ -416,6 +437,8 @@ namespace Opc.Ua.Server
         }
 
         private readonly Func<NamespaceMetadataNode, BaseVariableState?, BaseVariableState?, BaseVariableState?, bool>? m_isTracked;
+        private static readonly Assembly s_typesAssembly = typeof(BaseVariableState).Assembly;
+        private static readonly Assembly s_coreAssembly = typeof(NamespaceMetadataState).Assembly;
         private readonly Lock m_lock = new();
         private Entry?[] m_entries = [];
     }

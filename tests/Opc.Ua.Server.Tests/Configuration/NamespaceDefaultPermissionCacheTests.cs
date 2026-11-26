@@ -366,6 +366,38 @@ namespace Opc.Ua.Server.Tests.Configuration
         }
 
         /// <summary>
+        /// A property type from outside the stack can override the read and return a
+        /// caller-specific value without a callback; its defaults are never cached server-wide.
+        /// </summary>
+        [Test]
+        public async Task OverriddenReadIsNotCachedAsync()
+        {
+            (ushort namespaceIndex, NamespaceMetadataState metadata) = await CreateNamespaceAsync(
+                "http://test.org/UA/DefaultsCache/OverriddenRead").ConfigureAwait(false);
+            PropertyState<ArrayOf<RolePermissionType>> original = metadata.DefaultRolePermissions!;
+            var custom = new OverriddenReadProperty(metadata)
+            {
+                NodeId = original.NodeId,
+                BrowseName = original.BrowseName,
+                AccessLevel = original.AccessLevel,
+                UserAccessLevel = original.UserAccessLevel,
+                Value = Roles(PermissionType.Browse)
+            };
+            metadata.RemoveChild(original);
+            metadata.AddChild(custom);
+            metadata.DefaultRolePermissions = custom;
+            custom.ClearChangeMasks(m_server!.DefaultSystemContext, false);
+            metadata.ClearChangeMasks(m_server.DefaultSystemContext, false);
+
+            ServerSystemContext itemContext = CreateMonitoredItemContext();
+            NamespaceDefaultPermissionReader.Read(m_server, itemContext, namespaceIndex);
+            NamespaceDefaultPermissionReader.Read(m_server, itemContext, namespaceIndex);
+
+            Assert.That(custom.Reads, Is.EqualTo(2), "the override runs on every check");
+            Assert.That(Cache.TryGet(namespaceIndex, out _), Is.False);
+        }
+
+        /// <summary>
         /// Removing a namespace's metadata, as when its node manager is removed or reloaded,
         /// leaves no stale defaults behind.
         /// </summary>
@@ -459,5 +491,32 @@ namespace Opc.Ua.Server.Tests.Configuration
         private ServerFixture<StandardServer>? m_fixture;
         private IServerInternal? m_server;
         private ConfigurationNodeManager? m_configuration;
+
+        /// <summary>
+        /// A property from outside the stack that overrides the value read.
+        /// </summary>
+        private sealed class OverriddenReadProperty
+            : PropertyState<ArrayOf<RolePermissionType>>.Implementation<StructureBuilder<RolePermissionType>>
+        {
+            public OverriddenReadProperty(NodeState parent)
+                : base(parent)
+            {
+            }
+
+            public int Reads => Volatile.Read(ref m_reads);
+
+            protected override ServiceResult ReadValueAttribute(
+                ISystemContext context,
+                NumericRange indexRange,
+                QualifiedName dataEncoding,
+                ref Variant value,
+                ref DateTimeUtc sourceTimestamp)
+            {
+                Interlocked.Increment(ref m_reads);
+                return base.ReadValueAttribute(context, indexRange, dataEncoding, ref value, ref sourceTimestamp);
+            }
+
+            private int m_reads;
+        }
     }
 }
