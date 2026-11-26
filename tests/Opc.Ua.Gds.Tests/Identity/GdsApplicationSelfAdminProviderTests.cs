@@ -69,6 +69,53 @@ namespace Opc.Ua.Gds.Tests.Identity
         }
 
         [Test]
+        public async Task SupersededCertificateInApplicationStoreDoesNotGrantSelfAdminAsync()
+        {
+            // The record holds the renewed certificate. The previous one is
+            // still in the GDS application store, but it no longer belongs to
+            // the application.
+            using Certificate currentCertificate = CreateCertificate("CN=Renewed");
+            using Certificate supersededCertificate = CreateCertificate("CN=Superseded");
+            var database = new StubApplicationsDatabase(
+                ApplicationUri,
+                new NodeId("app-superseded", 2),
+                currentCertificate.RawData);
+            var provider = new GdsApplicationSelfAdminProvider(
+                database,
+                NullLogger<GdsApplicationSelfAdminProvider>.Instance,
+                isRegisteredCertificate: _ => true);
+            IUserIdentity identity = new UserIdentity();
+
+            AuthenticationResult result = await provider.AugmentAsync(
+                identity,
+                CreateContext(supersededCertificate, ApplicationUri)).ConfigureAwait(false);
+
+            Assert.That(result.Outcome, Is.EqualTo(AuthenticationOutcome.Accepted));
+            Assert.That(result.Identity, Is.SameAs(identity));
+        }
+
+        [Test]
+        public async Task ApplicationStoreFallbackGrantsSelfAdminWhenRecordHasNoCertificateAsync()
+        {
+            using Certificate channelCertificate = CreateCertificate("CN=StoreOnly");
+            var applicationId = new NodeId("app-store-only", 2);
+            var database = new StubApplicationsDatabase(ApplicationUri, applicationId, []);
+            var provider = new GdsApplicationSelfAdminProvider(
+                database,
+                NullLogger<GdsApplicationSelfAdminProvider>.Instance,
+                isRegisteredCertificate: _ => true);
+            IUserIdentity identity = new UserIdentity();
+
+            AuthenticationResult result = await provider.AugmentAsync(
+                identity,
+                CreateContext(channelCertificate, ApplicationUri)).ConfigureAwait(false);
+
+            Assert.That(result.Outcome, Is.EqualTo(AuthenticationOutcome.Accepted));
+            Assert.That(result.Identity, Is.InstanceOf<GdsRoleBasedIdentity>());
+            Assert.That(((GdsRoleBasedIdentity)result.Identity).ApplicationId, Is.EqualTo(applicationId));
+        }
+
+        [Test]
         public async Task MissingChannelCertificateReturnsNotHandledAsync()
         {
             using Certificate registeredCertificate = CreateCertificate("CN=RegisteredNoChannelCert");
