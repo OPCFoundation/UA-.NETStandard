@@ -725,19 +725,19 @@ is optional. After reconnect, check the `bool` returned by
 items without a value. `ReactivateSubscriptionsAsync(..., sendInitialValues: true)`
 also logs resend failures; its return value reports reactivation, not resend
 success. If your application controls reactivation and needs to detect resend
-failures, pass `sendInitialValues: false` and call `ResendDataAsync` explicitly on
-each successfully reactivated subscription.
+failures, pass `sendInitialValues: false`. After reactivation returns, call
+`ResendDataAsync` explicitly on each successfully reactivated subscription.
 
 On `false`, if the subscription is still active on the recovered session:
 
-1. Snapshot the created, reporting `Value` items to refresh, keeping each
-   item's identity alongside its request. Use the applied settings from
-   `item.Status` (`NodeId`, `AttributeId`, `IndexRange`, and `DataEncoding`),
-   not a pending configuration change or the start node of a relative path.
-   Skip items with an unknown target, event items, and items that are disabled
-   or only sampling.
-2. Record each item's application update revision before sending the read.
-   If there are any requests, issue a batched read on the recovered session
+1. In your data-change handler (for example, `MonitoredItem.Notification`),
+   advance an application-owned counter for the item whenever you apply a
+   Publish update. Capture the counter and item identity when preparing each
+   read request. Include only items whose applied `item.Status` indicates
+   they are created, have a known target, and monitor `Attributes.Value` in
+   `MonitoringMode.Reporting`. Use the applied `NodeId`, `IndexRange`, and
+   `DataEncoding`, not pending settings or the start node of a relative path.
+2. If there are any requests, issue a batched read on the recovered session
    (`requests` is an `ArrayOf<ReadValueId>`). Split the batch if necessary to
    respect the server's `MaxNodesPerRead` operation limit.
 
@@ -753,9 +753,9 @@ On `false`, if the subscription is still active on the recovered session:
    changed during the read, or if recovery started again.
 4. Apply accepted results through the same application value handler as real
    notifications, not by synthesizing a Publish message. Serialize the check
-   and update with notification handling: if a Publish update advanced the
-   item's revision since the read started, keep the published update. If the
-   application's current value state already has an update, compare source
+   and update with notification handling: if the counter has advanced since
+   you captured it, keep the published update. If the application has
+   already received an update for its current value state, compare source
    timestamps when both are available, or use comparable server timestamps
    when source timestamps are unavailable. Do not mix timestamp kinds. Keep
    the existing update if the read is older or you cannot establish that it
