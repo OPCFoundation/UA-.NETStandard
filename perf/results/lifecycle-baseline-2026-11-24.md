@@ -16,10 +16,10 @@ These are baselines for the NodeManager lifetime redesign follow-ups F3–F7 (#4
 | Host | 24 logical cores, Windows 11, .NET 10 (SDK 11.0.100), Release, net10.0 |
 | Bin paths | `C:\ulh\net10.0`, `C:\ulb\...`, `C:\ulc\...`: short paths of the same shape |
 | GC | Server GC unless stated; the #4869 command is also run with Workstation GC, as the issue does |
-| Rounds | #4869: 5 alternating base/candidate pairs per GC mode. Lifecycle: 3 rounds per line. Traces: 1 run each |
+| Rounds | #4869: 5 alternating base/candidate pairs per GC mode. Lifecycle: 3 rounds per line (f4p: 5). Traces: 1 run each |
 | Run length | `--duration 15 --warmup 8` (#4869: the issue's `--duration 15 --warmup 10`) |
 | Discard rule | Foreign testhost/ServerLoadHarness/dotnet/MSBuild/VBCSCompiler CPU over 3 cores |
-| Discarded | **None.** Every run recorded `foreign=0` |
+| Discarded | **None** in the 2026-11-24 runs: each one recorded `foreign=0`. The 2026-11-26 f4p lines discarded 2 runs (foreign 5.0 and 12.5 cores) and repeated them. Their kept runs recorded foreign 0–1.9 cores |
 
 Every cell gives the median with the [min..max] of its rounds. "Net" figures subtract the
 matching `-ctl` line, which is the same command with `--lc-interval 0` (no churn). Server
@@ -193,17 +193,26 @@ What this shows:
 
 ## F4 / N6: sampled monitored items, AddNodes/DeleteNodes and permission-cache invalidation
 
-Settings for the f4 lines: no client load, 20 managers × 500 variables, and a monitor
-subscription on all 10,000 variables sampled at 100 ms. No values change. The n6 lines use the
-subscription load of the lifecycle lines, with one ReferenceServer manager and no readers.
-`--addnodes 50` runs one AddNodes and one DeleteNodes of an Object under `Scalar` every 50 ms.
-Each such request calls `NodeState.InvalidateRolePermissionsCache()` server-wide.
+Settings for the f4p lines: no client load, one session monitoring 10,000 unchanged Int32
+variables on a static manager with sampling groups (`--lc-polled 10000`), sampled at 100 ms.
+A sampling group reads every item each interval and checks its cached read verdict on each read.
+These lines replace the first f4 lines, which are kept below as monitored-node lines. Those
+monitored the churned runtime NodeSet variables. Runtime NodeSet managers have no sampling groups,
+so their unchanged variables are never read again after the initial value, and those lines did
+not measure sampling. The f4p lines are 5 rounds on `93b1880b3` plus the `--lc-polled` harness
+commit (`C:\ulh\p10`), recorded on 2026-11-26.
+
+The n6 lines use the subscription load of the lifecycle lines, with one ReferenceServer manager and
+no readers. `--addnodes 50` runs one AddNodes and one DeleteNodes of an Object under `Scalar`
+every 50 ms. Each such request calls `NodeState.InvalidateRolePermissionsCache()` server-wide.
 
 | Line | Server cores | Server alloc / 15 s | Contention / 15 s | Per notification alloc / CPU | AddNodes+DeleteNodes p50 / p99 ms | Delivery % |
 |---|---|---|---|---|---|---|
-| f4-sampled | 0.04 | 71.9 MB | 0 | – | – | – |
-| f4-sampled-nm | 0.06 | 76.2 MB | 0 | – | 1.21 / 1.96 (301 ok) | – |
-| f4-sampled-churn (a 500-variable reload every 1 s) | 0.22 | 942 MB | 12 | – | – | – |
+| f4p-polled (sampling groups) | 0.18 [0.14..0.19] | 139 MB [138.7..140.2] | 0 [0..1] | – | – | – |
+| f4p-polled-nm (sampling groups) | **0.29 [0.29..0.32]** | **761 MB [755..762]** | 1 [0..2] | – | 1.11 / 1.98 (300 ok) | – |
+| f4-monitored (monitored nodes, report on change) | 0.04 | 71.9 MB | 0 | – | – | – |
+| f4-monitored-nm (monitored nodes, report on change) | 0.06 | 76.2 MB | 0 | – | 1.21 / 1.96 (301 ok) | – |
+| f4-monitored-churn (a 500-variable reload every 1 s) | 0.22 | 942 MB | 12 | – | – | – |
 | n6-sub | 0.36 [0.25..0.47] | 111.5 MB | 11 [9..11] | 171 B / 7.8 µs | – | 93.5 [76.7..99.3] |
 | n6-sub-nm | 0.53 [0.38..0.71] | 551 MB | **19,341 [19,083..20,221]** | **774 B / 12.3 µs** | 2.27 / 7.63 (301 ok) | 99.3 [86.1..99.3] |
 | f4-counters (sampled counters scenario) | 0.41 | 452 MB | 2,146 | 329 B / 4.2 µs | – | – |
@@ -214,8 +223,22 @@ What this shows:
   second (40 invalidations per second), per-notification allocation rises from 171 B to 774 B
   (4.5×). Server allocation rises 5×, lock contention goes from 11 to about 19,300 events in 15 s,
   and CPU per notification goes up 58 % (noisy).
-- On the sampled path with unchanged values (f4) the same invalidation rate costs +0.02 cores and
-  14 KB per AddNodes+DeleteNodes pair. Sampled read verdicts are rebuilt cheaply.
+- **N6 also defeats the sampled verdict cache.** With 10,000 unchanged sampled items (f4p), the
+  same invalidation rate raises server allocation 5.5× (139 → 761 MB per 15 s, about 2.1 MB per
+  AddNodes+DeleteNodes pair). Server CPU rises 61 % (0.18 → 0.29 cores, about 5.5 ms per pair)
+  and gen0 collections go from 2 to 17. Invalidation every 50 ms is faster than the 100 ms
+  sampling, so nearly every sample rebuilds its verdict: the alloc trace attributes 97 % of the
+  752 MB to it, about 490 B per sample. `MonitoredReadVerdict.ValidateAsync` is 20 %. Two
+  `NodeHandle`s per sample account for 36 %: one from `GetManagerHandleAsync` via
+  `SamplingGroup` → `ValidateRolePermissionsAsync`, and one from `ValidateMonitoredReadAsync`.
+  `ExecutionContext` and `AsyncLocal` maps from `BeginNodeManagerOperation` and
+  `ValidateMonitoredReadAsync` are 27 %, and `NodeManagerOperationContext` is 6 %. Without
+  AddNodes/DeleteNodes the same frames are about 49 % of 138 MB, about 45 B per sample, so about
+  10 % of samples rebuild. Unlike the write-driven path, the sampled rebuild shows no lock
+  contention (0–2 events per 15 s; the contention trace records none).
+- On the monitored-node path (f4-monitored) unchanged variables are never re-read. The same
+  invalidation rate costs only +0.02 cores and 14 KB per pair there, because nothing rebuilds a
+  verdict until a value changes.
 - From code reading, the invalidation runs in `DispatchAdmittedAddNodesAsync` /
   `DeleteNodes` (`MasterNodeManager.NodeManagement.cs:239/:286/:318/:360`) before per-item
   authorization, and again in `finally`. A request whose items are all rejected still retires
@@ -232,7 +255,7 @@ What this shows:
   under the metadata variable's node lock (`NamespaceDefaultPermissionReader.ReadRolePermissions`
   → `BaseVariableState.ReadValueAttribute`). Monitored-item contexts never remember the defaults
   (`OperationContext.cs:1095`).
-- Reloading a 500-variable manager with 500 sampled items costs 54 MB of allocation and about
+- Reloading a 500-variable manager with 500 monitored items costs 54 MB of allocation and about
   170 ms of server CPU per operation, net of control. That is ~109 KB per variable, against
   3.3 MB for a 10-variable manager. **50 % of that allocation is `object[]` in
   `MonitoredNode2.Remove`** (`MonitoredNode.cs:378`). Every monitored node subscribes a handler to

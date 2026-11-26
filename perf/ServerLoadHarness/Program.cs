@@ -322,6 +322,11 @@ namespace Opc.Ua.Perf.ServerLoadHarness
                 : FaultInjection.Enabled
                 ? new FaultInjectingReferenceServer(telemetry)
                 : new ReferenceServer(telemetry);
+            // lifecycle-reload --lc-polled N: unchanged variables on a sampling-group manager
+            if (ArgInt("lc-polled", 0) > 0)
+            {
+                server.AddNodeManager(new LifecyclePolledFactory(ArgInt("lc-polled", 0)));
+            }
             if (Arg("isolation", "default") == "sharedonly")
             {
                 server.ResourceIsolationOptions.Mode = Opc.Ua.Server.ServerResourceIsolationMode.SharedOnly;
@@ -501,6 +506,8 @@ namespace Opc.Ua.Perf.ServerLoadHarness
                     $"server --port {port} --diag {Arg("diag", "0")} --audit {Arg("audit", "0")} --threads {Arg("threads", "200")} ") +
                 FormattableString.Invariant(
                     $"--lc-managers {(lifecycleScenario ? ArgInt("lc-managers", 8) : 0)} --lc-vars {Arg("lc-vars", "10")} ") +
+                FormattableString.Invariant(
+                    $"--lc-polled {(lifecycleScenario ? ArgInt("lc-polled", 0) : 0)} ") +
                 FormattableString.Invariant(
                     $"--counters {counterCount} --sampling {Arg("sampling", "10")} --queue {Arg("queue", "2000")} --isolation {Arg("isolation", "default")} ") +
                 FormattableString.Invariant($"--owner-share {Arg("owner-share", "1")} ") +

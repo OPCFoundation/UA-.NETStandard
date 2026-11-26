@@ -153,7 +153,8 @@ The time from the commit to `LifecycleResult.Retired` is tracked without blockin
 |---|---|---|
 | `--load` | 1 | 1: the write-driven subscription load of `sub` (`--sessions`, `--subs`, `--nodes`, `--pub`, `--write-interval`, `--writers`) runs as well. 0: no subscription load; `per-op` is then per lifecycle operation. |
 | `--readers` | 4 | Sessions reading `--read-nodes` (16) churned variables per Read in a closed loop. Node `k` belongs to manager `k % --read-managers` (default all managers), so one Read touches up to `--read-managers` managers. |
-| `--lc-monitor` | 1 | 1: one session monitors every churned variable with `--lc-sampling` (100) ms sampling (the sampled path). |
+| `--lc-monitor` | 1 | 1: one session monitors every churned variable with `--lc-sampling` (100) ms sampling. The runtime NodeSet managers have no sampling groups: their monitored items report on change only, so unchanged churned variables are never read again after the initial value. |
+| `--lc-polled` | 0 | N unchanged Int32 variables on a static manager with sampling groups (`LifecyclePolled.cs`), also monitored by the `--lc-monitor` session. A sampling group reads each of them every `--lc-sampling` ms and checks its cached read verdict (the sampled path). |
 | `--idle` | 0 | Additional connected sessions without subscriptions or requests. |
 | `--lc-managers`, `--lc-vars` | 8, 10 | Churned managers and variables per manager. |
 | `--lc-interval` | 2000 | Milliseconds between operations per worker; 0: no churn (a control run with the same sessions and load). |
@@ -187,6 +188,8 @@ ServerLoadHarness.exe run --scenario lifecycle-reload --sessions 10 --subs 5 --n
 ServerLoadHarness.exe run --scenario lifecycle-reload --load 0 --readers 0 --lc-monitor 0 --idle 1000 --lc-interval 250 --probe 250
 # Reads that alternate over 64 managers against Reads that stay in one
 ServerLoadHarness.exe run --scenario lifecycle-reload --load 0 --readers 8 --lc-monitor 0 --lc-managers 64 --read-nodes 64 --read-managers 64 --lc-interval 0
+# sampled reads of 10,000 unchanged variables while AddNodes/DeleteNodes invalidates the permission cache
+ServerLoadHarness.exe run --scenario lifecycle-reload --load 0 --readers 0 --lc-managers 1 --lc-vars 1 --lc-polled 10000 --lc-interval 0 --addnodes 50
 # concurrent preparation and aborted preparations
 ServerLoadHarness.exe run --scenario lifecycle-reload --load 0 --readers 0 --lc-monitor 0 --lc-managers 16 --lc-interval 50 --lc-workers 4 --lc-abort-every 3 --lc-remove-every 0
 ```

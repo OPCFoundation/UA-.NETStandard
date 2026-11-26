@@ -137,9 +137,36 @@ namespace Opc.Ua.Perf.ServerLoadHarness
                         items++;
                     }
                 }
+                int polled = Program.ArgInt("lc-polled", 0);
+                if (polled > 0)
+                {
+                    int polledNamespace = managed.NamespaceUris.GetIndex(LifecyclePolledFactory.Namespace);
+                    if (polledNamespace < 0)
+                    {
+                        throw new InvalidOperationException("The server has no namespace " + LifecyclePolledFactory.Namespace);
+                    }
+                    for (int p = 0; p < polled; p++)
+                    {
+                        if (!subscription.TryAddMonitoredItem(
+                            FormattableString.Invariant($"polled/{p}"),
+                            new V2.MonitoredItems.MonitoredItemOptions
+                            {
+                                StartNodeId = new NodeId((uint)p + 1, (ushort)polledNamespace),
+                                AttributeId = Attributes.Value,
+                                MonitoringMode = MonitoringMode.Reporting,
+                                SamplingInterval = TimeSpan.FromMilliseconds(m_samplingInterval),
+                                QueueSize = 1
+                            },
+                            out _))
+                        {
+                            throw new InvalidOperationException("Could not add a polled monitored item.");
+                        }
+                    }
+                }
                 await setup.WaitForReadyAsync(subscription, CancellationToken.None).ConfigureAwait(false);
                 Console.WriteLine(FormattableString.Invariant(
-                    $"lifecycle: monitoring {items} variables of {m_managers} managers, sampling {m_samplingInterval} ms"));
+                    $"lifecycle: monitoring {items} variables of {m_managers} managers and {polled} polled ") +
+                    FormattableString.Invariant($"variables (sampling groups), sampling {m_samplingInterval} ms"));
             }
             Console.WriteLine(FormattableString.Invariant(
                 $"lifecycle: {m_readers.Length} readers x {m_readNodes} nodes over ") +
