@@ -40,7 +40,15 @@ namespace Opc.Ua.Server
     /// did before the cache, and such a namespace is read live until the change is reported.</item>
     /// <item>The metadata node still exposes the same default properties, and each of them is
     /// still static (no read callback, read access in both access levels).</item>
+    /// <item>The role entries stored in the role permission properties are the same objects
+    /// with the same role and permissions as when they were decoded. A stored entry changed in
+    /// place raises no notification; such a namespace is read live from then on.</item>
     /// </list>
+    /// <para>
+    /// An entry is only added while the registry is subscribed to each property it was decoded
+    /// from, so that a reported change of any of them moves the generation. A property replaced
+    /// in a typed state is read live until the change of the node's children is reported.
+    /// </para>
     /// <para>
     /// Entries are indexed by namespace index in an array that only grows, so a hit is one array
     /// load and a few field reads.
@@ -48,6 +56,18 @@ namespace Opc.Ua.Server
     /// </remarks>
     internal sealed class NamespaceDefaultPermissionCache
     {
+        /// <summary>
+        /// Creates a cache.
+        /// </summary>
+        /// <param name="isTracked">Returns whether the owner is subscribed to the value changes
+        /// of the given default properties of a metadata node; <c>null</c> treats every property
+        /// as tracked.</param>
+        public NamespaceDefaultPermissionCache(
+            Func<NamespaceMetadataNode, BaseVariableState?, BaseVariableState?, BaseVariableState?, bool>? isTracked = null)
+        {
+            m_isTracked = isTracked;
+        }
+
         /// <summary>
         /// Returns the cached defaults of <paramref name="namespaceIndex"/> when they are current.
         /// </summary>
@@ -98,12 +118,22 @@ namespace Opc.Ua.Server
                 permissions.Generation != NamespaceDefaultPermissionReader.Generation ||
                 !NamespaceDefaultPermissionReader.IsStatic(accessRestrictions) ||
                 !NamespaceDefaultPermissionReader.IsStatic(rolePermissions) ||
-                !NamespaceDefaultPermissionReader.IsStatic(userRolePermissions))
+                !NamespaceDefaultPermissionReader.IsStatic(userRolePermissions) ||
+                (m_isTracked != null &&
+                    !m_isTracked(metadata, accessRestrictions, rolePermissions, userRolePermissions)))
             {
                 return;
             }
 
-            var entry = new Entry(metadata, accessRestrictions, rolePermissions, userRolePermissions, Copy(permissions));
+            NamespaceDefaultPermissions snapshot = Copy(permissions);
+            if (!StoredRoles.TryCapture(rolePermissions, snapshot.DefaultRolePermissions, out StoredRoles? roles) ||
+                !StoredRoles.TryCapture(userRolePermissions, snapshot.DefaultUserRolePermissions, out StoredRoles? userRoles))
+            {
+                return;
+            }
+
+            var entry = new Entry(
+                metadata, accessRestrictions, rolePermissions, userRolePermissions, roles, userRoles, snapshot);
             if (!entry.IsCurrent())
             {
                 return;
@@ -188,6 +218,92 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
+        /// The role entries stored in a role permission property when it was decoded, with the
+        /// role and permissions each had. Role entries are mutable, and a change made in place
+        /// raises no notification, so every hit compares them with the decoded snapshot.
+        /// </summary>
+        private sealed class StoredRoles
+        {
+            private StoredRoles(ArrayOf<RolePermissionType> stored, RolePermissionType?[] elements)
+            {
+                m_stored = stored;
+                m_elements = elements;
+            }
+
+            /// <summary>
+            /// Captures the role entries stored in <paramref name="property"/>; fails when they
+            /// differ from <paramref name="snapshot"/>, i.e. they changed since the decode.
+            /// </summary>
+            public static bool TryCapture(
+                BaseVariableState? property,
+                ArrayOf<RolePermissionType> snapshot,
+                out StoredRoles? roles)
+            {
+                roles = null;
+                if (property == null)
+                {
+                    return true;
+                }
+
+                Variant value = property.Value;
+                if (value.IsNull)
+                {
+                    return snapshot.IsNull;
+                }
+
+                if (!value.TryGetStructure(out ArrayOf<RolePermissionType> stored) ||
+                    stored.Count != snapshot.Count)
+                {
+                    return false;
+                }
+
+                var elements = new RolePermissionType?[stored.Count];
+                for (int ii = 0; ii < elements.Length; ii++)
+                {
+                    elements[ii] = stored[ii];
+                    if (!AreEqual(elements[ii], snapshot[ii]))
+                    {
+                        return false;
+                    }
+                }
+
+                roles = new StoredRoles(stored, elements);
+                return true;
+            }
+
+            /// <summary>
+            /// Lock-free check that the stored entries are the captured objects and still match
+            /// <paramref name="snapshot"/>.
+            /// </summary>
+            public bool IsUnchanged(ArrayOf<RolePermissionType> snapshot)
+            {
+                for (int ii = 0; ii < m_elements.Length; ii++)
+                {
+                    RolePermissionType? element = m_elements[ii];
+                    if (!ReferenceEquals(m_stored[ii], element) || !AreEqual(element, snapshot[ii]))
+                    {
+                        return false;
+                    }
+                }
+
+                return true;
+            }
+
+            private static bool AreEqual(RolePermissionType? stored, RolePermissionType? snapshot)
+            {
+                if (stored == null || snapshot == null)
+                {
+                    return ReferenceEquals(stored, snapshot);
+                }
+
+                return stored.Permissions == snapshot.Permissions && stored.RoleId == snapshot.RoleId;
+            }
+
+            private readonly ArrayOf<RolePermissionType> m_stored;
+            private readonly RolePermissionType?[] m_elements;
+        }
+
+        /// <summary>
         /// A decoded result and the properties it was decoded from.
         /// </summary>
         private sealed class Entry
@@ -197,12 +313,16 @@ namespace Opc.Ua.Server
                 BaseVariableState? accessRestrictions,
                 BaseVariableState? rolePermissions,
                 BaseVariableState? userRolePermissions,
+                StoredRoles? roles,
+                StoredRoles? userRoles,
                 NamespaceDefaultPermissions value)
             {
                 m_metadata = metadata;
                 m_accessRestrictions = accessRestrictions;
                 m_rolePermissions = rolePermissions;
                 m_userRolePermissions = userRolePermissions;
+                m_roles = roles;
+                m_userRoles = userRoles;
                 Value = value;
             }
 
@@ -210,7 +330,8 @@ namespace Opc.Ua.Server
 
             /// <summary>
             /// Lock-free check that the properties the value was decoded from are still the
-            /// default properties, are static and have no unreported value change.
+            /// default properties, are static, have no unreported value change, and hold the
+            /// same role entries as when they were decoded.
             /// </summary>
             public bool IsCurrent()
             {
@@ -219,7 +340,9 @@ namespace Opc.Ua.Server
                     ReferenceEquals(m_metadata.DefaultUserRolePermissions, m_userRolePermissions) &&
                     IsUnchanged(m_accessRestrictions) &&
                     IsUnchanged(m_rolePermissions) &&
-                    IsUnchanged(m_userRolePermissions);
+                    IsUnchanged(m_userRolePermissions) &&
+                    (m_roles == null || m_roles.IsUnchanged(Value.DefaultRolePermissions)) &&
+                    (m_userRoles == null || m_userRoles.IsUnchanged(Value.DefaultUserRolePermissions));
             }
 
             private static bool IsUnchanged(BaseVariableState? property)
@@ -233,8 +356,11 @@ namespace Opc.Ua.Server
             private readonly BaseVariableState? m_accessRestrictions;
             private readonly BaseVariableState? m_rolePermissions;
             private readonly BaseVariableState? m_userRolePermissions;
+            private readonly StoredRoles? m_roles;
+            private readonly StoredRoles? m_userRoles;
         }
 
+        private readonly Func<NamespaceMetadataNode, BaseVariableState?, BaseVariableState?, BaseVariableState?, bool>? m_isTracked;
         private readonly Lock m_lock = new();
         private Entry?[] m_entries = [];
     }

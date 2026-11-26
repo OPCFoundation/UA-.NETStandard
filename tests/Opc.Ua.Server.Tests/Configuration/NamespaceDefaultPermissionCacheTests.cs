@@ -208,6 +208,70 @@ namespace Opc.Ua.Server.Tests.Configuration
         }
 
         /// <summary>
+        /// A stored role entry changed in place raises no notification; the change still
+        /// applies to the next check and to a fresh request.
+        /// </summary>
+        [Test]
+        public async Task InPlaceRoleChangeAppliesToNextCheckAsync()
+        {
+            (ushort namespaceIndex, NamespaceMetadataState metadata) = await CreateNamespaceAsync(
+                "http://test.org/UA/DefaultsCache/InPlace").ConfigureAwait(false);
+            SetRoles(metadata, PermissionType.Browse, report: true);
+            ServerSystemContext itemContext = CreateMonitoredItemContext();
+            NamespaceDefaultPermissionReader.Read(m_server!, itemContext, namespaceIndex);
+            Assert.That(Cache.TryGet(namespaceIndex, out _), Is.True);
+
+            metadata.DefaultRolePermissions!.Value[0].Permissions = (uint)PermissionType.Read;
+
+            Assert.That(Cache.TryGet(namespaceIndex, out _), Is.False, "an in-place change retires the entry");
+            NamespaceDefaultPermissions item = NamespaceDefaultPermissionReader.Read(
+                m_server!, itemContext, namespaceIndex);
+            Assert.That(Permissions(item), Is.EqualTo((uint)PermissionType.Read));
+            using var request = new OperationContext(new RequestHeader(), null, RequestType.Read, RequestLifetime.None);
+            NamespaceDefaultPermissions fresh = NamespaceDefaultPermissionReader.Read(
+                m_server!, m_server!.DefaultSystemContext.Copy(request), namespaceIndex);
+            Assert.That(Permissions(fresh), Is.EqualTo((uint)PermissionType.Read));
+        }
+
+        /// <summary>
+        /// A default property replaced in a typed state is not cached until the registry
+        /// subscribes to it, so later reported changes of the replacement apply at once.
+        /// </summary>
+        [Test]
+        public async Task ReplacedPropertyChangesApplyToNextCheckAsync()
+        {
+            (ushort namespaceIndex, NamespaceMetadataState metadata) = await CreateNamespaceAsync(
+                "http://test.org/UA/DefaultsCache/Replaced").ConfigureAwait(false);
+            SetRoles(metadata, PermissionType.Browse, report: true);
+            ServerSystemContext itemContext = CreateMonitoredItemContext();
+            NamespaceDefaultPermissionReader.Read(m_server!, itemContext, namespaceIndex);
+            PropertyState<ArrayOf<RolePermissionType>> original = metadata.DefaultRolePermissions!;
+
+            var replacement = new PropertyState<ArrayOf<RolePermissionType>>
+                .Implementation<StructureBuilder<RolePermissionType>>(metadata)
+            {
+                NodeId = original.NodeId,
+                BrowseName = original.BrowseName,
+                AccessLevel = original.AccessLevel,
+                UserAccessLevel = original.UserAccessLevel,
+                Value = Roles(PermissionType.Write)
+            };
+            metadata.DefaultRolePermissions = replacement;
+            replacement.ClearChangeMasks(m_server!.DefaultSystemContext, false);
+
+            NamespaceDefaultPermissions first = NamespaceDefaultPermissionReader.Read(
+                m_server!, itemContext, namespaceIndex);
+            Assert.That(Permissions(first), Is.EqualTo((uint)PermissionType.Write));
+
+            replacement.Value = Roles(PermissionType.Call);
+            replacement.ClearChangeMasks(m_server.DefaultSystemContext, false);
+
+            NamespaceDefaultPermissions second = NamespaceDefaultPermissionReader.Read(
+                m_server!, itemContext, namespaceIndex);
+            Assert.That(Permissions(second), Is.EqualTo((uint)PermissionType.Call));
+        }
+
+        /// <summary>
         /// Removing a namespace's metadata, as when its node manager is removed or reloaded,
         /// leaves no stale defaults behind.
         /// </summary>
