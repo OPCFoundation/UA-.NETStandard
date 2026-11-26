@@ -140,7 +140,10 @@ namespace Opc.Ua.Perf.ServerLoadHarness
                         HistoryReadResult result = response.Results[0];
                         if (StatusCode.IsBad(result.StatusCode))
                         {
-                            throw new ServiceResultException(result.StatusCode);
+                            throw new ServiceResultException(
+                                result.StatusCode,
+                                FormattableString.Invariant(
+                                    $"node {m_nodeIds[node]} after {values} values ({(continuation.IsEmpty ? "first" : "next")} page)"));
                         }
                         int count = result.HistoryData.TryGetValue(out HistoryData? data) && data != null
                             ? data.DataValues.Count
@@ -154,18 +157,23 @@ namespace Opc.Ua.Perf.ServerLoadHarness
                 }
                 catch (OperationCanceledException)
                 {
+                    await ReleaseAsync(session, details, node, continuation).ConfigureAwait(false);
                     return;
                 }
                 catch (ServiceResultException) when (ct.IsCancellationRequested)
                 {
+                    await ReleaseAsync(session, details, node, continuation).ConfigureAwait(false);
                     return;
                 }
                 catch (ServiceResultException ex)
                 {
                     if (Interlocked.Increment(ref m_errors) < 5)
                     {
-                        Console.WriteLine("history read error: " + ex.Message);
+                        Console.WriteLine(FormattableString.Invariant(
+                            $"history read error: {ex.StatusCode} {ex.Message}"));
                     }
+                    // an abandoned scan must not hold a continuation point for the rest of the run
+                    await ReleaseAsync(session, details, node, continuation).ConfigureAwait(false);
                     continue;
                 }
                 m_scanLatency.Record(Stopwatch.GetTimestamp() - scanStart);
@@ -176,6 +184,32 @@ namespace Opc.Ua.Perf.ServerLoadHarness
                     Interlocked.Increment(ref m_shortScans);
                 }
                 node = (node + 1) % m_nodeIds.Length;
+            }
+        }
+
+        /// <summary>
+        /// Releases the continuation point of an abandoned scan (best effort, bounded by 5 s).
+        /// </summary>
+        private async Task ReleaseAsync(ISession session, ExtensionObject details, int node, ByteString continuation)
+        {
+            if (continuation.IsEmpty)
+            {
+                return;
+            }
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+            try
+            {
+                await session.HistoryReadAsync(
+                    null,
+                    details,
+                    TimestampsToReturn.Source,
+                    true,
+                    [new HistoryReadValueId { NodeId = m_nodeIds[node], ContinuationPoint = continuation }],
+                    timeout.Token).ConfigureAwait(false);
+            }
+            catch (Exception ex) when (ex is ServiceResultException or OperationCanceledException)
+            {
+                // the session is closing or the point is already gone
             }
         }
 
