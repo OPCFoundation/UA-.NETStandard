@@ -1387,6 +1387,16 @@ After admission, persisted lifecycle authorization governs the DCA, as with
 ticket-based admission. Hosts use the existing lifecycle operations to change
 software approval and application ownership.
 
+For a host that issues the external DCA credential, `ICertificateGroupWithApprovedUriSans`
+adds explicitly approved URI SANs while still requiring the application URI in
+the CSR. `ICertificateGroupWithAuthenticatedSigningRequest` instead uses only
+the subject and SANs approved by the host. The host must bind authentication
+and approval to the exact CSR. The issuer verifies the DER encoding, SHA-2
+signature and key type; it does not authenticate the device, approve enrollment
+or admit the certificate to the registrar. Neither capability is exposed by
+the Part 12 signing services. The
+[FDO onboarding demo](../samples/Gds/FdoOnboarding/README.md) shows this handoff.
+
 The typed client uses the already installed external DCA credential. First
 obtain the configured managers without requesting application certificates:
 
@@ -1462,7 +1472,7 @@ are listed separately.
 | §6.4: source-dependent ticket authority trust | `OnboardingTicketValidator`, `OnboardingTicketTrustProvider` | `OnboardingTicketValidatorTests`, `OnboardingTicketTrustProviderTests`; online authority-revocation services are not supplied by these adapters |
 | §7.2 and Part 12 §§7.9.5, 7.9.8: request retry and certificate recovery | Public signing receipts, retained signing keys, protected key-pair checkpoints and bounded replacement of consumed key-pair requests | `PullDcaWorkflowTests`, `DevicePullSigningRecoveryTests`, `DevicePullReceiptRetryTests`, `DevicePullResetGenerationTests`, `ProvisionableDevicePullInstallationRecoveryTests` and `PullRegistrarIntegrationTests.KeyPairRecoveryInstallsRetainedCredentialsOnARecreatedSession` |
 | §7.3: push provisioning, first registrar and installed trust | device security transition provider, standard push authorization and transaction completion, generated-client processor with separate trust/certificate apply connections, secret-store enrollment journal, retained singleton scope and connected registrar/device samples | processor fixtures cover managed Client, Server and ClientAndServer paths; Server paths require host-authoritative endpoint metadata and two fresh-channel certificate proofs. `ConnectedManagedApplicationRecoveryTests.InterruptedManagedRotationReopensFilesAndResumesOnlyRetainedCertificate` covers process-durable recovery through two live servers, and `ProvisionableDevicePushChannelTests.ConcretePushActivatesCertificateAndRecoversAcrossHostRestartAndFactoryReset` covers DCA restart/reset. These fixtures are authored; this map does not assert their execution results. |
-| §7.4: alternate authentication/FDO | Dedicated CA validation and configured product/DCA approval through `IDeviceRegistrarExternalAuthenticationProvider`; typed external pull and registrar push reuse shared registrar/Part 12 lifecycle | `ExternalAuthenticationProviderTests`, `ProvideIdentitiesRuntimeTests`, `PullDcaWorkflowTests`, `DeviceRegistrarPushProcessorTests` and enrollment recovery cases cover the handoff. `PullRegistrarIntegrationTests.ExternalHandoffOnLiveChannelRequiresDeviceApprovalBeforePart12Issuance` exercises the provider boundary on real channels with software approval gating. FDO protocols and credential installation remain external; no FDO interoperability result is asserted |
+| §7.4: alternate authentication/FDO | Dedicated CA validation and configured product/DCA approval through `IDeviceRegistrarExternalAuthenticationProvider`; typed external pull and registrar push reuse the shared registrar/Part 12 lifecycle | The registrar tests cover the handoff, including software approval and committed enrollment receipts on live OPC UA channels. The separate [FDO demo](../samples/Gds/FdoOnboarding/README.md) runs enrollment and DCA installation through the external FDO library. It does not establish interoperability with another FDO implementation |
 | §§8.1-8.2: signed JSON tickets and String-subtype `EncodedTicket` | `OnboardingTicketWriter`, ticket validator, standard model and strict-UTF-8 compatibility wrappers | writer, validator, onboarding-client and stack-generation fixtures; vendor-specific unprotected metadata is not interpreted and cannot extend signing-certificate validity |
 | §§9.2.2-9.2.8: registrar methods and application ownership | registrar runtime, async bindings, shared GDS database and certificate authorization | `DeviceRegistrarRuntimeTests`, `ProvideIdentitiesRuntimeTests`, `ApplicationsNodeManagerOnboardingTests`; database/lifecycle publication is not a distributed transaction |
 | §§9.2.9-9.2.15: administration, managed authorities and restricted audit delivery | ticket administration bindings, managed authority file services, `DeviceRegistrarAuditReporter` | administration, authority-list and audit-reporter fixtures; connected authorized/unauthorized event delivery still needs remote execution |

@@ -34,6 +34,7 @@ SPDX-License-Identifier: MIT
     <PackageVersion Include="RaftCs.Transport" Version="1.1.7" />
     <PackageVersion Include="RaftCs.Storage.File" Version="1.1.7" />
     <PackageVersion Include="EmbedIO" Version="3.5.2" />
+    <PackageVersion Include="Fdo" Version="[0.1.0-preview]" />
     <PackageVersion Include="JsonSchema.Net" Version="9.7.0" />
     <PackageVersion Include="Makaretu.Dns.Multicast" Version="0.27.0" />
     <!-- Aspire/StreamJsonRpc otherwise restore vulnerable MessagePack 2.5.302 (GHSA-qhrr-8q5h-9q3h). -->

@@ -2,13 +2,15 @@
 // SPDX-License-Identifier: MIT
 
 using System;
-using System.Collections.Generic;
+using System.IO;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using System.Threading;
 using System.Threading.Tasks;
+using Moq;
 using NUnit.Framework;
 using Opc.Ua.Gds.Server;
+using Opc.Ua.Gds.Server.Onboarding;
 using Opc.Ua.Security.Certificates;
 using Opc.Ua.Tests;
 
@@ -68,7 +70,7 @@ namespace Opc.Ua.Gds.Tests
                 NUnitTelemetryContext.Create());
             var application = new ApplicationRecordDataType { ApplicationUri = ApplicationUri };
 
-            using Certificate issued = await certificateGroup.SigningRequestAsync(
+            using Certificate issued = await certificateGroup.SigningRequestWithAdditionalUriSansAsync(
                 application,
                 Ua.ObjectTypeIds.RsaSha256ApplicationCertificateType,
                 [],
@@ -76,11 +78,12 @@ namespace Opc.Ua.Gds.Tests
                 [ProductInstanceUri]).ConfigureAwait(false);
 
             X509SubjectAltNameExtension altNames = issued.FindExtension<X509SubjectAltNameExtension>()!;
-            Assert.That(altNames.Uris, Is.EqualTo(new[] { ApplicationUri, ProductInstanceUri }));
+            Assert.That(altNames.Uris, Is.EqualTo(s_applicationAndProductUris));
         }
 
-        [Test]
-        public async Task SigningRequestRejectsInvalidApprovedUri()
+        [TestCase("not an absolute URI")]
+        [TestCase("https://DEVICE.example/identity")]
+        public async Task SigningRequestRejectsInvalidOrNormalizedApprovedUri(string approvedUri)
         {
             using Certificate signingCertificate = CertificateBuilder
                 .Create("CN=Test CA")
@@ -91,13 +94,13 @@ namespace Opc.Ua.Gds.Tests
                 NUnitTelemetryContext.Create());
             var application = new ApplicationRecordDataType { ApplicationUri = ApplicationUri };
 
-            ServiceResultException exception = Assert.ThrowsAsync<ServiceResultException>(
-                async () => await certificateGroup.SigningRequestAsync(
+            ServiceResultException exception = await Assert.ThrowsAsync<ServiceResultException>(
+                async () => await certificateGroup.SigningRequestWithAdditionalUriSansAsync(
                     application,
                     Ua.ObjectTypeIds.RsaSha256ApplicationCertificateType,
                     [],
                     CreateSigningRequestWithUris(ApplicationUri),
-                    ["not an absolute URI"]).ConfigureAwait(false))!;
+                    [approvedUri]).ConfigureAwait(false));
 
             Assert.That(exception.StatusCode, Is.EqualTo(StatusCodes.BadCertificateUriInvalid));
         }
@@ -114,19 +117,19 @@ namespace Opc.Ua.Gds.Tests
                 NUnitTelemetryContext.Create());
             var application = new ApplicationRecordDataType { ApplicationUri = ApplicationUri };
 
-            ServiceResultException exception = Assert.ThrowsAsync<ServiceResultException>(
-                async () => await certificateGroup.SigningRequestAsync(
+            ServiceResultException exception = await Assert.ThrowsAsync<ServiceResultException>(
+                async () => await certificateGroup.SigningRequestWithAdditionalUriSansAsync(
                     application,
                     Ua.ObjectTypeIds.RsaSha256ApplicationCertificateType,
                     [],
                     CreateSigningRequestWithUris(ProductInstanceUri),
-                    [ProductInstanceUri]).ConfigureAwait(false))!;
+                    [ProductInstanceUri]).ConfigureAwait(false));
 
             Assert.That(exception.StatusCode, Is.EqualTo(StatusCodes.BadCertificateUriInvalid));
         }
 
         [Test]
-        public async Task LegacySigningRequestOverrideIsPreservedAndApprovedUriOverloadRequiresOptIn()
+        public async Task LegacySigningRequestOverrideIsPreservedAndApprovedUriSigningRequiresOptIn()
         {
             using Certificate expected = CertificateBuilder
                 .Create("CN=Legacy CA")
@@ -145,18 +148,18 @@ namespace Opc.Ua.Gds.Tests
             Assert.That(actual.Thumbprint, Is.EqualTo(expected.Thumbprint));
             Assert.That(certificateGroup.LegacySigningRequestCalls, Is.EqualTo(1));
 
-            ServiceResultException exception = Assert.ThrowsAsync<ServiceResultException>(
-                async () => await certificateGroup.SigningRequestAsync(
+            ServiceResultException exception = await Assert.ThrowsAsync<ServiceResultException>(
+                async () => await certificateGroup.SigningRequestWithAdditionalUriSansAsync(
                     application,
                     Ua.ObjectTypeIds.RsaSha256ApplicationCertificateType,
                     [],
                     CreateSigningRequest(ApplicationUri),
-                    [ProductInstanceUri]).ConfigureAwait(false))!;
+                    [ProductInstanceUri]).ConfigureAwait(false));
 
             Assert.That(exception.StatusCode, Is.EqualTo(StatusCodes.BadNotSupported));
             Assert.That(certificateGroup.LegacySigningRequestCalls, Is.EqualTo(1));
 
-            exception = Assert.ThrowsAsync<ServiceResultException>(
+            exception = await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await certificateGroup.SigningRequestForAuthenticatedEvidenceAsync(
                     Ua.ObjectTypeIds.RsaSha256ApplicationCertificateType,
                     "CN=Approved Device",
@@ -164,7 +167,7 @@ namespace Opc.Ua.Gds.Tests
                     ProductInstanceUri,
                     [],
                     [],
-                    CreateSigningRequest(null)).ConfigureAwait(false))!;
+                    CreateSigningRequest(null)).ConfigureAwait(false));
 
             Assert.That(exception.StatusCode, Is.EqualTo(StatusCodes.BadNotSupported));
             Assert.That(certificateGroup.LegacySigningRequestCalls, Is.EqualTo(1));
@@ -180,6 +183,7 @@ namespace Opc.Ua.Gds.Tests
             using var certificateGroup = new TestCertificateGroup(
                 signingCertificate,
                 NUnitTelemetryContext.Create());
+            using var deviceKey = RSA.Create(2048);
 
             using Certificate issued = await certificateGroup.SigningRequestForAuthenticatedEvidenceAsync(
                 Ua.ObjectTypeIds.RsaSha256ApplicationCertificateType,
@@ -188,15 +192,54 @@ namespace Opc.Ua.Gds.Tests
                 ProductInstanceUri,
                 [],
                 ["approved.example", "192.0.2.10"],
-                CreateSigningRequestWithUris(UnapprovedUri)).ConfigureAwait(false);
+                CreateSigningRequestWithUris(deviceKey, UnapprovedUri)).ConfigureAwait(false);
 
             X509SubjectAltNameExtension altNames = issued.FindExtension<X509SubjectAltNameExtension>()!;
+            using RSA issuedKey = issued.GetRSAPublicKey()!;
+            RSAParameters expectedKey = deviceKey.ExportParameters(false);
+            RSAParameters actualKey = issuedKey.ExportParameters(false);
             Assert.That(issued.Subject, Does.Contain("CN=Approved Device"));
             Assert.That(issued.Subject, Does.Not.Contain("CN=CsrTest"));
-            Assert.That(altNames.Uris, Is.EqualTo(new[] { ApplicationUri, ProductInstanceUri }));
-            Assert.That(altNames.DomainNames, Is.EqualTo(new[] { "approved.example" }));
-            Assert.That(altNames.IPAddresses, Is.EqualTo(new[] { "192.0.2.10" }));
+            Assert.That(altNames.Uris, Is.EqualTo(s_applicationAndProductUris));
+            Assert.That(altNames.DomainNames, Is.EqualTo(s_approvedDnsNames));
+            Assert.That(altNames.IPAddresses, Is.EqualTo(s_approvedIpAddresses));
+            Assert.That(actualKey.Modulus, Is.EqualTo(expectedKey.Modulus));
+            Assert.That(actualKey.Exponent, Is.EqualTo(expectedKey.Exponent));
         }
+
+#if NET8_0_OR_GREATER
+        /// <summary>
+        /// Checks that authenticated signing verifies and preserves a P-256 CSR key.
+        /// </summary>
+        [Test]
+        public async Task AuthenticatedEvidenceSigningPreservesP256CsrKey()
+        {
+            ECCurve curve = ECCurve.NamedCurves.nistP256;
+            using Certificate signingCertificate = CertificateBuilder
+                .Create("CN=Test CA")
+                .SetCAConstraint()
+                .SetECCurve(curve)
+                .CreateForECDsa();
+            using var certificateGroup = new TestCertificateGroup(
+                signingCertificate,
+                NUnitTelemetryContext.Create(),
+                nameof(Ua.ObjectTypeIds.EccNistP256ApplicationCertificateType));
+            using var deviceKey = ECDsa.Create(curve);
+            var request = new CertificateRequest("CN=CsrTest", deviceKey, HashAlgorithmName.SHA256);
+
+            using Certificate issued = await certificateGroup.SigningRequestForAuthenticatedEvidenceAsync(
+                Ua.ObjectTypeIds.EccNistP256ApplicationCertificateType,
+                "CN=Approved Device",
+                ApplicationUri,
+                ProductInstanceUri,
+                [],
+                [],
+                ByteString.From(request.CreateSigningRequest())).ConfigureAwait(false);
+
+            using ECDsa issuedKey = issued.GetECDsaPublicKey()!;
+            Assert.That(issuedKey.ExportSubjectPublicKeyInfo(), Is.EqualTo(deviceKey.ExportSubjectPublicKeyInfo()));
+        }
+#endif
 
         [Test]
         public async Task AuthenticatedEvidenceSigningAllowsApplicationAndProductUriToBeSame()
@@ -219,11 +262,107 @@ namespace Opc.Ua.Gds.Tests
                 CreateSigningRequest(null)).ConfigureAwait(false);
 
             X509SubjectAltNameExtension altNames = issued.FindExtension<X509SubjectAltNameExtension>()!;
-            Assert.That(altNames.Uris, Is.EqualTo(new[] { ApplicationUri }));
+            Assert.That(altNames.Uris, Is.EqualTo(s_applicationUris));
         }
 
+        /// <summary>
+        /// Checks that the configured issuer's credential still needs explicit registrar approval.
+        /// </summary>
         [Test]
-        public async Task AuthenticatedEvidenceSigningRejectsInvalidApprovedIdentity()
+        public async Task ConfiguredIssuerCertificateRequiresExternalRegistrarApproval()
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            string path = Path.Combine(Path.GetTempPath(), "gds-issuer-" + Guid.NewGuid().ToString("N"));
+            Directory.CreateDirectory(path);
+            try
+            {
+                var configuration = new CertificateGroupConfiguration
+                {
+                    SubjectName = "CN=GDS External Test CA",
+                    BaseStorePath = path,
+                    CertificateTypes = [nameof(Ua.ObjectTypeIds.RsaSha256ApplicationCertificateType)]
+                };
+                using var factory = new CertificateGroup(telemetry);
+                using ICertificateGroup group = factory.Create(Path.Combine(path, "authorities"), configuration);
+                await group.InitAsync().ConfigureAwait(false);
+                Assert.That(group, Is.InstanceOf<ICertificateGroupWithAuthenticatedSigningRequest>());
+                var issuer = (ICertificateGroupWithAuthenticatedSigningRequest)group;
+                using Certificate issued = await issuer.SigningRequestForAuthenticatedEvidenceAsync(
+                    Ua.ObjectTypeIds.RsaSha256ApplicationCertificateType,
+                    "CN=Approved External DCA",
+                    ApplicationUri,
+                    ProductInstanceUri,
+                    [],
+                    [],
+                    CreateSigningRequest(null)).ConfigureAwait(false);
+                ByteString der = ByteString.From(issued.RawData.AsSpan());
+
+                await using var certificates = new CertificateManager(telemetry);
+                certificates.RegisterTrustList(
+                    ExternalAuthenticationProvider.AuthenticationAuthorities, configuration.TrustedListPath);
+                var decision = new DeviceRegistrarExternalAuthenticationResult(
+                    ProductInstanceUri,
+                    new DeviceRegistrarOnboardingDecision(
+                        new ApplicationRecordDataType { ApplicationUri = ApplicationUri }, false, null));
+                var policy = new Mock<IDeviceRegistrarExternalAuthenticationPolicy>(MockBehavior.Strict);
+                policy.SetupSequence(value => value.EvaluateAsync(
+                    der,
+                    It.Is<ArrayOf<string>>(uris =>
+                        uris.Count == 2 && uris.Contains(ApplicationUri) && uris.Contains(ProductInstanceUri)),
+                    It.IsAny<CancellationToken>()))
+                    .Throws(new ServiceResultException(StatusCodes.BadUserAccessDenied))
+                    .ReturnsAsync(decision);
+                var provider = new ExternalAuthenticationProvider(certificates, policy.Object);
+
+                ServiceResultException error = await Assert.ThrowsAsync<ServiceResultException>(
+                    () => provider.EvaluateAsync(der).AsTask());
+                Assert.That(error.StatusCode, Is.EqualTo(StatusCodes.BadUserAccessDenied));
+                Assert.That(await provider.EvaluateAsync(der).ConfigureAwait(false), Is.SameAs(decision));
+            }
+            finally
+            {
+                Directory.Delete(path, recursive: true);
+            }
+        }
+
+        /// <summary>
+        /// Distinguishes an unsupported group type from a configured type without an initialized CA.
+        /// </summary>
+        [TestCase(true)]
+        [TestCase(false)]
+        public async Task AuthenticatedEvidenceSigningReportsUnavailableAuthority(bool typeConfigured)
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            var configuration = new CertificateGroupConfiguration
+            {
+                SubjectName = "CN=Uninitialized CA",
+                BaseStorePath = "unused",
+                CertificateTypes = [nameof(Ua.ObjectTypeIds.RsaSha256ApplicationCertificateType)]
+            };
+            using var factory = new CertificateGroup(telemetry);
+            using ICertificateGroup group = factory.Create("unused", configuration);
+            var issuer = (ICertificateGroupWithAuthenticatedSigningRequest)group;
+            NodeId type = typeConfigured
+                ? Ua.ObjectTypeIds.RsaSha256ApplicationCertificateType
+                : Ua.ObjectTypeIds.RsaMinApplicationCertificateType;
+
+            ServiceResultException error = await Assert.ThrowsAsync<ServiceResultException>(
+                async () => await issuer.SigningRequestForAuthenticatedEvidenceAsync(
+                    type,
+                    "CN=Approved External DCA",
+                    ApplicationUri,
+                    ProductInstanceUri,
+                    [],
+                    [],
+                    CreateSigningRequest(null)).ConfigureAwait(false));
+
+            Assert.That(error.StatusCode,
+                Is.EqualTo(typeConfigured ? StatusCodes.BadConfigurationError : StatusCodes.BadNotSupported));
+        }
+
+        [TestCase("invalid application uri")]
+        [TestCase("https://DEVICE.example/identity")]
+        public async Task AuthenticatedEvidenceSigningRejectsInvalidOrNormalizedApprovedIdentity(string approvedUri)
         {
             using Certificate signingCertificate = CertificateBuilder
                 .Create("CN=Test CA")
@@ -233,18 +372,18 @@ namespace Opc.Ua.Gds.Tests
                 signingCertificate,
                 NUnitTelemetryContext.Create());
 
-            ServiceResultException exception = Assert.ThrowsAsync<ServiceResultException>(
+            ServiceResultException exception = await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await certificateGroup.SigningRequestForAuthenticatedEvidenceAsync(
                     Ua.ObjectTypeIds.RsaSha256ApplicationCertificateType,
                     "CN=Approved Device",
-                    "invalid application uri",
+                    approvedUri,
                     ProductInstanceUri,
                     [],
                     [],
-                    CreateSigningRequest(null)).ConfigureAwait(false))!;
+                    CreateSigningRequest(null)).ConfigureAwait(false));
             Assert.That(exception.StatusCode, Is.EqualTo(StatusCodes.BadCertificateUriInvalid));
 
-            exception = Assert.ThrowsAsync<ServiceResultException>(
+            exception = await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await certificateGroup.SigningRequestForAuthenticatedEvidenceAsync(
                     Ua.ObjectTypeIds.RsaSha256ApplicationCertificateType,
                     "CN=Approved Device",
@@ -252,7 +391,7 @@ namespace Opc.Ua.Gds.Tests
                     ProductInstanceUri,
                     [],
                     ["bad domain name!"],
-                    CreateSigningRequest(null)).ConfigureAwait(false))!;
+                    CreateSigningRequest(null)).ConfigureAwait(false));
             Assert.That(exception.StatusCode, Is.EqualTo(StatusCodes.BadInvalidArgument));
         }
 
@@ -271,7 +410,7 @@ namespace Opc.Ua.Gds.Tests
             tamperedCsrBytes[^1] ^= 0x01;
             ByteString tamperedCsr = ByteString.From(tamperedCsrBytes);
 
-            ServiceResultException exception = Assert.ThrowsAsync<ServiceResultException>(
+            ServiceResultException exception = await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await certificateGroup.SigningRequestForAuthenticatedEvidenceAsync(
                     Ua.ObjectTypeIds.RsaSha256ApplicationCertificateType,
                     "CN=Approved Device",
@@ -279,11 +418,11 @@ namespace Opc.Ua.Gds.Tests
                     ProductInstanceUri,
                     [],
                     [],
-                    tamperedCsr).ConfigureAwait(false))!;
+                    tamperedCsr).ConfigureAwait(false));
             Assert.That(exception.StatusCode, Is.EqualTo(StatusCodes.BadInvalidArgument));
             Assert.That(exception.Message, Does.Contain("CSR signature invalid"));
 
-            exception = Assert.ThrowsAsync<ServiceResultException>(
+            exception = await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await certificateGroup.SigningRequestForAuthenticatedEvidenceAsync(
                     Ua.ObjectTypeIds.EccNistP256ApplicationCertificateType,
                     "CN=Approved Device",
@@ -291,7 +430,32 @@ namespace Opc.Ua.Gds.Tests
                     ProductInstanceUri,
                     [],
                     [],
-                    validCsr).ConfigureAwait(false))!;
+                    validCsr).ConfigureAwait(false));
+            Assert.That(exception.StatusCode, Is.EqualTo(StatusCodes.BadInvalidArgument));
+        }
+
+        [Test]
+        public async Task AuthenticatedEvidenceSigningRejectsTrailingCsrData()
+        {
+            using Certificate signingCertificate = CertificateBuilder
+                .Create("CN=Test CA")
+                .SetCAConstraint()
+                .CreateForRSA();
+            using var certificateGroup = new TestCertificateGroup(
+                signingCertificate,
+                NUnitTelemetryContext.Create());
+            byte[] csr = [.. CreateSigningRequest(null).Span, 0x05, 0x00];
+
+            ServiceResultException exception = await Assert.ThrowsAsync<ServiceResultException>(
+                async () => await certificateGroup.SigningRequestForAuthenticatedEvidenceAsync(
+                    Ua.ObjectTypeIds.RsaSha256ApplicationCertificateType,
+                    "CN=Approved Device",
+                    ApplicationUri,
+                    ProductInstanceUri,
+                    [],
+                    [],
+                    ByteString.From(csr)).ConfigureAwait(false));
+
             Assert.That(exception.StatusCode, Is.EqualTo(StatusCodes.BadInvalidArgument));
         }
 
@@ -314,8 +478,8 @@ namespace Opc.Ua.Gds.Tests
                 CreateSigningRequestWithUris(ApplicationUri, UnapprovedUri)).ConfigureAwait(false);
 
             X509SubjectAltNameExtension altNames = issued.FindExtension<X509SubjectAltNameExtension>()!;
-            Assert.That(altNames.Uris, Is.EqualTo(new[] { ApplicationUri }));
-            Assert.That(altNames.DomainNames, Is.EqualTo(new[] { "localhost" }));
+            Assert.That(altNames.Uris, Is.EqualTo(s_applicationUris));
+            Assert.That(altNames.DomainNames, Is.EqualTo(s_csrDnsNames));
         }
 
         /// <summary>
@@ -587,6 +751,11 @@ namespace Opc.Ua.Gds.Tests
         private static ByteString CreateSigningRequestWithUris(params string[] applicationUris)
         {
             using var rsa = RSA.Create(2048);
+            return CreateSigningRequestWithUris(rsa, applicationUris);
+        }
+
+        private static ByteString CreateSigningRequestWithUris(RSA rsa, params string[] applicationUris)
+        {
             var request = new CertificateRequest(
                 "CN=CsrTest",
                 rsa,
@@ -621,30 +790,35 @@ namespace Opc.Ua.Gds.Tests
             }
         }
 
+        private static readonly string[] s_applicationAndProductUris = [ApplicationUri, ProductInstanceUri];
+        private static readonly string[] s_applicationUris = [ApplicationUri];
+        private static readonly string[] s_approvedDnsNames = ["approved.example"];
+        private static readonly string[] s_approvedIpAddresses = ["192.0.2.10"];
+        private static readonly string[] s_csrDnsNames = ["localhost"];
+
         private sealed class TestCertificateGroup : CertificateGroup
         {
-            public TestCertificateGroup(Certificate signingCertificate, ITelemetryContext telemetry)
+            public TestCertificateGroup(
+                Certificate signingCertificate,
+                ITelemetryContext telemetry,
+                string certificateType = nameof(Ua.ObjectTypeIds.RsaSha256ApplicationCertificateType))
                 : base(
                     "unused",
                     new CertificateGroupConfiguration
                     {
                         SubjectName = "CN=Test CA",
                         BaseStorePath = "unused",
-                        CertificateTypes =
-                        [
-                            nameof(Ua.ObjectTypeIds.RsaSha256ApplicationCertificateType)
-                        ]
+                        CertificateTypes = [certificateType]
                     },
                     telemetry)
             {
-                Certificates[Ua.ObjectTypeIds.RsaSha256ApplicationCertificateType] =
-                    signingCertificate.AddRef();
+                Certificates[Ua.ObjectTypeIds.GetIdentifier(certificateType)] = signingCertificate.AddRef();
             }
 
-            public override Task<Certificate> SigningRequestAsync(
+            public override Task<Certificate> SigningRequestWithAdditionalUriSansAsync(
                 ApplicationRecordDataType application,
                 NodeId certificateType,
-                string[] domainNames,
+                ArrayOf<string> domainNames,
                 ByteString certificateRequest,
                 ArrayOf<string> approvedAdditionalUriSans,
                 CancellationToken ct = default)
@@ -652,7 +826,7 @@ namespace Opc.Ua.Gds.Tests
                 return SigningRequestWithApprovedUriSansAsync(
                     application,
                     certificateType,
-                    domainNames,
+                    domainNames.Span.ToArray(),
                     certificateRequest,
                     approvedAdditionalUriSans,
                     ct);
@@ -668,24 +842,13 @@ namespace Opc.Ua.Gds.Tests
                 ByteString certificateRequest,
                 CancellationToken ct = default)
             {
-                var approvedUris = new List<string> { applicationUri };
-                if (!approvedUris.Contains(productInstanceUri))
-                {
-                    approvedUris.Add(productInstanceUri);
-                }
-                foreach (string approvedUri in approvedAdditionalUriSans.Span)
-                {
-                    if (!approvedUris.Contains(approvedUri))
-                    {
-                        approvedUris.Add(approvedUri);
-                    }
-                }
-
                 return SigningRequestWithApprovedIdentityAsync(
                     certificateType,
                     approvedSubjectName,
-                    approvedUris.ToArray(),
-                    approvedDomainNames.Span.ToArray(),
+                    applicationUri,
+                    productInstanceUri,
+                    approvedAdditionalUriSans,
+                    approvedDomainNames,
                     certificateRequest,
                     ct);
             }

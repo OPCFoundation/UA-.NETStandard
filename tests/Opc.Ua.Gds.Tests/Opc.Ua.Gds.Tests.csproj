@@ -51,6 +51,8 @@
   <ItemGroup Condition="$([MSBuild]::IsTargetFrameworkCompatible('$(TargetFramework)', 'net10.0'))">
     <Compile Include="..\..\samples\Gds\OnboardingRegistrar\PushManagedApplicationTargetProvider.cs"
              Link="Onboarding\PushManagedApplicationTargetProvider.cs" />
+    <Compile Include="..\..\samples\Gds\OnboardingRegistrar\FdoRegistrarEnrollmentPolicy.cs"
+             Link="Onboarding\FdoRegistrarEnrollmentPolicy.cs" />
     <Compile Include="..\..\samples\Gds\OnboardingRegistrar\PushEnrollmentCheckpointStore.cs"
              Link="Onboarding\PushEnrollmentCheckpointStore.cs" />
     <Compile Include="..\..\samples\Gds\OnboardingRegistrar\PushRegistrarIssuanceStore.cs"

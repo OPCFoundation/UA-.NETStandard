@@ -599,10 +599,31 @@ Registrar push uses the same approval provider and retained external evidence
 without requesting tickets from an externally authenticated device. The
 `OnboardingDevice` sample remains the ticket-based factory-identity example;
 it does not run an external authentication service or install its DCA credential.
-FDO discovery, ownership vouchers, TO0/TO1/TO2 and `fdo.csr` exchange remain
-outside these samples. No FDO SDK dependency or FDO interoperability result is
-provided. See [the handoff contract](../../docs/Onboarding.md#external-authentication-certificate-handoff)
-for provider registration and recovery behavior.
+The existing onboarding commands do not run the FDO exchange. The separate
+[FDO onboarding demo](FdoOnboarding/README.md) runs initialization, voucher
+transfer, TO0/TO1/TO2, and `fdo.csr` enrollment before connecting to the
+registrar. It uses the FDO preview package and does not establish FDO
+interoperability. See [the handoff contract](../../docs/Onboarding.md#external-authentication-certificate-handoff)
+for provider registration and recovery.
+
+The FDO demo wires two sample components into its enrollment callbacks.
+[`FdoRegistrarEnrollmentPolicy`](OnboardingRegistrar/FdoRegistrarEnrollmentPolicy.cs)
+checks the authenticated Device GUID and attestation certificate against
+operator-configured pins before asking the dedicated GDS group to sign the
+CSR. It records issuance before returning the certificate, then admits only
+the exact certificate from a committed enrollment. The host commits on
+authenticated `Done20`, before sending `DoneAck20`. The receipt directory
+permits one writer; the host must reconcile interrupted enrollment before
+processing a different run.
+
+On the Device, `ValidateExternalCredentialAsync` in
+[`OnboardingDeviceCredentials`](OnboardingClient/OnboardingDeviceCredentials.cs)
+checks the received application leaf against the retained RSA CSR key and
+locally configured enrollment trust before the host sends `Done20`. Only
+after authenticating `DoneAck20` does the host call
+`InstallCompletedExternalCredentialAsync` with that exact leaf. It verifies
+the stored key pair before activating it. Neither operation replaces OPC UA
+peer trust.
 
 ### Recover a lost FinishRequest response
 

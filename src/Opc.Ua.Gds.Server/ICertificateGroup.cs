@@ -126,12 +126,13 @@ namespace Opc.Ua.Gds.Server
         /// <returns>The issued certificate.</returns>
         /// <remarks>
         /// URI SANs from the CSR that are not in <paramref name="approvedAdditionalUriSans"/> are not copied.
-        /// Approved URI SANs may be added even when they are not present in the CSR.
+        /// Approved URI SANs may be added even when they are not present in the CSR. They must already
+        /// be in the form that will be encoded in the certificate, without URI normalization.
         /// </remarks>
-        Task<Certificate> SigningRequestAsync(
+        Task<Certificate> SigningRequestWithAdditionalUriSansAsync(
             ApplicationRecordDataType application,
             NodeId certificateType,
-            string[] domainNames,
+            ArrayOf<string> domainNames,
             ByteString certificateRequest,
             ArrayOf<string> approvedAdditionalUriSans,
             CancellationToken ct = default);
@@ -151,11 +152,13 @@ namespace Opc.Ua.Gds.Server
         /// <param name="productInstanceUri">The product instance URI approved by the host.</param>
         /// <param name="approvedAdditionalUriSans">Other URI SANs explicitly approved by the host.</param>
         /// <param name="approvedDomainNames">DNS names or IP addresses explicitly approved by the host.</param>
-        /// <param name="certificateRequest">The DER encoded PKCS#10 request.</param>
+        /// <param name="certificateRequest">Exactly one DER encoded PKCS#10 request, with no trailing data.</param>
         /// <param name="ct">The cancellation token.</param>
         /// <returns>The issued certificate.</returns>
         /// <remarks>
         /// The subject and SAN values are taken only from the host-approved arguments, not from the CSR.
+        /// Approved URI SANs must already be in the form that will be encoded, without URI normalization.
+        /// Requires a SHA-2 signature compatible with the requested certificate type.
         /// The caller must bind these approved values to this exact signed CSR and authenticated FDO evidence,
         /// and decide enrollment or re-enrollment eligibility before calling this method. Re-enrollment
         /// prior-certificate subject/SAN checks and authorization of a requested <c>ChangeSubjectName</c>
