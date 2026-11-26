@@ -59,7 +59,6 @@ namespace Opc.Ua
             if (source is BaseVariableState instance)
             {
                 m_value = instance.m_value;
-                Interlocked.Increment(ref m_valueVersion);
                 m_timestamp = instance.m_timestamp;
                 // The status code has to travel with the value: copying
                 // m_valueTouched without it left the copy reporting
@@ -73,6 +72,9 @@ namespace Opc.Ua
                 m_minimumSamplingInterval = instance.m_minimumSamplingInterval;
                 m_historizing = instance.m_historizing;
                 m_valueTouched = instance.m_valueTouched;
+                // after the copy, which takes no lock: a decode that read a version taken
+                // before or during it no longer matches.
+                Interlocked.Increment(ref m_valueVersion);
             }
 
             base.Initialize(context, source);

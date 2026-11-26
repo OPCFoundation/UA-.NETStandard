@@ -18,7 +18,7 @@ namespace Opc.Ua.Server.Tests.Configuration
     [Category("ConfigurationNodeManager")]
     [SetCulture("en-us")]
     [SetUICulture("en-us")]
-    [Parallelizable(ParallelScope.None)]
+    [NonParallelizable]
     public class NamespaceDefaultPermissionCacheTests
     {
         [OneTimeSetUp]

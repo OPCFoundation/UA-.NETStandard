@@ -15,7 +15,7 @@ namespace Opc.Ua.Server.Tests
     [Category("OperationContext")]
     [SetCulture("en-us")]
     [SetUICulture("en-us")]
-    [Parallelizable]
+    [NonParallelizable]
     public class OperationContextDefaultPermissionsCacheTests
     {
         /// <summary>
