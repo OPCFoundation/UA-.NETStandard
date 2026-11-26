@@ -89,10 +89,14 @@ What this shows:
   `lcMaxPending` was 1. These runs counted a retirement as pending even when it had already
   completed at commit, so 1 is an upper bound. The harness now counts only incomplete retirements.
 - **Delivery in this load is bimodal with or without churn.** The control alone gives 68.4 %,
-  72 % and 100.7 %. Writes every 100 ms against 100 ms sampling alias by phase: low-delivery runs
-  have write→notify p50 near 17 ms, full runs near 64 ms. Delivery here therefore cannot carry a
-  lifecycle signal. A future revision of the line should write every 150 ms (as #4869 does) or
-  sample at 0.
+  72 % and 100.7 %. Low-delivery runs have write→notify p50 near 17 ms, full runs near 64 ms, so
+  the split follows the phase between the writes and the server's cycles. The items request
+  sampling interval 0 and queue size 1. The revised sampling interval was not recorded, so the
+  cycle that aliases is not identified. The likely candidate is the 100 ms publishing interval
+  against the 100 ms writes: with queue size 1, two writes inside one publishing cycle leave one
+  notification. Delivery here therefore cannot carry a lifecycle signal. A future revision of the
+  line should write every 150 ms (as #4869 does) or use `--queue-size 2`, and report the revised
+  sampling interval.
 - Migrate keeps the monitored items Good across reloads (150 Good, 0 Bad). Invalidate reports Bad
   once per item, and the items stay Bad until the client recreates them (0 Good afterwards).
   Remove+add makes Reads return Bad values while the manager is absent: about 900 per 15 s at
