@@ -334,6 +334,38 @@ namespace Opc.Ua.Server.Tests.Configuration
         }
 
         /// <summary>
+        /// Re-initializing a cached property from another instance replaces its value without a
+        /// change mask; the new value still applies to the next check.
+        /// </summary>
+        [Test]
+        public async Task ReinitializedPropertyAppliesToNextCheckAsync()
+        {
+            (ushort namespaceIndex, NamespaceMetadataState metadata) = await CreateNamespaceAsync(
+                "http://test.org/UA/DefaultsCache/Reinitialized").ConfigureAwait(false);
+            SetRoles(metadata, PermissionType.Browse, report: true);
+            PropertyState<ArrayOf<RolePermissionType>> property = metadata.DefaultRolePermissions!;
+            ServerSystemContext itemContext = CreateMonitoredItemContext();
+            NamespaceDefaultPermissionReader.Read(m_server!, itemContext, namespaceIndex);
+            Assert.That(Cache.TryGet(namespaceIndex, out _), Is.True);
+
+            var source = new PropertyState<ArrayOf<RolePermissionType>>
+                .Implementation<StructureBuilder<RolePermissionType>>(metadata)
+            {
+                NodeId = property.NodeId,
+                BrowseName = property.BrowseName,
+                AccessLevel = property.AccessLevel,
+                UserAccessLevel = property.UserAccessLevel,
+                Value = Roles(PermissionType.Read)
+            };
+            property.Create(m_server!.DefaultSystemContext, source);
+            property.ClearChangeMasks(m_server.DefaultSystemContext, false);
+
+            NamespaceDefaultPermissions read = NamespaceDefaultPermissionReader.Read(
+                m_server, itemContext, namespaceIndex);
+            Assert.That(Permissions(read), Is.EqualTo((uint)PermissionType.Read));
+        }
+
+        /// <summary>
         /// Removing a namespace's metadata, as when its node manager is removed or reloaded,
         /// leaves no stale defaults behind.
         /// </summary>
