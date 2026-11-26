@@ -86,7 +86,8 @@ re-activate p50 is 1.5 ms on every line.
 What this shows:
 
 - No lifecycle failures, issues or stuck retirements: `lcPending` was 0 at every report and
-  `lcMaxPending` was 1.
+  `lcMaxPending` was 1. These runs counted a retirement as pending even when it had already
+  completed at commit, so 1 is an upper bound. The harness now counts only incomplete retirements.
 - **Delivery in this load is bimodal with or without churn.** The control alone gives 68.4 %,
   72 % and 100.7 %. Writes every 100 ms against 100 ms sampling alias by phase: low-delivery runs
   have write→notify p50 near 17 ms, full runs near 64 ms. Delivery here therefore cannot carry a
@@ -307,6 +308,9 @@ Settings: 8 sessions, 4 historized ReferenceServer nodes, 10,000 raw values each
   `native-subs` workload is not in the repository.
 - The verdict-cache hit rates of `MonitoredNode` and `SamplingGroup` cannot be observed without
   product counters. N6 is measured by its effect (allocation, contention, CPU) only.
+- In the 2026-11-24 runs the probe did not check the `StatusCode` that `CloseAsync` returns, so a
+  bad close would not have shown in `probeErrors`. The close latencies above may include such
+  closes. The harness now counts them.
 - F3 lock hold time is shown through contention traces and phase latencies. There is no
   hold-time EventCounter.
 - Each lifecycle line has 3 rounds and each trace 1 run, which is below the 5 pairs used for

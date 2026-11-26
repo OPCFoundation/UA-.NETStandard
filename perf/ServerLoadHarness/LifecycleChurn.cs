@@ -295,6 +295,12 @@ namespace Opc.Ua.Perf.ServerLoadHarness
 
         private async Task TrackRetirementAsync(LifecycleResult result, long committed)
         {
+            // a retirement already complete at commit is no backlog
+            if (result.Retired.IsCompletedSuccessfully)
+            {
+                m_retired.Record(Stopwatch.GetTimestamp() - committed);
+                return;
+            }
             long pending = Interlocked.Increment(ref m_pending);
             long max = Volatile.Read(ref m_maxPending);
             while (pending > max)

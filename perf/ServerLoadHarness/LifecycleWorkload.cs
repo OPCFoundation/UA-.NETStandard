@@ -325,8 +325,12 @@ namespace Opc.Ua.Perf.ServerLoadHarness
                         await session.UpdateSessionAsync(new UserIdentity(), default, ct).ConfigureAwait(false);
                         long reactivated = Stopwatch.GetTimestamp();
                         m_reactivate.Record(reactivated - connected);
-                        await session.CloseAsync(ct).ConfigureAwait(false);
+                        StatusCode closed = await session.CloseAsync(ct).ConfigureAwait(false);
                         m_close.Record(Stopwatch.GetTimestamp() - reactivated);
+                        if (StatusCode.IsBad(closed) && Interlocked.Increment(ref m_probeErrors) < 5)
+                        {
+                            Console.WriteLine("lifecycle probe close: " + closed);
+                        }
                     }
                     catch (OperationCanceledException) when (ct.IsCancellationRequested)
                     {
