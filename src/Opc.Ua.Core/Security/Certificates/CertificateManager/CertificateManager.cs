@@ -849,6 +849,90 @@ namespace Opc.Ua
         }
 
         /// <summary>
+        /// Returns the private-key certificate this manager loaded for
+        /// <paramref name="identifier"/> when it is the certificate that
+        /// <see cref="CertificateIdentifierResolver.LoadPrivateKeyAsync"/>
+        /// would load without a store resolver and without an application
+        /// URI, or <see langword="null"/> when the key must be loaded from the
+        /// store.
+        /// </summary>
+        /// <remarks>
+        /// Lets a client that resolves its certificate from the configured
+        /// store (<see cref="SecurityConfiguration.FindApplicationCertificateAsync(string, bool, ITelemetryContext, System.Threading.CancellationToken)"/>)
+        /// reuse the key configuration validation loaded. The manager loaded
+        /// the key with <paramref name="applicationUri"/>, which adds lookups
+        /// by application URI when the first lookup finds nothing. The key is
+        /// returned only when the lookup that has no application URI finds it
+        /// too:
+        /// <list type="bullet">
+        /// <item>the identifier has a thumbprint, so in the unchanged store
+        /// only that certificate can match;</item>
+        /// <item>the certificate matches the identifier's thumbprint,
+        /// subject and certificate type the way the directory store matches
+        /// them;</item>
+        /// <item>the store is a directory store both for this manager
+        /// (built-in provider, checked with the snapshot) and for the
+        /// built-in store resolution the caller would use otherwise.</item>
+        /// </list>
+        /// </remarks>
+        /// <param name="identifier">The configured application certificate identifier.</param>
+        /// <param name="passwordProvider">The private-key password provider.</param>
+        /// <param name="applicationUri">The application URI the manager loaded the keys with.</param>
+        /// <returns>An owned certificate reference, or <see langword="null"/>.</returns>
+        internal Certificate? TryAcquireLoadedApplicationKeyForConfiguredStore(
+            CertificateIdentifier identifier,
+            ICertificatePasswordProvider? passwordProvider,
+            string? applicationUri)
+        {
+            if (identifier == null ||
+                string.IsNullOrEmpty(identifier.Thumbprint) ||
+                string.IsNullOrEmpty(identifier.StorePath))
+            {
+                return null;
+            }
+
+            string storeType = string.IsNullOrEmpty(identifier.StoreType)
+                ? CertificateStoreIdentifier.DetermineStoreType(identifier.StorePath!)
+                : identifier.StoreType!;
+            if (storeType != CertificateStoreType.Directory)
+            {
+                return null;
+            }
+
+            Certificate? certificate = TryAcquireLoadedApplicationKey(
+                identifier,
+                passwordProvider,
+                applicationUri);
+            if (certificate == null)
+            {
+                return null;
+            }
+
+            bool matches;
+            try
+            {
+                matches = DirectoryCertificateStore.MatchesPrivateKeyLookup(
+                    certificate,
+                    identifier.Thumbprint,
+                    identifier.SubjectName,
+                    applicationUri: null,
+                    identifier.CertificateType);
+            }
+            catch (Exception ex) when (ex is not OperationCanceledException)
+            {
+                // The store skips a certificate it cannot match.
+                matches = false;
+            }
+
+            if (!matches)
+            {
+                certificate.Dispose();
+                return null;
+            }
+            return certificate;
+        }
+
+        /// <summary>
         /// Finds a remembered key for the lookup, password provider and
         /// unchanged store snapshot, and returns an owned copy of the record.
         /// </summary>
