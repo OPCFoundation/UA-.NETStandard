@@ -18,6 +18,53 @@ namespace Opc.Ua.Server
     }
 
     /// <summary>
+    /// The <see cref="BaseVariableState.ValueVersion"/> of the three default properties, taken
+    /// before a decode. Any later assignment of a value or status moves it, including one equal
+    /// to the current value and one not reported yet, so an entry whose versions still match was
+    /// decoded from the values the properties hold now.
+    /// </summary>
+    internal readonly struct DefaultPropertyVersions
+    {
+        private DefaultPropertyVersions(long accessRestrictions, long rolePermissions, long userRolePermissions)
+        {
+            m_accessRestrictions = accessRestrictions;
+            m_rolePermissions = rolePermissions;
+            m_userRolePermissions = userRolePermissions;
+        }
+
+        /// <summary>
+        /// Takes the versions of the given properties.
+        /// </summary>
+        public static DefaultPropertyVersions Capture(
+            BaseVariableState? accessRestrictions,
+            BaseVariableState? rolePermissions,
+            BaseVariableState? userRolePermissions)
+        {
+            return new DefaultPropertyVersions(
+                accessRestrictions?.ValueVersion ?? 0,
+                rolePermissions?.ValueVersion ?? 0,
+                userRolePermissions?.ValueVersion ?? 0);
+        }
+
+        /// <summary>
+        /// Returns <c>true</c> when no value of the given properties was assigned since the capture.
+        /// </summary>
+        public bool Matches(
+            BaseVariableState? accessRestrictions,
+            BaseVariableState? rolePermissions,
+            BaseVariableState? userRolePermissions)
+        {
+            return (accessRestrictions?.ValueVersion ?? 0) == m_accessRestrictions &&
+                (rolePermissions?.ValueVersion ?? 0) == m_rolePermissions &&
+                (userRolePermissions?.ValueVersion ?? 0) == m_userRolePermissions;
+        }
+
+        private readonly long m_accessRestrictions;
+        private readonly long m_rolePermissions;
+        private readonly long m_userRolePermissions;
+    }
+
+    /// <summary>
     /// Server-wide cache of the decoded namespace defaults of every namespace whose defaults are
     /// static: stored values readable without a callback, so the decoded value does not depend on
     /// the caller. Long-lived operation contexts (monitored items, subscribers) read through it
@@ -101,13 +148,16 @@ namespace Opc.Ua.Server
         /// <param name="permissions">The decoded defaults.</param>
         /// <param name="staticBeforeDecode">Whether the three properties were static before the
         /// decode; a callback that removed itself while it ran produced a caller-specific result.</param>
+        /// <param name="versionsBeforeDecode">The versions of the three properties taken before the
+        /// decode.</param>
         public void TryAdd(
             NamespaceMetadataNode? metadata,
             BaseVariableState? accessRestrictions,
             BaseVariableState? rolePermissions,
             BaseVariableState? userRolePermissions,
             NamespaceDefaultPermissions permissions,
-            bool staticBeforeDecode)
+            bool staticBeforeDecode,
+            DefaultPropertyVersions versionsBeforeDecode)
         {
             // a namespace without metadata is not cached: the registry answers that from its own
             // miss cache, which also observes unreported changes of Server/Namespaces.
@@ -133,7 +183,8 @@ namespace Opc.Ua.Server
             }
 
             var entry = new Entry(
-                metadata, accessRestrictions, rolePermissions, userRolePermissions, roles, userRoles, snapshot);
+                metadata, accessRestrictions, rolePermissions, userRolePermissions, versionsBeforeDecode, roles, userRoles,
+                snapshot);
             if (!entry.IsCurrent())
             {
                 return;
@@ -313,6 +364,7 @@ namespace Opc.Ua.Server
                 BaseVariableState? accessRestrictions,
                 BaseVariableState? rolePermissions,
                 BaseVariableState? userRolePermissions,
+                DefaultPropertyVersions versions,
                 StoredRoles? roles,
                 StoredRoles? userRoles,
                 NamespaceDefaultPermissions value)
@@ -321,6 +373,7 @@ namespace Opc.Ua.Server
                 m_accessRestrictions = accessRestrictions;
                 m_rolePermissions = rolePermissions;
                 m_userRolePermissions = userRolePermissions;
+                m_versions = versions;
                 m_roles = roles;
                 m_userRoles = userRoles;
                 Value = value;
@@ -330,14 +383,15 @@ namespace Opc.Ua.Server
 
             /// <summary>
             /// Lock-free check that the properties the value was decoded from are still the
-            /// default properties, are static, have no unreported value change, and hold the
-            /// same role entries as when they were decoded.
+            /// default properties, are static, have no unreported value change, were assigned
+            /// no value since the decode, and hold the same role entries as when they were decoded.
             /// </summary>
             public bool IsCurrent()
             {
                 return ReferenceEquals(m_metadata.DefaultAccessRestrictions, m_accessRestrictions) &&
                     ReferenceEquals(m_metadata.DefaultRolePermissions, m_rolePermissions) &&
                     ReferenceEquals(m_metadata.DefaultUserRolePermissions, m_userRolePermissions) &&
+                    m_versions.Matches(m_accessRestrictions, m_rolePermissions, m_userRolePermissions) &&
                     IsUnchanged(m_accessRestrictions) &&
                     IsUnchanged(m_rolePermissions) &&
                     IsUnchanged(m_userRolePermissions) &&
@@ -356,6 +410,7 @@ namespace Opc.Ua.Server
             private readonly BaseVariableState? m_accessRestrictions;
             private readonly BaseVariableState? m_rolePermissions;
             private readonly BaseVariableState? m_userRolePermissions;
+            private readonly DefaultPropertyVersions m_versions;
             private readonly StoredRoles? m_roles;
             private readonly StoredRoles? m_userRoles;
         }

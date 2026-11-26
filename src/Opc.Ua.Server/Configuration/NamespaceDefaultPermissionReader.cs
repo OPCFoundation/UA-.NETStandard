@@ -232,12 +232,16 @@ namespace Opc.Ua.Server
             bool staticBeforeDecode = IsStatic(accessRestrictions) &&
                 IsStatic(rolePermissions) &&
                 IsStatic(userRolePermissions);
+            // any assignment from here on, reported or not, makes the entry stale at once.
+            DefaultPropertyVersions versions = DefaultPropertyVersions.Capture(
+                accessRestrictions, rolePermissions, userRolePermissions);
             NamespaceDefaultPermissions result = Decode(callerContext, state, namespaceIndex, generation);
             if (configuration is INamespaceDefaultPermissionCacheProvider provider)
             {
                 provider.DefaultPermissionCache.TryAdd(
                     state, accessRestrictions, rolePermissions, userRolePermissions, result,
-                    staticBeforeDecode);
+                    staticBeforeDecode,
+                    versions);
             }
 
             operationContext?.SetDefaultPermissions(result);

@@ -272,6 +272,68 @@ namespace Opc.Ua.Server.Tests.Configuration
         }
 
         /// <summary>
+        /// Assigning a value equal to the stored one sets no change mask but replaces the stored
+        /// role entries; a later in-place change of the replacement still applies at once.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task EqualReplacementThenInPlaceChangeAppliesAsync(bool userRolePermissions)
+        {
+            (ushort namespaceIndex, NamespaceMetadataState metadata) = await CreateNamespaceAsync(
+                "http://test.org/UA/DefaultsCache/EqualReplacement/" + userRolePermissions).ConfigureAwait(false);
+            PropertyState<ArrayOf<RolePermissionType>>? property = userRolePermissions
+                ? metadata.DefaultUserRolePermissions
+                : metadata.DefaultRolePermissions;
+            Assume.That(property, Is.Not.Null);
+            property!.Value = Roles(PermissionType.Browse);
+            property.ClearChangeMasks(m_server!.DefaultSystemContext, false);
+            ServerSystemContext itemContext = CreateMonitoredItemContext();
+            NamespaceDefaultPermissionReader.Read(m_server, itemContext, namespaceIndex);
+            Assert.That(Cache.TryGet(namespaceIndex, out _), Is.True);
+
+            property.Value = Roles(PermissionType.Browse);
+            property.Value[0].Permissions = (uint)PermissionType.Read;
+
+            NamespaceDefaultPermissions read = NamespaceDefaultPermissionReader.Read(
+                m_server, itemContext, namespaceIndex);
+            ArrayOf<RolePermissionType> roles = userRolePermissions
+                ? read.DefaultUserRolePermissions
+                : read.DefaultRolePermissions;
+            Assert.That(roles.Count, Is.EqualTo(1));
+            Assert.That(roles[0].Permissions, Is.EqualTo((uint)PermissionType.Read));
+        }
+
+        /// <summary>
+        /// A check made while a change is being reported, before the registry moves the
+        /// generation, sees the new value.
+        /// </summary>
+        [Test]
+        public async Task ChangeAppliesWhileItIsReportedAsync()
+        {
+            (ushort namespaceIndex, NamespaceMetadataState metadata) = await CreateNamespaceAsync(
+                "http://test.org/UA/DefaultsCache/Reporting").ConfigureAwait(false);
+            SetRoles(metadata, PermissionType.Browse, report: true);
+            PropertyState<ArrayOf<RolePermissionType>> property = metadata.DefaultRolePermissions!;
+            ServerSystemContext itemContext = CreateMonitoredItemContext();
+            NamespaceDefaultPermissionReader.Read(m_server!, itemContext, namespaceIndex);
+            Assert.That(Cache.TryGet(namespaceIndex, out _), Is.True);
+
+            uint? seen = null;
+            property.OnStateChanged = (_, _, _) =>
+                seen = Permissions(NamespaceDefaultPermissionReader.Read(m_server!, itemContext, namespaceIndex));
+            try
+            {
+                SetRoles(metadata, PermissionType.Read, report: true);
+            }
+            finally
+            {
+                property.OnStateChanged = null;
+            }
+
+            Assert.That(seen, Is.EqualTo((uint)PermissionType.Read));
+        }
+
+        /// <summary>
         /// Removing a namespace's metadata, as when its node manager is removed or reloaded,
         /// leaves no stale defaults behind.
         /// </summary>
@@ -307,7 +369,7 @@ namespace Opc.Ua.Server.Tests.Configuration
             var cache = new NamespaceDefaultPermissionCache();
             var metadata = NamespaceMetadataNode.From(new NamespaceMetadataState(null))!;
             cache.TryAdd(metadata, null, null, null, new NamespaceDefaultPermissions(
-                300, AccessRestrictionType.None, default, default), true);
+                300, AccessRestrictionType.None, default, default), true, default);
             Assert.That(cache.TryGet(300, out _), Is.True, "indices beyond the initial size grow the cache");
 
             cache.Clear();
