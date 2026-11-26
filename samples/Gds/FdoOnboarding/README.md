@@ -44,15 +44,18 @@ explicitly supplied to this project. Routine stack restores do not need FDO.
 Use a different empty state directory and unused loopback port. Supply a
 fresh 32-byte wrapping key to the sample process through the environment.
 Do not pass it on the command line, log it, or put it in the state directory.
+Build before setting the wrapping key, then run the compiled sample directly.
 
 ```powershell
+dotnet build samples\Gds\FdoOnboarding\FdoOnboarding.csproj `
+  -p:CustomTestTarget=net10.0 `
+  -p:FdoLocalFeed=D:\temp\opcua-fdo-local-770f9d6\feed
+
 $env:FDO_DEMO_WRAP_KEY = [Convert]::ToBase64String(
   [System.Security.Cryptography.RandomNumberGenerator]::GetBytes(32))
 try {
-  dotnet run --project samples\Gds\FdoOnboarding `
-    -p:CustomTestTarget=net10.0 `
-    -p:FdoLocalFeed=D:\temp\opcua-fdo-local-770f9d6\feed `
-    -- D:\temp\fdo-onboarding-replacement-1 62562 --replace
+  dotnet samples\Gds\FdoOnboarding\bin\Debug\net10.0\FdoOnboarding.dll `
+    D:\temp\fdo-onboarding-replacement-1 62562 --replace
 }
 finally {
   Remove-Item Env:\FDO_DEMO_WRAP_KEY
