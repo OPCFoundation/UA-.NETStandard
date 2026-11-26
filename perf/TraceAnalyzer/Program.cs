@@ -5,6 +5,8 @@
 //   TraceAnalyzer cpu        <trace> [top] [focus] : on-CPU samples (blocked leaf frames dropped)
 //   TraceAnalyzer alloc      <trace> [top] [type]  : GCAllocationTick bytes by type, first Opc.Ua frame, stacks
 //   TraceAnalyzer contention <trace> [top]         : ContentionStart events by Opc.Ua stack
+//   TraceAnalyzer frames     <trace> 0 <p1,p2,..>  : inclusive share of on-CPU samples, allocation
+//                                                   bytes and contention events per frame substring
 
 using System;
 using System.Collections.Generic;
@@ -46,7 +48,7 @@ namespace Opc.Ua.Perf.TraceAnalyzer
         {
             if (args.Length < 2)
             {
-                Console.WriteLine("usage: TraceAnalyzer cpu|alloc|contention|gc|samples|suspend|threads <trace> [top|thresholdMs] [focus]");
+                Console.WriteLine("usage: TraceAnalyzer cpu|alloc|contention|frames|gc|pool|samples|suspend|threads <trace> [top|thresholdMs] [focus]");
                 return 1;
             }
 
@@ -65,6 +67,9 @@ namespace Opc.Ua.Perf.TraceAnalyzer
                     break;
                 case "cpu":
                     Cpu(log, top, focus);
+                    break;
+                case "frames":
+                    Frames(log, focus ?? string.Empty);
                     break;
                 case "gc":
                     Collections(log);
@@ -616,6 +621,82 @@ namespace Opc.Ua.Perf.TraceAnalyzer
             Dump("by type", byType, total, top);
             Dump("by type <- first Opc.Ua frame", byFrame, total, top);
             Dump("stacks", byStack, total, top / 2);
+        }
+
+        /// <summary>
+        /// The share of on-CPU samples, sampled allocation bytes and contention events whose stack
+        /// contains a frame matching each comma-separated substring: the cost of a component
+        /// that has no frame of its own in the top lists (for example a permission reader or a
+        /// ConditionalWeakTable called from several places).
+        /// </summary>
+        private static void Frames(TraceLog log, string patterns)
+        {
+            string[] names = patterns.Split(',',StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+            double[] cpu = new double[names.Length];
+            double[] bytes = new double[names.Length];
+            double[] waits = new double[names.Length];
+            double cpuTotal = 0;
+            double bytesTotal = 0;
+            double waitTotal = 0;
+            foreach (TraceEvent e in log.Events)
+            {
+                double amount;
+                double[] target;
+                if (e is GCAllocationTickTraceData tick)
+                {
+                    amount = tick.AllocationAmount64;
+                    bytesTotal += amount;
+                    target = bytes;
+                }
+                else if (e is ContentionStartTraceData)
+                {
+                    amount = 1;
+                    waitTotal++;
+                    target = waits;
+                }
+                else if (e.ProviderName == "Microsoft-DotNETCore-SampleProfiler")
+                {
+                    object? type = e.PayloadByName("Type");
+                    TraceCallStack? leaf = e.CallStack();
+                    if ((type != null && Convert.ToInt32(type, CultureInfo.InvariantCulture) != 2) || leaf == null ||
+                        s_blockedLeafFrames.Any(b => Short(Name(leaf)).EndsWith(b, StringComparison.Ordinal)))
+                    {
+                        continue;
+                    }
+                    amount = 1;
+                    cpuTotal++;
+                    target = cpu;
+                }
+                else
+                {
+                    continue;
+                }
+                var hit = new bool[names.Length];
+                for (TraceCallStack? f = e.CallStack(); f != null; f = f.Caller)
+                {
+                    string n = Name(f);
+                    for (int i = 0; i < names.Length; i++)
+                    {
+                        if (!hit[i] && n.Contains(names[i], StringComparison.Ordinal))
+                        {
+                            hit[i] = true;
+                            target[i] += amount;
+                        }
+                    }
+                }
+            }
+            Console.WriteLine(FormattableString.Invariant(
+                $"samples on CPU={cpuTotal:F0} sampled alloc={bytesTotal / 1048576:F1} MB contention events={waitTotal:F0}"));
+            for (int i = 0; i < names.Length; i++)
+            {
+                Console.WriteLine(FormattableString.Invariant(
+                    $"{Percent(cpu[i], cpuTotal),7} cpu {Percent(bytes[i], bytesTotal),7} alloc {Percent(waits[i], waitTotal),7} waits  {names[i]}"));
+            }
+        }
+
+        private static string Percent(double part, double total)
+        {
+            return total == 0 ? "-" : FormattableString.Invariant($"{100.0 * part / total:F2}%");
         }
 
         private static void Pool(TraceLog log, int top)

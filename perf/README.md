@@ -1,3 +1,6 @@
+<!-- SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL -->
+<!-- SPDX-License-Identifier: MIT -->
+
 # Performance tooling
 
 Tools for measuring server and client latency, throughput and GC cost under load. They are not
@@ -51,7 +54,7 @@ perf/ServerLoadHarness/bin/Release/net10.0/ServerLoadHarness.exe run --scenario 
 
 | Option | Default | Meaning |
 |---|---|---|
-| `--scenario` | `read` | `read`, `write`, `browse` (Server object), `translate` (`--nodes` TranslateBrowsePaths of Server/ServerStatus/CurrentTime per request), `call` (`--nodes` calls of the reference server's `Methods_Void` per request), `churn` (CreateMonitoredItems plus DeleteMonitoredItems of `--nodes` items on one subscription per session), `sub` (data-change subscriptions plus writers), `events` (event subscriptions on the Server object, events reported by the server), `counters`, `connect` (`--workers` concurrent loops of open channel, CreateSession, ActivateSession, CloseSession; run with `--sessions 1`), `channel` (`--workers` concurrent loops of OpenSecureChannel and close), or `native-read`/`native-counters` (see below). |
+| `--scenario` | `read` | `read`, `write`, `browse` (Server object), `translate` (`--nodes` TranslateBrowsePaths of Server/ServerStatus/CurrentTime per request), `call` (`--nodes` calls of the reference server's `Methods_Void` per request), `churn` (CreateMonitoredItems plus DeleteMonitoredItems of `--nodes` items on one subscription per session), `sub` (data-change subscriptions plus writers), `events` (event subscriptions on the Server object, events reported by the server), `counters`, `lifecycle-reload` and `historyread-paging` (see [NodeManager lifecycle under load](#nodemanager-lifecycle-under-load-lifecycle-reload)), `connect` (`--workers` concurrent loops of open channel, CreateSession, ActivateSession, CloseSession; run with `--sessions 1`), `channel` (`--workers` concurrent loops of OpenSecureChannel and close), or `native-read`/`native-counters` (see below). |
 | `--workers` | 8 | Concurrent connection loops (`connect`, `channel`). |
 | `--sessions` | 20 (`counters`: 1) | Concurrent sessions. |
 | `--nodes` | 100 | Values per Read/Write request, or monitored items per subscription. |
@@ -125,6 +128,86 @@ alongside their collection counts. `CollectionCount` in `client-process:` counts
 collection under both `gen0` and `gen1`; `client-gc:` counts each collection once.
 The fixed log-linear latency histogram (about 1.6 % resolution) records each observation
 without allocating or retaining individual samples.
+
+## NodeManager lifecycle under load (`lifecycle-reload`)
+
+`--scenario lifecycle-reload` adds, reloads and removes NodeManagers through the public
+`INodeManagerLifecycle` API of the server child while the client drives load. The server adds
+`--lc-managers` runtime NodeSet managers (`RuntimeNodeSetNodeManagerFactory`) before it reports
+ready. Manager `i` owns namespace `urn:perf:lifecycle:i` with a `Root` object under the Objects
+folder, a custom ObjectType (so every publication changes the type tree) and `--lc-vars`
+writable Int32 variables `i=1000...`. After setup the driver sends
+`lifecycle start <interval> <mode> <removeEvery> <abortEvery> <workers>` to the server child.
+Each churn worker owns a disjoint set of slots. Every interval it applies one change with
+`PrepareAsync` and `CommitAsync`:
+
+- a reload (`LifecycleChange.Reload`) in the `--lc-mode` transition mode (`migrate`,
+  `invalidate`, or `alternate` between them);
+- every `--lc-remove-every`-th operation, a `LifecycleChange.Remove` followed by a
+  `LifecycleChange.Add` of the same namespace;
+- every `--lc-abort-every`-th operation, a reload that is prepared and disposed uncommitted.
+
+The time from the commit to `LifecycleResult.Retired` is tracked without blocking the worker.
+
+| Option | Default | Meaning |
+|---|---|---|
+| `--load` | 1 | 1: the write-driven subscription load of `sub` (`--sessions`, `--subs`, `--nodes`, `--pub`, `--write-interval`, `--writers`) runs as well. 0: no subscription load; `per-op` is then per lifecycle operation. |
+| `--readers` | 4 | Sessions reading `--read-nodes` (16) churned variables per Read in a closed loop. Node `k` belongs to manager `k % --read-managers` (default all managers), so one Read touches up to `--read-managers` managers. |
+| `--lc-monitor` | 1 | 1: one session monitors every churned variable with `--lc-sampling` (100) ms sampling. The runtime NodeSet managers have no sampling groups: their monitored items report on change only, so unchanged churned variables are never read again after the initial value. |
+| `--lc-polled` | 0 | N unchanged Int32 variables on a static manager with sampling groups (`LifecyclePolled.cs`), also monitored by the `--lc-monitor` session. A sampling group reads each of them every `--lc-sampling` ms and checks its cached read verdict (the sampled path). |
+| `--idle` | 0 | Additional connected sessions without subscriptions or requests. |
+| `--lc-managers`, `--lc-vars` | 8, 10 | Churned managers and variables per manager. |
+| `--lc-interval` | 2000 | Milliseconds between operations per worker; 0: no churn (a control run with the same sessions and load). |
+| `--lc-mode`, `--lc-remove-every`, `--lc-abort-every`, `--lc-workers` | `alternate`, 5, 0, 1 | See above. With several workers, preparations run concurrently. |
+| `--probe` | 0 | Every N ms, open a classic session (CreateSession + ActivateSession, `probeConnectMs`), re-activate it with `UpdateSessionAsync` (`probeReactivateMs`) and close it (`probeCloseMs`): activation and close cost against the open sessions and live generations. |
+| `--addnodes` | 0 | Every N ms, AddNodes then DeleteNodes of one Object under the ReferenceServer `Scalar` folder (`nmMs`, `nmGood`, `nmBad`). Each such request invalidates the server-wide role-permission cache, which keys the cached read verdicts of monitored items. |
+
+The `server:` line adds `lcOps` (reloads + removes + adds), the counts per kind, `lcFailures`
+(by exception type in `lcFailureTypes`), `lcIssues` (results with reconciliation issues),
+`lcPending`/`lcMaxPending` (retirements not yet completed), and latencies as
+`count/p50/p99/max` in milliseconds:
+
+- `lcPrepareMs`: `PrepareAsync`, including the factory and the candidate's address space;
+- `lcCommitMs`: `CommitAsync`, which includes reconciliation against all sessions;
+- `lcApplyMs`: prepare plus commit;
+- `lcRetiredMs`: commit to `Retired`;
+- `lcAbortMs`: prepare plus dispose of an aborted reload.
+
+The client line reports reads per second, `readBadValues` (for example `BadNodeIdUnknown`
+between a removal and its re-add), `lcMonitorGood`/`lcMonitorBad` (data changes of the
+monitored churned variables) and the probe and AddNodes latencies. With `--load 1`, `per-op`
+is per notification and `per-op2` per lifecycle operation. With `--load 0`, `per-op` is per
+lifecycle operation and `per-op2` per Read request. Allocation per lifecycle operation is only
+meaningful without other load: subtract a control run (`--lc-interval 0`, same sessions) to
+remove the idle and probe cost.
+
+```bash
+# reload under subscription and read load, both transition modes
+ServerLoadHarness.exe run --scenario lifecycle-reload --sessions 10 --subs 5 --nodes 100 --readers 4 --lc-interval 1000 --probe 500
+# publication and activation cost against 1000 idle sessions
+ServerLoadHarness.exe run --scenario lifecycle-reload --load 0 --readers 0 --lc-monitor 0 --idle 1000 --lc-interval 250 --probe 250
+# Reads that alternate over 64 managers against Reads that stay in one
+ServerLoadHarness.exe run --scenario lifecycle-reload --load 0 --readers 8 --lc-monitor 0 --lc-managers 64 --read-nodes 64 --read-managers 64 --lc-interval 0
+# sampled reads of 10,000 unchanged variables while AddNodes/DeleteNodes invalidates the permission cache
+ServerLoadHarness.exe run --scenario lifecycle-reload --load 0 --readers 0 --lc-managers 1 --lc-vars 1 --lc-polled 10000 --lc-interval 0 --addnodes 50
+# concurrent preparation and aborted preparations
+ServerLoadHarness.exe run --scenario lifecycle-reload --load 0 --readers 0 --lc-monitor 0 --lc-managers 16 --lc-interval 50 --lc-workers 4 --lc-abort-every 3 --lc-remove-every 0
+```
+
+Lock waits during preparation (F3 in #4931) need a `--trace-profile contention` trace and the
+`frames` mode of the analyzer; the `contention=` count on the `server:` line counts every
+`Monitor`/`Lock` contention in the process. The baselines are in
+[results/lifecycle-baseline-2026-11-24.md](results/lifecycle-baseline-2026-11-24.md).
+
+## HistoryRead paging (`historyread-paging`)
+
+`--scenario historyread-paging` inserts `--samples` (10000) raw values one second apart into
+each of `--hist-nodes` (4, at most 6) historizing scalar variables of the ReferenceServer, using
+HistoryUpdate against its in-memory historian. Each session then scans one node at a time with
+`ReadRawModifiedDetails` of `--page` (100) values per request and follows the continuation
+points to the end. An operation is one page (`per-op`); `per-op2` is per returned value. The
+client line reports pages and values per second, page and full-scan latency, `shortScans`
+(scans that returned fewer values than inserted) and errors.
 
 ## External benchmark workers
 
@@ -256,8 +339,15 @@ dotnet perf/TraceAnalyzer/bin/Release/net10.0/TraceAnalyzer.dll gc trace.nettrac
 dotnet perf/TraceAnalyzer/bin/Release/net10.0/TraceAnalyzer.dll samples trace.nettrace 30
 dotnet perf/TraceAnalyzer/bin/Release/net10.0/TraceAnalyzer.dll suspend trace.nettrace 5
 dotnet perf/TraceAnalyzer/bin/Release/net10.0/TraceAnalyzer.dll threads trace.nettrace 10
+dotnet perf/TraceAnalyzer/bin/Release/net10.0/TraceAnalyzer.dll frames trace.nettrace 0 NamespaceDefaultPermissionReader,ConditionalWeakTable
 dotnet perf/TraceAnalyzer/bin/Release/net10.0/TraceAnalyzer.dll pool trace.nettrace 30
 ```
+
+`frames <trace> 0 <p1,p2,...>` prints, for each comma-separated substring, the share of on-CPU
+samples, sampled allocation bytes and contention events whose stack contains a matching frame
+(inclusive, counted once per stack). Use it for a component that is called from several places
+and so has no frame of its own in the top lists of the other modes; which columns are filled
+depends on the `--trace-profile` the trace was recorded with.
 
 `cpu` with a focus frame also lists the callers of that frame and the first `Opc.Ua` frame
 above it, past framework wrappers such as `Monitor.Enter` or `SemaphoreSlim`, and the frame's
