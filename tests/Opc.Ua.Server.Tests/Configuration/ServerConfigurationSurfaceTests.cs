@@ -1084,6 +1084,42 @@ namespace Opc.Ua.Server.Tests
         }
 
         /// <summary>
+        /// Does not cache permission values read while a grant was installed or retired, even though the
+        /// node is static again once the grant is retired.
+        /// </summary>
+        [Test]
+        public async Task GrantRetiredDuringPermissionReadIsNotCachedAsync()
+        {
+            Mock<IServerInternal> server = DeterministicServerMock.Create(out MonitoredItemQueueFactory queues);
+            using (queues)
+            {
+                server.SetupGet(value => value.Telemetry).Returns(s_telemetry);
+                await using var owner = new PermissionTestNodeManager(server.Object);
+                var node = new BaseObjectState(null)
+                {
+                    NodeId = new NodeId(903, owner.NamespaceIndex),
+                    BrowseName = new QualifiedName("RacedNode", owner.NamespaceIndex)
+                };
+
+                // the read starts while the grant is installed and the check runs after it is retired.
+                AsyncCustomNodeManager.RegisterSecurityAdminCallPermissions(owner, node);
+                long version = AsyncCustomNodeManager.SecurityAdminGrantVersion;
+                bool dynamicBefore = AsyncCustomNodeManager.RequiresDynamicPermissionReads(node);
+                Assert.That(dynamicBefore, Is.True);
+                owner.RevokeSecurityAdminCallPermissions();
+                Assert.That(AsyncCustomNodeManager.RequiresDynamicPermissionReads(node), Is.False);
+                Assert.That(AsyncCustomNodeManager.CanCachePermissionReads(node, dynamicBefore, version), Is.False);
+                Assert.That(AsyncCustomNodeManager.CanCachePermissionReads(node, false, version), Is.False);
+
+                // a grant installed and retired within one read leaves the node static on both checks.
+                version = AsyncCustomNodeManager.SecurityAdminGrantVersion;
+                AsyncCustomNodeManager.RegisterSecurityAdminCallPermissions(owner, node);
+                owner.RevokeSecurityAdminCallPermissions();
+                Assert.That(AsyncCustomNodeManager.CanCachePermissionReads(node, false, version), Is.False);
+            }
+        }
+
+        /// <summary>
         /// Owns only the permission grant under test, without starting another server.
         /// </summary>
         private sealed class PermissionTestNodeManager : AsyncCustomNodeManager
