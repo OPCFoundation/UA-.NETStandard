@@ -7395,11 +7395,16 @@ namespace Opc.Ua.Client
                 }
             }
 
+            // The configured store decides which certificate is used. The key
+            // configuration validation loaded is reused only when that store
+            // lookup would load the same certificate from the unchanged store.
             using Certificate certificate = await configuration.SecurityConfiguration
                 .FindApplicationCertificateAsync(
                     securityProfile,
                     privateKey: true,
                     telemetry,
+                    configuration.CertificateManager as CertificateManager,
+                    configuration.ApplicationUri,
                     ct).ConfigureAwait(false)
                 ?? throw ServiceResultException.ConfigurationError(
                     "ApplicationCertificate for the security profile {0} cannot be found.",
