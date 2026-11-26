@@ -127,7 +127,7 @@ namespace Opc.Ua.Server
         }
 
         /// <inheritdoc/>
-        public object GetManagerHandle(NodeId nodeId)
+        public object? GetManagerHandle(NodeId nodeId)
         {
             return m_nodeManager.GetManagerHandleAsync(nodeId).AsTask().GetAwaiter().GetResult();
         }
@@ -146,7 +146,7 @@ namespace Opc.Ua.Server
         }
 
         /// <inheritdoc/>
-        public NodeMetadata GetNodeMetadata(OperationContext context, object targetHandle, BrowseResultMask resultMask)
+        public NodeMetadata? GetNodeMetadata(OperationContext context, object targetHandle, BrowseResultMask resultMask)
         {
             return m_nodeManager.GetNodeMetadataAsync(context, targetHandle, resultMask).AsTask().GetAwaiter().GetResult();
         }

@@ -334,6 +334,178 @@ namespace Opc.Ua.Types.Tests.State
             Assert.That(asyncMask, Is.EqualTo(NodeStateChangeMasks.Value));
         }
 
+        /// <summary>
+        /// A state-change sink that clears another tree on the same thread must not disturb
+        /// the child list of the outer clear: every child of both trees is reported once.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task NestedClearFromSinkReportsEveryChildOfBothTreesAsync(bool synchronous)
+        {
+            SystemContext ctx = CreateSystemContext();
+            (BaseObjectState inner, BaseDataVariableState[] innerChildren) = CreateTree(ctx, 3);
+            (BaseObjectState outer, BaseDataVariableState[] outerChildren) = CreateTree(ctx, 3);
+            var reports = new Dictionary<NodeState, int>();
+
+            foreach (BaseDataVariableState child in innerChildren)
+            {
+                child.OnStateChanged = (_, n, _) => Bump(reports, n);
+            }
+            for (int ii = 0; ii < outerChildren.Length; ii++)
+            {
+                bool nests = ii == 0;
+                outerChildren[ii].OnStateChanged = (c, n, _) =>
+                {
+                    Bump(reports, n);
+                    if (nests)
+                    {
+                        inner.ClearChangeMasks(c, includeChildren: true);
+                    }
+                };
+                if (nests)
+                {
+                    outerChildren[ii].OnStateChangedAsync = async (c, _, _, ct) =>
+                        await inner.ClearChangeMasksAsync(c, includeChildren: true, ct).ConfigureAwait(false);
+                }
+            }
+
+            foreach (BaseDataVariableState child in innerChildren)
+            {
+                child.UpdateChangeMasks(NodeStateChangeMasks.Value);
+            }
+            foreach (BaseDataVariableState child in outerChildren)
+            {
+                child.UpdateChangeMasks(NodeStateChangeMasks.Value);
+            }
+
+            if (synchronous)
+            {
+                outer.ClearChangeMasks(ctx, includeChildren: true);
+            }
+            else
+            {
+                await outer.ClearChangeMasksAsync(ctx, includeChildren: true).ConfigureAwait(false);
+            }
+
+            foreach (BaseDataVariableState child in innerChildren)
+            {
+                Assert.That(CountOf(reports, child), Is.EqualTo(1), child.BrowseName.Name);
+                Assert.That(child.ChangeMasks, Is.EqualTo(NodeStateChangeMasks.None));
+            }
+            foreach (BaseDataVariableState child in outerChildren)
+            {
+                Assert.That(CountOf(reports, child), Is.EqualTo(1), child.BrowseName.Name);
+                Assert.That(child.ChangeMasks, Is.EqualTo(NodeStateChangeMasks.None));
+            }
+        }
+
+        /// <summary>
+        /// Concurrent asynchronous clears whose sinks resume on other threads each walk their
+        /// own children completely, and the clears stay correct when run again afterwards.
+        /// </summary>
+        [Test]
+        public async Task ConcurrentSuspendingAsyncClearsReportEveryChildAsync()
+        {
+            SystemContext ctx = CreateSystemContext();
+            const int kTrees = 32;
+            const int kChildren = 4;
+            var trees = new BaseObjectState[kTrees];
+            var allChildren = new List<BaseDataVariableState>();
+            int reports = 0;
+
+            for (int ii = 0; ii < kTrees; ii++)
+            {
+                (trees[ii], BaseDataVariableState[] children) = CreateTree(ctx, kChildren);
+                foreach (BaseDataVariableState child in children)
+                {
+                    child.OnStateChangedAsync = async (_, _, _, _) =>
+                    {
+                        await Task.Yield();
+                        Interlocked.Increment(ref reports);
+                    };
+                    allChildren.Add(child);
+                }
+            }
+
+            for (int round = 1; round <= 3; round++)
+            {
+                foreach (BaseDataVariableState child in allChildren)
+                {
+                    child.UpdateChangeMasks(NodeStateChangeMasks.Value);
+                }
+
+                var clears = new Task[kTrees];
+                for (int ii = 0; ii < kTrees; ii++)
+                {
+                    BaseObjectState tree = trees[ii];
+                    clears[ii] = Task.Run(() => tree.ClearChangeMasksAsync(ctx, includeChildren: true).AsTask());
+                }
+                await Task.WhenAll(clears).ConfigureAwait(false);
+
+                Assert.That(Volatile.Read(ref reports), Is.EqualTo(round * kTrees * kChildren));
+            }
+        }
+
+        /// <summary>
+        /// A node with more children than the reused list holds still reports each of them.
+        /// </summary>
+        [Test]
+        public async Task ClearWithManyChildrenReportsEachChildAsync()
+        {
+            SystemContext ctx = CreateSystemContext();
+            (BaseObjectState parent, BaseDataVariableState[] children) = CreateTree(ctx, 200);
+            int reports = 0;
+            foreach (BaseDataVariableState child in children)
+            {
+                child.OnStateChanged = (_, _, _) => reports++;
+                child.UpdateChangeMasks(NodeStateChangeMasks.Value);
+            }
+
+            await parent.ClearChangeMasksAsync(ctx, includeChildren: true).ConfigureAwait(false);
+            foreach (BaseDataVariableState child in children)
+            {
+                child.UpdateChangeMasks(NodeStateChangeMasks.Value);
+            }
+            parent.ClearChangeMasks(ctx, includeChildren: true);
+
+            Assert.That(reports, Is.EqualTo(400));
+        }
+
+        private static void Bump(Dictionary<NodeState, int> reports, NodeState node)
+        {
+            reports[node] = CountOf(reports, node) + 1;
+        }
+
+        private static int CountOf(Dictionary<NodeState, int> reports, NodeState node)
+        {
+            return reports.TryGetValue(node, out int count) ? count : 0;
+        }
+
+        private static (BaseObjectState Parent, BaseDataVariableState[] Children) CreateTree(
+            SystemContext ctx,
+            int childCount)
+        {
+            var parent = new BaseObjectState(null)
+            {
+                NodeId = new NodeId(Guid.NewGuid()),
+                BrowseName = new QualifiedName("Parent")
+            };
+            var children = new BaseDataVariableState[childCount];
+            for (int ii = 0; ii < childCount; ii++)
+            {
+                children[ii] = new BaseDataVariableState(parent)
+                {
+                    NodeId = new NodeId(Guid.NewGuid()),
+                    BrowseName = new QualifiedName("Child" + ii)
+                };
+                parent.AddChild(children[ii]);
+            }
+
+            // flush the masks set while building the tree.
+            parent.ClearChangeMasks(ctx, includeChildren: true);
+            return (parent, children);
+        }
+
         [Test]
         public async Task ClearChangeMasksAsyncAwaitsStateChangedAsyncEvent()
         {

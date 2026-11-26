@@ -101,7 +101,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
             IAsyncNodeManager? owner = null;
             foreach (IAsyncNodeManager candidate in m_candidates)
             {
-                object handle = await candidate.GetManagerHandleAsync(nodeId, cancellationToken).ConfigureAwait(false);
+                object? handle = await candidate.GetManagerHandleAsync(nodeId, cancellationToken).ConfigureAwait(false);
                 if (handle is null)
                 {
                     continue;

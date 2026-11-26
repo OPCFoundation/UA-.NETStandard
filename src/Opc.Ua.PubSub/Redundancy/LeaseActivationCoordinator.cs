@@ -19,8 +19,10 @@ namespace Opc.Ua.PubSub.Redundancy
     /// lease is <see cref="PubSubComponentRole.Active"/>; the others are
     /// <see cref="PubSubComponentRole.Standby"/> and continuously attempt to
     /// acquire it, taking over automatically when the active instance stops
-    /// renewing. A distributed lease store provides genuine cross-instance
-    /// failover; the default in-memory store is single-process.
+    /// renewing. A rejected, failed, or timed-out renewal demotes the
+    /// component before it retries acquisition. A distributed lease store
+    /// provides genuine cross-instance failover; the default in-memory store
+    /// is single-process.
     /// </remarks>
     public sealed class LeaseActivationCoordinator : IPubSubActivationCoordinator, IAsyncDisposable
     {
@@ -36,6 +38,8 @@ namespace Opc.Ua.PubSub.Redundancy
         private CancellationTokenSource? m_cts;
         private bool m_started;
         private bool m_disposed;
+        private static readonly TimeSpan s_minTimerDelay = TimeSpan.FromMilliseconds(1);
+        private static readonly TimeSpan s_maxTimerDelay = TimeSpan.FromMilliseconds(int.MaxValue);
 
         /// <summary>
         /// Initializes a new <see cref="LeaseActivationCoordinator"/>.
@@ -49,14 +53,15 @@ namespace Opc.Ua.PubSub.Redundancy
         /// Lease time-to-live. Defaults to 15 seconds.
         /// </param>
         /// <param name="renewInterval">
-        /// Interval at which the active instance renews its leases. Defaults
-        /// to a third of <paramref name="leaseDuration"/>.
+        /// Target interval at which the active instance renews its leases.
+        /// Defaults to a third of <paramref name="leaseDuration"/>; renewal
+        /// may start earlier if the remaining lease lifetime is short.
         /// </param>
         /// <param name="retryInterval">
-        /// Interval at which a standby instance retries acquisition. Defaults
-        /// to a third of <paramref name="leaseDuration"/>.
+        /// Delay between acquisition attempts while in standby, including
+        /// after store errors. Defaults to a third of <paramref name="leaseDuration"/>.
         /// </param>
-        /// <param name="timeProvider">Clock used for scheduling.</param>
+        /// <param name="timeProvider">Clock used for scheduling and checking lease expiry.</param>
         public LeaseActivationCoordinator(
             IPubSubLeaseStore leaseStore,
             ITelemetryContext? telemetry = null,
@@ -75,12 +80,8 @@ namespace Opc.Ua.PubSub.Redundancy
             m_leaseDuration = leaseDuration is { } d && d > TimeSpan.Zero
                 ? d
                 : TimeSpan.FromSeconds(15);
-            m_renewInterval = renewInterval is { } r && r > TimeSpan.Zero
-                ? r
-                : TimeSpan.FromTicks(m_leaseDuration.Ticks / 3);
-            m_retryInterval = retryInterval is { } t && t > TimeSpan.Zero
-                ? t
-                : TimeSpan.FromTicks(m_leaseDuration.Ticks / 3);
+            m_renewInterval = GetTimerInterval(renewInterval);
+            m_retryInterval = GetTimerInterval(retryInterval);
         }
 
         /// <inheritdoc/>
@@ -172,17 +173,32 @@ namespace Opc.Ua.PubSub.Redundancy
 
         private void RaiseRoleChanged(string componentId, PubSubComponentRole role)
         {
-            RoleChanged?.Invoke(this, new PubSubRoleChangedEventArgs(componentId, role));
+            if (RoleChanged is not { } handlers)
+            {
+                return;
+            }
+            var args = new PubSubRoleChangedEventArgs(componentId, role);
+            foreach (Delegate handler in handlers.GetInvocationList())
+            {
+                try
+                {
+                    ((EventHandler<PubSubRoleChangedEventArgs>)handler)(this, args);
+                }
+                catch (Exception ex)
+                {
+                    m_logger.PubSubLeaseRoleChangedHandlerFailed(componentId, ex.GetType().Name);
+                }
+            }
+        }
+
+        private TimeSpan GetTimerInterval(TimeSpan? interval)
+        {
+            long ticks = interval is { Ticks: > 0 } value ? value.Ticks : m_leaseDuration.Ticks / 3;
+            return TimeSpan.FromTicks(Math.Min(Math.Max(ticks, s_minTimerDelay.Ticks), s_maxTimerDelay.Ticks));
         }
 
         private sealed class ComponentLoop
         {
-            private readonly LeaseActivationCoordinator m_owner;
-            private readonly string m_componentId;
-            private readonly CancellationToken m_token;
-            private Task? m_task;
-            private volatile int m_role = (int)PubSubComponentRole.Standby;
-
             public ComponentLoop(
                 LeaseActivationCoordinator owner,
                 string componentId,
@@ -193,7 +209,12 @@ namespace Opc.Ua.PubSub.Redundancy
                 m_token = token;
             }
 
-            public PubSubComponentRole Role => (PubSubComponentRole)m_role;
+            public PubSubComponentRole Role =>
+                !m_token.IsCancellationRequested &&
+                Volatile.Read(ref m_activeLease) is { } held &&
+                GetRemainingTime(held) > TimeSpan.Zero
+                    ? PubSubComponentRole.Active
+                    : PubSubComponentRole.Standby;
 
             public void Start()
             {
@@ -218,62 +239,58 @@ namespace Opc.Ua.PubSub.Redundancy
 
             private async Task RunAsync()
             {
-                PubSubLease? held = null;
+                PubSubLease? leaseOnShutdown = null;
                 try
                 {
+                    LeaseConfirmation? held = null;
                     while (!m_token.IsCancellationRequested)
                     {
-                        if (held is null)
+                        long requestedAt = m_owner.m_timeProvider.GetTimestamp();
+                        (PubSubLease? lease, Exception? failure) = held is null
+                            ? await TryUpdateLeaseAsync(null, m_token).ConfigureAwait(false)
+                            : await RenewAsync(held).ConfigureAwait(false);
+                        if (m_token.IsCancellationRequested)
                         {
-                            held = await m_owner.m_leaseStore.TryAcquireAsync(
-                                m_componentId,
-                                m_owner.m_ownerId,
-                                m_owner.m_leaseDuration,
-                                m_token).ConfigureAwait(false);
-                            if (held is not null)
-                            {
-                                SetRole(PubSubComponentRole.Active);
-                                await DelayAsync(m_owner.m_renewInterval).ConfigureAwait(false);
-                            }
-                            else
-                            {
-                                SetRole(PubSubComponentRole.Standby);
-                                await DelayAsync(m_owner.m_retryInterval).ConfigureAwait(false);
-                            }
+                            leaseOnShutdown = lease;
+                            break;
                         }
-                        else
+
+                        bool wasRenewing = held is not null;
+                        held = lease is { } value ? new LeaseConfirmation(value, requestedAt) : null;
+                        TimeSpan delay = held is null ? TimeSpan.Zero : GetRenewalInterval(held);
+                        if (delay < s_minTimerDelay)
                         {
-                            PubSubLease? renewed = await m_owner.m_leaseStore.TryRenewAsync(
-                                held.Value,
-                                m_owner.m_leaseDuration,
-                                m_token).ConfigureAwait(false);
-                            if (renewed is null)
-                            {
-                                held = null;
-                                SetRole(PubSubComponentRole.Standby);
-                                await DelayAsync(m_owner.m_retryInterval).ConfigureAwait(false);
-                                continue;
-                            }
-                            held = renewed;
-                            await DelayAsync(m_owner.m_renewInterval).ConfigureAwait(false);
+                            held = null;
+                            delay = m_owner.m_retryInterval;
                         }
+                        SetLease(held);
+                        if (failure is not null)
+                        {
+                            m_owner.m_logger.PubSubLeaseStoreOperationFailed(
+                                m_componentId, wasRenewing, failure.GetType().Name);
+                        }
+                        await m_owner.m_timeProvider.Delay(delay, m_token).ConfigureAwait(false);
                     }
                 }
-                catch (OperationCanceledException)
+                catch (OperationCanceledException) when (m_token.IsCancellationRequested)
                 {
                     // Expected on shutdown.
                 }
                 catch (Exception ex)
                 {
+                    leaseOnShutdown = m_activeLease?.Lease;
+                    SetLease(null);
                     m_owner.m_logger.PubSubLeaseCoordinationLoopFaulted(ex, m_componentId);
                 }
                 finally
                 {
-                    if (held is not null)
+                    leaseOnShutdown ??= m_activeLease?.Lease;
+                    SetLease(null);
+                    if (leaseOnShutdown is { } lease)
                     {
                         try
                         {
-                            await m_owner.m_leaseStore.ReleaseAsync(held.Value, CancellationToken.None)
+                            await m_owner.m_leaseStore.ReleaseAsync(lease, CancellationToken.None)
                                 .ConfigureAwait(false);
                         }
                         catch (Exception ex)
@@ -284,19 +301,106 @@ namespace Opc.Ua.PubSub.Redundancy
                 }
             }
 
-            private async Task DelayAsync(TimeSpan delay)
+            private async Task<(PubSubLease? Lease, Exception? Failure)> RenewAsync(LeaseConfirmation held)
             {
-                await m_owner.m_timeProvider.Delay(delay, m_token).ConfigureAwait(false);
+                TimeSpan budget = GetRenewalBudget(held);
+                if (budget < s_minTimerDelay)
+                {
+                    return default;
+                }
+
+                using var deadline = m_owner.m_timeProvider.CreateCancellationTokenSource(budget);
+                using var cancellation = CancellationTokenSource.CreateLinkedTokenSource(m_token, deadline.Token);
+                Task<(PubSubLease? Lease, Exception? Failure)> renewal = TryUpdateLeaseAsync(
+                    held.Lease, cancellation.Token);
+                try
+                {
+                    var result = await renewal.WaitAsync(cancellation.Token).ConfigureAwait(false);
+                    if (m_token.IsCancellationRequested ||
+                        (!deadline.IsCancellationRequested && GetRemainingTime(held) > TimeSpan.Zero))
+                    {
+                        return result;
+                    }
+                }
+                catch (OperationCanceledException) when (cancellation.IsCancellationRequested)
+                {
+                    if (m_token.IsCancellationRequested && renewal.IsCompleted)
+                    {
+                        return await renewal.ConfigureAwait(false);
+                    }
+                }
+
+                // Do not release or start another store operation while this renewal may still be committing.
+                // The old lease can expire naturally; a late response cannot restore local publishing.
+                SetLease(null);
+                m_token.ThrowIfCancellationRequested();
+                m_owner.m_logger.PubSubLeaseRenewalDeadlineExceeded(m_componentId);
+                _ = await renewal.WaitAsync(m_token).ConfigureAwait(false);
+                return default;
             }
 
-            private void SetRole(PubSubComponentRole role)
+            private async Task<(PubSubLease? Lease, Exception? Failure)> TryUpdateLeaseAsync(
+                PubSubLease? lease,
+                CancellationToken cancellationToken)
             {
-                int previous = Interlocked.Exchange(ref m_role, (int)role);
-                if (previous != (int)role)
+                try
                 {
-                    m_owner.RaiseRoleChanged(m_componentId, role);
+                    cancellationToken.ThrowIfCancellationRequested();
+                    PubSubLease? updated = lease is { } held
+                        ? await m_owner.m_leaseStore.TryRenewAsync(held, m_owner.m_leaseDuration, cancellationToken)
+                            .ConfigureAwait(false)
+                        : await m_owner.m_leaseStore.TryAcquireAsync(
+                            m_componentId, m_owner.m_ownerId, m_owner.m_leaseDuration, cancellationToken)
+                            .ConfigureAwait(false);
+                    return (updated, null);
+                }
+                catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+                {
+                    return default;
+                }
+                catch (Exception ex)
+                {
+                    return (null, ex);
                 }
             }
+
+            private TimeSpan GetRenewalInterval(LeaseConfirmation held)
+            {
+                return TimeSpan.FromTicks(Math.Min(m_owner.m_renewInterval.Ticks, GetRenewalBudget(held).Ticks));
+            }
+
+            private TimeSpan GetRenewalBudget(LeaseConfirmation held)
+            {
+                // Leave time after the renewal deadline to demote before the advertised lease expires.
+                return TimeSpan.FromTicks(Math.Min(s_maxTimerDelay.Ticks, GetRemainingTime(held).Ticks / 2));
+            }
+
+            private TimeSpan GetRemainingTime(LeaseConfirmation held)
+            {
+                TimeProvider clock = m_owner.m_timeProvider;
+                TimeSpan utcRemaining = held.Lease.ExpiresAt - clock.GetUtcNow();
+                TimeSpan monotonicRemaining = m_owner.m_leaseDuration - clock.GetElapsedTime(held.RequestedAt);
+                return utcRemaining < monotonicRemaining ? utcRemaining : monotonicRemaining;
+            }
+
+            private void SetLease(LeaseConfirmation? lease)
+            {
+                LeaseConfirmation? previous = Interlocked.Exchange(ref m_activeLease, lease);
+                if ((previous is null) != (lease is null))
+                {
+                    m_owner.RaiseRoleChanged(
+                        m_componentId,
+                        lease is null ? PubSubComponentRole.Standby : PubSubComponentRole.Active);
+                }
+            }
+
+            private sealed record LeaseConfirmation(PubSubLease Lease, long RequestedAt);
+
+            private readonly LeaseActivationCoordinator m_owner;
+            private readonly string m_componentId;
+            private readonly CancellationToken m_token;
+            private Task? m_task;
+            private LeaseConfirmation? m_activeLease;
         }
     }
 
@@ -305,6 +409,9 @@ namespace Opc.Ua.PubSub.Redundancy
     /// </summary>
     internal static partial class LeaseActivationCoordinatorLog
     {
+        /// <summary>
+        /// Logs an unexpected coordination loop failure.
+        /// </summary>
         [LoggerMessage(EventId = PubSubEventIds.LeaseActivationCoordinator + 0, Level = LogLevel.Error,
             Message = "PubSub lease coordination loop for '{ComponentId}' faulted.")]
         public static partial void PubSubLeaseCoordinationLoopFaulted(
@@ -312,12 +419,42 @@ namespace Opc.Ua.PubSub.Redundancy
             Exception exception,
             string componentId);
 
+        /// <summary>
+        /// Logs a failed best-effort release during shutdown.
+        /// </summary>
         [LoggerMessage(EventId = PubSubEventIds.LeaseActivationCoordinator + 1, Level = LogLevel.Debug,
             Message = "Releasing lease for '{ComponentId}' on shutdown failed.")]
         public static partial void ReleasingLeaseOnShutdownFailed(
             this ILogger logger,
             Exception exception,
             string componentId);
-    }
 
+        /// <summary>
+        /// Logs a failed acquisition or renewal that will be retried from standby.
+        /// </summary>
+        [LoggerMessage(EventId = PubSubEventIds.LeaseActivationCoordinator + 2, Level = LogLevel.Warning,
+            Message = "PubSub lease store operation for '{ComponentId}' failed (renewing: {Renewing}, {ErrorType}).")]
+        public static partial void PubSubLeaseStoreOperationFailed(
+            this ILogger logger,
+            string componentId,
+            bool renewing,
+            string errorType);
+
+        /// <summary>
+        /// Logs the loss of local authority when renewal does not finish in time.
+        /// </summary>
+        [LoggerMessage(EventId = PubSubEventIds.LeaseActivationCoordinator + 3, Level = LogLevel.Warning,
+            Message = "PubSub lease renewal for '{ComponentId}' exceeded the local deadline.")]
+        public static partial void PubSubLeaseRenewalDeadlineExceeded(this ILogger logger, string componentId);
+
+        /// <summary>
+        /// Logs a role-change subscriber failure without skipping other subscribers.
+        /// </summary>
+        [LoggerMessage(EventId = PubSubEventIds.LeaseActivationCoordinator + 4, Level = LogLevel.Error,
+            Message = "A PubSub lease role-change handler for '{ComponentId}' failed ({ErrorType}).")]
+        public static partial void PubSubLeaseRoleChangedHandlerFailed(
+            this ILogger logger,
+            string componentId,
+            string errorType);
+    }
 }

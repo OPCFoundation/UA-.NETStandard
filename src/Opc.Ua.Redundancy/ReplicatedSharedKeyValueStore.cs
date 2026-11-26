@@ -3,10 +3,13 @@
 
 using System;
 using System.Collections.Generic;
+using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using Crdt;
 using Crdt.Transport;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace Opc.Ua.Redundancy
 {
@@ -51,13 +54,31 @@ namespace Opc.Ua.Redundancy
             ITransport transport,
             TimeProvider timeProvider,
             CrdtReaderOptions readerOptions)
+            : this(replicaId, transport, timeProvider, readerOptions, NullLogger.Instance)
+        {
+        }
+
+        /// <summary>
+        /// Creates a CRDT key/value store with a diagnostic logger.
+        /// </summary>
+        /// <param name="replicaId">This replica's stable CRDT identity.</param>
+        /// <param name="transport">The gossip transport (owned by this store).</param>
+        /// <param name="timeProvider">The time source for the logical clock.</param>
+        /// <param name="readerOptions">Decoding limits for received state.</param>
+        /// <param name="logger">The logger for rejected state.</param>
+        public ReplicatedSharedKeyValueStore(
+            ReplicaId replicaId,
+            ITransport transport,
+            TimeProvider timeProvider,
+            CrdtReaderOptions readerOptions,
+            ILogger logger)
         {
             m_transport = new FramingGossipTransport(
                 transport ?? throw new ArgumentNullException(nameof(transport)));
             m_readerOptions = readerOptions ?? throw new ArgumentNullException(nameof(readerOptions));
-            m_clock = new HybridLogicalClock(
-                replicaId,
-                timeProvider ?? throw new ArgumentNullException(nameof(timeProvider)));
+            m_logger = logger ?? throw new ArgumentNullException(nameof(logger));
+            m_timeProvider = timeProvider ?? throw new ArgumentNullException(nameof(timeProvider));
+            m_clock = new HybridLogicalClock(replicaId, m_timeProvider);
             m_transport.FrameReceived += OnFrameReceived;
         }
 
@@ -78,7 +99,7 @@ namespace Opc.Ua.Redundancy
             byte[] snapshot;
             lock (m_lock)
             {
-                m_map.Set(key, value, m_clock);
+                ApplyLocalOperation(new LWWMapOperation<string, ByteString>(key, value, m_clock.Now()));
                 snapshot = SerializeLocked();
             }
             await m_transport.SendAsync(snapshot, ct).ConfigureAwait(false);
@@ -106,7 +127,7 @@ namespace Opc.Ua.Redundancy
             lock (m_lock)
             {
                 existed = m_map.ContainsKey(key);
-                m_map.Remove(key, m_clock);
+                ApplyLocalOperation(new LWWMapOperation<string, ByteString>(key, m_clock.Now()));
                 snapshot = SerializeLocked();
             }
             await m_transport.SendAsync(snapshot, ct).ConfigureAwait(false);
@@ -188,12 +209,34 @@ namespace Opc.Ua.Redundancy
 
         private void OnFrameReceived(ReadOnlyMemory<byte> frame)
         {
-            byte[] bytes = frame.ToArray();
-            lock (m_lock)
+            try
             {
                 var remote = LWWMap<string, ByteString>.ReadFrom(
-                    bytes, CrdtValues.String, ByteStringCrdtSerializer.Instance, m_readerOptions);
-                m_map.Merge(remote);
+                    frame.Span, CrdtValues.String, ByteStringCrdtSerializer.Instance, m_readerOptions);
+                lock (m_lock)
+                {
+                    if (!m_disposed)
+                    {
+                        ReplicatedCrdtClock.Observe(m_clock, m_timeProvider, remote);
+                        m_map.Merge(remote);
+                    }
+                }
+            }
+            catch (FormatException)
+            {
+                m_logger.RejectedInvalidReplicatedState();
+            }
+            catch (DecoderFallbackException)
+            {
+                m_logger.RejectedInvalidReplicatedState();
+            }
+        }
+
+        private void ApplyLocalOperation(in LWWMapOperation<string, ByteString> operation)
+        {
+            if (!m_map.Apply(operation))
+            {
+                throw new InvalidOperationException("The local replicated-store mutation did not win timestamp ordering.");
             }
         }
 
@@ -205,10 +248,24 @@ namespace Opc.Ua.Redundancy
         private readonly FramingGossipTransport m_transport;
         private readonly CrdtReaderOptions m_readerOptions;
         private readonly HybridLogicalClock m_clock;
+        private readonly TimeProvider m_timeProvider;
+        private readonly ILogger m_logger;
         private readonly Lock m_lock = new();
         private readonly LWWMap<string, ByteString> m_map = new();
         private readonly SemaphoreSlim m_startGate = new(1, 1);
         private bool m_started;
         private bool m_disposed;
+    }
+
+    /// <summary>
+    /// Source-generated messages for replicated key/value stores.
+    /// </summary>
+    internal static partial class ReplicatedSharedKeyValueStoreLog
+    {
+        [LoggerMessage(
+            EventId = RedundancyEventIds.ReplicatedSharedKeyValueStore,
+            Level = LogLevel.Warning,
+            Message = "Dropped a replicated key/value observation with an invalid format or timestamp.")]
+        public static partial void RejectedInvalidReplicatedState(this ILogger logger);
     }
 }

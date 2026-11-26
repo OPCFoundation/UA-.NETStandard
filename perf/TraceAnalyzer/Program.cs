@@ -78,6 +78,9 @@ namespace Opc.Ua.Perf.TraceAnalyzer
                 case "threads":
                     Threads(log, top);
                     break;
+                case "pool":
+                    Pool(log, top);
+                    break;
                 default:
                     Allocations(log, top, focus);
                     break;
@@ -613,6 +616,49 @@ namespace Opc.Ua.Perf.TraceAnalyzer
             Dump("by type", byType, total, top);
             Dump("by type <- first Opc.Ua frame", byFrame, total, top);
             Dump("stacks", byStack, total, top / 2);
+        }
+
+        private static void Pool(TraceLog log, int top)
+        {
+            var counts = new Dictionary<string, double>(StringComparer.Ordinal);
+            var poolOfSite = new Dictionary<int, string>();
+            double all = 0;
+            foreach (TraceEvent e in log.Events)
+            {
+                if (e.ProviderName != "System.Buffers.ArrayPoolEventSource")
+                {
+                    continue;
+                }
+                all++;
+                int poolId = Convert.ToInt32(e.PayloadByName("poolId") ?? -1, CultureInfo.InvariantCulture);
+                int size = Convert.ToInt32(e.PayloadByName("bufferSize") ?? -1, CultureInfo.InvariantCulture);
+                object? reason = e.PayloadByName("reason");
+                string frame = "?";
+                for (TraceCallStack? f = e.CallStack(); f != null; f = f.Caller)
+                {
+                    string n = Short(Name(f));
+                    if (IsOurs(n))
+                    {
+                        frame = n;
+                        break;
+                    }
+                }
+                if (e.EventName.Contains("Rented", StringComparison.Ordinal) && frame != "?")
+                {
+                    poolOfSite[poolId] = frame;
+                }
+                Add(counts, FormattableString.Invariant($"pool={poolId} {e.EventName} size={size} reason={reason} <- {frame}"), 1);
+            }
+            Console.WriteLine(FormattableString.Invariant($"arraypool events: {all}"));
+            foreach (KeyValuePair<int, string> kv in poolOfSite)
+            {
+                Console.WriteLine(FormattableString.Invariant($"pool {kv.Key} rented by {kv.Value}"));
+            }
+            Console.WriteLine("--- counts");
+            foreach (KeyValuePair<string, double> kv in counts.OrderByDescending(k => k.Value).Take(top))
+            {
+                Console.WriteLine(FormattableString.Invariant($"{kv.Value,10}  {kv.Key}"));
+            }
         }
 
         private static void Add(Dictionary<string, double> totals, string key, double amount)

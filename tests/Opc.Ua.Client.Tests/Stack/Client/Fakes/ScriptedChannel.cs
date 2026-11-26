@@ -248,6 +248,8 @@ namespace Opc.Ua.Client.Tests.Stack.Client.Fakes
             m_endpointConfiguration = settings.Configuration
                 ?? throw new InvalidOperationException("Transport settings do not include endpoint configuration.");
             OpenedEndpointUrl = m_description.EndpointUrl;
+            settings.ServerCertificate?.Dispose();
+            settings.ServerCertificate = null;
         }
 
         private CreateSessionResponse CreateSessionResponse()

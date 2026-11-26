@@ -3,8 +3,9 @@
 
 using System;
 using System.Collections.Generic;
+using System.Globalization;
+using System.Linq;
 using System.Net;
-using System.Net.Sockets;
 using System.Threading.Tasks;
 using Crdt;
 using Microsoft.Extensions.Configuration;
@@ -15,354 +16,327 @@ using Opc.Ua;
 using Opc.Ua.Redundancy;
 using Opc.Ua.Redundancy.Server;
 using Opc.Ua.Server.Hosting;
-using Raft;
-using Raft.Configuration;
-using Raft.Storage;
-using Raft.Transport.NanoMsg;
+using RedundancySample;
 using RedundantServer;
 
-HostApplicationBuilder builder = Host.CreateApplicationBuilder(args);
-
-builder.Logging.ClearProviders();
-builder.Logging.EnableOpcUaRedaction();
-builder.Logging.AddConsole();
-
-int port = int.TryParse(builder.Configuration["port"], out int p) ? p : 62543;
-string nodeId = builder.Configuration["HA_NODE_ID"] ?? Guid.NewGuid().ToString("N");
-// Host advertised in the endpoint URL. Defaults to localhost; set HA_HOST to the
-// reachable hostname (for example the container/service name) for containerized or
-// multi-host deployments so peers and clients can connect across the network.
-string host = builder.Configuration["HA_HOST"] ?? "localhost";
-string endpointUrl = $"opc.tcp://{host}:{port}/RedundantServer";
-// Transparent redundancy presents ONE logical server: every replica must share
-// the same ApplicationUri (CreateSession validates serverUri against it) and the
-// same ApplicationInstanceCertificate. Override the per-node identity with the
-// shared values when running behind a single virtual endpoint.
-string applicationUri = builder.Configuration["HA_APPLICATION_URI"]
-    ?? $"urn:localhost:OPCFoundation:RedundantServer:{nodeId}";
-// Optional shared certificate: point every replica's PKI store at the same
-// (mounted) directory and give the certificate a stable subject so all replicas
-// load one ApplicationInstanceCertificate. In production this is provisioned from
-// a Kubernetes Secret / KMS rather than a shared volume.
-string? sharedSubjectName = builder.Configuration["HA_SUBJECT_NAME"];
-string? sharedPkiRoot = builder.Configuration["HA_PKI_ROOT"];
-
-// Select the redundancy topology: "ap" (active/passive, default — a single
-// elected writer) or "aa" (active/active — every replica writes and converges
-// by CRDT gossip).
-string haMode = (builder.Configuration["HA_MODE"] ?? "ap").Trim().ToLowerInvariant();
-bool activeActive = haMode is "aa" or "activeactive" or "active-active";
-RedundancySupport redundancyMode = ParseRedundancyMode(
-    builder.Configuration["REDUNDANCY_MODE"],
-    defaultMode: activeActive ? RedundancySupport.HotAndMirrored : RedundancySupport.Hot);
-ArrayOf<RedundantPeer> redundantPeers = ReadRedundantPeers(builder.Configuration);
-
-builder.Services.AddSingleton(new HaSampleReplicaInfo(nodeId));
-
-// Optional: a base64 32-byte master key shared by all replicas (provisioned
-// from a Kubernetes Secret / KMS in production). When present, every record
-// written to the shared store is encrypted + integrity-protected at rest.
-string? recordKeyBase64 = builder.Configuration["HA_RECORD_KEY"];
-byte[]? recordKey = string.IsNullOrWhiteSpace(recordKeyBase64)
-    ? null
-    : Convert.FromBase64String(recordKeyBase64);
-
-// Secure by default: the distributed topologies mirror session secrets and
-// gossip last-writer-wins state, so they refuse to start without protection.
-// Supplying HA_RECORD_KEY (and, for active/active, gossip TLS in production)
-// is the secure path. HA_INSECURE=true is an explicit, auditable opt-out that
-// runs an ISOLATED demo without record protection or gossip authentication -
-// never use it in production.
-bool allowInsecure =
-    bool.TryParse(builder.Configuration["HA_INSECURE"], out bool insecure) && insecure;
-
-// Opt into mirrored fast reconnect (default is the safe re-auth-on-failover).
-bool enableFastReconnect =
-    bool.TryParse(builder.Configuration["HA_FAST_RECONNECT"], out bool fr) && fr;
-
-// Strong-consistency (Raft) shared store. When HA_CONSISTENCY=strong, a multi-node
-// RaftCs cluster (over NanoMsg) backs the shared store, giving real cross-container
-// active/passive HA - linearizable leader election and single-use session nonce -
-// unlike the default in-memory store, which is private to each container.
-string consistency = (builder.Configuration["HA_CONSISTENCY"] ?? "eventual").Trim().ToLowerInvariant();
-bool useStrongConsistency = consistency is "strong";
-bool enableDistributedHistorian = bool.TryParse(
-    builder.Configuration["HA_HISTORIAN"],
-    out bool configuredHistorian)
-        ? configuredHistorian
-        : useStrongConsistency && !activeActive;
-if (enableDistributedHistorian)
+try
 {
-    if (activeActive || !useStrongConsistency)
-    {
-        Console.Error.WriteLine(
-            "The distributed historian supports only a strongly consistent active/passive topology. " +
-            "Set HA_MODE=ap and HA_CONSISTENCY=strong, or disable HA_HISTORIAN.");
-        Environment.ExitCode = 1;
-        return;
-    }
-    if (recordKey == null)
-    {
-        Console.Error.WriteLine(
-            "The distributed historian requires protected shared records. Set HA_RECORD_KEY to the same " +
-            "base64 32-byte key on every replica; HA_INSECURE cannot be used with HA_HISTORIAN.");
-        Environment.ExitCode = 1;
-        return;
-    }
+    await RunAsync(args).ConfigureAwait(false);
+    return 0;
+}
+catch (Exception exception) when (exception is InvalidOperationException or FormatException or ServiceResultException)
+{
+    Console.Error.WriteLine(exception.Message);
+    return 1;
 }
 
-// Optional GetEndpoints load direction: when HA_BALANCING_URL is set, a GetEndpoints
-// request on that (virtual/load-balancer) discovery URL is answered with the best
-// peer's endpoints - the active server (active/passive) or the least-loaded healthy
-// peer (active/active). It complements the standard client-driven ServiceLevel
-// selection; plain discovery on this node's own URL is unaffected.
-string? balancingUrl = builder.Configuration["HA_BALANCING_URL"];
-
-// A distributed shared store - CRDT gossip (active/active) or a Raft/strong
-// store - is an EXTERNAL store and fails closed unless a record protector is
-// registered, because mirrored records hold session secrets and identity
-// tokens. Secure by default: register AesCbcHmac when HA_RECORD_KEY is
-// supplied; register the no-op NullRecordProtector ONLY when the operator
-// explicitly opts into an insecure isolated demo with HA_INSECURE=true (with a
-// loud warning); otherwise fail closed with actionable guidance. A production
-// deployment MUST supply HA_RECORD_KEY so mirrored state is encrypted and
-// integrity-protected at rest. (Active/passive eventual keeps the safe
-// in-memory store, which needs no protector.)
-if (activeActive || useStrongConsistency)
+static async Task RunAsync(string[] args)
 {
-    if (recordKey != null)
+    HostApplicationBuilder builder = Host.CreateApplicationBuilder(args);
+
+    builder.Logging.ClearProviders();
+    builder.Logging.EnableOpcUaRedaction();
+    builder.Logging.AddConsole();
+
+    int port = int.TryParse(builder.Configuration["port"], out int p) ? p : 62543;
+    string nodeId = builder.Configuration["HA_NODE_ID"] ?? Guid.NewGuid().ToString("N");
+    string? Read(string key) => builder.Configuration[key];
+    bool allowInsecure = SampleFreshness.IsEnabled(Read("HA_INSECURE"));
+    bool localDemo = SampleFreshness.IsEnabled(Read("HA_LOCAL_DEMO"));
+    string host = builder.Configuration["HA_HOST"] ?? "localhost";
+    if (allowInsecure || localDemo)
     {
-        builder.Services.AddSingleton<IRecordProtector>(_ => new AesCbcHmacRecordProtector(recordKey));
+        if (string.Equals(host, "localhost", StringComparison.OrdinalIgnoreCase))
+        {
+            host = "127.0.0.1";
+        }
+        if (!IPAddress.TryParse(host, out IPAddress? hostAddress) || !IPAddress.IsLoopback(hostAddress))
+        {
+            throw new InvalidOperationException("HA_INSECURE or HA_LOCAL_DEMO requires a numeric loopback UA listener.");
+        }
+        host = hostAddress.AddressFamily == System.Net.Sockets.AddressFamily.InterNetworkV6
+            ? $"[{hostAddress}]"
+            : hostAddress.ToString();
     }
-    else if (allowInsecure)
+    string endpointUrl = $"opc.tcp://{host}:{port}/RedundantServer";
+    string applicationUri = builder.Configuration["HA_APPLICATION_URI"]
+        ?? $"urn:localhost:OPCFoundation:RedundantServer:{nodeId}";
+    string? subjectName = builder.Configuration["HA_SUBJECT_NAME"];
+    string? pkiRoot = builder.Configuration["HA_PKI_ROOT"];
+
+    // Select the redundancy topology: "ap" (active/passive, default — a single
+    // elected writer) or "aa" (active/active — every replica writes and converges
+    // by CRDT gossip).
+    string haMode = (Read("HA_MODE") ?? "ap").Trim().ToLowerInvariant();
+    bool activeActive = haMode switch
     {
-        Console.Error.WriteLine(
-            "[HA][WARNING] HA_INSECURE=true: mirrored records (session secrets, identity tokens, notifications) " +
-            "are written to the shared store WITHOUT encryption or integrity protection. Use only for an " +
-            "isolated demo; set HA_RECORD_KEY to a shared base64 32-byte key in production.");
-        builder.Services.AddSingleton<IRecordProtector>(_ => new NullRecordProtector());
+        "aa" or "activeactive" or "active-active" => true,
+        "ap" or "activepassive" or "active-passive" => false,
+        _ => throw new FormatException("HA_MODE must be ap or aa.")
+    };
+    string consistency = (Read("HA_CONSISTENCY") ?? "eventual").Trim().ToLowerInvariant();
+    bool useStrongConsistency = consistency switch
+    {
+        "strong" => true,
+        "eventual" => false,
+        _ => throw new FormatException("HA_CONSISTENCY must be eventual or strong.")
+    };
+    RedundancySupport redundancyMode = ParseRedundancyMode(
+        Read("REDUNDANCY_MODE"),
+        defaultMode: activeActive || useStrongConsistency ? RedundancySupport.Hot : RedundancySupport.None);
+    ArrayOf<RedundantPeer> redundantPeers = ReadRedundantPeers(builder.Configuration);
+    bool enableFastReconnect = SampleFreshness.IsEnabled(Read("HA_FAST_RECONNECT"));
+    bool enableDistributedHistorian = SampleFreshness.IsEnabled(Read("HA_HISTORIAN"));
+    bool externalRaft = useStrongConsistency && !localDemo;
+    if (enableDistributedHistorian)
+    {
+        throw new InvalidOperationException(
+            "HA_HISTORIAN is not supported by this sample: the historian needs separate protected store integration.");
+    }
+    if (redundancyMode == RedundancySupport.Transparent)
+    {
+        throw new InvalidOperationException("Transparent redundancy is not supported by this sample.");
+    }
+    if ((useStrongConsistency && (activeActive || redundancyMode == RedundancySupport.None)) ||
+        (activeActive && redundancyMode is RedundancySupport.None or RedundancySupport.HotAndMirrored))
+    {
+        throw new InvalidOperationException(
+            "Strong consistency requires active/passive redundancy. Active/active supports only " +
+            "eventual address-space replication without session mirroring.");
+    }
+    if (enableFastReconnect && !externalRaft)
+    {
+        throw new InvalidOperationException("Fast reconnect requires external strong Raft.");
+    }
+    if (allowInsecure && externalRaft)
+    {
+        throw new InvalidOperationException("HA_INSECURE cannot be used with external Raft.");
+    }
+    if (localDemo && useStrongConsistency &&
+        (Read("HA_RAFT_ID") != null || Read("HA_RAFT_MEMBERS") != null ||
+            Read("HA_RAFT_BIND") != null || Read("HA_RAFT_PEERS") != null || !redundantPeers.IsEmpty))
+    {
+        throw new InvalidOperationException("HA_LOCAL_DEMO strong mode uses one in-process Raft member and no peers.");
+    }
+    if (!activeActive && !useStrongConsistency &&
+        (redundancyMode != RedundancySupport.None || !redundantPeers.IsEmpty))
+    {
+        throw new InvalidOperationException("Active/passive redundancy requires HA_CONSISTENCY=strong.");
+    }
+    if (redundancyMode == RedundancySupport.HotAndMirrored && !externalRaft)
+    {
+        throw new InvalidOperationException("HotAndMirrored mode requires an external freshness-protected Raft store.");
+    }
+    if (allowInsecure)
+    {
+        Console.Error.WriteLine("[HA][WARNING] HA_INSECURE=true: unsecured UA and permissive trust on loopback only.");
+    }
+
+    if (!string.IsNullOrWhiteSpace(Read("HA_BALANCING_URL")))
+    {
+        throw new InvalidOperationException("The legacy HA_BALANCING_URL deployment is not supported by this sample.");
+    }
+
+    builder.Services.AddSingleton(new HaSampleReplicaInfo(nodeId));
+    if (!string.Equals(Read("HA_PEER_DISCOVERY") ?? "static", "static", StringComparison.OrdinalIgnoreCase))
+    {
+        throw new InvalidOperationException("This sample requires static cluster membership; DNS scaling is unsupported.");
+    }
+    if (!externalRaft && SampleFreshness.IsEnabled(Read("HA_ENROLL_ONLY")))
+    {
+        throw new InvalidOperationException("HA_ENROLL_ONLY requires the external strong topology.");
+    }
+
+    var raft = externalRaft ? SampleCluster.ReadRaft(Read, "HA") : default;
+    IPEndPoint? gossipBind = activeActive
+        ? new IPEndPoint(
+            IPAddress.Parse(Read("HA_GOSSIP_BIND") ?? (allowInsecure || localDemo ? "127.0.0.1" : "0.0.0.0")),
+            int.Parse(Read("HA_GOSSIP_PORT") ?? "4840", CultureInfo.InvariantCulture))
+        : null;
+    var gossipPeers = gossipBind != null && !allowInsecure
+        ? SampleCluster.ReadGossip(Read, "HA", gossipBind)
+        : [];
+    var localGossipPeers = gossipBind != null && allowInsecure
+        ? SampleCluster.ReadList(Read("HA_GOSSIP_PEERS")).Select(peer => SampleCluster.ParseEndpoint(peer)).ToList()
+        : [];
+    if (gossipBind != null &&
+        (gossipBind.Port == 0 || ((allowInsecure || localDemo) && (!IPAddress.IsLoopback(gossipBind.Address) ||
+            localGossipPeers.Any(peer => !IPAddress.IsLoopback(peer.Address)) ||
+            gossipPeers.Any(peer => !IPAddress.IsLoopback(peer.Address.Address))))))
+    {
+        throw new InvalidOperationException("Isolated gossip requires loopback addresses and a nonzero port.");
+    }
+    using AesCbcHmacRecordProtector? protector = externalRaft
+        ? await SampleFreshness.AddAsync(builder.Services, Read, "HA").ConfigureAwait(false)
+        : null;
+    if (useStrongConsistency && localDemo)
+    {
+        builder.Services.AddSingleton<IRecordProtector>(NullRecordProtector.Instance);
+    }
+    if (externalRaft || gossipPeers.Count > 0)
+    {
+        _ = SampleCluster.Require(Read, "HA_NODE_ID");
+    }
+    using SampleCluster? cluster = externalRaft || gossipPeers.Count > 0
+        ? await SampleCluster.LoadAsync(Read, "HA",
+            externalRaft ? raft.Peers!.Select(peer => peer.Pin).ToArray() : gossipPeers.Select(peer => peer.Pin).ToArray())
+            .ConfigureAwait(false)
+        : null;
+
+    IOpcUaServerBuilder ua = builder.Services
+        .AddOpcUa()
+        .AddServer(o =>
+        {
+            o.ApplicationName = "RedundantServer";
+            o.ApplicationUri = applicationUri;
+            o.ProductUri = "uri:opcfoundation.org:RedundantServer";
+            o.AutoAcceptUntrustedCertificates = allowInsecure;
+            o.AnonymousAccess = allowInsecure ? AnonymousAccess.Unrestricted : AnonymousAccess.ReadOnly;
+            o.IncludeUnsecurePolicyNone = allowInsecure;
+            o.EndpointUrls.Add(endpointUrl);
+            if (!string.IsNullOrWhiteSpace(subjectName))
+            {
+                o.SubjectName = subjectName;
+            }
+            o.PkiRoot = string.IsNullOrWhiteSpace(pkiRoot) ? DefaultPkiRootForNode(nodeId) : pkiRoot;
+        })
+        .AddNodeManager<HaSampleNodeManagerFactory>();
+
+    if (activeActive)
+    {
+        // The sample node manager gates writes on leadership; in active/active every
+        // replica is a writer, so make every replica a leader.
+        builder.Services.AddSingleton<ILeaderElection>(_ => new StaticLeaderElection(true));
+
+        ReplicaId replicaId = ReplicaIdFromNodeId(nodeId);
+        ua.UseReplicatedAddressSpace(options =>
+        {
+            options.ReplicaId = replicaId;
+            options.AllowUnauthenticatedGossip = allowInsecure;
+            if (gossipPeers.Count > 0)
+            {
+                options.UseTcpGossip(gossipBind!.Address, gossipBind.Port,
+                    tls: cluster!.CreateGossipTls(gossipPeers.Select(peer => peer.Pin)));
+                foreach ((IPEndPoint peer, _) in gossipPeers)
+                {
+                    options.AddPeer(peer);
+                }
+            }
+            else if (localGossipPeers.Count > 0)
+            {
+                options.UseTcpGossip(gossipBind!.Address, gossipBind.Port);
+                foreach (IPEndPoint peer in localGossipPeers)
+                {
+                    options.AddPeer(peer);
+                }
+            }
+        });
+        builder.Services.AddSingleton<IServiceLevelProvider>(sp =>
+            new LeaderServiceLevelProvider(
+                sp.GetRequiredService<ILeaderElection>(),
+                redundancyMode));
+        builder.Services.AddSingleton<IServerStartupTask>(sp =>
+            new ServiceLevelStartupTask(sp.GetRequiredService<IServiceLevelProvider>()));
+    }
+    else if (redundancyMode == RedundancySupport.None)
+    {
+        builder.Services.AddSingleton<ILeaderElection>(_ => new StaticLeaderElection(true));
+        ua.AddServerServiceLevel(new ConstantServiceLevelProvider());
     }
     else
     {
-        throw new InvalidOperationException(
-            "Distributed state mirroring requires a record protector because mirrored records hold session " +
-            "secrets and identity tokens. Set HA_RECORD_KEY to a shared base64 32-byte key (for example " +
-            "'openssl rand -base64 32', the same value on every replica) to encrypt mirrored state, or set " +
-            "HA_INSECURE=true to run this isolated demo without record protection.");
-    }
-}
+        ua.UseRedundancyConsistency(options =>
+        {
+            options.Mode = RedundancyConsistencyMode.Strong;
+            options.UseRaftLeaderElection = !externalRaft;
+            options.RaftConsensusFactory = _ => externalRaft
+                ? cluster!.CreateRaft(raft.Id, raft.Bind!, raft.Peers!)
+                : DefaultRaftConsensus.CreateSingleNode();
+        });
 
-IOpcUaServerBuilder ua = builder.Services
-    .AddOpcUa()
-    .AddServer(o =>
+        ua.UseDistributedAddressSpace(d =>
+        {
+            d.UseLeaderElection = externalRaft;
+            if (externalRaft)
+            {
+                d.NodeId = raft.Id.ToString(CultureInfo.InvariantCulture);
+                d.LeaseMemberIds = new ArrayOf<string>(raft.Peers!
+                    .Select(peer => peer.Id.ToString(CultureInfo.InvariantCulture))
+                    .Append(d.NodeId).ToArray());
+            }
+            d.RedundancyMode = redundancyMode;
+        });
+        if (externalRaft)
+        {
+            ua.UseDistributedSessions(options => options.EnableFastReconnect = enableFastReconnect);
+        }
+    }
+
+    if (redundancyMode != RedundancySupport.None)
     {
-        o.ApplicationName = "RedundantServer";
-        o.ApplicationUri = applicationUri;
-        o.ProductUri = "uri:opcfoundation.org:RedundantServer";
-        o.AutoAcceptUntrustedCertificates = true;
-        // Sample convenience only: anonymous sessions may write and call. Remove in production.
-        o.AnonymousAccess = AnonymousAccess.Unrestricted;
-        // Offer an unsecured (SecurityMode.None) endpoint alongside the secure
-        // policies so the sample's --nosecurity client and the transparent
-        // (no certificate exchange) demo can connect. The default
-        // SignAndEncrypt policies remain enabled for secured deployments.
-        o.IncludeUnsecurePolicyNone = true;
-        o.EndpointUrls.Add(endpointUrl);
-        // Transparent mode: share one certificate across replicas by pointing them
-        // at a common PKI store with a stable subject name.
-        if (!string.IsNullOrWhiteSpace(sharedSubjectName))
+        ua.UseReplicaNodeIdentity(
+            builder.Configuration["HA_REPLICA_SET"] ?? "opcfoundation-ha-sample",
+            [HaSampleNodeManagerFactory.NamespaceUri],
+            writerAssignedIds: !activeActive);
+    }
+
+    ua.AddServerRedundancy(r =>
+    {
+        r.Mode = redundancyMode;
+        r.CurrentServerId = nodeId;
+        foreach (RedundantPeer peer in redundantPeers)
         {
-            o.SubjectName = sharedSubjectName!;
-        }
-        if (!string.IsNullOrWhiteSpace(sharedPkiRoot))
-        {
-            o.PkiRoot = sharedPkiRoot!;
-        }
-        else
-        {
-            // Each replica has a distinct per-node ApplicationUri, so give every
-            // replica its own PKI store scoped by node id. Without this, replicas
-            // started on ONE host (the "run two instances" workflow) would share
-            // the default store keyed by the constant certificate subject, and the
-            // second replica would reject the first replica's certificate because
-            // its ApplicationUri SubjectAltName differs. Transparent mode overrides
-            // this with a shared HA_PKI_ROOT + HA_SUBJECT_NAME.
-            o.PkiRoot = DefaultPkiRootForNode(nodeId);
+            r.RedundantPeers.Add(peer);
         }
     })
-    .AddNodeManager<HaSampleNodeManagerFactory>();
+    .AddRequestServerStateChange();
 
-if (activeActive)
-{
-    // The sample node manager gates writes on leadership; in active/active every
-    // replica is a writer, so make every replica a leader.
-    builder.Services.AddSingleton<ILeaderElection>(_ => new StaticLeaderElection(true));
-
-    int gossipPort = int.TryParse(builder.Configuration["HA_GOSSIP_PORT"], out int gp) ? gp : 4840;
-    List<IPEndPoint> gossipPeers = await ReadGossipPeersAsync(
-        builder.Configuration,
-        gossipPort,
-        useStrongConsistency).ConfigureAwait(false);
-    ReplicaId replicaId = ReplicaIdFromNodeId(nodeId);
-
-    // Active/active is selected and wired from one call: UseActiveActiveRedundancy
-    // registers both the replicated address space and the replicated session store
-    // from a single set of gossip options (session gossip uses GossipPort + 1).
-    ua.UseActiveActiveRedundancy(aa =>
+    builder.Services.AddSingleton<IServerStartupTask>(
+        static _ => new HaSampleSimulationStartupTask());
+    IHost application = builder.Build();
+    await using var applicationLifetime = ((IAsyncDisposable)application).ConfigureAwait(false);
+    if (externalRaft && await SampleFreshness.VerifyOrEnrollAsync(application.Services, Read, "HA")
+        .ConfigureAwait(false))
     {
-        aa.ReplicaId = replicaId;
-        aa.GossipPort = gossipPort;
-        // Secure by default: only start unauthenticated TCP gossip when the operator
-        // explicitly opts into an isolated demo (HA_INSECURE=true). A production
-        // active/active deployment MUST configure mutual TLS (aa.Tls) instead: CRDT
-        // frames are last-writer-wins, so an unauthenticated peer could forge a
-        // higher-clock update.
-        aa.AllowUnauthenticatedGossip = allowInsecure;
-        aa.EnableFastReconnect = enableFastReconnect;
-        foreach (IPEndPoint peer in gossipPeers)
-        {
-            aa.AddPeer(peer);
-        }
-    });
-    builder.Services.AddSingleton<IServiceLevelProvider>(sp =>
-        new LeaderServiceLevelProvider(
-            sp.GetRequiredService<ILeaderElection>(),
-            redundancyMode));
-    builder.Services.AddSingleton<IServerStartupTask>(sp =>
-        new ServiceLevelStartupTask(sp.GetRequiredService<IServiceLevelProvider>()));
-}
-else if (redundancyMode == RedundancySupport.None)
-{
-    ua.AddServerServiceLevel(new ConstantServiceLevelProvider());
-}
-else
-{
+        return;
+    }
     if (useStrongConsistency)
     {
-        // Register the Raft-backed strongly-consistent shared store BEFORE the
-        // distributed address space/sessions so they compose over it.
-        (ulong raftId, int raftMembers, string raftBind, List<string> raftPeers) =
-            ReadRaftConfig(builder.Configuration);
-        ua.UseRedundancyConsistency(o =>
+        ILeaderElection election = application.Services.GetRequiredService<ILeaderElection>();
+        bool hasWriterAuthority = externalRaft
+            ? election is SharedStoreLeaseElection
+            : election is RaftLeaderElection;
+        if (application.Services.GetRequiredService<ISharedKeyValueStore>() is not RaftSharedKeyValueStore raftStore ||
+            raftStore.IsProcessLocal("sample/readiness") != localDemo ||
+            !hasWriterAuthority)
         {
-            o.Mode = RedundancyConsistencyMode.Strong;
-            o.RaftConsensusFactory = _ => BuildRaftCluster(raftId, raftMembers, raftBind, raftPeers);
-        });
-    }
-
-    ua.UseDistributedAddressSpace(d =>
-    {
-        d.UseLeaderElection = true;
-        d.NodeId = nodeId;
-        d.RedundancyMode = redundancyMode;
-        if (recordKey != null)
-        {
-            d.RecordProtectorFactory = _ => new AesCbcHmacRecordProtector(recordKey);
+            throw new InvalidOperationException("Strong mode requires a Raft shared store and a matching writer authority.");
         }
-    })
-        .UseDistributedSessions(s =>
-            // Mirror session state across replicas; the standby still runs the full
-            // ActivateSession signature check on a token-reuse reconnect.
-            s.EnableFastReconnect = enableFastReconnect);
-}
-
-if (redundancyMode != RedundancySupport.None)
-{
-    ua.UseReplicaNodeIdentity(
-        builder.Configuration["HA_REPLICA_SET"] ?? "opcfoundation-ha-sample",
-        [HaSampleNodeManagerFactory.NamespaceUri],
-        writerAssignedIds: !activeActive);
-}
-
-if (enableDistributedHistorian)
-{
-    ua.UseDistributedHistorian(options =>
-    {
-        // Keep pages deliberately small so the sample visibly exercises portable
-        // continuation points during active-replica failover.
-        options.MaxValuesPerPage = 2;
-        // Keep the sample's stale-writer fencing window short enough for an
-        // operator-driven failover to demonstrate promoted-writer visibility.
-        options.WriterFenceLeaseDuration = TimeSpan.FromSeconds(5);
-        options.Capabilities = options.Capabilities with
-        {
-            EventTypes = [ObjectTypeIds.BaseEventType]
-        };
-    });
-}
-
-ua.AddServerRedundancy(r =>
-{
-    r.Mode = redundancyMode;
-    r.CurrentServerId = nodeId;
-    foreach (RedundantPeer peer in redundantPeers)
-    {
-        r.RedundantPeers.Add(peer);
+        // A successful linearizable read proves the quorum can commit, not just that transport startup returned.
+        await raftStore.TryGetAsync("sample/readiness").ConfigureAwait(false);
+        Console.WriteLine("Raft is ready ({0}).", externalRaft ? "pinned TLS cluster" : "one in-process member");
     }
-})
-.AddRequestServerStateChange();
 
-// Dynamic peer discovery for the client-facing RedundantServerSet (FindServers) and,
-// for active/active, the CRDT gossip fabric. HA_PEER_DISCOVERY selects the mechanism;
-// the statically-configured HA_REDUNDANT_PEERS (AddServerRedundancy above) is the
-// fallback used until discovery finds peers. HA_PEER_DISCOVERY=lds and =k8s are also
-// supported (LDS via UseLdsPeerDiscovery with a DiscoveryClient; Kubernetes via
-// UseKubernetesPeerDiscovery in the Opc.Ua.Redundancy.Kubernetes package).
-string peerDiscoveryMode = (builder.Configuration["HA_PEER_DISCOVERY"] ?? "static").Trim();
-if (peerDiscoveryMode.Equals("dns", StringComparison.OrdinalIgnoreCase) &&
-    redundancyMode != RedundancySupport.None)
-{
-    int discoveryGossipPort = int.TryParse(builder.Configuration["HA_GOSSIP_PORT"], out int dgp)
-        ? dgp
-        : 4840;
-    int applicationPort = Uri.TryCreate(endpointUrl, UriKind.Absolute, out Uri? endpointUri)
-        ? endpointUri.Port
-        : 4840;
-    string serviceName = builder.Configuration["HA_SERVICE_NAME"] ?? "server";
-    ua.UseDnsPeerDiscovery(dns =>
+    Console.WriteLine(
+        "HA sample node '{0}' configured for {1}; HA_MODE={2}; REDUNDANCY_MODE={3}.",
+        nodeId,
+        endpointUrl,
+        haMode,
+        redundancyMode);
+    Console.WriteLine("CurrentServerId: {0}", nodeId);
+    Console.WriteLine("Redundant peers: {0}", FormatPeers(redundantPeers));
+    if (redundancyMode is RedundancySupport.Cold or
+        RedundancySupport.Warm or
+        RedundancySupport.Hot or
+        RedundancySupport.HotAndMirrored)
     {
-        dns.HostName = serviceName;
-        dns.GossipPort = discoveryGossipPort;
-        dns.ApplicationPort = applicationPort;
-    });
-}
+        Console.WriteLine("NTRS discovery capability and FindServers peer-set provider are enabled.");
+    }
+    Console.WriteLine("RequestServerStateChange is enabled for administrator-driven Maintenance/NoData failover.");
 
-if (!string.IsNullOrWhiteSpace(balancingUrl) && redundancyMode != RedundancySupport.None)
-{
-    ua.UseServerLoadDirection(o =>
-    {
-        o.BalancingEndpointUrl = balancingUrl!;
-        // Route the eligibility keyspaces (health + endpoints) to the strong store
-        // when Raft is configured, keeping the high-churn load weight eventual.
-        o.StrongEligibility = useStrongConsistency;
-    });
+    await application.StartAsync().ConfigureAwait(false);
+    await application.WaitForShutdownAsync().ConfigureAwait(false);
 }
-
-byte displayedServiceLevel = redundancyMode == RedundancySupport.None
-    ? ServiceLevels.Maximum
-    : GetDisplayedServiceLevel(activeActive, redundancyMode);
-Console.WriteLine(
-    "HA sample node '{0}' configured for {1}; HA_MODE={2}; REDUNDANCY_MODE={3}; ServiceLevel={4} ({5}).",
-    nodeId,
-    endpointUrl,
-    haMode,
-    redundancyMode,
-    displayedServiceLevel,
-    ServiceLevels.GetSubrange(displayedServiceLevel));
-Console.WriteLine("CurrentServerId: {0}", nodeId);
-Console.WriteLine("Redundant peers: {0}", FormatPeers(redundantPeers));
-if (redundancyMode is RedundancySupport.Cold or
-    RedundancySupport.Warm or
-    RedundancySupport.Hot or
-    RedundancySupport.HotAndMirrored)
-{
-    Console.WriteLine("NTRS discovery capability and FindServers peer-set provider are enabled.");
-}
-Console.WriteLine("RequestServerStateChange is enabled for administrator-driven Maintenance/NoData failover.");
-
-builder.Services.AddSingleton<IServerStartupTask>(
-    static _ => new HaSampleSimulationStartupTask());
-await builder.Build().RunAsync().ConfigureAwait(false);
 
 static RedundancySupport ParseRedundancyMode(string? value, RedundancySupport defaultMode)
 {
@@ -381,22 +355,6 @@ static RedundancySupport ParseRedundancyMode(string? value, RedundancySupport de
         "transparent" => RedundancySupport.Transparent,
         _ => throw new FormatException(
             $"Invalid REDUNDANCY_MODE '{value}'. Expected none, cold, warm, hot, hotandmirrored, or transparent.")
-    };
-}
-
-static byte GetDisplayedServiceLevel(bool activeActive, RedundancySupport redundancyMode)
-{
-    if (activeActive)
-    {
-        return ServiceLevels.Maximum;
-    }
-
-    return redundancyMode switch
-    {
-        RedundancySupport.Cold => ServiceLevels.NoData,
-        RedundancySupport.Warm => ServiceLevels.DegradedMaximum,
-        RedundancySupport.Hot or RedundancySupport.HotAndMirrored => ServiceLevels.Maximum,
-        _ => ServiceLevels.DegradedMaximum
     };
 }
 
@@ -487,188 +445,10 @@ static string DefaultPkiRootForNode(string nodeId)
         "pki");
 }
 
-static async Task<List<IPEndPoint>> ReadGossipPeersAsync(
-    IConfiguration configuration,
-    int gossipPort,
-    bool useStrongConsistency)
-{
-    string peerDiscovery = (configuration["HA_PEER_DISCOVERY"] ?? "static").Trim();
-    if (peerDiscovery.Equals("dns", StringComparison.OrdinalIgnoreCase))
-    {
-        if (useStrongConsistency)
-        {
-            Console.WriteLine(
-                "Warning: HA_PEER_DISCOVERY=dns is supported only for active/active eventual gossip. " +
-                "Dynamic Raft scaling needs stable identities and an odd quorum; use Kubernetes StatefulSet " +
-                "deployment with UseKubernetesRaftConsensus. Falling back to HA_GOSSIP_PEERS.");
-        }
-        else
-        {
-            return await DiscoverDnsGossipPeersAsync(configuration, gossipPort).ConfigureAwait(false);
-        }
-    }
-
-    var gossipPeers = new List<IPEndPoint>();
-    foreach (string peer in ReadList(configuration, "HA_GOSSIP_PEERS"))
-    {
-        gossipPeers.Add(ParseEndpoint(peer));
-    }
-
-    return gossipPeers;
-}
-
-static async Task<List<IPEndPoint>> DiscoverDnsGossipPeersAsync(IConfiguration configuration, int gossipPort)
-{
-    const int maxAttempts = 10;
-    var retryDelay = TimeSpan.FromSeconds(1);
-    string serviceName = configuration["HA_SERVICE_NAME"] ?? "server";
-    HashSet<IPAddress> localAddresses = await GetLocalAddressesAsync(configuration).ConfigureAwait(false);
-    var gossipPeers = new List<IPEndPoint>();
-
-    for (int attempt = 1; attempt <= maxAttempts; attempt++)
-    {
-        gossipPeers.Clear();
-        try
-        {
-            IPAddress[] addresses = await Dns.GetHostAddressesAsync(serviceName).ConfigureAwait(false);
-            var peerAddresses = new HashSet<IPAddress>();
-            foreach (IPAddress address in addresses)
-            {
-                if (address.AddressFamily == AddressFamily.InterNetwork &&
-                    !localAddresses.Contains(address) &&
-                    peerAddresses.Add(address))
-                {
-                    gossipPeers.Add(new IPEndPoint(address, gossipPort));
-                }
-            }
-
-            if (gossipPeers.Count > 0 || attempt == maxAttempts)
-            {
-                Console.WriteLine(
-                    "DNS peer discovery for service '{0}' found {1} peer(s) on gossip port {2}.",
-                    serviceName,
-                    gossipPeers.Count,
-                    gossipPort);
-                return [.. gossipPeers];
-            }
-        }
-        catch (Exception ex) when (ex is SocketException or ArgumentException)
-        {
-            if (attempt == maxAttempts)
-            {
-                Console.WriteLine(
-                    "DNS peer discovery for service '{0}' found 0 peers on gossip port {1}: {2}",
-                    serviceName,
-                    gossipPort,
-                    ex.Message);
-                return [];
-            }
-        }
-
-        await Task.Delay(retryDelay).ConfigureAwait(false);
-    }
-
-    return [];
-}
-
-static async Task<HashSet<IPAddress>> GetLocalAddressesAsync(IConfiguration configuration)
-{
-    var localAddresses = new HashSet<IPAddress>();
-    await AddHostAddressesAsync(localAddresses, Dns.GetHostName()).ConfigureAwait(false);
-
-    foreach (string localAddress in ReadList(configuration, "HA_LOCAL_ADDRESS"))
-    {
-        await AddHostAddressesAsync(localAddresses, localAddress).ConfigureAwait(false);
-    }
-
-    return localAddresses;
-}
-
-static async Task AddHostAddressesAsync(HashSet<IPAddress> addresses, string hostOrAddress)
-{
-    if (IPAddress.TryParse(hostOrAddress, out IPAddress? address))
-    {
-        if (address.AddressFamily == AddressFamily.InterNetwork)
-        {
-            addresses.Add(address);
-        }
-
-        return;
-    }
-
-    IPAddress[] resolvedAddresses = await Dns.GetHostAddressesAsync(hostOrAddress).ConfigureAwait(false);
-    foreach (IPAddress resolvedAddress in resolvedAddresses)
-    {
-        if (resolvedAddress.AddressFamily == AddressFamily.InterNetwork)
-        {
-            addresses.Add(resolvedAddress);
-        }
-    }
-}
-
 static ReplicaId ReplicaIdFromNodeId(string nodeId)
 {
     // Derive a stable replica identity from the node id so it survives restarts.
     byte[] hash = System.Security.Cryptography.SHA256.HashData(
         System.Text.Encoding.UTF8.GetBytes(nodeId));
     return new ReplicaId(new Guid(hash.AsSpan(0, 16).ToArray()));
-}
-
-static IPEndPoint ParseEndpoint(string hostPort)
-{
-    int separator = hostPort.LastIndexOf(':', StringComparison.Ordinal);
-    if (separator <= 0 || separator == hostPort.Length - 1)
-    {
-        throw new FormatException($"Invalid gossip endpoint '{hostPort}'; expected host:port.");
-    }
-
-    string host = hostPort[..separator];
-    int port = int.Parse(hostPort[(separator + 1)..], System.Globalization.CultureInfo.InvariantCulture);
-    IPAddress address = IPAddress.TryParse(host, out IPAddress? ip)
-        ? ip
-        : Dns.GetHostAddresses(host)[0];
-    return new IPEndPoint(address, port);
-}
-
-static (ulong NodeId, int Members, string Bind, List<string> Peers) ReadRaftConfig(IConfiguration configuration)
-{
-    ulong nodeId = ulong.TryParse(configuration["HA_RAFT_ID"], out ulong id) ? id : 1;
-    var peers = new List<string>(ReadList(configuration, "HA_RAFT_PEERS"));
-    int members = int.TryParse(configuration["HA_RAFT_MEMBERS"], out int m) ? m : peers.Count + 1;
-    string bind = configuration["HA_RAFT_BIND"] ?? "tcp://0.0.0.0:6560";
-    return (nodeId, members, bind, peers);
-}
-
-static IRaftConsensus BuildRaftCluster(ulong nodeId, int members, string bind, List<string> peers)
-{
-    var memberIds = new List<ulong>(members);
-    for (int i = 1; i <= members; i++)
-    {
-        memberIds.Add((ulong)i);
-    }
-
-    var transportOptions = new NanoMsgBusTransportOptions { BindAddress = bind };
-    foreach (string peer in peers)
-    {
-        transportOptions.Peers.Add(peer);
-    }
-
-    // The DefaultRaftConsensus adapter owns the node (which disposes the transport);
-    // MemoryStorage is volatile, so a restarted replica re-syncs from the leader.
-#pragma warning disable CA2000
-    var transport = new NanoMsgBusTransport(transportOptions);
-    var storage = new MemoryStorage(new ConfState(memberIds));
-    return DefaultRaftConsensus.CreateCluster(
-        nodeId,
-        transport,
-        storage,
-        new RaftNodeOptions { TickInterval = TimeSpan.FromMilliseconds(50) },
-        config =>
-        {
-            config.ElectionTick = 10;
-            config.PreVote = true;
-            config.CheckQuorum = true;
-        },
-        TimeSpan.FromSeconds(30));
-#pragma warning restore CA2000
 }

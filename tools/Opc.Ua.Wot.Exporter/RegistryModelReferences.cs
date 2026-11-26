@@ -15,8 +15,14 @@ namespace Opc.Ua.Wot.Exporter
     /// <summary>
     /// Assigns registry addresses to converted models without changing native identities or source payloads.
     /// </summary>
-    internal sealed class RegistryModelReferences(string registryBaseUrl, string groupId)
+    internal sealed class RegistryModelReferences(
+        string registryBaseUrl, string groupId, ExportModelMapping? mapping = null)
     {
+        /// <summary>
+        /// Gets limitations of the last written source, including unresolved WoT inheritance.
+        /// </summary>
+        public List<string> Diagnostics { get; } = [];
+
         /// <summary>
         /// Registers actual document IDs before any source's outgoing links are written.
         /// </summary>
@@ -61,10 +67,16 @@ namespace Opc.Ua.Wot.Exporter
         /// <exception cref="FormatException"></exception>
         public ArrayOf<ReadOnlyMemory<byte>> Write(WotDocumentSet documents, CancellationToken cancellationToken)
         {
+            Diagnostics.Clear();
+            m_localIdentities.Clear();
             var aliases = new Dictionary<string, Model>(StringComparer.Ordinal);
             foreach (WotDocumentSetEntry entry in documents.Entries)
             {
                 cancellationToken.ThrowIfCancellationRequested();
+                if (TryGetIdentity(entry.Document.RootElement, out ExpandedNodeId identity))
+                {
+                    m_localIdentities[entry.Href] = identity;
+                }
                 if (GetModel(entry.Document) is { } model)
                 {
                     ValidateModel(model);
@@ -72,6 +84,7 @@ namespace Opc.Ua.Wot.Exporter
                 }
             }
             var result = new List<ReadOnlyMemory<byte>>(documents.Entries.Count);
+            long totalBytes = 0;
             foreach (WotDocumentSetEntry entry in documents.Entries)
             {
                 cancellationToken.ThrowIfCancellationRequested();
@@ -81,7 +94,14 @@ namespace Opc.Ua.Wot.Exporter
                 {
                     WriteNode(writer, entry.Document.RootElement, aliases, model);
                 }
-                result.Add(output.ToArray());
+                ReadOnlyMemory<byte> json = output.ToArray();
+                json = mapping?.Apply(json, entry.Href, Diagnostics) ?? json;
+                totalBytes += json.Length;
+                if (totalBytes > 512L * 1024 * 1024)
+                {
+                    throw new FormatException("The enriched document set exceeds the 512 MiB JSON limit.");
+                }
+                result.Add(json);
             }
             return result.ToArrayOf();
         }
@@ -162,15 +182,52 @@ namespace Opc.Ua.Wot.Exporter
                     writer.WriteStartArray();
                     foreach (JsonElement link in property.Value.EnumerateArray())
                     {
-                        WriteLink(writer, link, aliases);
+                        if (link.ValueKind == JsonValueKind.Object &&
+                            link.TryGetProperty("rel", out JsonElement relation) &&
+                            relation.GetString() == "ua:HasSupertype")
+                        {
+                            link.WriteTo(writer);
+                            if (link.TryGetProperty("href", out JsonElement target) &&
+                                target.ValueKind == JsonValueKind.String &&
+                                TryResolve(target.GetString()!, aliases, out string parentHref))
+                            {
+                                writer.WriteStartObject();
+                                writer.WriteString("rel", "tm:extends");
+                                writer.WriteString("href", parentHref);
+                                writer.WriteString("type", "application/tm+json");
+                                writer.WriteEndObject();
+                            }
+                            else
+                            {
+                                Diagnostics.Add("Incomplete WoT inheritance: no parent Thing Model for " +
+                                    link.GetRawText() + ".");
+                            }
+                        }
+                        else
+                        {
+                            WriteLink(writer, link, aliases);
+                        }
                     }
                     writer.WriteEndArray();
                 }
-                else if (property.Name is "tm:ref" or "$ref" &&
-                    property.Value.ValueKind == JsonValueKind.String &&
-                    TryResolve(property.Value.GetString()!, aliases, out string href))
+                else if (property.Name is "tm:ref" or "$ref" or "uav:resolvedFrom" &&
+                    property.Value.ValueKind == JsonValueKind.String)
                 {
-                    writer.WriteStringValue(href);
+                    string reference = property.Value.GetString()!;
+                    writer.WriteStringValue(TryResolve(reference, aliases, out string href)
+                        ? href : RewriteLocalReference(reference));
+                }
+                else if (property.Name == "uav:instanceOfDeclaration" &&
+                    property.Value.ValueKind == JsonValueKind.Array)
+                {
+                    writer.WriteStartArray();
+                    foreach (JsonElement declaration in property.Value.EnumerateArray())
+                    {
+                        string reference = declaration.GetString()!;
+                        writer.WriteStringValue(TryResolve(reference, aliases, out string href)
+                            ? href : RewriteLocalReference(reference));
+                    }
+                    writer.WriteEndArray();
                 }
                 else if (property.Name is "properties" or "actions" or "events" or "schemaDefinitions" or
                     "uriVariables" or "$defs" or "definitions" or "patternProperties" &&
@@ -186,12 +243,13 @@ namespace Opc.Ua.Wot.Exporter
                 }
                 else if (property.Name is "input" or "output" or "data" or "items" or "dataResponse" or
                     "additionalProperties" or "not" or "subscription" or "cancellation" or
-                    "if" or "then" or "else" or "contains" or "propertyNames" &&
+                    "if" or "then" or "else" or "contains" or "propertyNames" or "schema" or "response" &&
                     property.Value.ValueKind == JsonValueKind.Object)
                 {
                     WriteNode(writer, property.Value, aliases);
                 }
-                else if (property.Name is "oneOf" or "anyOf" or "allOf" or "items" or "uav:eventSelectClauses" &&
+                else if (property.Name is "oneOf" or "anyOf" or "allOf" or "items" or "uav:eventSelectClauses" or
+                    "forms" or "additionalResponses" &&
                     property.Value.ValueKind == JsonValueKind.Array)
                 {
                     writer.WriteStartArray();
@@ -216,11 +274,15 @@ namespace Opc.Ua.Wot.Exporter
         {
             if (link.ValueKind != JsonValueKind.Object ||
                 !link.TryGetProperty("href", out JsonElement reference) ||
-                reference.ValueKind != JsonValueKind.String ||
-                !TryResolve(reference.GetString()!, aliases, out string href))
+                reference.ValueKind != JsonValueKind.String)
             {
                 link.WriteTo(writer);
                 return;
+            }
+            bool isModel = TryResolve(reference.GetString()!, aliases, out string href);
+            if (!isModel)
+            {
+                href = RewriteLocalReference(reference.GetString()!);
             }
             writer.WriteStartObject();
             foreach (JsonProperty property in link.EnumerateObject())
@@ -229,19 +291,30 @@ namespace Opc.Ua.Wot.Exporter
                 {
                     writer.WriteString("href", href);
                 }
-                else if (property.Name == "rel" &&
-                    property.Value.ValueKind == JsonValueKind.String &&
-                    property.Value.GetString() == "ua:HasSupertype")
-                {
-                    writer.WriteString("rel", "tm:extends");
-                }
-                else if (property.Name != "type")
+                else if (property.Name != "type" || !isModel)
                 {
                     property.WriteTo(writer);
                 }
             }
-            writer.WriteString("type", "application/tm+json");
+            if (isModel)
+            {
+                writer.WriteString("type", "application/tm+json");
+            }
             writer.WriteEndObject();
+        }
+
+        /// <summary>
+        /// Updates fragments targeting renamed affordances in same-source support documents.
+        /// </summary>
+        private string RewriteLocalReference(string reference)
+        {
+            int fragment = reference.IndexOf('#', StringComparison.Ordinal);
+            if (mapping is null || fragment <= 0 ||
+                !m_localIdentities.TryGetValue(reference[..fragment], out ExpandedNodeId identity))
+            {
+                return reference;
+            }
+            return reference[..fragment] + mapping.RewriteFragment(identity, reference[fragment..]);
         }
 
         /// <summary>
@@ -287,6 +360,7 @@ namespace Opc.Ua.Wot.Exporter
                 return false;
             }
             ValidateModel(model);
+            fragment = mapping?.RewriteFragment(model.NativeIdentity, fragment) ?? fragment;
             string resourceId = Convert.ToHexStringLower(SHA256.HashData(Encoding.UTF8.GetBytes(model.Id)));
             href = m_prefix + resourceId + "/versions/" + Uri.EscapeDataString(model.Version!) + fragment;
             return true;
@@ -344,7 +418,8 @@ namespace Opc.Ua.Wot.Exporter
         {
             if (root.TryGetProperty("uav:id", out JsonElement nativeId) &&
                 nativeId.ValueKind == JsonValueKind.String &&
-                ExpandedNodeId.TryParse(nativeId.GetString(), out identity))
+                nativeId.GetString() is { } text &&
+                ExpandedNodeId.TryParse(text, out identity))
             {
                 identity = new ExpandedNodeId(
                     identity.InnerNodeId.WithNamespaceIndex(0), identity.NamespaceUri ?? Types.Namespaces.OpcUa);
@@ -370,6 +445,9 @@ namespace Opc.Ua.Wot.Exporter
 
         /// <summary>Indexes global model and native identities.</summary>
         private readonly Dictionary<string, Model> m_aliases = new(StringComparer.Ordinal);
+
+        /// <summary>Indexes current-source support files without assigning registry identities.</summary>
+        private readonly Dictionary<string, ExpandedNodeId> m_localIdentities = new(StringComparer.Ordinal);
 
         /// <summary>Tracks aliases shared by distinct native types or incompatible model versions.</summary>
         private readonly HashSet<string> m_ambiguous = new(StringComparer.Ordinal);

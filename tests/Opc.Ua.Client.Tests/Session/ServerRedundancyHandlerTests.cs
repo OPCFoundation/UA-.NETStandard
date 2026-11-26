@@ -207,7 +207,7 @@ namespace Opc.Ua.Client.Tests.ManagedSession
                         RefreshTimeout = Timeout.InfiniteTimeSpan,
                         PeerDiscoveryTimeout = Timeout.InfiniteTimeSpan
                     }.Validate(),
-                    Throws.Nothing);
+                    Throws.TypeOf<ArgumentOutOfRangeException>());
                 Assert.That(new ServerRedundancyOptions().RefreshTimeout,
                     Is.EqualTo(ServerRedundancyOptions.DefaultTimeout));
             });
@@ -555,6 +555,37 @@ namespace Opc.Ua.Client.Tests.ManagedSession
                 info, CreateCurrentEndpoint("urn:current"));
 
             Assert.That(decision.IsFailoverWarranted, Is.False);
+        }
+
+        /// <summary>
+        /// A failed probe cannot win a ranking based on its previously reported Healthy level.
+        /// </summary>
+        [Test]
+        public void FailedProbeIsExcludedEvenWithPreviouslyReportedHealthyLevel()
+        {
+            ConfiguredEndpoint rejected = CreateCurrentEndpoint("urn:failed-probe");
+            var info = new ServerRedundancyInfo
+            {
+                Mode = RedundancySupport.Warm,
+                ServiceLevel = ServiceLevels.DegradedMaximum,
+                ServiceLevelAccessible = true,
+                RedundantServers =
+                [
+                    new RedundantServer
+                    {
+                        ServerUri = "urn:failed-probe",
+                        Endpoint = rejected,
+                        ServerState = ServerState.Running,
+                        ServiceLevel = ServiceLevels.Maximum,
+                        ResolutionError = new ServiceResult(StatusCodes.BadNotReadable)
+                    },
+                    CreateServerInfo("urn:degraded", 150, ServerState.Running)
+                ]
+            };
+            ConfiguredEndpoint current = CreateCurrentEndpoint("urn:current");
+            Assert.That(m_handler.ShouldFailover(info, current).IsFailoverWarranted, Is.False);
+            Assert.That(m_handler.SelectFailoverTarget(info, current)?.Description.Server.ApplicationUri,
+                Is.EqualTo("urn:degraded"));
         }
 
         /// <summary>
@@ -916,14 +947,28 @@ namespace Opc.Ua.Client.Tests.ManagedSession
         }
 
         /// <summary>
-        /// Verifies that a ServiceLevel monitoring interval must be positive and is off by default.
+        /// Verifies the bounded opt-in redundancy defaults and explicit disable switches.
         /// </summary>
         [Test]
-        public void ServiceLevelMonitoringIntervalMustBePositive()
+        public void SelectionDefaultsAreEnabledAndBoundsMustBeFinite()
         {
             var defaults = new ServerRedundancyOptions();
-            Assert.That(defaults.ServiceLevelMonitoringInterval, Is.Null);
-            Assert.That(defaults.ProbeMemberServiceLevel, Is.False);
+            Assert.That(defaults.ServiceLevelMonitoringInterval,
+                Is.EqualTo(ServerRedundancyOptions.DefaultMonitoringInterval));
+            Assert.That(defaults.ProbeMemberServiceLevel, Is.True);
+            Assert.That(
+                () => new ServerRedundancyOptions
+                {
+                    ServiceLevelMonitoringInterval = null,
+                    ProbeMemberServiceLevel = false
+                }.Validate(),
+                Throws.Nothing);
+            Assert.That(
+                () => new ServerRedundancyOptions { MaxConcurrentPeerProbes = 33 }.Validate(),
+                Throws.TypeOf<ArgumentOutOfRangeException>());
+            Assert.That(
+                () => new ServerRedundancyOptions { PeerDiscoveryTimeout = TimeSpan.MaxValue }.Validate(),
+                Throws.TypeOf<ArgumentOutOfRangeException>());
             Assert.That(
                 () => new ServerRedundancyOptions { ServiceLevelMonitoringInterval = TimeSpan.Zero }.Validate(),
                 Throws.TypeOf<ArgumentOutOfRangeException>());

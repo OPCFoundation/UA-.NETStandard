@@ -886,7 +886,8 @@ namespace Opc.Ua.Server
                             // role permissions and access restrictions (Part 3 8.56). The
                             // metadata is always read, so a target whose metadata cannot be
                             // resolved is dropped even for requests without a session.
-                            (ServiceResult serviceResult, _) = await ValidatePermissionsAndGetMetadataAsync(
+                            (ServiceResult serviceResult, NodeMetadata? targetMetadata) =
+                                await ValidatePermissionsAndGetMetadataAsync(
                                     context,
                                     targetNodeManager,
                                     targetHandle,
@@ -896,7 +897,7 @@ namespace Opc.Ua.Server
                                     metadataRequired: true,
                                     cancellationToken)
                                 .ConfigureAwait(false);
-                            if (ServiceResult.IsBad(serviceResult))
+                            if (ServiceResult.IsBad(serviceResult) || targetMetadata == null)
                             {
                                 continue;
                             }
@@ -947,7 +948,7 @@ namespace Opc.Ua.Server
                     throw new ServiceResultException(StatusCodes.BadViewIdUnknown);
                 }
 
-                NodeMetadata metadata = await viewManager.GetNodeMetadataAsync(
+                NodeMetadata? metadata = await viewManager.GetNodeMetadataAsync(
                         context,
                         viewHandle,
                         BrowseResultMask.NodeClass,
@@ -1627,7 +1628,7 @@ namespace Opc.Ua.Server
                 }
 
                 // fetch the node attributes.
-                NodeMetadata metadata = await nodeManager!.GetNodeMetadataAsync(context, handle, resultMask, cancellationToken)
+                NodeMetadata? metadata = await nodeManager!.GetNodeMetadataAsync(context, handle, resultMask, cancellationToken)
                     .ConfigureAwait(false);
 
                 if (metadata == null)
@@ -3125,7 +3126,7 @@ namespace Opc.Ua.Server
                         errors[ii] = StatusCodes.BadNodeIdUnknown;
                         continue;
                     }
-                    NodeMetadata nodeMetadata;
+                    NodeMetadata? nodeMetadata;
                     try
                     {
                         nodeMetadata = await nodeManager!.GetNodeMetadataAsync(
@@ -3138,6 +3139,14 @@ namespace Opc.Ua.Server
                     catch (ServiceResultException exception)
                     {
                         errors[ii] = new ServiceResult(exception);
+                        continue;
+                    }
+
+                    // no metadata means the node does not exist: refuse rather than
+                    // create an item whose ReceiveEvents permission was never checked.
+                    if (nodeMetadata == null)
+                    {
+                        errors[ii] = StatusCodes.BadNodeIdUnknown;
                         continue;
                     }
 
@@ -4759,10 +4768,10 @@ namespace Opc.Ua.Server
 
                 // check access rights and role permissions of the method that is
                 // executed, which can be the declaration on a type definition.
-                return await ValidatePermissionsAsync(
+                return await ValidateMethodPermissionsAsync(
                         operationContext,
-                        method.NodeId,
-                        PermissionType.Call,
+                        nodeManager,
+                        method,
                         uniqueNodesReadAttributes,
                         permissionsOnly,
                         cancellationToken)
@@ -4770,6 +4779,69 @@ namespace Opc.Ua.Server
             }
 
             return StatusCodes.Good;
+        }
+
+        /// <summary>
+        /// Validates the Call permission on the method a Call executes.
+        /// </summary>
+        /// <remarks>
+        /// The object's node manager found <paramref name="method"/>, so it exists even when
+        /// its NodeId is not routed to a node manager: a type declaration in a namespace
+        /// without an owner, or an instance method that was never indexed. The permissions of
+        /// such a method are evaluated on the MethodState itself rather than skipped or
+        /// refused.
+        /// </remarks>
+        private async ValueTask<ServiceResult> ValidateMethodPermissionsAsync(
+            OperationContext context,
+            IAsyncNodeManager objectOwner,
+            MethodState method,
+            Dictionary<NodeId, Variant[]>? uniqueNodesServiceAttributes,
+            bool permissionsOnly,
+            CancellationToken cancellationToken)
+        {
+            if (context.Session == null && context.UserIdentity == null && context.ChannelContext == null)
+            {
+                return StatusCodes.Good;
+            }
+
+            (object? nodeHandle, IAsyncNodeManager? nodeManager, NodeState? node) =
+                await ResolveNodeForValidationAsync(context, method.NodeId, cancellationToken)
+                    .ConfigureAwait(false);
+
+            if (nodeManager != null && (nodeHandle != null || node != null))
+            {
+                return await ValidatePermissionsAsync(
+                        context,
+                        method.NodeId,
+                        nodeManager,
+                        nodeHandle,
+                        node,
+                        PermissionType.Call,
+                        uniqueNodesServiceAttributes,
+                        permissionsOnly,
+                        cancellationToken)
+                    .ConfigureAwait(false);
+            }
+
+            AsyncCustomNodeManager? evaluator =
+                objectOwner as AsyncCustomNodeManager ??
+                Server.CoreNodeManager as AsyncCustomNodeManager;
+            if (evaluator == null)
+            {
+                // a legacy owner without an asynchronous evaluator keeps the 2.0 behaviour.
+                return StatusCodes.Good;
+            }
+
+            return await evaluator.ValidatePermissionsAsync(
+                    context,
+                    method.NodeId,
+                    method,
+                    PermissionType.Call,
+                    uniqueNodesServiceAttributes,
+                    permissionsOnly,
+                    m_logger,
+                    cancellationToken)
+                .ConfigureAwait(false);
         }
 
         /// <summary>
@@ -5115,6 +5187,21 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Retrieves node metadata and validates session-specific permissions and access restrictions.
         /// </summary>
+        /// <remarks>
+        /// <para>
+        /// A call without a session, user identity or secure channel is an internal call and
+        /// is not checked. A client request fails closed: when no node manager resolves the
+        /// node, or the node manager returns no metadata for it, the result is
+        /// <see cref="StatusCodes.BadNodeIdUnknown"/> rather than Good, so permissions are never
+        /// skipped for a node the operation may still reach. Null metadata means the node does
+        /// not exist (see <see cref="IAsyncNodeManager.GetNodeMetadataAsync"/>).
+        /// </para>
+        /// <para>
+        /// With <paramref name="metadataRequired"/> a resolved node without metadata returns
+        /// Good and <c>null</c> metadata, and the caller maps that to its own result
+        /// (for example <see cref="StatusCodes.BadSourceNodeIdInvalid"/>).
+        /// </para>
+        /// </remarks>
         internal async ValueTask<(ServiceResult result, NodeMetadata? metadata)>
             ValidatePermissionsAndGetMetadataAsync(
                 OperationContext context,
@@ -5126,12 +5213,17 @@ namespace Opc.Ua.Server
                 bool metadataRequired,
                 CancellationToken cancellationToken)
         {
-            if (nodeManager == null ||
-                nodeHandle == null ||
-                (context.Session == null &&
-                    context.UserIdentity == null &&
-                    context.ChannelContext == null &&
-                    !metadataRequired))
+            bool clientRequest =
+                context.Session != null ||
+                context.UserIdentity != null ||
+                context.ChannelContext != null;
+
+            if (nodeManager == null || nodeHandle == null)
+            {
+                return (clientRequest ? StatusCodes.BadNodeIdUnknown : StatusCodes.Good, null);
+            }
+
+            if (!clientRequest && !metadataRequired)
             {
                 return (StatusCodes.Good, null);
             }
@@ -5199,7 +5291,7 @@ namespace Opc.Ua.Server
 
             if (nodeMetadata == null)
             {
-                return (StatusCodes.Good, nodeMetadata);
+                return (metadataRequired ? StatusCodes.Good : StatusCodes.BadNodeIdUnknown, null);
             }
 
             return (

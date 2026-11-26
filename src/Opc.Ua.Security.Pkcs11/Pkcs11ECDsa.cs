@@ -4,6 +4,7 @@
 using System;
 using System.IO;
 using System.Security.Cryptography;
+using System.Threading;
 using Net.Pkcs11Interop.Common;
 using Net.Pkcs11Interop.HighLevelAPI;
 
@@ -37,14 +38,22 @@ namespace Opc.Ua.Security.Pkcs11
             IObjectHandle privateKey,
             ECParameters publicParameters)
         {
-            m_token = (token ?? throw new ArgumentNullException(nameof(token))).AddRef();
+            m_token = token ?? throw new ArgumentNullException(nameof(token));
             m_privateKey = privateKey ?? throw new ArgumentNullException(nameof(privateKey));
 
             m_publicKey = Create();
-            m_publicKey.ImportParameters(publicParameters);
-
-            KeySizeValue = m_publicKey.KeySize;
-            LegalKeySizesValue = [new KeySizes(256, 521, 0)];
+            try
+            {
+                m_publicKey.ImportParameters(publicParameters);
+                KeySizeValue = m_publicKey.KeySize;
+                LegalKeySizesValue = [new KeySizes(256, 521, 0)];
+                m_sessionReference = token.AddRef();
+            }
+            catch
+            {
+                m_publicKey.Dispose();
+                throw;
+            }
         }
 
         /// <inheritdoc/>
@@ -110,6 +119,11 @@ namespace Opc.Ua.Security.Pkcs11
         /// </exception>
         public override byte[] SignHash(byte[] hash)
         {
+            if (Volatile.Read(ref m_disposed) != 0)
+            {
+                throw new ObjectDisposedException(nameof(Pkcs11ECDsa));
+            }
+
             if (hash == null)
             {
                 throw new ArgumentNullException(nameof(hash));
@@ -144,12 +158,16 @@ namespace Opc.Ua.Security.Pkcs11
         /// <inheritdoc/>
         protected override void Dispose(bool disposing)
         {
-            if (disposing)
+            if (disposing && Interlocked.Exchange(ref m_disposed, 1) == 0)
             {
-                m_publicKey.Dispose();
-
-                // Releases this key's reference; the session closes with the last.
-                m_token.Dispose();
+                try
+                {
+                    m_publicKey.Dispose();
+                }
+                finally
+                {
+                    m_sessionReference.Dispose();
+                }
             }
 
             base.Dispose(disposing);
@@ -158,5 +176,7 @@ namespace Opc.Ua.Security.Pkcs11
         private readonly Pkcs11Token m_token;
         private readonly IObjectHandle m_privateKey;
         private readonly ECDsa m_publicKey;
+        private readonly IDisposable m_sessionReference;
+        private int m_disposed;
     }
 }

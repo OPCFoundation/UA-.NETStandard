@@ -471,7 +471,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 unsupportedManager
                     .Setup(manager => manager.GetManagerHandleAsync(
                         unsupportedSourceId, It.IsAny<CancellationToken>()))
-                    .Returns(new ValueTask<object>(new object()));
+                    .Returns(new ValueTask<object?>(new object()));
 
                 var candidate = CreateLifecycleNodeManager(candidateUri);
                 candidate.Setup(manager => manager.CreateAddressSpaceAsync(
@@ -650,7 +650,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 unsupportedManager
                     .Setup(manager => manager.GetManagerHandleAsync(
                         unsupportedSourceId, It.IsAny<CancellationToken>()))
-                    .Returns(new ValueTask<object>(new object()));
+                    .Returns(new ValueTask<object?>(new object()));
 
                 var candidate = CreateLifecycleNodeManager(candidateUri);
                 candidate.Setup(manager => manager.CreateAddressSpaceAsync(
@@ -5560,7 +5560,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 .Setup(manager => manager.GetManagerHandleAsync(
                     ownerSourceId,
                     It.IsAny<CancellationToken>()))
-                .Returns(new ValueTask<object>(ownerHandle));
+                .Returns(new ValueTask<object?>(ownerHandle));
             ownerManager
                 .Setup(manager => manager.DeleteReferenceAsync(
                     ownerHandle,
@@ -5858,7 +5858,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 .Setup(manager => manager.GetManagerHandleAsync(
                     ownerSourceId,
                     It.IsAny<CancellationToken>()))
-                .Returns(new ValueTask<object>(ownerHandle));
+                .Returns(new ValueTask<object?>(ownerHandle));
             ownerManager.Setup(manager => manager.GetNodeMetadataAsync(
                 It.IsAny<OperationContext>(), ownerHandle, It.IsAny<BrowseResultMask>(),
                 It.IsAny<CancellationToken>()))
@@ -5895,7 +5895,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             var lateOwnerSourceId = new NodeId(2002, ownerNamespaceIndex);
             ownerManager.Setup(manager => manager.GetManagerHandleAsync(
                 lateOwnerSourceId, It.IsAny<CancellationToken>()))
-                .Returns(new ValueTask<object>(ownerHandle));
+                .Returns(new ValueTask<object?>(ownerHandle));
             NodeState root = RequireLifecycleValue(removedManager.Find(
                 new NodeId(kRootNodeId, removedManager.NamespaceIndexes[0])));
             root.AddReference(ReferenceTypeIds.HasComponent, true, lateOwnerSourceId);
@@ -6606,7 +6606,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 .Setup(manager => manager.GetManagerHandleAsync(
                     ownerSourceId,
                     It.IsAny<CancellationToken>()))
-                .Returns(new ValueTask<object>(ownerHandle));
+                .Returns(new ValueTask<object?>(ownerHandle));
             ownerManager
                 .Setup(manager => manager.DeleteReferenceAsync(
                     ownerHandle,
@@ -6741,7 +6741,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 .Setup(manager => manager.GetManagerHandleAsync(
                     ownerSourceId,
                     It.IsAny<CancellationToken>()))
-                .Returns(new ValueTask<object>(ownerHandle));
+                .Returns(new ValueTask<object?>(ownerHandle));
             ownerManager
                 .Setup(manager => manager.DeleteReferenceAsync(
                     It.IsAny<object>(),
@@ -9452,10 +9452,12 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 IList<IEventMonitoredItem> monitoredItems,
                 CancellationToken cancellationToken = default)
             {
-                Interlocked.Increment(ref m_conditionRefreshCount);
+                // publish the ids before the count: tests wait on the count and then
+                // read the ids, which would otherwise still be the previous snapshot.
                 Interlocked.Exchange(
                     ref m_lastConditionRefreshMonitoredItemIds,
                     [.. monitoredItems.Select(monitoredItem => monitoredItem.Id)]);
+                Interlocked.Increment(ref m_conditionRefreshCount);
                 if (ConditionRefreshCallback is not null)
                 {
                     await ConditionRefreshCallback(monitoredItems, cancellationToken)

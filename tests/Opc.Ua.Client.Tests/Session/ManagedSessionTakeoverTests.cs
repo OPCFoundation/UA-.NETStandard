@@ -472,7 +472,7 @@ namespace Opc.Ua.Client.Tests.ManagedSession
         [Test]
         public async Task FallbackIdentityIsRetainedUntilConnectSetupSucceedsAsync()
         {
-            await using var harness = new ManagedSessionReconnectHarness
+            await using var harness = new ManagedSessionReconnectHarness(authenticatePeer: true)
             {
                 TakeoverActivationStatus = StatusCodes.BadSessionIdInvalid
             };
@@ -593,7 +593,7 @@ namespace Opc.Ua.Client.Tests.ManagedSession
         [Test]
         public async Task TakeoverFailingAfterBindingRetriesTheTakeoverWithoutClosingAsync()
         {
-            await using var harness = new ManagedSessionReconnectHarness();
+            await using var harness = new ManagedSessionReconnectHarness(authenticatePeer: true);
             await harness.ConnectAsync(false).ConfigureAwait(false);
             SessionHandoff handoff = CreateForeignHandoff(harness);
             var redundancy = new Mock<IServerRedundancyHandler>();

@@ -145,7 +145,7 @@ namespace Opc.Ua.SourceGeneration
             {
                 return null;
             }
-            return payload.ToBase64Payload();
+            return payload.ToBase64Payload(m_context.Options?.Cancellation ?? default);
         }
 
         private ModelDependencyV1 BuildPayload(Namespace target)
@@ -158,6 +158,7 @@ namespace Opc.Ua.SourceGeneration
             string targetUri = target.Value;
             foreach (NodeDesign node in m_context.ModelDesign.Nodes ?? [])
             {
+                m_context.Options?.Cancellation.ThrowIfCancellationRequested();
                 if (m_context.ModelDesign.IsExcluded(node))
                 {
                     continue;
@@ -226,6 +227,7 @@ namespace Opc.Ua.SourceGeneration
                         var fields = new List<DependencyDataField>(dataType.Fields.Length);
                         foreach (Parameter field in dataType.Fields)
                         {
+                            m_context.Options?.Cancellation.ThrowIfCancellationRequested();
                             if (field == null)
                             {
                                 continue;
@@ -268,6 +270,7 @@ namespace Opc.Ua.SourceGeneration
 
                         DependencyChild CreateChild(InstanceDesign child)
                         {
+                            m_context.Options?.Cancellation.ThrowIfCancellationRequested();
                             byte instanceKind = child switch
                             {
                                 PropertyDesign => 3,

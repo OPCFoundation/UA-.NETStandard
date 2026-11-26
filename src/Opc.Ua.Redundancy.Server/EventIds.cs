@@ -63,11 +63,6 @@ namespace Opc.Ua
         public const int ServerRedundancyStartupTask = 90;
 
         /// <summary>
-        /// Event identifier offset for shared key-value monitored-item queue factory messages.
-        /// </summary>
-        public const int SharedKeyValueMonitoredItemQueueFactory = 100;
-
-        /// <summary>
         /// Event identifier offset for shared key-value subscription store messages.
         /// </summary>
         public const int SharedKeyValueSubscriptionStore = 110;
@@ -81,5 +76,20 @@ namespace Opc.Ua
         /// Event identifier offset for shared history continuation store messages.
         /// </summary>
         public const int SharedHistoryContinuationStore = 130;
+
+        /// <summary>
+        /// Event identifier offset for service-level publication messages.
+        /// </summary>
+        public const int ServiceLevelStartupTask = 140;
+
+        /// <summary>
+        /// Event identifier offset for service-level policy evaluation messages.
+        /// </summary>
+        public const int LeaderServiceLevelProvider = 150;
+
+        /// <summary>
+        /// Event identifier offset for the replicated event feed.
+        /// </summary>
+        public const int ReplicatedEventFeed = 160;
     }
 }

@@ -319,14 +319,14 @@ namespace Opc.Ua.Types.Tests.Wot
         }
 
         /// <summary>
-        /// Exports optional property and action pointers only for optional UA modelling rules.
+        /// Exports complete-affordance pointers for optional declarations and both placeholder rules.
         /// </summary>
         /// <param name="nodeId">The modelling-rule NodeId, or null when no rule is declared.</param>
         /// <param name="optional">Whether the affordances are optional.</param>
         [TestCase("i=78", false)]
         [TestCase("i=80", true)]
         [TestCase("i=11508", true)]
-        [TestCase("i=11510", false)]
+        [TestCase("i=11510", true)]
         [TestCase(null, false)]
         public void ExportedOptionalAffordancesFollowModellingRules(string? nodeId, bool optional)
         {

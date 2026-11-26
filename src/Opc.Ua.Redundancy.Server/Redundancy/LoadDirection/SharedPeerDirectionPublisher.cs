@@ -33,7 +33,7 @@ namespace Opc.Ua.Redundancy.Server
         {
             m_store = store ?? throw new ArgumentNullException(nameof(store));
             m_context = context ?? throw new ArgumentNullException(nameof(context));
-            m_protector = protector ?? throw new ArgumentNullException(nameof(protector));
+            m_protector = LoadDirectionRecordValidation.RequireProtection(m_store, protector);
             m_options = options ?? throw new ArgumentNullException(nameof(options));
             m_timeProvider = timeProvider ?? throw new ArgumentNullException(nameof(timeProvider));
             if (string.IsNullOrEmpty(localServerUri))

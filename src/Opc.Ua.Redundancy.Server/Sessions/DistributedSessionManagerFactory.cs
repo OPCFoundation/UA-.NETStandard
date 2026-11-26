@@ -10,7 +10,7 @@ namespace Opc.Ua.Redundancy.Server
     /// <summary>
     /// An <see cref="ISessionManagerFactory"/> that builds a
     /// <see cref="DistributedSessionManager"/> over a shared key/value store.
-    /// The session store and nonce registry are created lazily in
+    /// The session store is created lazily in
     /// <see cref="Create"/>, when the server's populated message context is
     /// available.
     /// </summary>
@@ -55,15 +55,19 @@ namespace Opc.Ua.Redundancy.Server
                 throw new ArgumentNullException(nameof(server));
             }
 
+            if (m_options.EnableFastReconnect && m_keyValueStore is not FreshnessProtectedKeyValueStore)
+            {
+                throw new InvalidOperationException(
+                    "Fast reconnect requires a committed session store backed by an independent freshness authority.");
+            }
+
             var sessionStore = new SharedKeyValueSessionStore(
                 m_keyValueStore, server.MessageContext, m_protector);
-            var nonceRegistry = new SharedSingleUseNonceRegistry(m_keyValueStore, timeProvider: timeProvider);
 
             return new DistributedSessionManager(
                 server,
                 configuration,
                 sessionStore,
-                nonceRegistry,
                 serverCertificateProvider,
                 m_options,
                 timeProvider);

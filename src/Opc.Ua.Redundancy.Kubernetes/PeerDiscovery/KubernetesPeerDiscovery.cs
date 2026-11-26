@@ -7,7 +7,6 @@ using System.Globalization;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
-using Opc.Ua.Redundancy.Server;
 
 namespace Opc.Ua.Redundancy.Kubernetes
 {
@@ -74,25 +73,6 @@ namespace Opc.Ua.Redundancy.Kubernetes
             ArrayOf<string> peers = ToPeerUris(slices, m_options);
             SetPeers(peers);
             return peers;
-        }
-
-        /// <summary>
-        /// Copies discovered peer ServerUris into the base redundancy options.
-        /// </summary>
-        /// <param name="options">The redundancy options to populate.</param>
-        /// <exception cref="ArgumentNullException"><paramref name="options"/> is <c>null</c>.</exception>
-        public void Populate(ServerRedundancyOptions options)
-        {
-            if (options == null)
-            {
-                throw new ArgumentNullException(nameof(options));
-            }
-
-            options.PeerServerUris.Clear();
-            foreach (string uri in PeerServerUris.Span)
-            {
-                options.PeerServerUris.Add(uri);
-            }
         }
 
         /// <summary>

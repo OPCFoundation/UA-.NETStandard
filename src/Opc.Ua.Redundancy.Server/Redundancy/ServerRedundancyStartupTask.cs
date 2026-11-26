@@ -16,7 +16,7 @@ namespace Opc.Ua.Redundancy.Server
     /// configured <see cref="ServerRedundancyOptions"/> via the
     /// <see cref="ServerRedundancyController"/>.
     /// </summary>
-    public sealed class ServerRedundancyStartupTask : IServerStartupTask
+    public sealed class ServerRedundancyStartupTask : IServerStartupTask, IAsyncDisposable
     {
         /// <summary>
         /// Creates the task.
@@ -29,9 +29,21 @@ namespace Opc.Ua.Redundancy.Server
         public ServerRedundancyStartupTask(
             ServerRedundancyController controller,
             bool warnIfServiceLevelProviderMissing = false)
+            : this(controller, warnIfServiceLevelProviderMissing, TimeProvider.System)
+        {
+        }
+
+        /// <summary>
+        /// Creates the startup task and supplies the time source for status refresh.
+        /// </summary>
+        internal ServerRedundancyStartupTask(
+            ServerRedundancyController controller,
+            bool warnIfServiceLevelProviderMissing,
+            TimeProvider timeProvider)
         {
             m_controller = controller ?? throw new ArgumentNullException(nameof(controller));
             m_warnIfServiceLevelProviderMissing = warnIfServiceLevelProviderMissing;
+            m_timeProvider = timeProvider;
         }
 
         /// <inheritdoc/>
@@ -46,6 +58,55 @@ namespace Opc.Ua.Redundancy.Server
             WarnIfServiceLevelProviderMissing(server);
 
             await m_controller.AttachAsync(server, cancellationToken).ConfigureAwait(false);
+            m_refresh = RefreshPeerStatusAsync(server, m_stop.Token);
+        }
+
+        /// <inheritdoc/>
+        public async ValueTask DisposeAsync()
+        {
+            if (Interlocked.Exchange(ref m_disposed, 1) != 0)
+            {
+                return;
+            }
+            try
+            {
+                m_stop.Cancel();
+                if (m_refresh != null)
+                {
+                    await m_refresh.ConfigureAwait(false);
+                }
+            }
+            finally
+            {
+                m_stop.Dispose();
+            }
+        }
+
+        private async Task RefreshPeerStatusAsync(IServerContext server, CancellationToken ct)
+        {
+            ILogger? logger = null;
+            try
+            {
+                while (true)
+                {
+                    await m_timeProvider.Delay(s_refreshInterval, ct).ConfigureAwait(false);
+                    using var timeout = CancellationTokenSource.CreateLinkedTokenSource(ct);
+                    timeout.CancelAfter(s_refreshInterval);
+                    try
+                    {
+                        await m_controller.RefreshPeerStatusAsync(timeout.Token).ConfigureAwait(false);
+                    }
+                    catch (Exception ex) when (!ct.IsCancellationRequested)
+                    {
+                        logger ??= server.DefaultSystemContext.Telemetry.CreateLogger<ServerRedundancyStartupTask>();
+                        logger.PeerStatusRefreshFailed(ex);
+                    }
+                }
+            }
+            catch (OperationCanceledException) when (ct.IsCancellationRequested)
+            {
+                // The startup task is being disposed.
+            }
         }
 
         private void WarnIfServiceLevelProviderMissing(IServerContext server)
@@ -61,6 +122,11 @@ namespace Opc.Ua.Redundancy.Server
 
         private readonly ServerRedundancyController m_controller;
         private readonly bool m_warnIfServiceLevelProviderMissing;
+        private readonly TimeProvider m_timeProvider;
+        private readonly CancellationTokenSource m_stop = new();
+        private Task? m_refresh;
+        private int m_disposed;
+        private static readonly TimeSpan s_refreshInterval = TimeSpan.FromSeconds(2);
     }
 
     /// <summary>
@@ -76,6 +142,11 @@ namespace Opc.Ua.Redundancy.Server
         public static partial void NonTransparentServerRedundancyModeWithoutServiceLevelProvider(
             this ILogger logger,
             RedundancySupport redundancyMode);
+
+        [LoggerMessage(EventId = RedundancyServerEventIds.ServerRedundancyStartupTask + 1,
+            Level = LogLevel.Warning,
+            Message = "Could not refresh authenticated redundant peer status. Retrying after the refresh interval.")]
+        public static partial void PeerStatusRefreshFailed(this ILogger logger, Exception exception);
     }
 
 }

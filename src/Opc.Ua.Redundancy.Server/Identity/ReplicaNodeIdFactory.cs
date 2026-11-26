@@ -72,7 +72,7 @@ namespace Opc.Ua.Redundancy.Server
         public ArrayOf<string> NamespaceUris => m_state.NamespaceUris;
 
         /// <summary>
-        /// Gets whether no incompatible peer has invalidated this replica's identity admission.
+        /// Gets whether this replica's live namespace layout has remained valid.
         /// </summary>
         public bool IsCompatible => Volatile.Read(ref m_state.Incompatible) == 0;
 
@@ -179,7 +179,7 @@ namespace Opc.Ua.Redundancy.Server
         /// Rejects a namespace table whose shared slots differ from the configured layout.
         /// </summary>
         /// <exception cref="ServiceResultException">
-        /// The replica has been rejected or the shared namespace slots differ from the configured layout.
+        /// The replica has an invalid live layout or the supplied shared slots differ from the configured layout.
         /// </exception>
         /// <exception cref="ArgumentNullException"><paramref name="namespaces"/> is <c>null</c>.</exception>
         public void ValidateNamespaces(NamespaceTable namespaces)
@@ -187,7 +187,7 @@ namespace Opc.Ua.Redundancy.Server
             if (!IsCompatible)
             {
                 throw ConfigurationError(
-                    "This replica received an incompatible identity contract and must not join the set.");
+                    "This replica's live namespace layout no longer matches its identity contract.");
             }
             if (namespaces == null)
             {
@@ -197,6 +197,11 @@ namespace Opc.Ua.Redundancy.Server
             {
                 if (namespaces.GetString((uint)(i + 2)) != NamespaceUris[i])
                 {
+                    if (m_state.Server?.TryGetTarget(out IServerContext? server) == true &&
+                        ReferenceEquals(namespaces, server.MessageContext.NamespaceUris))
+                    {
+                        MarkLocalIncompatible(server);
+                    }
                     throw ConfigurationError($"Replica namespace slot {i + 2} must contain '{NamespaceUris[i]}'.");
                 }
             }
@@ -520,11 +525,10 @@ namespace Opc.Ua.Redundancy.Server
             return ReplicaIdentityStore.VerifyAsync(store, protector, Descriptor, cancellationToken);
         }
 
-        internal void RejectPeer()
+        private void MarkLocalIncompatible(IServerContext server)
         {
             Interlocked.Exchange(ref m_state.Incompatible, 1);
-            if (m_state.Server?.TryGetTarget(out IServerContext? server) == true &&
-                server.ServerObject?.ServiceLevel is { } serviceLevel)
+            if (server.ServerObject?.ServiceLevel is { } serviceLevel)
             {
                 serviceLevel.Value = 0;
                 serviceLevel.ClearChangeMasks(server.DefaultSystemContext, false);

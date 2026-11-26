@@ -11,7 +11,6 @@ using System.Threading;
 using System.Threading.Tasks;
 using Moq;
 using NUnit.Framework;
-using Opc.Ua.Redundancy.Server;
 
 namespace Opc.Ua.Redundancy.Kubernetes.Tests
 {
@@ -105,32 +104,6 @@ namespace Opc.Ua.Redundancy.Kubernetes.Tests
             await discovery.RefreshAsync().ConfigureAwait(false);
 
             Assert.That(changedCount, Is.EqualTo(1));
-        }
-
-        [Test]
-        public async Task PopulateCopiesCurrentPeerUrisAsync()
-        {
-            var api = new Mock<IKubernetesApiClient>(MockBehavior.Strict);
-            api.SetupGet(x => x.IsInCluster).Returns(true);
-            api.Setup(x => x.ListEndpointSlicesAsync("ns", "svc", It.IsAny<CancellationToken>()))
-                .ReturnsAsync(NewSlices());
-            var discovery = new KubernetesPeerDiscovery(api.Object, NewOptions());
-            var options = new ServerRedundancyOptions();
-
-            await discovery.RefreshAsync().ConfigureAwait(false);
-            discovery.Populate(options);
-
-            Assert.That(options.PeerServerUris.ToArray(), Is.EqualTo(ExpectedPeerUris));
-        }
-
-        [Test]
-        public void PopulateRejectsNullOptions()
-        {
-            var api = new Mock<IKubernetesApiClient>(MockBehavior.Strict);
-            api.SetupGet(x => x.IsInCluster).Returns(false);
-            var discovery = new KubernetesPeerDiscovery(api.Object, NewOptions());
-
-            Assert.Throws<ArgumentNullException>(() => discovery.Populate(null!));
         }
 
         [Test]

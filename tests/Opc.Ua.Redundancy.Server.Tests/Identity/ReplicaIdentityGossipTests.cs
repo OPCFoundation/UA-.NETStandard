@@ -86,7 +86,7 @@ namespace Opc.Ua.Redundancy.Server.Tests.Identity
         }
 
         /// <summary>
-        /// Rejects an incompatible peer before merging, changing the graph, or advancing successful apply state.
+        /// Rejects incompatible peer state before applying it without invalidating the local identity.
         /// </summary>
         [TestCase("other-set", SharedUri, NodeIdAssignmentMode.Numeric)]
         [TestCase("gossip-set", "urn:gossip:other", NodeIdAssignmentMode.Numeric)]
@@ -123,7 +123,8 @@ namespace Opc.Ua.Redundancy.Server.Tests.Identity
 
             Assert.That(failure, Is.TypeOf<ServiceResultException>()
                 .With.Property(nameof(ServiceResultException.StatusCode)).EqualTo(StatusCodes.BadConfigurationError));
-            Assert.That(identityA.IsCompatible, Is.False);
+            Assert.That(identityA.IsCompatible, Is.True);
+            Assert.That(() => identityA.ValidateNamespaces(contextA.NamespaceUris), Throws.Nothing);
             Assert.That(syncA.InboundApplyCount, Is.Zero);
             Assert.That(spaceA.TryGetNode(retained.NodeId, out NodeState? unchanged), Is.True);
             Assert.That(unchanged, Is.SameAs(retained));

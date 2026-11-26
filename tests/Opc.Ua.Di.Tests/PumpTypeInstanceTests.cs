@@ -133,7 +133,7 @@ namespace Opc.Ua.Di.Tests
             PumpNodeManager manager,
             NodeId nodeId)
         {
-            object handle = await manager.GetManagerHandleAsync(nodeId).ConfigureAwait(false);
+            object handle = (await manager.GetManagerHandleAsync(nodeId).ConfigureAwait(false))!;
             using var continuationPoint = new ContinuationPoint
             {
                 NodeToBrowse = handle,

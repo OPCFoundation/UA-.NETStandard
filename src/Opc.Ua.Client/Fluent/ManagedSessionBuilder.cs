@@ -605,7 +605,9 @@ namespace Opc.Ua.Client
         }
 
         /// <summary>
-        /// Enable server redundancy with a default handler.
+        /// Enables server redundancy with a default handler. Configure
+        /// <see cref="ServerRedundancyOptions.ExpectedServerApplicationUri"/> through
+        /// <see cref="WithServerRedundancyOptions"/>.
         /// </summary>
         public ManagedSessionBuilder WithServerRedundancy()
         {
@@ -615,7 +617,9 @@ namespace Opc.Ua.Client
         }
 
         /// <summary>
-        /// Enable server redundancy with the supplied handler.
+        /// Enables server redundancy with the supplied handler. Configure
+        /// <see cref="ServerRedundancyOptions.ExpectedServerApplicationUri"/> through
+        /// <see cref="WithServerRedundancyOptions"/>.
         /// </summary>
         /// <exception cref="ArgumentNullException"></exception>
         public ManagedSessionBuilder WithServerRedundancy(IServerRedundancyHandler handler)
@@ -627,10 +631,8 @@ namespace Opc.Ua.Client
         }
 
         /// <summary>
-        /// Sets the timeouts the default server redundancy handler uses for the
-        /// redundancy metadata read and peer endpoint lookup. Raise them on a
-        /// high-latency link. Takes effect when server redundancy is enabled and
-        /// no custom handler is supplied.
+        /// Sets the initial peer identity and selection settings for a redundant session.
+        /// The default handler also uses these options to bound peer discovery.
         /// </summary>
         /// <exception cref="ArgumentNullException"><paramref name="options"/> is <c>null</c>.</exception>
         public ManagedSessionBuilder WithServerRedundancyOptions(ServerRedundancyOptions options)
@@ -868,11 +870,7 @@ namespace Opc.Ua.Client
         public async Task<ManagedSession> ConnectAsync(CancellationToken ct = default)
         {
             ManagedSessionOptions opts = m_options;
-            if (opts.Endpoint == null && opts.TakeoverFrom?.Session.ConfiguredEndpoint != null)
-            {
-                opts = opts with { Endpoint = CoreUtils.Clone(opts.TakeoverFrom.Session.ConfiguredEndpoint) };
-            }
-            if (opts.Endpoint == null)
+            if (opts.Endpoint == null && opts.TakeoverFrom?.Session.ConfiguredEndpoint == null)
             {
                 throw new InvalidOperationException(
                     "ManagedSessionBuilder.UseEndpoint or TakeOver must be called before ConnectAsync.");
@@ -895,15 +893,6 @@ namespace Opc.Ua.Client
             IReconnectPolicy reconnect =
                 m_reconnectPolicy ?? new ReconnectPolicy(opts.ReconnectPolicy);
 
-            // Redundancy is transparent and on by default: a non-redundant server simply
-            // reports RedundancySupport.None and no failover occurs, while transparent and
-            // non-transparent redundant servers are handled without any special connect API.
-            IServerRedundancyHandler redundancy = m_redundancyHandler ??
-                new DefaultServerRedundancyHandler(
-                    DefaultServerRedundancyHandler.CreateEndpointResolver(opts.ServerRedundancy, m_telemetry),
-                    opts.TimeProvider,
-                    opts.ServerRedundancy);
-
             IClientChannelManager? channelManager = m_channelManager;
             ClientChannelManager? ownedChannelManager = null;
             ServiceProviderHttpClientFactory? ownedHttpClientFactory = null;
@@ -925,7 +914,8 @@ namespace Opc.Ua.Client
                         securityPolicies: m_securityPolicies);
                     channelManager = ownedChannelManager;
                 }
-                else if (channelManager == null && IsWebApiEndpoint(opts.Endpoint))
+                else if (channelManager == null &&
+                    IsWebApiEndpoint(opts.Endpoint ?? opts.TakeoverFrom?.Session.ConfiguredEndpoint))
                 {
                     ownedChannelManager = new ClientChannelManager(
                         m_configuration,
@@ -943,7 +933,7 @@ namespace Opc.Ua.Client
                     m_configuration,
                     sessionFactory,
                     reconnect,
-                    redundancy,
+                    m_redundancyHandler,
                     m_telemetry,
                     channelManager,
                     m_reverseConnectManager,

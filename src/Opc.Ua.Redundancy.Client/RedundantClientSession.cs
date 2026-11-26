@@ -156,7 +156,7 @@ namespace Opc.Ua.Redundancy.Client
         [Obsolete("The classic subscription template is deprecated. Use the managed " +
             "subscription model (ISubscriptionManager.Add with SubscriptionOptions) instead. " +
             "See docs/MigrationGuide.md.")]
-        public Subscription DefaultSubscription
+        Subscription ISession.DefaultSubscription
         {
             get => RequireCurrentSession().DefaultSubscription;
             set => RequireCurrentSession().DefaultSubscription = value;
@@ -349,7 +349,7 @@ namespace Opc.Ua.Redundancy.Client
         /// <inheritdoc/>
         [Obsolete("Use an ISubscriptionAcknowledgementProvider (ManagedSessionOptions.AcknowledgementProvider) " +
             "or AcknowledgementMode.AfterConfirmation instead. See docs/Subscriptions.md.")]
-        public event PublishSequenceNumbersToAcknowledgeEventHandler PublishSequenceNumbersToAcknowledge
+        event PublishSequenceNumbersToAcknowledgeEventHandler ISession.PublishSequenceNumbersToAcknowledge
         {
             add
             {
@@ -705,7 +705,7 @@ namespace Opc.Ua.Redundancy.Client
         [Obsolete(
             "Channels are now managed centrally via IClientChannelManager. Use Session.CreateAsync(IClientChannelManager, ...) instead of manual AttachChannel/DetachChannel. This method remains functional for back-compat."
         )]
-        public void AttachChannel(ITransportChannel channel)
+        void IClientBase.AttachChannel(ITransportChannel channel)
         {
             RequireCurrentSession().AttachChannel(channel);
         }
@@ -714,7 +714,7 @@ namespace Opc.Ua.Redundancy.Client
         [Obsolete(
             "Channels are now managed centrally via IClientChannelManager. Use Session.CreateAsync(IClientChannelManager, ...) instead of manual AttachChannel/DetachChannel. This method remains functional for back-compat."
         )]
-        public void DetachChannel()
+        void IClientBase.DetachChannel()
         {
             RequireCurrentSession().DetachChannel();
         }

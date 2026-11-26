@@ -35,8 +35,8 @@ namespace Opc.Ua.Client.Tests
             using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(90));
             await using ReverseConnectSet set = await ReverseConnectSet.StartAsync(true, timeout.Token)
                 .ConfigureAwait(false);
-            set.Primary.SetServiceLevel(250);
-            set.Backup.SetServiceLevel(210);
+            set.Primary.SetServiceLevel(150);
+            set.Backup.SetServiceLevel(180);
 
             await using UaManagedSession session = await set.ConnectAsync(
                 new ServerRedundancyOptions { ProbeMemberServiceLevel = true }, null, timeout.Token)
@@ -48,7 +48,7 @@ namespace Opc.Ua.Client.Tests
             Assert.Multiple(() =>
             {
                 Assert.That(ServerUriOf(session), Is.EqualTo(set.Primary.ApplicationUri));
-                Assert.That(backup.ServiceLevel, Is.EqualTo(210));
+                Assert.That(backup.ServiceLevel, Is.EqualTo(180));
                 Assert.That(backup.ResolutionError, Is.Null);
                 Assert.That(backup.Endpoint?.ReverseConnect?.Enabled, Is.True);
                 Assert.That(backup.Endpoint?.ReverseConnect?.ServerUri, Is.EqualTo(set.Backup.ApplicationUri));
@@ -94,12 +94,14 @@ namespace Opc.Ua.Client.Tests
 
             // Closing the connection the source handed out for the member breaks the session,
             // which proves that the session runs on it, and recovery waits for the member again.
-            ITransportWaitingConnection used = set.Source.LastConnection(set.Backup.ApplicationUri)!;
+            var channel = (UaSCUaBinaryTransportChannel)session.TransportChannel;
+            IUaSCByteTransport transport = channel.Transport!;
+            Assert.That(set.Source.Supplied(set.Backup.ApplicationUri, transport), Is.True);
             int requests = set.Source.RequestCount(set.Backup.ApplicationUri);
             while (states.TryDequeue(out _))
             {
             }
-            ((IUaSCByteTransport)used.Handle).Close();
+            transport.Close();
             await WaitUntilAsync(
                 () => states.Contains(ConnectionState.Reconnecting) &&
                     session.StateMachine.State == ConnectionState.Connected,
@@ -266,8 +268,8 @@ namespace Opc.Ua.Client.Tests
             using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(90));
             await using ReverseConnectSet set = await ReverseConnectSet.StartAsync(true, timeout.Token)
                 .ConfigureAwait(false);
-            set.Primary.SetServiceLevel(250);
-            set.Backup.SetServiceLevel(210);
+            set.Primary.SetServiceLevel(150);
+            set.Backup.SetServiceLevel(180);
             var members = new ControlledMemberConnections(set.Source);
             var options = new ServerRedundancyOptions
             {
@@ -308,8 +310,8 @@ namespace Opc.Ua.Client.Tests
             using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(120));
             await using ReverseConnectSet set = await ReverseConnectSet.StartAsync(true, timeout.Token)
                 .ConfigureAwait(false);
-            set.Primary.SetServiceLevel(250);
-            set.Backup.SetServiceLevel(210);
+            set.Primary.SetServiceLevel(150);
+            set.Backup.SetServiceLevel(180);
             var members = new ControlledMemberConnections(set.Source)
             {
                 AnnounceAliases = true,
@@ -326,7 +328,7 @@ namespace Opc.Ua.Client.Tests
             Assert.Multiple(() =>
             {
                 Assert.That(backup.ResolutionError, Is.Null);
-                Assert.That(backup.ServiceLevel, Is.EqualTo(210));
+                Assert.That(backup.ServiceLevel, Is.EqualTo(180));
                 Assert.That(
                     backup.Endpoint?.EndpointUrl?.OriginalString,
                     Is.Not.EqualTo(ControlledMemberConnections.Alias(set.Backup.ApplicationUri)),
@@ -393,7 +395,7 @@ namespace Opc.Ua.Client.Tests
             {
                 // A snapshot does not refresh on arrival; arrange the unmarked target independently.
                 ConfiguredEndpoint resolved = await set.Client.GetEndpointAsync(
-                    new Uri(set.Backup.Url), SecurityPolicies.None).ConfigureAwait(false);
+                    new Uri(set.Backup.Url), SecurityPolicies.Basic256Sha256).ConfigureAwait(false);
                 target = new ConfiguredEndpoint(null, resolved.Description, resolved.Configuration)
                 {
                     UpdateBeforeConnect = false
@@ -415,7 +417,10 @@ namespace Opc.Ua.Client.Tests
             var states = new ConcurrentQueue<ConnectionState>();
             session.ConnectionStateChanged += (_, e) => states.Enqueue(e.NewState);
             requests = memberSource.RequestCount(set.Backup.ApplicationUri);
-            ((IUaSCByteTransport)memberSource.LastConnection(set.Backup.ApplicationUri)!.Handle).Close();
+            var channel = (UaSCUaBinaryTransportChannel)session.TransportChannel;
+            IUaSCByteTransport transport = channel.Transport!;
+            Assert.That(memberSource.Supplied(set.Backup.ApplicationUri, transport), Is.True);
+            transport.Close();
             await WaitUntilAsync(
                 () => states.Contains(ConnectionState.Reconnecting) &&
                     session.StateMachine.State == ConnectionState.Connected,
@@ -619,7 +624,11 @@ namespace Opc.Ua.Client.Tests
                         SessionName = "ReverseConnectRedundancy",
                         ReverseConnectionSource = initialManager || initialDialed ? null : source ?? Source,
                         EnableServerRedundancy = true,
-                        ServerRedundancy = options with { MemberConnections = members ?? Source },
+                        ServerRedundancy = options with
+                        {
+                            MemberConnections = members ?? Source,
+                            ExpectedServerApplicationUri = Primary.ApplicationUri
+                        },
                         ReconnectPolicy = policy ?? new ReconnectPolicyOptions()
                     },
                     Client.Config,
@@ -695,7 +704,7 @@ namespace Opc.Ua.Client.Tests
                 ArrayOf<EndpointDescription> endpoints = await client.GetEndpointsAsync(default, ct)
                     .ConfigureAwait(false);
                 await client.CloseAsync(ct).ConfigureAwait(false);
-                return ClientFixture.SelectEndpoint(Client.Config, endpoints, url, SecurityPolicies.None);
+                return ClientFixture.SelectEndpoint(Client.Config, endpoints, url, SecurityPolicies.Basic256Sha256);
             }
 
             private readonly string m_root;
@@ -752,6 +761,11 @@ namespace Opc.Ua.Client.Tests
                     : null;
             }
 
+            public bool Supplied(string serverUri, IUaSCByteTransport transport)
+            {
+                return m_supplied.Any(item => item.ServerUri == serverUri && ReferenceEquals(item.Handle, transport));
+            }
+
             public IReadOnlyList<Uri> GetAvailableEndpointUrls(string serverUri)
             {
                 if (HideAvailability)
@@ -777,6 +791,7 @@ namespace Opc.Ua.Client.Tests
                 ITransportWaitingConnection connection = await m_inner
                     .WaitForConnectionAsync(endpointUrl, serverUri, ct).ConfigureAwait(false);
                 m_connections[connection.ServerUri] = connection;
+                m_supplied.Enqueue(connection);
                 return connection;
             }
 
@@ -784,6 +799,7 @@ namespace Opc.Ua.Client.Tests
             private readonly ConcurrentDictionary<string, int> m_requests = new(StringComparer.Ordinal);
             private readonly ConcurrentDictionary<string, ITransportWaitingConnection> m_connections =
                 new(StringComparer.Ordinal);
+            private readonly ConcurrentQueue<ITransportWaitingConnection> m_supplied = new();
             private readonly ConcurrentDictionary<string, IReadOnlyList<Uri>> m_announced =
                 new(StringComparer.Ordinal);
         }

@@ -87,6 +87,7 @@ namespace Opc.Ua.Client
         private int m_disposed;
         private bool m_hasConnected;
         private readonly ITimer m_recoveryTimer;
+        private DateTime? m_recoveryNotBefore;
         private ConnectionStateBudgetOperation? m_requestedReconnect;
         private ConnectionStateBudgetOperation? m_requestedFailover;
         private TaskCompletionSource<ServiceResult>? m_requestedFailoverOutcome;
@@ -338,6 +339,12 @@ namespace Opc.Ua.Client
                 m_recoveryTimer.Change(Timeout.InfiniteTimeSpan, Timeout.InfiniteTimeSpan);
                 if (m_state == ConnectionState.Disconnected)
                 {
+                    if (RecoveryDeferredLocked())
+                    {
+                        ScheduleRecoveryLocked();
+                        return false;
+                    }
+                    m_recoveryNotBefore = null;
                     m_reconnectPolicy.Reset();
                 }
                 m_requestedReconnect = operation;
@@ -352,6 +359,28 @@ namespace Opc.Ua.Client
             }
 
             m_trigger.Set();
+            DispatchStateChanges();
+            return true;
+        }
+
+        /// <summary>
+        /// Withholds services and defers the next recovery cycle until a maintenance deadline.
+        /// </summary>
+        internal bool SuspendRecoveryUntil(DateTime retryAfter, ServiceResult error)
+        {
+            lock (m_lock)
+            {
+                if (m_state != ConnectionState.Connected &&
+                    (!IsWorkerFlow || m_state is not (ConnectionState.Connecting or
+                        ConnectionState.Reconnecting or ConnectionState.Failover)))
+                {
+                    return false;
+                }
+
+                m_recoveryNotBefore = retryAfter;
+                m_lastError = error;
+                TransitionToDisconnectedLocked(error);
+            }
             DispatchStateChanges();
             return true;
         }
@@ -443,7 +472,7 @@ namespace Opc.Ua.Client
         {
             lock (m_lock)
             {
-                if (m_state != ConnectionState.Disconnected)
+                if (m_state != ConnectionState.Disconnected || RecoveryDeferredLocked())
                 {
                     return;
                 }
@@ -681,8 +710,7 @@ namespace Opc.Ua.Client
 
             lock (m_lock)
             {
-                if (m_state is ConnectionState.Closing
-                    or ConnectionState.Closed)
+                if (m_state != ConnectionState.Connecting)
                 {
                     return;
                 }
@@ -792,8 +820,7 @@ namespace Opc.Ua.Client
 
                         lock (m_lock)
                         {
-                            if (m_state is ConnectionState.Closing
-                                or ConnectionState.Closed)
+                            if (m_state != ConnectionState.Reconnecting)
                             {
                                 return;
                             }
@@ -815,8 +842,7 @@ namespace Opc.Ua.Client
 
                         // Stay in Reconnecting but notify observers
                         // of the failed attempt.
-                        if (m_state is ConnectionState.Closing
-                            or ConnectionState.Closed)
+                        if (m_state != ConnectionState.Reconnecting)
                         {
                             return;
                         }
@@ -994,8 +1020,7 @@ namespace Opc.Ua.Client
 
             lock (m_lock)
             {
-                if (m_state is ConnectionState.Closing
-                    or ConnectionState.Closed)
+                if (m_state != ConnectionState.Failover)
                 {
                     return;
                 }
@@ -1055,17 +1080,29 @@ namespace Opc.Ua.Client
 
             if (m_hasConnected)
             {
-                TimeSpan delay = m_reconnectPolicy is ReconnectPolicy policy
-                    ? policy.MaxDelay
-                    : ReconnectPolicy.DefaultMaxDelay;
-                if (delay < ReconnectPolicy.DefaultInitialDelay)
-                {
-                    delay = ReconnectPolicy.DefaultInitialDelay;
-                }
-                m_recoveryTimer.Change(delay, Timeout.InfiniteTimeSpan);
+                ScheduleRecoveryLocked();
             }
 
             m_settled.Set();
+        }
+
+        private void ScheduleRecoveryLocked()
+        {
+            TimeSpan delay = m_recoveryNotBefore is DateTime retryAfter
+                ? retryAfter - m_timeProvider.GetUtcNow().UtcDateTime
+                : m_reconnectPolicy is ReconnectPolicy policy
+                    ? policy.MaxDelay
+                    : ReconnectPolicy.DefaultMaxDelay;
+            TimeSpan minimum = m_recoveryNotBefore.HasValue ? TimeSpan.Zero : ReconnectPolicy.DefaultInitialDelay;
+            TimeSpan maximum = TimeSpan.FromMilliseconds(uint.MaxValue - 1);
+            m_recoveryTimer.Change(
+                delay < minimum ? minimum : delay > maximum ? maximum : delay,
+                Timeout.InfiniteTimeSpan);
+        }
+
+        private bool RecoveryDeferredLocked()
+        {
+            return m_recoveryNotBefore is DateTime retryAfter && retryAfter > m_timeProvider.GetUtcNow().UtcDateTime;
         }
 
         /// <summary>

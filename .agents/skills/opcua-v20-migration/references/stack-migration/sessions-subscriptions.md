@@ -1,3 +1,8 @@
+<!--
+SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+SPDX-License-Identifier: MIT
+-->
+
 # Sessions, GDS Client, and Subscriptions
 
 > **When to read this:** Read this for the move from caller-driven `Session`
@@ -227,10 +232,19 @@ ManagedSession session = await new ManagedSessionBuilder(configuration, telemetr
         MaxDelay = TimeSpan.FromSeconds(30)
     })
     .WithServerRedundancy()
+    .WithServerRedundancyOptions(new ServerRedundancyOptions
+    {
+        ExpectedServerApplicationUri = provisionedServerUri
+    })
     .ConnectAsync(ct);
 ```
 
 `Build()` returns an immutable `ManagedSessionOptions` snapshot; `ConnectAsync()` wraps `Build()` and `ManagedSession.CreateAsync(...)` so most callers can use the builder directly.
+
+When enabling server redundancy or token-reuse failover, provision
+`ServerRedundancyOptions.ExpectedServerApplicationUri` independently of
+discovery. A fully populated endpoint or a cached session handoff does not
+replace this configuration. Ordinary nonredundant connections do not need it.
 
 **New subscription API on `ISession`:**
 
@@ -408,7 +422,7 @@ Consumers adopting the new shape may need to add a `using Opc.Ua.Client.Subscrip
 
 The server-side `ISubscriptionStore` definition-persistence methods are asynchronous: `StoreSubscriptions` is now `ValueTask<bool> StoreSubscriptionsAsync(IEnumerable<IStoredSubscription>, CancellationToken)`, `RestoreSubscriptions` is now `ValueTask<RestoreSubscriptionResult> RestoreSubscriptionsAsync(CancellationToken)`, and `OnSubscriptionRestoreComplete` is now `ValueTask OnSubscriptionRestoreCompleteAsync(Dictionary<uint, ArrayOf<uint>>, CancellationToken)`. This lets subscription definitions be persisted to an async network backend without a sync-over-async wrapper. Custom `ISubscriptionStore` implementations must adopt the async signatures; a synchronous body can simply return `new ValueTask<T>(result)`.
 
-`ISubscriptionStore` also adds asynchronous per-monitored-item queue-restore hooks - `ValueTask<IDataChangeMonitoredItemQueue?> RestoreDataChangeMonitoredItemQueueAsync(uint, CancellationToken)` and `ValueTask<IEventMonitoredItemQueue?> RestoreEventMonitoredItemQueueAsync(uint, CancellationToken)` - so a networked store can re-hydrate a monitored-item queue without blocking. The master node manager pre-fetches these queues asynchronously at the start of subscription restore and hands the pre-hydrated queue to the (still synchronous) `MonitoredItem` constructor via new runtime-only `IStoredMonitoredItem.RestoredDataChangeQueue`/`RestoredEventQueue` properties. Custom `ISubscriptionStore` implementations must add the two async members; a store that keeps queues locally can simply delegate to the existing synchronous `RestoreDataChangeMonitoredItemQueue`/`RestoreEventMonitoredItemQueue`, which remain as the fallback used when no pre-hydrated queue is supplied. Custom `IStoredMonitoredItem` implementations must add the two new properties (the built-in `StoredMonitoredItem` already does). The high-availability `SharedKeyValueMonitoredItemQueueFactory` uses these hooks to restore mirrored queue contents on failover (see [High Availability](https://github.com/OPCFoundation/UA-.NETStandard/blob/master/docs/HighAvailability.md)).
+`ISubscriptionStore` also adds asynchronous per-monitored-item queue-restore hooks - `ValueTask<IDataChangeMonitoredItemQueue?> RestoreDataChangeMonitoredItemQueueAsync(uint, CancellationToken)` and `ValueTask<IEventMonitoredItemQueue?> RestoreEventMonitoredItemQueueAsync(uint, CancellationToken)` - so a networked store can re-hydrate a monitored-item queue without blocking. The master node manager pre-fetches these queues asynchronously at the start of subscription restore and hands the pre-hydrated queue to the (still synchronous) `MonitoredItem` constructor via new runtime-only `IStoredMonitoredItem.RestoredDataChangeQueue`/`RestoredEventQueue` properties. Custom `ISubscriptionStore` implementations must add the two async members; a store that keeps queues locally can simply delegate to the existing synchronous `RestoreDataChangeMonitoredItemQueue`/`RestoreEventMonitoredItemQueue`, which remain as the fallback used when no pre-hydrated queue is supplied. Custom `IStoredMonitoredItem` implementations must add the two new properties (the built-in `StoredMonitoredItem` already does).
 
 ### Request completion is owned by `OperationContext`
 

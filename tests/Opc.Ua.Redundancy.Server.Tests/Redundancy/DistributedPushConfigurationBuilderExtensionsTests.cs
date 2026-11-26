@@ -5,6 +5,8 @@
 // adds noise without a behavioural benefit. Disabled file-level for the suite.
 #pragma warning disable CA2007
 
+using System;
+using System.Security.Cryptography;
 using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection;
 using NUnit.Framework;
@@ -41,8 +43,9 @@ namespace Opc.Ua.Server.Tests.Redundancy
         {
             var builder = new DiTestServerBuilder();
             builder.Services.AddSingleton(NUnitTelemetryContext.Create());
+            AddFreshnessStore(builder.Services);
 
-            IOpcUaServerBuilder result = builder.UseDistributedPushConfiguration();
+            IOpcUaServerBuilder result = builder.UseDistributedPushConfiguration(ConfigureMember);
 
             Assert.That(result, Is.SameAs(builder));
             await using ServiceProvider sp = builder.Services.BuildServiceProvider();
@@ -60,13 +63,44 @@ namespace Opc.Ua.Server.Tests.Redundancy
         {
             var builder = new DiTestServerBuilder();
             builder.Services.AddSingleton(NUnitTelemetryContext.Create());
-            builder.UseDistributedPushConfiguration(options => options.RequireLeadership = true);
+            AddFreshnessStore(builder.Services);
+            builder.UseDistributedPushConfiguration(options =>
+            {
+                ConfigureMember(options);
+                options.RequireLeadership = true;
+            });
 
             await using ServiceProvider sp = builder.Services.BuildServiceProvider();
 
             Assert.That(
                 () => sp.GetRequiredService<IPushConfigurationTransactionCoordinator>(),
                 Throws.InvalidOperationException);
+        }
+
+        [Test]
+        public async Task MissingFreshnessStoreDoesNotRegisterOrUseLocalFallbackAsync()
+        {
+            var builder = new DiTestServerBuilder();
+            builder.Services.AddSingleton(NUnitTelemetryContext.Create());
+            builder.UseDistributedPushConfiguration(ConfigureMember);
+
+            await using ServiceProvider sp = builder.Services.BuildServiceProvider();
+            Assert.That(sp.GetService<ISharedKeyValueStore>(), Is.Null);
+            Assert.That(() => sp.GetRequiredService<IPushConfigurationTransactionCoordinator>(),
+                Throws.InvalidOperationException);
+        }
+
+        [Test]
+        public async Task MissingMembershipRejectsProtectedLeaseRegistrationAsync()
+        {
+            var builder = new DiTestServerBuilder();
+            builder.Services.AddSingleton(NUnitTelemetryContext.Create());
+            AddFreshnessStore(builder.Services);
+            builder.UseDistributedPushConfiguration(options => options.ReplicaId = "A");
+
+            await using ServiceProvider sp = builder.Services.BuildServiceProvider();
+            Assert.That(() => sp.GetRequiredService<IPushConfigurationTransactionCoordinator>(),
+                Throws.ArgumentException);
         }
 
         [Test]
@@ -89,12 +123,34 @@ namespace Opc.Ua.Server.Tests.Redundancy
             var builder = new DiTestServerBuilder();
             builder.Services.AddSingleton(NUnitTelemetryContext.Create());
 
+            builder.Services.AddSingleton<ISharedKeyValueStore, InMemorySharedKeyValueStore>();
             builder.UseDistributedPushConfiguration();
 
             await using ServiceProvider sp = builder.Services.BuildServiceProvider();
             Assert.That(
                 sp.GetRequiredService<IPendingCertificateKeyStore>(),
                 Is.InstanceOf<SharedKeyValuePendingCertificateKeyStore>());
+        }
+
+        private static void ConfigureMember(DistributedPushConfigurationOptions options)
+        {
+            options.ReplicaId = "A";
+            options.LeaseMemberIds = ["A", "B"];
+        }
+
+        private static void AddFreshnessStore(IServiceCollection services)
+        {
+            services.AddSingleton<ISharedKeyValueStore, InMemorySharedKeyValueStore>();
+            services.AddSingleton<SimulatedSharedKeyValueStore>();
+            services.AddSingleton<IRecordProtector>(_ =>
+            {
+                using var random = RandomNumberGenerator.Create();
+                var key = new byte[32];
+                random.GetBytes(key);
+                return new AesCbcHmacRecordProtector(key);
+            });
+            services.AddSharedRecordFreshness(
+                sp => sp.GetRequiredService<SimulatedSharedKeyValueStore>(), Guid.NewGuid(), Guid.NewGuid());
         }
 
         [Test]

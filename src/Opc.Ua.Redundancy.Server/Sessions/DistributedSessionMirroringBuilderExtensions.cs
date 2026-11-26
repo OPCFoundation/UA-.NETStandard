@@ -43,7 +43,7 @@ namespace Opc.Ua.Redundancy.Server
             builder.Services.TryAddSingleton<ISharedKeyValueStore>(_ => new InMemorySharedKeyValueStore());
             builder.Services.TryAddSingleton<ISessionManagerFactory>(sp =>
                 new DistributedSessionManagerFactory(
-                    sp.GetRequiredService<ISharedKeyValueStore>(),
+                    RecordProtectionGuard.ResolveFreshStoreOrThrow(sp),
                     RecordProtectionGuard.ResolveProtectorOrThrow(sp),
                     options));
 

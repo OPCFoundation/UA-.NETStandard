@@ -121,6 +121,11 @@ namespace Opc.Ua.PubSub.Groups
         public PubSubStateMachine State { get; }
 
         /// <summary>
+        /// Gets the component identity used by the activation coordinator.
+        /// </summary>
+        internal string ActivationComponentId => m_componentId;
+
+        /// <summary>
         /// Dispatches a decoded network message to all readers in the
         /// group whose filter matches.
         /// </summary>

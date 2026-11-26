@@ -1,3 +1,7 @@
+<!--
+SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+SPDX-License-Identifier: MIT
+-->
 <Project>
   <!-- Roslyn API versions the analyzers and source generators are built against.
        The central pins below track the newest of them so that the primary
@@ -23,13 +27,12 @@
     <PackageVersion Include="CommunityToolkit.Mvvm" Version="8.4.2" />
     <PackageVersion Include="Confluent.Kafka" Version="2.16.0" />
     <PackageVersion Include="coverlet.collector" Version="10.1.1" />
-    <PackageVersion Include="Crdt" Version="1.2.2" />
-    <PackageVersion Include="Crdt.Transport" Version="1.2.2" />
+    <PackageVersion Include="Crdt" Version="1.2.3" />
+    <PackageVersion Include="Crdt.Transport" Version="1.2.3" />
     <PackageVersion Include="Dekaf" Version="1.29.0" />
-    <PackageVersion Include="RaftCs" Version="1.1.6" />
-    <PackageVersion Include="RaftCs.Transport" Version="1.1.6" />
-    <PackageVersion Include="RaftCs.Transport.NanoMsg" Version="1.1.6" />
-    <PackageVersion Include="RaftCs.Storage.File" Version="1.1.6" />
+    <PackageVersion Include="RaftCs" Version="1.1.7" />
+    <PackageVersion Include="RaftCs.Transport" Version="1.1.7" />
+    <PackageVersion Include="RaftCs.Storage.File" Version="1.1.7" />
     <PackageVersion Include="EmbedIO" Version="3.5.2" />
     <PackageVersion Include="JsonSchema.Net" Version="9.7.0" />
     <PackageVersion Include="Makaretu.Dns.Multicast" Version="0.27.0" />

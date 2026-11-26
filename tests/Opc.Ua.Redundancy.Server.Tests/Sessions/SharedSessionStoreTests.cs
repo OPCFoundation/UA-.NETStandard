@@ -458,11 +458,10 @@ namespace Opc.Ua.Server.Tests.Redundancy
         }
 
         /// <summary>
-        /// The CRDT gossip store has no compare-and-swap; conditional writes fall back
-        /// to a compare followed by a write.
+        /// A backend without compare-and-swap can only update non-authoritative metadata.
         /// </summary>
         [Test]
-        public async Task ConditionalWritesWorkOverAStoreWithoutCompareAndSwapAsync()
+        public async Task StoreWithoutCompareAndSwapRejectsAuthoritativeWritesAsync()
         {
             using var inner = new InMemorySharedKeyValueStore();
             var kv = new NoCompareAndSwapStore(inner);
@@ -472,11 +471,14 @@ namespace Opc.Ua.Server.Tests.Redundancy
 
             SharedSessionEntry stale = (await store.TryGetAsync(entry.AuthenticationToken))!;
             SharedSessionEntry read = (await store.TryGetAsync(entry.AuthenticationToken))!;
-            Assert.That(await store.TryReplaceAsync(read, read with { OwnerId = "b" }), Is.True);
-            Assert.That(await store.TryReplaceAsync(stale, stale with { OwnerId = "a" }), Is.False);
+            await Assert.ThrowsAsync<NotSupportedException>(async () =>
+                await store.TryReplaceAsync(read, read with { OwnerId = "b" }));
+            await Assert.ThrowsAsync<NotSupportedException>(async () => await store.TryRemoveAsync(read));
+            Assert.That(await store.TryReplaceMetadataAsync(read, read with { OwnerId = "b" }, default), Is.True);
+            Assert.That(await store.TryReplaceMetadataAsync(stale, stale with { OwnerId = "a" }, default), Is.False);
 
             SharedSessionEntry current = (await store.TryGetAsync(entry.AuthenticationToken))!;
-            Assert.That(await store.TryRemoveAsync(current), Is.True);
+            Assert.That(await store.TryRemoveMetadataAsync(current, default), Is.True);
             Assert.That(await store.TryGetAsync(entry.AuthenticationToken), Is.Null);
         }
 

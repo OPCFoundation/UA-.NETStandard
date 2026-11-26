@@ -3,6 +3,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Threading;
 using System.Threading.Tasks;
 using Moq;
 using NUnit.Framework;
@@ -60,10 +61,81 @@ namespace Opc.Ua.PubSub.Server.Tests
             Assert.Multiple(() =>
             {
                 Assert.That(harness.GetSecurityKeysMethod.OnCallMethod2, Is.Not.Null);
+                Assert.That(harness.GetSecurityKeysMethod.OnCallMethod2Async, Is.Not.Null);
                 Assert.That(harness.GetSecurityGroupMethod.OnCallMethod, Is.Not.Null);
                 Assert.That(harness.AddSecurityGroupMethod.OnCallMethod, Is.Not.Null);
                 Assert.That(harness.RemoveSecurityGroupMethod.OnCallMethod, Is.Not.Null);
             });
+        }
+
+        [Test]
+        public async Task HostedSksAwaitsAuthoritativeCatalogAndKeyRequestAsync()
+        {
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(15));
+            CancellationToken ct = timeout.Token;
+            var group = new SksSecurityGroup(
+                "shared-group", PubSubSecurityPolicyUri.PubSubAes128Ctr, TimeSpan.FromMinutes(1), 2, 1, default,
+                ["publisher"]);
+            var keys = new TaskCompletionSource<SksKeyResponse>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var groupIds = new TaskCompletionSource<ArrayOf<string>>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var service = new Mock<IPubSubKeyServiceServer>(MockBehavior.Strict);
+            Mock<IAsyncPubSubSecurityGroupCatalog> catalog = service.As<IAsyncPubSubSecurityGroupCatalog>();
+            catalog.Setup(sks => sks.GetSecurityGroupIdsAsync(ct))
+                .Returns(new ValueTask<ArrayOf<string>>(groupIds.Task.WaitAsync(ct)));
+            service.Setup(sks => sks.GetSecurityGroupAsync(group.SecurityGroupId, ct))
+                .Returns(new ValueTask<SksSecurityGroup?>(group));
+            service.Setup(sks => sks.GetSecurityKeysAsync(
+                    "publisher", It.Is<SksKeyRequest>(request => request.SecurityGroupId == group.SecurityGroupId),
+                    It.IsAny<ArrayOf<NodeId>>(), ct))
+                .Returns(new ValueTask<SksKeyResponse>(keys.Task.WaitAsync(ct)));
+            using var harness = new Harness(
+                opt => opt.ExposeSecurityKeyService = true, includeSks: true, keyService: service.Object);
+
+            Task create = harness.Manager.CreateAddressSpaceAsync(
+                new Dictionary<NodeId, IList<IReference>>(), ct).AsTask();
+            Assert.That(create.IsCompleted, Is.False);
+            groupIds.SetResult([group.SecurityGroupId]);
+            await create.ConfigureAwait(false);
+            Assert.That(harness.Manager.MethodHandlers.TryGetSecurityGroupNodeId(group.SecurityGroupId), Is.Not.Null);
+
+            MethodState method = harness.GetSecurityKeysMethod;
+            method.Executable = true;
+            method.UserExecutable = true;
+            method.InputArguments = PropertyState<ArrayOf<Argument>>.With<StructureBuilder<Argument>>(method);
+            method.InputArguments.Value =
+            [
+                new Argument { DataType = DataTypeIds.String, ValueRank = ValueRanks.Scalar },
+                new Argument { DataType = DataTypeIds.UInt32, ValueRank = ValueRanks.Scalar },
+                new Argument { DataType = DataTypeIds.UInt32, ValueRank = ValueRanks.Scalar }
+            ];
+            method.OutputArguments = PropertyState<ArrayOf<Argument>>.With<StructureBuilder<Argument>>(method);
+            method.OutputArguments.Value =
+            [
+                new Argument { DataType = DataTypeIds.String, ValueRank = ValueRanks.Scalar },
+                new Argument { DataType = DataTypeIds.UInt32, ValueRank = ValueRanks.Scalar },
+                new Argument { DataType = DataTypeIds.ByteString, ValueRank = ValueRanks.OneDimension },
+                new Argument { DataType = DataTypeIds.Double, ValueRank = ValueRanks.Scalar },
+                new Argument { DataType = DataTypeIds.Double, ValueRank = ValueRanks.Scalar }
+            ];
+            var context = new SystemContext(NUnitTelemetryContext.Create())
+            {
+                UserId = "publisher",
+                NamespaceUris = harness.Context.NamespaceUris,
+                TypeTable = harness.Context.TypeTable
+            };
+            var outputs = new List<Variant>();
+            Task<ServiceResult> call = method.CallAsync(
+                context, ObjectIds.PublishSubscribe,
+                [Variant.From(group.SecurityGroupId), Variant.From(0u), Variant.From(1u)],
+                new List<ServiceResult>(), outputs, ct).AsTask();
+            Assert.That(call.IsCompleted, Is.False);
+            keys.SetResult(new SksKeyResponse(
+                group.SecurityPolicyUri, 5, [new byte[52]], group.KeyLifetime, group.KeyLifetime));
+
+            Assert.That(ServiceResult.IsGood(await call.ConfigureAwait(false)), Is.True);
+            Assert.That(outputs, Has.Count.EqualTo(5));
+            Assert.That(outputs[1].TryGetValue(out uint tokenId), Is.True);
+            Assert.That(tokenId, Is.EqualTo(5u));
         }
 
         [Test]
@@ -1038,7 +1110,8 @@ namespace Opc.Ua.PubSub.Server.Tests
                 Action<PubSubServerOptions>? configure = null,
                 bool includeSks = false,
                 PushSecurityKeyProvider? pushProvider = null,
-                bool materializePublishedDataSets = false)
+                bool materializePublishedDataSets = false,
+                IPubSubKeyServiceServer? keyService = null)
             {
                 MockServer = new Mock<IServerInternal>();
                 NamespaceTable = new NamespaceTable();
@@ -1234,7 +1307,7 @@ namespace Opc.Ua.PubSub.Server.Tests
                     MockServer.Object,
                     Configuration,
                     Application,
-                    includeSks ? SksServer : null,
+                    includeSks ? keyService ?? SksServer : null,
                     Options,
                     telemetry,
                     pushKeyProviders: pushProvider is null ? null : [pushProvider]);

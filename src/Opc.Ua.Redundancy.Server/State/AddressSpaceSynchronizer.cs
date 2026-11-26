@@ -47,7 +47,6 @@ namespace Opc.Ua.Redundancy.Server
         {
             m_store = store ?? throw new ArgumentNullException(nameof(store));
             m_addressSpace = addressSpace ?? throw new ArgumentNullException(nameof(addressSpace));
-            m_isWriter = isWriter ?? (static () => true);
             m_logger = logger;
             m_ownsNode = ownsNode ?? (static _ => true);
             m_partitionId = partitionId;
@@ -55,7 +54,8 @@ namespace Opc.Ua.Redundancy.Server
             m_onChanged = OnLocalNodeChanged;
             m_onNodeAdded = OnLocalNodeAdded;
             m_onNodeRemoved = OnLocalNodeRemoved;
-            Volatile.Write(ref m_isWriterState, m_isWriter() ? 1 : 0);
+            m_writerRequested = isWriter?.Invoke() ?? true;
+            m_requiresCheckpoint = !m_writerRequested;
         }
 
         /// <summary>
@@ -95,14 +95,73 @@ namespace Opc.Ua.Redundancy.Server
             m_election = election ?? throw new ArgumentNullException(nameof(election));
             m_onLeadershipChanged = OnLeadershipChanged;
             m_election.LeadershipChanged += m_onLeadershipChanged;
-            Volatile.Write(ref m_isWriterState, m_election.IsLeader ? 1 : 0);
+            OnLeadershipChanged(m_election.IsLeader);
         }
 
         /// <inheritdoc/>
-        public bool IsWriter => Volatile.Read(ref m_isWriterState) != 0;
+        public bool IsWriter => Role == ReplicationRole.Writer;
 
         /// <summary>
-        /// Raised (for tests) after each inbound change is applied.
+        /// Gets whether the local address space is verified and can be advertised as available.
+        /// An elected writer is not ready until it has completed its address-space handoff.
+        /// </summary>
+        internal bool IsReady => Role != ReplicationRole.Unavailable;
+
+        /// <summary>
+        /// Gets a single snapshot of readiness and the effective replication role.
+        /// </summary>
+        internal (bool IsReady, bool IsWriter) ReplicationStatus
+        {
+            get
+            {
+                ReplicationRole role = Role;
+                return (role != ReplicationRole.Unavailable, role == ReplicationRole.Writer);
+            }
+        }
+
+        /// <summary>
+        /// Indicates whether the election can bind mutations to a committed writer grant.
+        /// </summary>
+        internal static bool SupportsWriterFence(ILeaderElection election) =>
+            election is ISharedStoreWriteFenceSource;
+
+        /// <summary>
+        /// Checks whether this synchronizer owns the given node's publication.
+        /// </summary>
+        internal bool OwnsNode(NodeId nodeId) => m_ownsNode(nodeId);
+
+        /// <summary>
+        /// Writes a value-cache update through the same grant and generation used by replication.
+        /// </summary>
+        internal async ValueTask PublishManagedValueAsync(NodeId nodeId, DataValue value, CancellationToken ct)
+        {
+            Task? epoch = GetWriterEpoch();
+            if (epoch == null || !OwnsNode(nodeId))
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadNotWritable, "The owning address-space writer is not verified.");
+            }
+            m_identity?.ValidateValue(m_addressSpace.Context, value);
+            await m_applyGate.WaitAsync(ct).ConfigureAwait(false);
+            try
+            {
+                await WriteOutboundAsync(new QueuedOutbound(OutboundOp.ForValue(nodeId, value), epoch), ct)
+                    .ConfigureAwait(false);
+                MaybeTriggerSnapshotPublish(epoch);
+            }
+            catch
+            {
+                OnWriterMutationFailed(epoch);
+                throw;
+            }
+            finally
+            {
+                m_applyGate.Release();
+            }
+        }
+
+        /// <summary>
+        /// Raised for tests after an inbound change is processed without rejection.
         /// </summary>
         internal event Action<NodeStateChange>? InboundApplied;
 
@@ -124,11 +183,62 @@ namespace Opc.Ua.Redundancy.Server
         /// <inheritdoc/>
         public async ValueTask SeedOrHydrateAsync(CancellationToken ct = default)
         {
+            CancellationTokenSource hydration;
+            lock (m_lock)
+            {
+                if (m_disposed)
+                {
+                    throw new ObjectDisposedException(nameof(AddressSpaceSynchronizer));
+                }
+                hydration = CancellationTokenSource.CreateLinkedTokenSource(ct, m_cts.Token);
+            }
+            using var hydrationCleanup = hydration;
+            ct = hydration.Token;
+            await m_applyGate.WaitAsync(ct).ConfigureAwait(false);
+            Task? seedEpoch;
+            lock (m_lock)
+            {
+                seedEpoch = CanInitializeWriter ? m_roleChanged.Task : null;
+            }
+            try
+            {
+                if (seedEpoch != null && HasAuthoritativeReads &&
+                    !await TryBindWriterFenceAsync(seedEpoch, ct).ConfigureAwait(false))
+                {
+                    throw new ServiceResultException(
+                        StatusCodes.BadNotWritable, "The address-space writer grant is not available.");
+                }
+                if (seedEpoch != null && RequiresCommitFence &&
+                    await ((InMemoryNodeStateStore)m_store).HasPendingPublicationsAsync(ct).ConfigureAwait(false))
+                {
+                    throw new ServiceResultException(
+                        StatusCodes.BadInvalidState, "An earlier address-space publication is unfinished.");
+                }
+                await SeedOrHydrateCoreAsync(seedEpoch, ct).ConfigureAwait(false);
+            }
+            catch
+            {
+                lock (m_lock)
+                {
+                    if (seedEpoch != null && !m_disposed && ReferenceEquals(seedEpoch, m_roleChanged.Task))
+                    {
+                        RequireCheckpointLocked();
+                    }
+                }
+                throw;
+            }
+            finally
+            {
+                m_applyGate.Release();
+            }
+        }
+
+        private async ValueTask SeedOrHydrateCoreAsync(Task? seedEpoch, CancellationToken ct)
+        {
             bool supportsPartitionMarker = m_partitionId != null &&
                 m_store is INodeStatePartitionStore;
             bool partitionInitialized = await IsPartitionInitializedAsync(ct).ConfigureAwait(false);
-            bool authoritativeReads = m_store is not INodeStateStoreReadConsistency readConsistency ||
-                readConsistency.HasAuthoritativeReads;
+            bool authoritativeReads = HasAuthoritativeReads;
             bool authoritative = authoritativeReads && (!supportsPartitionMarker || partitionInitialized);
             ulong fallbackDeltaSequence = 0;
             bool sawStoredState = false;
@@ -158,9 +268,9 @@ namespace Opc.Ua.Redundancy.Server
                         {
                             await RemoveMissingLocalRootsAsync(hydratedRoots, ct).ConfigureAwait(false);
                         }
-                        else if (IsWriter && authoritativeReads)
+                        else if (seedEpoch != null && authoritativeReads)
                         {
-                            await SeedLocalNodesAsync(ct).ConfigureAwait(false);
+                            await SeedLocalNodesAsync(seedEpoch, ct).ConfigureAwait(false);
                         }
                         return;
                     }
@@ -174,48 +284,7 @@ namespace Opc.Ua.Redundancy.Server
             }
 
             var hydratedRootIds = new HashSet<NodeId>();
-            if (m_store is ISequencedNodeStateStore sequencedStore)
-            {
-                await foreach ((IStoredNode stored, ulong sequence) in sequencedStore
-                    .EnumerateNodesWithSequenceAsync(ct)
-                    .ConfigureAwait(false))
-                {
-                    ObserveStoreSequence(sequence);
-                    if (!m_ownsNode(stored.NodeId))
-                    {
-                        continue;
-                    }
-                    sawStoredState = true;
-                    if (IsTopologyApplicable(stored.NodeId, sequence))
-                    {
-                        await TryApplyUpsertAsync(
-                            stored.NodeId,
-                            stored.Payload,
-                            sequence,
-                            ct).ConfigureAwait(false);
-                        RecordTopology(stored.NodeId, sequence, exists: true);
-                    }
-                    UpdateHydratedRootIds(hydratedRootIds, stored.NodeId);
-                }
-            }
-            else
-            {
-                await foreach (IStoredNode stored in m_store.EnumerateAsync(ct).ConfigureAwait(false))
-                {
-                    if (!m_ownsNode(stored.NodeId))
-                    {
-                        continue;
-                    }
-                    sawStoredState = true;
-                    await TryApplyUpsertAsync(
-                        stored.NodeId,
-                        stored.Payload,
-                        0,
-                        ct).ConfigureAwait(false);
-                    RecordTopology(stored.NodeId, 0, exists: true);
-                    UpdateHydratedRootIds(hydratedRootIds, stored.NodeId);
-                }
-            }
+            sawStoredState |= await ScanStoredNodesAsync(hydratedRootIds, false, ct).ConfigureAwait(false);
 
             if (m_store is INodeStateSnapshotStore fallbackSnapshotStore)
             {
@@ -252,23 +321,102 @@ namespace Opc.Ua.Redundancy.Server
             if (authoritative &&
                 (supportsPartitionMarker || sawStoredState))
             {
-                // Apply the latest value for every hydrated variable; value
-                // keys can be newer than the node payload they were carved
-                // from. Stream the value keyspace in one pass instead of
-                // issuing a read per variable so hydrating a large address
-                // space costs a bounded number of round trips.
                 await ApplyStoredValuesAsync(ct).ConfigureAwait(false);
                 await RemoveMissingLocalRootsAsync(hydratedRootIds, ct).ConfigureAwait(false);
                 return;
             }
 
-            if (IsWriter)
+            if (seedEpoch != null)
             {
-                await SeedLocalNodesAsync(ct).ConfigureAwait(false);
+                await SeedLocalNodesAsync(seedEpoch, ct).ConfigureAwait(false);
             }
             else if (hydratedRootIds.Count > 0)
             {
                 await ApplyStoredValuesAsync(ct).ConfigureAwait(false);
+            }
+        }
+
+        private async ValueTask<bool> ScanStoredNodesAsync(
+            HashSet<NodeId> hydratedRootIds,
+            bool validateCheckpoint,
+            CancellationToken ct)
+        {
+            bool sawStoredState = false;
+            if (m_store is ISequencedNodeStateStore sequencedStore)
+            {
+                await foreach ((IStoredNode stored, ulong sequence) in sequencedStore
+                    .EnumerateNodesWithSequenceAsync(ct)
+                    .ConfigureAwait(false))
+                {
+                    ObserveStoreSequence(sequence);
+                    if (!m_ownsNode(stored.NodeId))
+                    {
+                        continue;
+                    }
+                    sawStoredState = true;
+                    if (validateCheckpoint)
+                    {
+                        await ApplyCheckpointNodeAsync(stored, sequence, ct).ConfigureAwait(false);
+                    }
+                    else if (IsTopologyApplicable(stored.NodeId, sequence))
+                    {
+                        await TryApplyUpsertAsync(
+                            stored.NodeId,
+                            stored.Payload,
+                            sequence,
+                            ct).ConfigureAwait(false);
+                        RecordTopology(stored.NodeId, sequence, exists: true);
+                    }
+                    UpdateHydratedRootIds(hydratedRootIds, stored.NodeId);
+                }
+            }
+            else
+            {
+                await foreach (IStoredNode stored in m_store.EnumerateAsync(ct).ConfigureAwait(false))
+                {
+                    if (!m_ownsNode(stored.NodeId))
+                    {
+                        continue;
+                    }
+                    sawStoredState = true;
+                    if (validateCheckpoint)
+                    {
+                        await ApplyCheckpointNodeAsync(stored, 0, ct).ConfigureAwait(false);
+                    }
+                    else
+                    {
+                        await TryApplyUpsertAsync(stored.NodeId, stored.Payload, 0, ct).ConfigureAwait(false);
+                        RecordTopology(stored.NodeId, 0, exists: true);
+                    }
+                    UpdateHydratedRootIds(hydratedRootIds, stored.NodeId);
+                }
+            }
+            return sawStoredState;
+        }
+
+        private async ValueTask ApplyCheckpointNodeAsync(IStoredNode stored, ulong sequence, CancellationToken ct)
+        {
+            NodeId nodeId = stored.NodeId;
+            if (m_topologyState.TryGetValue(nodeId, out TopologyState state) && sequence < state.Sequence)
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadInvalidState, "The address-space checkpoint moved backwards.");
+            }
+            try
+            {
+                NodeState source = DecodeStoredNode(nodeId, stored.Payload);
+                if (IsTopologyApplicable(nodeId, sequence) || !state.Exists)
+                {
+                    await ApplyUpsertAsync(nodeId, source, sequence, ct).ConfigureAwait(false);
+                    RecordTopology(nodeId, sequence, exists: true);
+                }
+            }
+            catch (ServiceResultException ex)
+            {
+                SetRole(ReplicationRole.Unavailable);
+                m_logger?.DistributedAddressSpaceInboundApplyFailed(ex, nodeId);
+                await WithdrawUnreconstructableTreeAsync(nodeId, sequence, ct).ConfigureAwait(false);
+                throw;
             }
         }
 
@@ -395,8 +543,10 @@ namespace Opc.Ua.Redundancy.Server
             return rootNodeIds;
         }
 
-        private async ValueTask SeedLocalNodesAsync(CancellationToken ct)
+        private async ValueTask SeedLocalNodesAsync(Task epoch, CancellationToken ct)
         {
+            using InMemoryNodeStateStore? writer = OpenFencedWriter(epoch);
+            INodeStateStore writeStore = writer ?? m_store;
             foreach (NodeState node in m_addressSpace.Nodes)
             {
                 if (!m_ownsNode(node.NodeId))
@@ -405,34 +555,39 @@ namespace Opc.Ua.Redundancy.Server
                 }
                 ValidateOwnedTree(node);
                 ByteString payload = SerializeLocalTree(node);
-                await m_store
+                VerifySeedEpoch(epoch);
+                await writeStore
                     .UpsertNodeAsync(
                         new StoredNode(node.NodeId, payload),
                         ct)
                     .ConfigureAwait(false);
-                await WriteVariableValuesAsync(node, ct).ConfigureAwait(false);
+                await WriteVariableValuesAsync(writeStore, node, epoch, ct).ConfigureAwait(false);
             }
 
             // Publish an initial snapshot so a standby that joins next hydrates
             // from it (and the seed's delta-log entries are trimmed).
-            if (SupportsSnapshots && m_store is INodeStateSnapshotStore seedSnapshotStore)
+            if (SupportsSnapshots && writeStore is INodeStateSnapshotStore seedSnapshotStore)
             {
+                VerifySeedEpoch(epoch);
                 await seedSnapshotStore.WriteSnapshotAsync(ct).ConfigureAwait(false);
             }
-            await MarkPartitionInitializedAsync(ct).ConfigureAwait(false);
+            VerifySeedEpoch(epoch);
+            await MarkPartitionInitializedAsync(writeStore, ct).ConfigureAwait(false);
         }
 
         /// <inheritdoc/>
-        public void Start()
+        public void Start() => StartCore(hydrating: false);
+
+        private void StartCore(bool hydrating)
         {
             lock (m_lock)
             {
-                if (m_started)
+                if (m_started || m_disposed)
                 {
                     return;
                 }
                 m_started = true;
-                m_outbound = Channel.CreateUnbounded<OutboundOp>(
+                m_outbound = Channel.CreateUnbounded<QueuedOutbound>(
                     new UnboundedChannelOptions { SingleReader = true, SingleWriter = false });
                 m_addressSpace.NodeAdded += m_onNodeAdded;
                 m_addressSpace.NodeRemoved += m_onNodeRemoved;
@@ -443,46 +598,48 @@ namespace Opc.Ua.Redundancy.Server
                         AttachStateChangedTree(node);
                     }
                 }
-                m_outboundTask = Task.Run(() => DrainOutboundAsync(m_cts.Token));
-                if (!IsWriter)
+                if (!hydrating)
                 {
-                    StartInboundLocked();
+                    FinishHydrationLocked();
                 }
+                m_outboundTask = Task.Run(() => DrainOutboundAsync(m_cts.Token));
+                // Register the first standby watch before returning, but never scan under the startup lock.
+                TaskCompletionSource<bool> started = NewSignal();
+                m_inboundTask = SuperviseInboundAsync(started.Task, m_cts.Token);
+                started.TrySetResult(true);
             }
         }
 
-        internal void StartBeforeHydration()
-        {
-            lock (m_lock)
-            {
-                m_bufferInbound = true;
-            }
-            Start();
-        }
+        /// <summary>
+        /// Starts replication, but defers live apply and readiness until initial hydration completes.
+        /// </summary>
+        internal void StartBeforeHydration() => StartCore(hydrating: true);
 
+        /// <summary>
+        /// Hands over initial hydration to live replication and waits for its first checkpoint outcome.
+        /// </summary>
         internal async ValueTask CompleteHydrationAsync(
             CancellationToken cancellationToken = default)
         {
-            while (true)
+            cancellationToken.ThrowIfCancellationRequested();
+            lock (m_lock)
             {
-                NodeStateChange[] buffered;
-                lock (m_lock)
+                if (m_disposed)
                 {
-                    if (m_bufferedInbound.Count == 0)
-                    {
-                        m_bufferInbound = false;
-                        return;
-                    }
-                    buffered = [.. m_bufferedInbound];
-                    m_bufferedInbound.Clear();
+                    return;
                 }
+                FinishHydrationLocked();
+            }
+            await m_initialCheckpoint.Task.WaitAsync(cancellationToken).ConfigureAwait(false);
+        }
 
-                foreach (NodeStateChange change in buffered)
-                {
-                    cancellationToken.ThrowIfCancellationRequested();
-                    await ApplyInboundAsync(change, cancellationToken).ConfigureAwait(false);
-                    InboundApplied?.Invoke(change);
-                }
+        private void FinishHydrationLocked()
+        {
+            if (m_hydrated.TrySetResult(true) && CanInitializeWriter && HasAuthoritativeReads &&
+                (!RequiresCommitFence || m_writeView != null))
+            {
+                SetRole(ReplicationRole.Writer);
+                m_initialCheckpoint.TrySetResult(true);
             }
         }
 
@@ -496,18 +653,19 @@ namespace Opc.Ua.Redundancy.Server
                     return;
                 }
                 m_disposed = true;
+                SetRole(ReplicationRole.Unavailable);
+                m_initialCheckpoint.TrySetResult(false);
             }
 
             m_cts.Cancel();
             m_outbound?.Writer.TryComplete();
-            StopInbound();
 
             try
             {
                 Task outbound = AwaitQuietlyAsync(m_outboundTask);
                 await Task.WhenAll(
                     outbound,
-                    AwaitQuietlyAsync(m_inboundCleanupTask),
+                    AwaitQuietlyAsync(m_inboundTask),
                     AwaitFinalSnapshotAsync(outbound)).ConfigureAwait(false);
             }
             finally
@@ -519,6 +677,8 @@ namespace Opc.Ua.Redundancy.Server
                     m_election.LeadershipChanged -= m_onLeadershipChanged;
                 }
                 DetachAll();
+                await m_applyGate.WaitAsync().ConfigureAwait(false);
+                m_applyGate.Dispose();
                 m_cts.Dispose();
             }
         }
@@ -549,15 +709,16 @@ namespace Opc.Ua.Redundancy.Server
             {
                 ApplyPendingValues(node);
             }
-            if (IsApplyingInbound || !IsWriter)
+            Task? epoch = IsApplyingInbound ? null : GetWriterEpoch();
+            if (epoch == null)
             {
                 return;
             }
             NodeState root = GetReplicationRoot(node);
             Enqueue(OutboundOp.ForUpsert(
                 root.NodeId,
-                SerializeLocalTree(root)));
-            EnqueueVariableValues(root);
+                SerializeLocalTree(root)), epoch);
+            EnqueueVariableValues(root, epoch);
         }
 
         private void OnLocalNodeRemoved(NodeId nodeId)
@@ -572,11 +733,12 @@ namespace Opc.Ua.Redundancy.Server
                 return;
             }
             DetachStateChanged(nodeId);
-            if (IsApplyingInbound || !IsWriter)
+            Task? epoch = IsApplyingInbound ? null : GetWriterEpoch();
+            if (epoch == null)
             {
                 return;
             }
-            Enqueue(OutboundOp.ForDelete(nodeId));
+            Enqueue(OutboundOp.ForDelete(nodeId), epoch);
         }
 
         private void OnLocalNodeChanged(ISystemContext context, NodeState node, NodeStateChangeMasks changes)
@@ -585,6 +747,7 @@ namespace Opc.Ua.Redundancy.Server
             {
                 return;
             }
+            Task? epoch;
             lock (m_lock)
             {
                 if (m_disposed ||
@@ -593,6 +756,7 @@ namespace Opc.Ua.Redundancy.Server
                 {
                     return;
                 }
+                epoch = IsWriter ? m_roleChanged.Task : null;
             }
             ValidateOwnedTree(node);
             // Deletes are driven by ILocalAddressSpace.NodeRemoved.
@@ -600,7 +764,7 @@ namespace Opc.Ua.Redundancy.Server
             {
                 return;
             }
-            if (!IsWriter)
+            if (epoch == null)
             {
                 return;
             }
@@ -609,7 +773,7 @@ namespace Opc.Ua.Redundancy.Server
             {
                 Enqueue(OutboundOp.ForValue(
                     node.NodeId,
-                    new DataValue(variable.Value, variable.StatusCode, variable.Timestamp)));
+                    new DataValue(variable.Value, variable.StatusCode, variable.Timestamp)), epoch);
             }
 
             if ((changes &
@@ -621,8 +785,8 @@ namespace Opc.Ua.Redundancy.Server
                 AttachStateChangedTree(replicationRoot);
                 Enqueue(OutboundOp.ForUpsert(
                     replicationRoot.NodeId,
-                    SerializeLocalTree(replicationRoot)));
-                EnqueueVariableValues(replicationRoot);
+                    SerializeLocalTree(replicationRoot)), epoch);
+                EnqueueVariableValues(replicationRoot, epoch);
             }
         }
 
@@ -639,13 +803,110 @@ namespace Opc.Ua.Redundancy.Server
             return root;
         }
 
-        private void Enqueue(OutboundOp op)
+        private Task<bool>? GetWriterEpoch()
+        {
+            lock (m_lock)
+            {
+                return IsWriter ? m_roleChanged.Task : null;
+            }
+        }
+
+        private void VerifySeedEpoch(Task epoch)
+        {
+            lock (m_lock)
+            {
+                if (!CanInitializeWriter || !ReferenceEquals(m_roleChanged.Task, epoch))
+                {
+                    throw new ServiceResultException(
+                        StatusCodes.BadInvalidState, "Writer ownership changed during address-space seeding.");
+                }
+            }
+        }
+
+        private async ValueTask<bool> TryBindWriterFenceAsync(Task epoch, CancellationToken ct)
+        {
+            if (!RequiresCommitFence)
+            {
+                return true;
+            }
+            FencedAddressSpaceWriteView? current;
+            lock (m_lock)
+            {
+                if (!ReferenceEquals(m_roleChanged.Task, epoch) || !m_writerRequested || m_disposed)
+                {
+                    return false;
+                }
+                current = m_writeView;
+            }
+            if (current != null)
+            {
+                await current.VerifyGrantAsync(ct).ConfigureAwait(false);
+                return true;
+            }
+            ISharedKeyValueStore storage = ((InMemoryNodeStateStore)m_store).Storage;
+            if (!InMemoryNodeStateStore.HasGuardedWrites(storage) ||
+                storage is not IDeadlineGuardedSharedKeyValueStore guarded ||
+                storage is not ISharedKeyValueStoreConsistency consistency ||
+                m_election is not ISharedStoreWriteFenceSource source ||
+                !source.TryCaptureWriteFence(
+                    storage, out string guardKey, out Func<SharedStoreWriteGrant>? readBoundGrant) ||
+                !consistency.IsLinearizable(guardKey) ||
+                consistency.IsProcessLocal(guardKey))
+            {
+                return false;
+            }
+            var view = new FencedAddressSpaceWriteView(guarded, consistency, guardKey, readBoundGrant);
+            await view.VerifyGrantAsync(ct).ConfigureAwait(false);
+            lock (m_lock)
+            {
+                if (!ReferenceEquals(m_roleChanged.Task, epoch) || !m_writerRequested || m_disposed)
+                {
+                    return false;
+                }
+                m_writeView = view;
+                return true;
+            }
+        }
+
+        private InMemoryNodeStateStore? OpenFencedWriter(Task epoch)
+        {
+            if (!RequiresCommitFence)
+            {
+                return null;
+            }
+            lock (m_lock)
+            {
+                if (!ReferenceEquals(m_roleChanged.Task, epoch) || m_writeView == null || m_disposed)
+                {
+                    throw new ServiceResultException(
+                        StatusCodes.BadNotWritable, "The address-space writer grant is not available.");
+                }
+                return ((InMemoryNodeStateStore)m_store).CreateWriter(m_writeView);
+            }
+        }
+
+        private void OnWriterMutationFailed(Task epoch)
+        {
+            if (!RequiresCommitFence)
+            {
+                return;
+            }
+            lock (m_lock)
+            {
+                if (ReferenceEquals(m_roleChanged.Task, epoch) && !m_disposed)
+                {
+                    RequireCheckpointLocked();
+                }
+            }
+        }
+
+        private void Enqueue(OutboundOp op, Task epoch)
         {
             if (op.Kind == OutboundOpKind.Value)
             {
                 m_identity?.ValidateValue(m_addressSpace.Context, op.Value);
             }
-            m_outbound?.Writer.TryWrite(op);
+            m_outbound?.Writer.TryWrite(new QueuedOutbound(op, epoch));
         }
 
         private ByteString SerializeLocalTree(NodeState node)
@@ -654,7 +915,7 @@ namespace Opc.Ua.Redundancy.Server
             return NodeStateSerializer.Serialize(m_addressSpace.Context, node);
         }
 
-        private void EnqueueVariableValues(NodeState node)
+        private void EnqueueVariableValues(NodeState node, Task epoch)
         {
             if (node is BaseVariableState variable &&
                 !node.NodeId.IsNull &&
@@ -665,18 +926,20 @@ namespace Opc.Ua.Redundancy.Server
                     new DataValue(
                         variable.Value,
                         variable.StatusCode,
-                        variable.Timestamp)));
+                        variable.Timestamp)), epoch);
             }
             var children = new List<BaseInstanceState>();
             node.GetChildren(m_addressSpace.Context, children);
             foreach (BaseInstanceState child in children)
             {
-                EnqueueVariableValues(child);
+                EnqueueVariableValues(child, epoch);
             }
         }
 
         private async ValueTask WriteVariableValuesAsync(
+            INodeStateStore writeStore,
             NodeState node,
+            Task epoch,
             CancellationToken cancellationToken)
         {
             if (node is BaseVariableState variable &&
@@ -685,7 +948,8 @@ namespace Opc.Ua.Redundancy.Server
             {
                 var value = new DataValue(variable.Value, variable.StatusCode, variable.Timestamp);
                 m_identity?.ValidateValue(m_addressSpace.Context, value);
-                await m_store
+                VerifySeedEpoch(epoch);
+                await writeStore
                     .WriteValueAsync(
                         node.NodeId,
                         value,
@@ -696,7 +960,7 @@ namespace Opc.Ua.Redundancy.Server
             node.GetChildren(m_addressSpace.Context, children);
             foreach (BaseInstanceState child in children)
             {
-                await WriteVariableValuesAsync(child, cancellationToken)
+                await WriteVariableValuesAsync(writeStore, child, epoch, cancellationToken)
                     .ConfigureAwait(false);
             }
         }
@@ -705,38 +969,35 @@ namespace Opc.Ua.Redundancy.Server
         {
             try
             {
-                await foreach (OutboundOp op in m_outbound!.Reader.ReadAllAsync(ct).ConfigureAwait(false))
+                await foreach (QueuedOutbound queued in m_outbound!.Reader.ReadAllAsync(ct).ConfigureAwait(false))
                 {
+                    OutboundOp op = queued.Operation;
                     try
                     {
-                        if (!IsWriter)
+                        // A demoted writer's accepted store operation must finish before the next checkpoint.
+                        await m_applyGate.WaitAsync(ct).ConfigureAwait(false);
+                        try
                         {
-                            continue;
-                        }
+                            if (!ReferenceEquals(GetWriterEpoch(), queued.Epoch))
+                            {
+                                continue;
+                            }
 
-                        switch (op.Kind)
+                            await WriteOutboundAsync(queued, ct).ConfigureAwait(false);
+                            MaybeTriggerSnapshotPublish(queued.Epoch);
+                        }
+                        finally
                         {
-                            case OutboundOpKind.Value:
-                                await m_store.WriteValueAsync(op.NodeId, op.Value, ct).ConfigureAwait(false);
-                                break;
-                            case OutboundOpKind.Upsert:
-                                await m_store
-                                    .UpsertNodeAsync(new StoredNode(op.NodeId, op.Payload), ct)
-                                    .ConfigureAwait(false);
-                                break;
-                            case OutboundOpKind.Delete:
-                                await m_store.DeleteNodeAsync(op.NodeId, ct).ConfigureAwait(false);
-                                break;
+                            m_applyGate.Release();
                         }
-
-                        MaybeTriggerSnapshotPublish();
                     }
-                    catch (OperationCanceledException)
+                    catch (OperationCanceledException) when (ct.IsCancellationRequested)
                     {
                         return;
                     }
                     catch (Exception ex)
                     {
+                        OnWriterMutationFailed(queued.Epoch);
                         m_logger?.DistributedAddressSpaceOutboundWriteFailed(ex, op.NodeId);
                     }
                 }
@@ -747,9 +1008,29 @@ namespace Opc.Ua.Redundancy.Server
             }
         }
 
-        private void MaybeTriggerSnapshotPublish()
+        private async ValueTask WriteOutboundAsync(QueuedOutbound queued, CancellationToken ct)
         {
-            if (!SupportsSnapshots || m_store is not INodeStateSnapshotStore snapshotStore)
+            using InMemoryNodeStateStore? writer = OpenFencedWriter(queued.Epoch);
+            INodeStateStore writeStore = writer ?? m_store;
+            OutboundOp op = queued.Operation;
+            switch (op.Kind)
+            {
+                case OutboundOpKind.Value:
+                    await writeStore.WriteValueAsync(op.NodeId, op.Value, ct).ConfigureAwait(false);
+                    break;
+                case OutboundOpKind.Upsert:
+                    await writeStore.UpsertNodeAsync(new StoredNode(op.NodeId, op.Payload), ct).ConfigureAwait(false);
+                    break;
+                case OutboundOpKind.Delete:
+                    await writeStore.DeleteNodeAsync(op.NodeId, ct).ConfigureAwait(false);
+                    break;
+            }
+        }
+
+        private void MaybeTriggerSnapshotPublish(Task epoch)
+        {
+            if (!ReferenceEquals(GetWriterEpoch(), epoch) ||
+                !SupportsSnapshots || m_store is not INodeStateSnapshotStore snapshotStore)
             {
                 return;
             }
@@ -765,14 +1046,27 @@ namespace Opc.Ua.Redundancy.Server
                 return;
             }
             Interlocked.Exchange(ref m_writesSinceSnapshot, 0);
-            m_snapshotTask = PublishSnapshotAsync(snapshotStore);
+            m_snapshotTask = PublishSnapshotAsync(snapshotStore, epoch);
         }
 
-        private async Task PublishSnapshotAsync(INodeStateSnapshotStore snapshotStore)
+        private async Task PublishSnapshotAsync(INodeStateSnapshotStore snapshotStore, Task epoch)
         {
             try
             {
-                await snapshotStore.WriteSnapshotAsync(m_cts.Token).ConfigureAwait(false);
+                await m_applyGate.WaitAsync(m_cts.Token).ConfigureAwait(false);
+                try
+                {
+                    if (ReferenceEquals(GetWriterEpoch(), epoch))
+                    {
+                        using InMemoryNodeStateStore? writer = OpenFencedWriter(epoch);
+                        INodeStateSnapshotStore writeStore = writer ?? snapshotStore;
+                        await writeStore.WriteSnapshotAsync(m_cts.Token).ConfigureAwait(false);
+                    }
+                }
+                finally
+                {
+                    m_applyGate.Release();
+                }
             }
             catch (OperationCanceledException)
             {
@@ -780,6 +1074,7 @@ namespace Opc.Ua.Redundancy.Server
             }
             catch (Exception ex)
             {
+                OnWriterMutationFailed(epoch);
                 m_logger?.DistributedAddressSpaceSnapshotPublishFailed(ex);
             }
             finally
@@ -788,74 +1083,282 @@ namespace Opc.Ua.Redundancy.Server
             }
         }
 
-        private async Task ApplyInboundLoopAsync(
-            IAsyncEnumerator<NodeStateChange> inboundEnumerator,
-            ValueTask<bool> firstMove,
-            CancellationToken ct)
+        private async Task SuperviseInboundAsync(Task started, CancellationToken ct)
         {
             try
             {
-                bool hasValue = await firstMove.ConfigureAwait(false);
-                while (hasValue)
+                while (!ct.IsCancellationRequested)
                 {
-                    NodeStateChange change = inboundEnumerator.Current;
-                    bool buffered = false;
+                    Task? waitForStandby;
                     lock (m_lock)
                     {
-                        if (m_bufferInbound)
-                        {
-                            m_bufferedInbound.Enqueue(change);
-                            buffered = true;
-                        }
+                        waitForStandby = IsWriter
+                            ? m_roleChanged.Task
+                            : CanInitializeWriter && HasAuthoritativeReads && !m_hydrated.Task.IsCompleted
+                                ? Task.WhenAny(m_roleChanged.Task, m_hydrated.Task)
+                                : null;
                     }
-                    if (buffered)
+                    if (waitForStandby != null)
                     {
-                        hasValue = await inboundEnumerator.MoveNextAsync().ConfigureAwait(false);
+                        await waitForStandby.WaitAsync(ct).ConfigureAwait(false);
                         continue;
                     }
 
-                    if (m_ownsNode(change.NodeId))
+                    try
                     {
-                        try
+                        Task? promotionEpoch = await ConsumeInboundAsync(started, ct).ConfigureAwait(false);
+                        lock (m_lock)
                         {
-                            await ApplyInboundAsync(change, ct).ConfigureAwait(false);
+                            if (!m_disposed && m_writerRequested &&
+                                ReferenceEquals(promotionEpoch, m_roleChanged.Task))
+                            {
+                                SetRole(ReplicationRole.Writer);
+                                m_inboundRetryDelay = InitialRetryDelay;
+                                m_initialCheckpoint.TrySetResult(true);
+                            }
                         }
-                        catch (Exception ex)
-                        {
-                            m_logger?.DistributedAddressSpaceInboundApplyFailed(ex, change.NodeId);
-                        }
-
-                        InboundApplied?.Invoke(change);
                     }
-                    hasValue = await inboundEnumerator.MoveNextAsync().ConfigureAwait(false);
+                    catch (Exception ex) when (!ct.IsCancellationRequested)
+                    {
+                        SetRole(ReplicationRole.Unavailable);
+                        m_logger?.DistributedAddressSpaceInboundWatchFailed(ex);
+                        m_initialCheckpoint.TrySetResult(false);
+                        await Task.Delay(m_inboundRetryDelay, ct).ConfigureAwait(false);
+                        m_inboundRetryDelay = TimeSpan.FromMilliseconds(Math.Min(
+                            m_inboundRetryDelay.TotalMilliseconds * 2, MaxRetryDelay.TotalMilliseconds));
+                    }
                 }
             }
-            catch (OperationCanceledException)
+            catch (Exception ex) when (ct.IsCancellationRequested)
             {
-                // shutdown
+                if (ex is not OperationCanceledException)
+                {
+                    m_logger?.DistributedAddressSpaceInboundWatchFailed(ex);
+                }
             }
+        }
+
+        private async Task<Task?> ConsumeInboundAsync(Task started, CancellationToken ct)
+        {
+            using var watchCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+            CancellationToken watchToken = watchCts.Token;
+            if (m_store is INodeStateSubscriptionPreparer preparer)
+            {
+                preparer.PrepareSubscription();
+            }
+            IAsyncEnumerator<NodeStateChange> watch = m_store
+                .SubscribeChangesAsync(watchToken)
+                .GetAsyncEnumerator(watchToken);
+            await using var watchCleanup = watch.ConfigureAwait(false);
+            Task<bool>? move = null;
+            Task? promotionEpoch = null;
+            try
+            {
+                move = watch.MoveNextAsync().AsTask();
+                await started.ConfigureAwait(false);
+                await m_hydrated.Task.WaitAsync(watchToken).ConfigureAwait(false);
+                Task? checkpointEpoch = null;
+                bool verified = false;
+                Task? retryCheckpoint = null;
+
+                while (true)
+                {
+                    watchToken.ThrowIfCancellationRequested();
+                    Task roleEpoch;
+                    bool writerRequested;
+                    lock (m_lock)
+                    {
+                        roleEpoch = m_roleChanged.Task;
+                        writerRequested = m_writerRequested;
+                    }
+                    if (!ReferenceEquals(checkpointEpoch, roleEpoch) || retryCheckpoint?.IsCompleted == true)
+                    {
+                        // The watch must overlap the scan to cover writes while the checkpoint is read.
+                        // An already failed/completed watch cannot establish a checkpoint.
+                        if (move.IsCompleted && !await move.ConfigureAwait(false))
+                        {
+                            throw new InvalidOperationException("The address-space watch ended.");
+                        }
+                        await m_applyGate.WaitAsync(watchToken).ConfigureAwait(false);
+                        try
+                        {
+                            verified = (!writerRequested ||
+                                await TryBindWriterFenceAsync(roleEpoch, watchToken).ConfigureAwait(false)) &&
+                                await VerifyStandbyCheckpointAsync(watchToken).ConfigureAwait(false);
+                            if (verified && writerRequested && RequiresCommitFence &&
+                                await ((InMemoryNodeStateStore)m_store)
+                                    .HasPendingPublicationsAsync(watchToken).ConfigureAwait(false))
+                            {
+                                // The guard cannot roll back sibling keys from a partially published older write.
+                                verified = false;
+                            }
+                        }
+                        finally
+                        {
+                            m_applyGate.Release();
+                        }
+                        checkpointEpoch = roleEpoch;
+                        retryCheckpoint = !verified && HasAuthoritativeReads
+                            ? Task.Delay(MaxRetryDelay, watchToken)
+                            : null;
+                    }
+
+                    if (move.IsCompleted)
+                    {
+                        Task<bool> next = move;
+                        move = null;
+                        if (!await next.ConfigureAwait(false))
+                        {
+                            throw new InvalidOperationException("The address-space watch ended.");
+                        }
+                        await ApplyWatchedChangeAsync(watch.Current, watchToken).ConfigureAwait(false);
+                        move = watch.MoveNextAsync().AsTask();
+                        continue;
+                    }
+
+                    lock (m_lock)
+                    {
+                        if (m_disposed)
+                        {
+                            break;
+                        }
+                        if (move.IsCompleted || !ReferenceEquals(roleEpoch, m_roleChanged.Task))
+                        {
+                            continue;
+                        }
+                        if (verified && m_writerRequested)
+                        {
+                            promotionEpoch = roleEpoch;
+                            break;
+                        }
+                        if (verified)
+                        {
+                            SetRole(ReplicationRole.Standby);
+                            m_inboundRetryDelay = InitialRetryDelay;
+                        }
+                        m_initialCheckpoint.TrySetResult(verified);
+                    }
+                    if (retryCheckpoint == null)
+                    {
+                        await Task.WhenAny(move, roleEpoch).WaitAsync(watchToken).ConfigureAwait(false);
+                    }
+                    else
+                    {
+                        await Task.WhenAny(move, roleEpoch, retryCheckpoint).WaitAsync(watchToken).ConfigureAwait(false);
+                    }
+                }
+            }
+            catch
+            {
+                SetRole(ReplicationRole.Unavailable);
+                throw;
+            }
+            finally
+            {
+                if (move?.IsCompleted == true)
+                {
+                    promotionEpoch = null;
+                }
+                watchCts.Cancel();
+                if (move != null)
+                {
+                    try
+                    {
+                        if (await move.ConfigureAwait(false))
+                        {
+                            // A change became visible while retiring this watch. Reverify before writing.
+                            promotionEpoch = null;
+                        }
+                    }
+                    catch (OperationCanceledException) when (watchToken.IsCancellationRequested)
+                    {
+                        // Expected when interrupting the pending MoveNext.
+                    }
+                }
+            }
+            return promotionEpoch;
+        }
+
+        private async ValueTask<bool> VerifyStandbyCheckpointAsync(CancellationToken ct)
+        {
+            bool authoritative = HasAuthoritativeReads;
+            bool hasMarker = m_partitionId != null && m_store is INodeStatePartitionStore;
+            bool initialized = await IsPartitionInitializedAsync(ct).ConfigureAwait(false);
+            var roots = new HashSet<NodeId>();
+            bool hasNodes = await ScanStoredNodesAsync(roots, authoritative, ct).ConfigureAwait(false);
+            if (m_store is INodeStateSnapshotStore snapshotStore)
+            {
+                await foreach (NodeStateChange change in snapshotStore.ReadDeltaLogAsync(0, ct).ConfigureAwait(false))
+                {
+                    if (!authoritative || (change.Kind == NodeStateChangeKind.Delete && (!hasMarker || initialized)))
+                    {
+                        await ApplyInboundAsync(change, ct).ConfigureAwait(false);
+                        UpdateHydratedRootIds(roots, change.NodeId);
+                    }
+                }
+            }
+            await ApplyStoredValuesAsync(ct).ConfigureAwait(false);
+            if (!authoritative || (hasMarker && !initialized))
+            {
+                return false;
+            }
+            if (initialized || hasNodes || m_checkpointEstablished || m_topologyState.Count > 0)
+            {
+                await RemoveMissingLocalRootsAsync(roots, ct).ConfigureAwait(false);
+            }
+            else
+            {
+                foreach (NodeState node in m_addressSpace.Nodes)
+                {
+                    if (m_ownsNode(node.NodeId))
+                    {
+                        return false;
+                    }
+                }
+            }
+            m_checkpointEstablished = true;
+            return true;
+        }
+
+        private async ValueTask ApplyWatchedChangeAsync(NodeStateChange change, CancellationToken ct)
+        {
+            if (!m_ownsNode(change.NodeId))
+            {
+                return;
+            }
+            await m_applyGate.WaitAsync(ct).ConfigureAwait(false);
+            try
+            {
+                await ApplyInboundAsync(change, ct).ConfigureAwait(false);
+            }
+            finally
+            {
+                m_applyGate.Release();
+            }
+            InboundApplied?.Invoke(change);
         }
 
         private void OnLeadershipChanged(bool isLeader)
         {
-            Volatile.Write(ref m_isWriterState, isLeader ? 1 : 0);
-
             lock (m_lock)
             {
-                if (!m_started || m_disposed)
+                if (m_disposed || m_writerRequested == isLeader)
                 {
                     return;
                 }
-
-                if (isLeader)
-                {
-                    StopInboundLocked();
-                }
-                else
-                {
-                    StartInboundLocked();
-                }
+                m_writerRequested = isLeader;
+                RequireCheckpointLocked();
             }
+        }
+
+        private void RequireCheckpointLocked()
+        {
+            m_requiresCheckpoint = true;
+            m_writeView = null;
+            SetRole(ReplicationRole.Unavailable);
+            TaskCompletionSource<bool> previous = m_roleChanged;
+            m_roleChanged = NewSignal();
+            previous.TrySetResult(true);
         }
 
         private async ValueTask ApplyInboundAsync(NodeStateChange change, CancellationToken cancellationToken)
@@ -865,16 +1368,15 @@ namespace Opc.Ua.Redundancy.Server
                 return;
             }
             m_identity?.ReserveId(change.NodeId);
-            if (change.Sequence > 0 &&
-                m_store is INodeStateSnapshotStore snapshotStore)
-            {
-                snapshotStore.ObserveSequence(change.Sequence);
-            }
             switch (change.Kind)
             {
                 case NodeStateChangeKind.Upsert:
-                    if (change.Node != null &&
-                        IsTopologyApplicable(change.NodeId, change.Sequence))
+                    if (change.Node == null || change.Node.NodeId != change.NodeId)
+                    {
+                        throw new ServiceResultException(
+                            StatusCodes.BadDecodingError, "An address-space upsert is missing its matching node.");
+                    }
+                    if (IsTopologyApplicable(change.NodeId, change.Sequence))
                     {
                         try
                         {
@@ -885,8 +1387,10 @@ namespace Opc.Ua.Redundancy.Server
                                 cancellationToken)
                                 .ConfigureAwait(false);
                         }
-                        catch (ServiceResultException)
+                        catch (ServiceResultException ex)
                         {
+                            SetRole(ReplicationRole.Unavailable);
+                            m_logger?.DistributedAddressSpaceInboundApplyFailed(ex, change.NodeId);
                             await WithdrawUnreconstructableTreeAsync(
                                 change.NodeId, change.Sequence, cancellationToken).ConfigureAwait(false);
                             throw;
@@ -926,7 +1430,11 @@ namespace Opc.Ua.Redundancy.Server
                         ApplyValueChange(change.NodeId, change.Value, change.Sequence);
                     }
                     break;
+                default:
+                    throw new ServiceResultException(
+                        StatusCodes.BadDecodingError, "The address-space change has an invalid kind.");
             }
+            ObserveStoreSequence(change.Sequence);
         }
 
         /// <summary>
@@ -981,12 +1489,14 @@ namespace Opc.Ua.Redundancy.Server
 
         private bool IsTopologyApplicable(NodeId nodeId, ulong sequence)
         {
-            return !m_topologyState.TryGetValue(nodeId, out TopologyState state) || sequence > state.Sequence;
+            return !m_topologyState.TryGetValue(nodeId, out TopologyState state) ||
+                sequence > state.Sequence || (sequence == 0 && state.Sequence == 0);
         }
 
         private bool IsValueApplicable(NodeId nodeId, ulong sequence)
         {
-            return !m_valueSequence.TryGetValue(nodeId, out ulong last) || sequence > last;
+            return !m_valueSequence.TryGetValue(nodeId, out ulong last) ||
+                sequence > last || (sequence == 0 && last == 0);
         }
 
         private void RecordTopology(NodeId nodeId, ulong sequence, bool exists)
@@ -1027,15 +1537,24 @@ namespace Opc.Ua.Redundancy.Server
             return new InboundApplyScope(m_inboundApplyDepth);
         }
 
-        private async ValueTask TryApplyUpsertAsync(
+        private ValueTask TryApplyUpsertAsync(
             NodeId nodeId,
             ByteString payload,
             ulong sequence,
             CancellationToken cancellationToken)
         {
+            return ApplyUpsertAsync(nodeId, DecodeStoredNode(nodeId, payload), sequence, cancellationToken);
+        }
+
+        private async ValueTask ApplyUpsertAsync(
+            NodeId nodeId,
+            NodeState source,
+            ulong sequence,
+            CancellationToken cancellationToken)
+        {
             NodeState node = await PrepareUpsertAsync(
                 nodeId,
-                payload,
+                source,
                 sequence,
                 cancellationToken)
                 .ConfigureAwait(false);
@@ -1046,19 +1565,6 @@ namespace Opc.Ua.Redundancy.Server
                     .ConfigureAwait(false);
             }
             ApplyPendingValues(node);
-        }
-
-        private ValueTask<NodeState> PrepareUpsertAsync(
-            NodeId nodeId,
-            ByteString payload,
-            ulong sequence,
-            CancellationToken cancellationToken)
-        {
-            return PrepareUpsertAsync(
-                nodeId,
-                DecodeStoredNode(nodeId, payload),
-                sequence,
-                cancellationToken);
         }
 
         private NodeState DecodeStoredNode(
@@ -1224,10 +1730,10 @@ namespace Opc.Ua.Redundancy.Server
                     : new ValueTask<bool>(false);
         }
 
-        private ValueTask MarkPartitionInitializedAsync(CancellationToken cancellationToken)
+        private ValueTask MarkPartitionInitializedAsync(INodeStateStore writeStore, CancellationToken cancellationToken)
         {
             return m_partitionId != null &&
-                m_store is INodeStatePartitionStore partitionStore
+                writeStore is INodeStatePartitionStore partitionStore
                     ? partitionStore.MarkPartitionInitializedAsync(
                         m_partitionId,
                         cancellationToken)
@@ -1454,76 +1960,6 @@ namespace Opc.Ua.Redundancy.Server
             }
         }
 
-        private void StartInboundLocked()
-        {
-            if (m_inboundTask != null)
-            {
-                return;
-            }
-
-            // Register the change-feed watcher synchronously (the first
-            // MoveNextAsync runs the iterator prefix that adds the watcher) so
-            // no change published after Start() returns is missed, then consume
-            // it on a background task.
-            if (m_store is INodeStateSubscriptionPreparer preparer)
-            {
-                preparer.PrepareSubscription();
-            }
-            var inboundCts = CancellationTokenSource.CreateLinkedTokenSource(m_cts.Token);
-            IAsyncEnumerator<NodeStateChange> inboundEnumerator = m_store
-                .SubscribeChangesAsync(inboundCts.Token)
-                .GetAsyncEnumerator();
-            ValueTask<bool> firstMove = inboundEnumerator.MoveNextAsync();
-            m_inboundCts = inboundCts;
-            m_inboundEnumerator = inboundEnumerator;
-            m_inboundTask = Task.Run(() => ApplyInboundLoopAsync(inboundEnumerator, firstMove, inboundCts.Token));
-        }
-
-        private void StopInbound()
-        {
-            lock (m_lock)
-            {
-                StopInboundLocked();
-            }
-        }
-
-        private void StopInboundLocked()
-        {
-            if (m_inboundEnumerator == null || m_inboundTask == null || m_inboundCts == null)
-            {
-                return;
-            }
-
-            IAsyncEnumerator<NodeStateChange> enumerator = m_inboundEnumerator;
-            Task inboundTask = m_inboundTask;
-            CancellationTokenSource inboundCts = m_inboundCts;
-            m_inboundEnumerator = null;
-            m_inboundTask = null;
-            m_inboundCts = null;
-            inboundCts.Cancel();
-
-            Task cleanup = CleanupInboundAsync(enumerator, inboundTask, inboundCts);
-            m_inboundCleanupTask = m_inboundCleanupTask == null
-                ? cleanup
-                : Task.WhenAll(m_inboundCleanupTask, cleanup);
-        }
-
-        private static async Task CleanupInboundAsync(
-            IAsyncEnumerator<NodeStateChange> inboundEnumerator,
-            Task inboundTask,
-            CancellationTokenSource inboundCts)
-        {
-            try
-            {
-                await AwaitQuietlyAsync(inboundTask).ConfigureAwait(false);
-            }
-            finally
-            {
-                await inboundEnumerator.DisposeAsync().ConfigureAwait(false);
-                inboundCts.Dispose();
-            }
-        }
-
         private static async Task AwaitQuietlyAsync(Task? task)
         {
             if (task == null)
@@ -1542,6 +1978,30 @@ namespace Opc.Ua.Redundancy.Server
 
         private bool SupportsSnapshots =>
             m_store is not INodeStateStoreReadConsistency consistency || consistency.SupportsSnapshots;
+
+        private bool HasAuthoritativeReads =>
+            m_store is not INodeStateStoreReadConsistency consistency || consistency.HasAuthoritativeReads;
+
+        private bool RequiresCommitFence => m_store is InMemoryNodeStateStore store &&
+            !InMemoryNodeStateStore.HasProcessLocalWrites(store.Storage);
+
+        private ReplicationRole Role => (ReplicationRole)Volatile.Read(ref m_role);
+
+        private bool CanInitializeWriter => m_writerRequested && !m_requiresCheckpoint && !m_disposed;
+
+        private void SetRole(ReplicationRole role) => Volatile.Write(ref m_role, (int)role);
+
+        private static TaskCompletionSource<bool> NewSignal() =>
+            new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        private enum ReplicationRole
+        {
+            Unavailable,
+            Standby,
+            Writer
+        }
+
+        private readonly record struct QueuedOutbound(OutboundOp Operation, Task Epoch);
 
         private readonly record struct TopologyState(ulong Sequence, bool Exists, ulong DeletedThrough);
 
@@ -1652,7 +2112,6 @@ namespace Opc.Ua.Redundancy.Server
 
         private readonly INodeStateStore m_store;
         private readonly ILocalAddressSpace m_addressSpace;
-        private readonly Func<bool> m_isWriter;
         private readonly Func<NodeId, bool> m_ownsNode;
         private readonly string? m_partitionId;
         private readonly ReplicaNodeIdFactory? m_identity;
@@ -1668,22 +2127,28 @@ namespace Opc.Ua.Redundancy.Server
         private readonly NodeIdDictionary<TopologyState> m_topologyState = [];
         private readonly NodeIdDictionary<ulong> m_valueSequence = [];
         private readonly NodeIdDictionary<PendingValue> m_pendingValues = [];
-        private readonly Queue<NodeStateChange> m_bufferedInbound = new();
         private readonly AsyncLocal<int> m_inboundApplyDepth = new();
-        private Channel<OutboundOp>? m_outbound;
-        private CancellationTokenSource? m_inboundCts;
-        private IAsyncEnumerator<NodeStateChange>? m_inboundEnumerator;
+        private readonly SemaphoreSlim m_applyGate = new(1, 1);
+        private readonly TaskCompletionSource<bool> m_hydrated = NewSignal();
+        private readonly TaskCompletionSource<bool> m_initialCheckpoint = NewSignal();
+        private TaskCompletionSource<bool> m_roleChanged = NewSignal();
+        private FencedAddressSpaceWriteView? m_writeView;
+        private Channel<QueuedOutbound>? m_outbound;
         private Task? m_outboundTask;
         private Task? m_inboundTask;
-        private Task? m_inboundCleanupTask;
         private Task? m_snapshotTask;
         private long m_writesSinceSnapshot;
         private int m_snapshotInFlight;
-        private int m_isWriterState;
-        private bool m_bufferInbound;
+        private int m_role;
+        private bool m_writerRequested;
+        private bool m_requiresCheckpoint;
+        private bool m_checkpointEstablished;
         private bool m_started;
         private bool m_disposed;
 
+        private TimeSpan m_inboundRetryDelay = InitialRetryDelay;
+        private static readonly TimeSpan InitialRetryDelay = TimeSpan.FromMilliseconds(100);
+        private static readonly TimeSpan MaxRetryDelay = TimeSpan.FromSeconds(2);
         private const int SnapshotWriteThreshold = 1024;
     }
 
@@ -1728,5 +2193,14 @@ namespace Opc.Ua.Redundancy.Server
             Message = "Distributed address-space hydration used an eventual view; " +
                 "absence-based cleanup, initial seeding, and snapshot compaction are unavailable.")]
         public static partial void DistributedAddressSpaceEventualHydration(this ILogger logger);
+
+        /// <summary>
+        /// Reports an unavailable standby watch or failed recovery checkpoint.
+        /// </summary>
+        [LoggerMessage(EventId = RedundancyServerEventIds.AddressSpaceSynchronizer + 4, Level = LogLevel.Warning,
+            Message = "Distributed address-space standby replication was interrupted.")]
+        public static partial void DistributedAddressSpaceInboundWatchFailed(
+            this ILogger logger,
+            Exception exception);
     }
 }

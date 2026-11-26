@@ -123,13 +123,13 @@ namespace Opc.Ua.Di.Tests
                 measurement,
                 Opc.Ua.BrowseNames.EURange).NodeId;
 
-            object handle = await m_manager.GetManagerHandleAsync(measurementId)
+            object? handle = await m_manager.GetManagerHandleAsync(measurementId)
                 .ConfigureAwait(false);
             Assert.That(handle, Is.Not.Null);
 
             using var continuationPoint = new ContinuationPoint
             {
-                NodeToBrowse = handle,
+                NodeToBrowse = handle!,
                 Manager = m_manager,
                 View = new ViewDescription(),
                 BrowseDirection = BrowseDirection.Forward,

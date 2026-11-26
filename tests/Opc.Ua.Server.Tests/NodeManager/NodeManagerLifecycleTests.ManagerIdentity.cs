@@ -1456,11 +1456,11 @@ namespace Opc.Ua.Server.Tests.NodeManager
             }
 
             /// <inheritdoc/>
-            public override async ValueTask<object> GetManagerHandleAsync(
+            public override async ValueTask<object?> GetManagerHandleAsync(
                 NodeId nodeId,
                 CancellationToken cancellationToken = default)
             {
-                object handle = await base.GetManagerHandleAsync(nodeId, cancellationToken).ConfigureAwait(false);
+                object? handle = await base.GetManagerHandleAsync(nodeId, cancellationToken).ConfigureAwait(false);
                 return UseOpaqueSourceHandle && nodeId == Source.NodeId && handle is NodeHandle
                     ? new OpaqueSourceHandle(handle)
                     : handle;

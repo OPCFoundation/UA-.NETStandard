@@ -159,6 +159,11 @@ namespace Opc.Ua.Server
                 // CertificateGroup determines the validation rules for
                 // Certificate being updated."
                 bool isApplicationCertificateGroup = IsApplicationCertificateGroup(certificateGroup);
+                if (!isApplicationCertificateGroup && issuerCertificates.Count != 0 &&
+                    m_coordinator is IPushConfigurationTrustStoreMutationGate trustStoreGate)
+                {
+                    trustStoreGate.ValidateUnfencedTrustStoreMutation();
+                }
 
                 NodeId sessionId = GetSessionId(context);
                 await AcquireTransactionOwnershipAsync(sessionId, ct).ConfigureAwait(false);
@@ -489,6 +494,7 @@ namespace Opc.Ua.Server
                 {
                     AffectedCertificateGroup = groupNodeId,
                     AffectedCertificateType = certificateTypeId,
+                    WritesUnfencedTrustStore = stagedIssuers.Count != 0,
                     CommitAsync = async ct2 =>
                     {
                         try

@@ -605,7 +605,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             manager.Setup(m => m.DeleteAddressSpaceAsync(It.IsAny<CancellationToken>()))
                 .Returns(default(ValueTask));
             manager.Setup(m => m.GetManagerHandleAsync(values.NodeId, It.IsAny<CancellationToken>()))
-                .Returns(new ValueTask<object>(values.Handle));
+                .Returns(new ValueTask<object?>(values.Handle));
             manager.Setup(m => m.AddReferencesAsync(values.References, It.IsAny<CancellationToken>()))
                 .Returns(default(ValueTask));
             manager.Setup(m => m.DeleteReferenceAsync(
@@ -621,7 +621,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     values.Handle,
                     BrowseResultMask.All,
                     It.IsAny<CancellationToken>()))
-                .Returns(new ValueTask<NodeMetadata>(values.Metadata));
+                .Returns(new ValueTask<NodeMetadata?>(values.Metadata));
             manager.Setup(m => m.BrowseAsync(
                     values.Context,
                     values.ContinuationPoint,

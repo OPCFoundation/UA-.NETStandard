@@ -186,6 +186,19 @@ namespace Opc.Ua
         }
 
         /// <summary>
+        /// Checks the depth before decoding a NodeState child. Root nodes have depth
+        /// zero, and the node hierarchy does not consume the quota for encoded values.
+        /// </summary>
+        internal ChildNodeScope EnterChildNode()
+        {
+            uint childDepth = m_nodeDepth + 1;
+            CheckNestingLevel(childDepth);
+            EncodingLimits.EnsureSufficientStack();
+            m_nodeDepth = childDepth;
+            return new ChildNodeScope(this);
+        }
+
+        /// <summary>
         /// Completes reading and closes the stream.
         /// </summary>
         public void Close()
@@ -1167,7 +1180,7 @@ namespace Opc.Ua
         {
             // the eager path enforces the limit when it starts on the body, and a body
             // without nested structures would never reach another check.
-            CheckNestingLevel();
+            CheckNestingLevel(m_nestingLevel);
 
             // never rent a length the input cannot satisfy.
             CheckRemainingBytes(length, nameof(ReadExtensionObject));
@@ -3376,7 +3389,7 @@ namespace Opc.Ua
         /// <exception cref="ServiceResultException"></exception>
         private void CheckAndIncrementNestingLevel()
         {
-            CheckNestingLevel();
+            CheckNestingLevel(m_nestingLevel);
             EncodingLimits.EnsureSufficientStack();
             m_nestingLevel++;
         }
@@ -3385,14 +3398,28 @@ namespace Opc.Ua
         /// Test the nesting level.
         /// </summary>
         /// <exception cref="ServiceResultException"></exception>
-        private void CheckNestingLevel()
+        private void CheckNestingLevel(uint nestingLevel)
         {
-            if (m_nestingLevel > Context.MaxEncodingNestingLevels)
+            if (nestingLevel > Context.MaxEncodingNestingLevels)
             {
                 throw ServiceResultException.Create(
                     StatusCodes.BadEncodingLimitsExceeded,
                     "Maximum nesting level of {0} was exceeded",
                     Context.MaxEncodingNestingLevels);
+            }
+        }
+
+        /// <summary>
+        /// Restores the parent node's depth when decoding its child finishes.
+        /// </summary>
+        internal readonly ref struct ChildNodeScope(BinaryDecoder decoder)
+        {
+            /// <summary>
+            /// Leaves the child node even when decoding fails.
+            /// </summary>
+            public void Dispose()
+            {
+                decoder.m_nodeDepth--;
             }
         }
 
@@ -3453,6 +3480,7 @@ namespace Opc.Ua
         private int m_bufferPosition;
         private long m_synchronizedStreamPosition;
         private uint m_nestingLevel;
+        private uint m_nodeDepth;
 
         // The end position of the ExtensionObject body being decoded, or -1
         // when none is. See TryReadRemainingBodyBytes.

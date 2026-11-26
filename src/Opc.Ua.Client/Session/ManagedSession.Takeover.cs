@@ -144,20 +144,25 @@ namespace Opc.Ua.Client
         /// <param name="handoff">The server session to take over.</param>
         /// <param name="options">The takeover options.</param>
         /// <param name="ct">The cancellation token.</param>
+        /// <param name="requireIndependentPeerIdentity">
+        /// Requires a bound peer identity from the active session for a replica takeover.
+        /// </param>
         /// <returns>The connected managed session.</returns>
         /// <exception cref="ServiceResultException">This session was not created with settings
         /// that can be reused, or the takeover failed.</exception>
         internal async Task<ManagedSession> CreateTakeoverSessionAsync(
             SessionHandoff handoff,
             SessionTakeoverOptions options,
-            CancellationToken ct)
+            CancellationToken ct,
+            bool requireIndependentPeerIdentity = false)
         {
-            Func<SessionHandoff, SessionTakeoverOptions, CancellationToken, Task<ManagedSession>> factory =
+            Func<SessionHandoff, SessionTakeoverOptions, bool, CancellationToken, Task<ManagedSession>> factory =
                 m_takeoverFactory ?? throw ServiceResultException.Create(
                     StatusCodes.BadNotSupported,
                     "The session cannot create a session that takes over a server session.");
             ValidateTakeover(handoff, options, null, SessionFactory.Telemetry);
-            ManagedSession created = await factory(handoff, options, ct).ConfigureAwait(false);
+            ManagedSession created = await factory(handoff, options, requireIndependentPeerIdentity, ct)
+                .ConfigureAwait(false);
             created.OwnTransportResources(m_ownedChannelManager, m_ownedTransportResources);
             OwnTransportResources(null, null);
             return created;
@@ -203,6 +208,7 @@ namespace Opc.Ua.Client
         /// <param name="endpoint">The endpoint of the server session.</param>
         /// <param name="connection">An optional reverse connection for the channel.</param>
         /// <param name="initialIdentity">The identity the managed session would connect with.</param>
+        /// <param name="expectedPeerUri">Expected authenticated URI when managed redundancy is enabled.</param>
         /// <param name="ct">The cancellation token.</param>
         /// <returns>The activated session, or null when the takeover failed and a new server
         /// session must be created instead.</returns>
@@ -213,6 +219,7 @@ namespace Opc.Ua.Client
             ConfiguredEndpoint endpoint,
             ITransportWaitingConnection? connection,
             IUserIdentity? initialIdentity,
+            string? expectedPeerUri,
             CancellationToken ct)
         {
             SessionTakeoverOptions options = m_takeoverOptions ?? new SessionTakeoverOptions();
@@ -227,7 +234,14 @@ namespace Opc.Ua.Client
                 return await OpenActivatedSessionAsync(
                     endpoint,
                     connection,
-                    (session, token) => ActivateHandoffAsync(session, handoff, options, identity, activated, token),
+                    (session, token) =>
+                    {
+                        if (expectedPeerUri != null)
+                        {
+                            session.BindRedundantPeerIdentity(expectedPeerUri);
+                        }
+                        return ActivateHandoffAsync(session, handoff, options, identity, activated, token);
+                    },
                     ct).ConfigureAwait(false);
             }
             catch (Exception ex) when (
@@ -262,9 +276,11 @@ namespace Opc.Ua.Client
             ConfiguredEndpoint endpoint,
             ITransportWaitingConnection? connection,
             Func<Session, CancellationToken, Task> activate,
-            CancellationToken ct)
+            CancellationToken ct,
+            bool useReverseConnectManager = true,
+            bool allowDirectCustomFactory = false)
         {
-            if (connection == null && m_reverseConnectManager != null)
+            if (useReverseConnectManager && connection == null && m_reverseConnectManager != null)
             {
                 connection = await m_reverseConnectManager.WaitForConnectionAsync(
                     endpoint.EndpointUrl!,
@@ -283,7 +299,7 @@ namespace Opc.Ua.Client
                     activate,
                     ct).ConfigureAwait(false);
             }
-            if (connection == null && SessionFactory is not DefaultSessionFactory)
+            if (!allowDirectCustomFactory && connection == null && SessionFactory is not DefaultSessionFactory)
             {
                 throw ServiceResultException.Create(
                     StatusCodes.BadNotSupported,
@@ -588,7 +604,7 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Creates a managed session with the settings of this one that takes over a server session.
         /// </summary>
-        private Func<SessionHandoff, SessionTakeoverOptions, CancellationToken, Task<ManagedSession>>?
+        private Func<SessionHandoff, SessionTakeoverOptions, bool, CancellationToken, Task<ManagedSession>>?
             m_takeoverFactory;
     }
 }

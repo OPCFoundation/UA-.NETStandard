@@ -30,7 +30,7 @@ namespace Opc.Ua.Server.Tests.Historian
                 owner.Setup(manager => manager.GetNodeMetadataAsync(
                         It.IsAny<OperationContext>(), nodeId, It.IsAny<BrowseResultMask>(),
                         It.IsAny<CancellationToken>()))
-                    .Returns(new ValueTask<NodeMetadata>(new NodeMetadata(nodeId, nodeId)));
+                    .Returns(new ValueTask<NodeMetadata?>(new NodeMetadata(nodeId, nodeId)));
             }
         }
     }

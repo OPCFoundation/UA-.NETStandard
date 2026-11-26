@@ -15,12 +15,18 @@ namespace Opc.Ua.PubSub.Security.Sks
     /// <summary>
     /// Distributed PubSub SKS key store backed by a protected shared key/value store.
     /// </summary>
-    public sealed class SharedStorePubSubSecurityKeyStore : IPubSubSecurityKeyStore
+    /// <remarks>
+    /// <see cref="TryCommitSecurityGroupAsync"/> keeps authorization and the current key in
+    /// the same conditionally committed record.
+    /// </remarks>
+    public sealed class SharedStorePubSubSecurityKeyStore : ICoordinatedPubSubSecurityKeyStore
     {
         /// <summary>
         /// Initializes a new <see cref="SharedStorePubSubSecurityKeyStore"/>.
         /// </summary>
-        /// <param name="store">Shared key/value store used by the redundant set.</param>
+        /// <param name="store">
+        /// Freshness-protected store of the redundant set, or an in-memory store for use in one process.
+        /// </param>
         /// <param name="protector">Record protector used to encrypt and authenticate stored key material.</param>
         /// <param name="context">Service message context used for UA binary fields.</param>
         public SharedStorePubSubSecurityKeyStore(
@@ -31,8 +37,19 @@ namespace Opc.Ua.PubSub.Security.Sks
             m_store = store ?? throw new ArgumentNullException(nameof(store));
             m_protector = protector ?? throw new ArgumentNullException(nameof(protector));
             m_context = context ?? throw new ArgumentNullException(nameof(context));
+            if (store is not (FreshnessProtectedKeyValueStore or InMemorySharedKeyValueStore))
+            {
+                throw new ArgumentException("Distributed SKS requires a freshness-protected store.", nameof(store));
+            }
+            if (store is FreshnessProtectedKeyValueStore && protector is NullRecordProtector)
+            {
+                throw new ArgumentException("Distributed SKS requires authenticated encryption.", nameof(protector));
+            }
             m_logger = context.Telemetry.CreateLogger<SharedStorePubSubSecurityKeyStore>();
         }
+
+        /// <inheritdoc/>
+        public bool IsProcessLocal => m_store is InMemorySharedKeyValueStore;
 
         /// <inheritdoc/>
         public async ValueTask<ArrayOf<string>> GetSecurityGroupIdsAsync(
@@ -57,55 +74,60 @@ namespace Opc.Ua.PubSub.Security.Sks
             string securityGroupId,
             CancellationToken cancellationToken = default)
         {
-            if (securityGroupId is null)
-            {
-                throw new ArgumentNullException(nameof(securityGroupId));
-            }
-
-            string key = GetSecurityGroupKey(securityGroupId);
-            (bool found, ByteString protectedRecord) = await m_store
-                .TryGetAsync(key, cancellationToken)
+            (SksSecurityGroup? group, _) = await ReadSecurityGroupCoreAsync(
+                securityGroupId, !IsProcessLocal, cancellationToken)
                 .ConfigureAwait(false);
-            if (!found)
-            {
-                return null;
-            }
-
-            if (!FencedSharedStoreValue.TryExtractPayload(protectedRecord, out ByteString protectedPayload, out _))
-            {
-                return null;
-            }
-
-            if (!m_protector.TryUnprotect(
-                RecordProtectionContext.Create("pubsub-security-group", key),
-                protectedPayload,
-                out ByteString plaintext))
-            {
-                m_logger.UnableToUnprotectSharedPubSubSecurityGroupRecord(securityGroupId);
-                return null;
-            }
-
-            return DeserializeSecurityGroup(plaintext);
+            return group;
         }
 
         /// <inheritdoc/>
-        public async ValueTask SaveSecurityGroupAsync(
-            SksSecurityGroup group,
+        public ValueTask<(SksSecurityGroup? Group, ByteString Revision)> ReadSecurityGroupAsync(
+            string securityGroupId,
             CancellationToken cancellationToken = default)
         {
-            await SaveSecurityGroupCoreAsync(group, null, cancellationToken).ConfigureAwait(false);
+            return ReadSecurityGroupCoreAsync(securityGroupId, true, cancellationToken);
         }
 
         /// <inheritdoc/>
-        public ValueTask SaveSecurityGroupAsync(
+        public ValueTask<bool> TryCommitSecurityGroupAsync(
+            SksSecurityGroup group,
+            ByteString expectedRevision,
+            CancellationToken cancellationToken = default)
+        {
+            if (group is null)
+            {
+                throw new ArgumentNullException(nameof(group));
+            }
+            cancellationToken.ThrowIfCancellationRequested();
+
+            string key = GetSecurityGroupKey(group.SecurityGroupId);
+            ByteString record = ProtectSecurityGroup(group, key);
+            if (FencedSharedStoreValue.TryExtractPayload(expectedRevision, out _, out long token) && token != 0)
+            {
+                record = FencedSharedStoreValue.Wrap(record, token);
+            }
+
+            return m_store.CompareAndSwapAsync(key, expectedRevision, record, cancellationToken);
+        }
+
+        /// <inheritdoc/>
+        ValueTask IPubSubSecurityKeyStore.SaveSecurityGroupAsync(
+            SksSecurityGroup group,
+            CancellationToken cancellationToken)
+        {
+            return SaveSecurityGroupCoreAsync(group, null, cancellationToken);
+        }
+
+        /// <inheritdoc/>
+        ValueTask IPubSubSecurityKeyStore.SaveSecurityGroupAsync(
             SksSecurityGroup group,
             long fencingToken,
-            CancellationToken cancellationToken = default)
+            CancellationToken cancellationToken)
         {
             return SaveSecurityGroupCoreAsync(group, fencingToken, cancellationToken);
         }
 
-        private async ValueTask SaveSecurityGroupCoreAsync(
+        private ValueTask SaveSecurityGroupCoreAsync(
             SksSecurityGroup group,
             long? fencingToken,
             CancellationToken cancellationToken)
@@ -114,17 +136,18 @@ namespace Opc.Ua.PubSub.Security.Sks
             {
                 throw new ArgumentNullException(nameof(group));
             }
+            if (!IsProcessLocal)
+            {
+                throw new NotSupportedException("Distributed SKS writes require an expected group revision.");
+            }
 
-            ByteString plaintext = SerializeSecurityGroup(group);
             string key = GetSecurityGroupKey(group.SecurityGroupId);
-            ByteString protectedRecord = m_protector.Protect(
-                RecordProtectionContext.Create("pubsub-security-group", key), plaintext);
-            await FencedSharedStoreValue.StoreAsync(
+            return FencedSharedStoreValue.StoreAsync(
                 m_store,
                 key,
-                protectedRecord,
+                ProtectSecurityGroup(group, key),
                 fencingToken,
-                cancellationToken).ConfigureAwait(false);
+                cancellationToken);
         }
 
         /// <inheritdoc/>
@@ -140,17 +163,64 @@ namespace Opc.Ua.PubSub.Security.Sks
             return m_store.DeleteAsync(GetSecurityGroupKey(securityGroupId), cancellationToken);
         }
 
+        private async ValueTask<(SksSecurityGroup? Group, ByteString Revision)> ReadSecurityGroupCoreAsync(
+            string securityGroupId,
+            bool requireValidRecord,
+            CancellationToken cancellationToken)
+        {
+            if (securityGroupId is null)
+            {
+                throw new ArgumentNullException(nameof(securityGroupId));
+            }
+
+            string key = GetSecurityGroupKey(securityGroupId);
+            (bool found, ByteString record) = await m_store.TryGetAsync(key, cancellationToken)
+                .ConfigureAwait(false);
+            if (!found)
+            {
+                return default;
+            }
+
+            if (FencedSharedStoreValue.TryExtractPayload(record, out ByteString payload, out _) &&
+                m_protector.TryUnprotect(
+                    RecordProtectionContext.Create("pubsub-security-group", key), payload, out ByteString plaintext))
+            {
+                SksSecurityGroup group = DeserializeSecurityGroup(plaintext);
+                if (string.Equals(group.SecurityGroupId, securityGroupId, StringComparison.Ordinal))
+                {
+                    return (group, record);
+                }
+            }
+
+            m_logger.UnableToUnprotectSharedPubSubSecurityGroupRecord(securityGroupId);
+            if (requireValidRecord)
+            {
+                throw new ServiceResultException(StatusCodes.BadSecurityChecksFailed,
+                    "The stored SecurityGroup could not be authenticated.");
+            }
+            return default;
+        }
+
+        private ByteString ProtectSecurityGroup(SksSecurityGroup group, string key)
+        {
+            return m_protector.Protect(
+                RecordProtectionContext.Create("pubsub-security-group", key), SerializeSecurityGroup(group));
+        }
+
         private ByteString SerializeSecurityGroup(SksSecurityGroup group)
         {
             using var stream = new MemoryStream();
             using (var writer = new BinaryWriter(stream, System.Text.Encoding.UTF8, true))
             {
                 writer.Write(SerializationVersion);
+                // Distinguish revisions even when a process-local store has no record protector.
+                writer.Write(Guid.NewGuid().ToByteArray());
                 writer.Write(group.SecurityGroupId);
                 writer.Write(group.SecurityPolicyUri);
                 writer.Write(group.KeyLifetime.Ticks);
                 writer.Write(group.MaxFutureKeyCount);
                 writer.Write(group.MaxPastKeyCount);
+                writer.Write(group.CurrentKeyIndex);
                 WriteSecurityKeys(writer, group.Keys);
                 WriteStrings(writer, group.AuthorizedCallerIdentities);
                 WriteRolePermissions(writer, group.RolePermissions);
@@ -165,9 +235,13 @@ namespace Opc.Ua.PubSub.Security.Sks
             using var stream = new MemoryStream(buffer, false);
             using var reader = new BinaryReader(stream, System.Text.Encoding.UTF8, false);
             int version = reader.ReadInt32();
-            if (version != SerializationVersion)
+            if (version is not (1 or SerializationVersion))
             {
                 throw new InvalidDataException("Unsupported shared PubSub SecurityGroup record version.");
+            }
+            if (version == SerializationVersion && reader.ReadBytes(16).Length != 16)
+            {
+                throw new EndOfStreamException();
             }
 
             string securityGroupId = reader.ReadString();
@@ -175,6 +249,7 @@ namespace Opc.Ua.PubSub.Security.Sks
             var keyLifetime = TimeSpan.FromTicks(reader.ReadInt64());
             int maxFutureKeyCount = reader.ReadInt32();
             int maxPastKeyCount = reader.ReadInt32();
+            int currentKeyIndex = version == SerializationVersion ? reader.ReadInt32() : 0;
             ArrayOf<PubSubSecurityKey> keys = ReadSecurityKeys(reader);
             ArrayOf<string> authorizedCallerIdentities = ReadStrings(reader);
             ArrayOf<RolePermissionType> rolePermissions = ReadRolePermissions(reader);
@@ -187,7 +262,10 @@ namespace Opc.Ua.PubSub.Security.Sks
                 maxPastKeyCount,
                 keys,
                 authorizedCallerIdentities,
-                rolePermissions);
+                rolePermissions)
+            {
+                CurrentKeyIndex = currentKeyIndex
+            };
         }
 
         private void WriteRolePermissions(BinaryWriter writer, ArrayOf<RolePermissionType> rolePermissions)
@@ -361,7 +439,7 @@ namespace Opc.Ua.PubSub.Security.Sks
             return count;
         }
 
-        private const int SerializationVersion = 1;
+        private const int SerializationVersion = 2;
         private const int NullArrayLength = -1;
         private const int NullByteStringLength = -1;
 

@@ -1,3 +1,7 @@
+<!--
+SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+SPDX-License-Identifier: MIT
+-->
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <!-- Kubernetes integration uses HttpClient and System.Text.Json source generation on net8.0+.
@@ -28,7 +32,7 @@
     <InternalsVisibleTo Include="DynamicProxyGenAssembly2" />
   </ItemGroup>
   <ItemGroup>
-    <PackageReference Include="RaftCs.Transport.NanoMsg" />
+    <PackageReference Include="RaftCs.Transport" />
     <PackageReference Include="RaftCs.Storage.File" />
     <ProjectReference Include="..\Opc.Ua.Redundancy.Server\Opc.Ua.Redundancy.Server.csproj" />
   </ItemGroup>

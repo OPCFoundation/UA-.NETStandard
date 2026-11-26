@@ -1103,7 +1103,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 await AddPredefinedNodeAsync(SystemContext, target, cancellationToken).ConfigureAwait(false);
             }
 
-            public override async ValueTask<object> GetManagerHandleAsync(
+            public override async ValueTask<object?> GetManagerHandleAsync(
                 NodeId nodeId,
                 CancellationToken cancellationToken = default)
             {

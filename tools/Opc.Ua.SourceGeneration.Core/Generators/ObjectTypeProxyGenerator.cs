@@ -90,7 +90,8 @@ namespace Opc.Ua.SourceGeneration
                 m_context.ReferencedModels != null &&
                 m_context.ReferencedModels.TryGetValue(typeUri, out ModelDependencyReference reference))
             {
-                Dependency.ModelDependencyV1? payload = reference.GetDependency();
+                Dependency.ModelDependencyV1? payload =
+                    reference.GetDependencyForGeneration(m_context.Options?.Cancellation ?? default);
                 if (payload == null)
                 {
                     // No record of what the reference excluded: take the

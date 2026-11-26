@@ -47,6 +47,73 @@ namespace Opc.Ua.Types.Tests.Wot
             AssertConflictPreservesArchive(source, root, "/properties/Speed/" + member);
         }
 
+        /// <summary>
+        /// Checks engineering metadata against the archive without other projection-dependent assertions.
+        /// </summary>
+        [TestCase("minimum", -6)]
+        [TestCase("maximum", 96)]
+        public void ConflictingSeparateEngineeringRangeDoesNotReplaceArchive(string endpoint, int value)
+        {
+            UANodeSet source = WotAnalogTestData.CreateAnalogNodeSet(withInstrumentRange: false);
+            var engineeringRange = new JsonObject { ["minimum"] = -5, ["maximum"] = 95 };
+            engineeringRange[endpoint] = value;
+            JsonObject root = ArchiveWithEngineeringRange(source, engineeringRange);
+
+            AssertConflictPreservesArchive(source, root, "/properties/Measurement/uav:euRange/" + endpoint);
+        }
+
+        /// <summary>
+        /// Treats omitted engineering endpoints as absent assertions rather than conflicts.
+        /// </summary>
+        [TestCase("minimum", -5)]
+        [TestCase("maximum", 95)]
+        public void PartialSeparateEngineeringRangePreservesArchive(string endpoint, int value)
+        {
+            UANodeSet source = WotAnalogTestData.CreateAnalogNodeSet(withInstrumentRange: false);
+            JsonObject root = ArchiveWithEngineeringRange(source, new JsonObject { [endpoint] = value });
+            using WotDocument document = Parse(root);
+
+            WotConversionResult<UANodeSet> result = WotNodeSetConverter.ToNodeSetResult(document);
+
+            Assert.That(result.Success, Is.True, Describe(result));
+            AssertEngineeringRangePreserved(
+                source.Items!.OfType<UAVariable>().Single(variable => variable.BrowseName == "EURange"),
+                result.Value!);
+        }
+
+        /// <summary>
+        /// Checks each finite native endpoint even when the other endpoint cannot be represented in JSON.
+        /// </summary>
+        [TestCase(false, false)]
+        [TestCase(false, true)]
+        [TestCase(true, false)]
+        [TestCase(true, true)]
+        public void SeparateEngineeringRangeChecksFiniteNativeEndpoints(bool nonFiniteLow, bool conflict)
+        {
+            UANodeSet source = WotAnalogTestData.CreateAnalogNodeSet(withInstrumentRange: false);
+            UAVariable nativeRange = source.Items!.OfType<UAVariable>()
+                .Single(variable => variable.BrowseName == "EURange");
+            nativeRange.Value =
+                WotAnalogTestData.RangeValue(nonFiniteLow ? double.NaN : 0, nonFiniteLow ? 100 : double.NaN);
+            string endpoint = nonFiniteLow ? "maximum" : "minimum";
+            int value = nonFiniteLow ? 100 : 0;
+            if (conflict)
+            {
+                value += nonFiniteLow ? 1 : -1;
+            }
+            JsonObject root = ArchiveWithEngineeringRange(source, new JsonObject { [endpoint] = value });
+            using WotDocument document = Parse(root);
+
+            WotConversionResult<UANodeSet> result = WotNodeSetConverter.ToNodeSetResult(document);
+
+            Assert.That(result.Success, Is.EqualTo(!conflict), Describe(result));
+            Assert.That(result.Diagnostics.Any(diagnostic =>
+                diagnostic.Code == WotDiagnosticCode.NativeProjectionConflict &&
+                diagnostic.Location?.JsonPointer == "/properties/Measurement/uav:euRange/" + endpoint),
+                Is.EqualTo(conflict), Describe(result));
+            AssertEngineeringRangePreserved(nativeRange, result.Value!);
+        }
+
         [Test]
         public void ConflictingTypeDefinitionDoesNotReplaceArchive()
         {
@@ -329,6 +396,39 @@ namespace Opc.Ua.Types.Tests.Wot
                 root.Remove("uav:nodes");
             }
             return root;
+        }
+
+        /// <summary>
+        /// Adds an engineering assertion without other projection-dependent readable facts.
+        /// </summary>
+        private static JsonObject ArchiveWithEngineeringRange(UANodeSet source, JsonObject engineeringRange)
+        {
+            JsonObject root = Archive(source);
+            root.Remove("uav:dataTypeDefinitions");
+            root["properties"] = new JsonObject
+            {
+                ["Measurement"] = new JsonObject
+                {
+                    ["type"] = "number",
+                    ["uav:id"] = "nsu=urn:test:analog;i=1001",
+                    ["uav:euRange"] = engineeringRange
+                }
+            };
+            return root;
+        }
+
+        /// <summary>
+        /// Verifies the preserved range value without comparing insignificant XML whitespace or JSON residue.
+        /// </summary>
+        private static void AssertEngineeringRangePreserved(UAVariable expected, UANodeSet actual)
+        {
+            System.Xml.XmlElement restored = actual.Items!.OfType<UAVariable>()
+                .Single(variable => variable.NodeId == expected.NodeId).Value!;
+            foreach (string field in new[] { "Identifier", "Low", "High" })
+            {
+                Assert.That(restored.GetElementsByTagName(field, Namespaces.OpcUaXsd)[0]!.InnerText,
+                    Is.EqualTo(expected.Value!.GetElementsByTagName(field, Namespaces.OpcUaXsd)[0]!.InnerText));
+            }
         }
 
         private static WotDocument Parse(JsonObject root)

@@ -40,7 +40,9 @@ namespace Opc.Ua.Redundancy.Server
         /// <remarks>
         /// When this value is <c>false</c>, the fluent registration uses a
         /// static single-leader election so the local server is always the
-        /// writer.
+        /// writer unless an election is already registered. When enabled, the shared lease
+        /// replaces an earlier election registration as the server writer authority. It requires an
+        /// independently enrolled <see cref="FreshnessProtectedKeyValueStore"/> and explicit lease membership.
         /// </remarks>
         public bool UseLeaderElection { get; set; }
 
@@ -52,7 +54,12 @@ namespace Opc.Ua.Redundancy.Server
         /// <summary>
         /// Gets or sets the unique identifier for this server replica.
         /// </summary>
-        public string NodeId { get; set; } = Environment.MachineName;
+        public string NodeId { get; set; } = string.Empty;
+
+        /// <summary>
+        /// Gets or sets the same complete set of lease member ids on every replica.
+        /// </summary>
+        public ArrayOf<string> LeaseMemberIds { get; set; } = [];
 
         /// <summary>
         /// Gets or sets how long an acquired leader lease remains valid without
@@ -74,13 +81,15 @@ namespace Opc.Ua.Redundancy.Server
 
         /// <summary>
         /// Gets or sets a function that returns the connected-client load used
-        /// to decrement healthy service levels for load balancing.
+        /// to decrement healthy service levels for load balancing. When unset,
+        /// the provider uses the current number of hosted server sessions.
         /// </summary>
         public Func<uint>? ServiceLevelLoadMetric { get; set; }
 
         /// <summary>
         /// Gets or sets a function that returns the health-derived maximum
-        /// service level for this replica.
+        /// service level for this replica. It can lower the level but cannot
+        /// make an unverified replica ready to serve.
         /// </summary>
         public Func<byte>? HealthServiceLevel { get; set; }
     }

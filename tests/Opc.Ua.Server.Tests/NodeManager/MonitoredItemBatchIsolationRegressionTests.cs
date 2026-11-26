@@ -102,11 +102,11 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 owner.SetupGet(value => value.NamespaceUris).Returns([uri]);
                 owner.Setup(value => value.GetManagerHandleAsync(
                         source.NodeId, It.IsAny<CancellationToken>()))
-                    .Returns(new ValueTask<object>(source));
+                    .Returns(new ValueTask<object?>(source));
                 owner.Setup(value => value.GetNodeMetadataAsync(
                         It.IsAny<OperationContext>(), It.IsAny<object>(),
                         It.IsAny<BrowseResultMask>(), It.IsAny<CancellationToken>()))
-                    .Returns(new ValueTask<NodeMetadata>(new NodeMetadata(source, source.NodeId)
+                    .Returns(new ValueTask<NodeMetadata?>(new NodeMetadata(source, source.NodeId)
                     {
                         NodeClass = NodeClass.Object,
                         EventNotifier = EventNotifiers.SubscribeToEvents

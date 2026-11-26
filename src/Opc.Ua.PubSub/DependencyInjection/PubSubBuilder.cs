@@ -421,6 +421,12 @@ namespace Microsoft.Extensions.DependencyInjection
                 {
                     pb.WithSecurityWrapperResolver(securityWrapperResolver);
                 }
+                pb.ConfigureRedundancy(
+                    sp.GetService<IPubSubActivationCoordinator>(),
+                    sp.GetService<IPubSubNonceRangeStore>(),
+                    sp.GetService<IPubSubActivationFenceProvider>(),
+                    sp.GetService<IPubSubRuntimeStateStore>(),
+                    sp.GetService<IPubSubWriterCheckpointStore>());
                 if (applyOptionsConfiguration)
                 {
                     if (!string.IsNullOrEmpty(options.ConfigurationFilePath))

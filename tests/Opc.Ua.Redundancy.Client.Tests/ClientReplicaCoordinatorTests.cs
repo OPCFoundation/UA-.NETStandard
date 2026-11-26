@@ -906,6 +906,8 @@ namespace Opc.Ua.Client.Redundancy.Tests
                 innerSession.SessionCreated(NodeId.Parse("s=follower-session"), ownAuthenticationToken);
             }
 
+            // These coordinator tests inject an already opened session; channel authentication is tested separately.
+            innerSession.BindRedundantPeerIdentity("urn:localhost:ClientReplicaCoordinatorTests:Server");
             ManagedSession managedSession = CreateManagedSessionWithInner(
                 configuration,
                 endpoint,
@@ -1004,9 +1006,22 @@ namespace Opc.Ua.Client.Redundancy.Tests
             ManagedSession standby,
             Func<SessionHandoff, SessionTakeoverOptions, CancellationToken, Task<ManagedSession>> factory)
         {
+            Task<ManagedSession> TakeOverAsync(
+                SessionHandoff handoff,
+                SessionTakeoverOptions options,
+                bool requireIndependentPeerIdentity,
+                CancellationToken ct)
+            {
+                Assert.That(requireIndependentPeerIdentity, Is.True);
+                return factory(handoff, options, ct);
+            }
+
             typeof(ManagedSession)
                 .GetField("m_takeoverFactory", BindingFlags.NonPublic | BindingFlags.Instance)!
-                .SetValue(standby, factory);
+                .SetValue(
+                    standby,
+                    (Func<SessionHandoff, SessionTakeoverOptions, bool, CancellationToken, Task<ManagedSession>>)
+                        TakeOverAsync);
         }
 
         private static void SetServerNonce(Session session, byte[] value)
