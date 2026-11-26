@@ -45,7 +45,9 @@ using X509AuthorityKeyIdentifierExtension = Opc.Ua.Security.Certificates.X509Aut
 
 namespace Opc.Ua.Gds.Server
 {
-    public class CertificateGroup : ICertificateGroup
+    public class CertificateGroup :
+        ICertificateGroupWithApprovedUriSans,
+        ICertificateGroupWithAuthenticatedSigningRequest
     {
         /// <inheritdoc/>
         public NodeId Id { get; set; }
@@ -495,11 +497,103 @@ namespace Opc.Ua.Gds.Server
             }
         }
 
+        public virtual Task<Certificate> SigningRequestAsync(
+            ApplicationRecordDataType application,
+            NodeId certificateType,
+            string[] domainNames,
+            ByteString certificateRequest,
+            CancellationToken ct = default)
+        {
+            return SigningRequestWithApprovedUriSansAsync(
+                application,
+                certificateType,
+                domainNames,
+                certificateRequest,
+                ArrayOf<string>.Empty,
+                ct);
+        }
+
+        /// <inheritdoc/>
         public virtual async Task<Certificate> SigningRequestAsync(
             ApplicationRecordDataType application,
             NodeId certificateType,
             string[] domainNames,
             ByteString certificateRequest,
+            ArrayOf<string> approvedAdditionalUriSans,
+            CancellationToken ct = default)
+        {
+            if (GetType() != typeof(CertificateGroup))
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadNotSupported,
+                    "A CertificateGroup subclass must override the approved URI SAN signing overload.");
+            }
+
+            return await SigningRequestWithApprovedUriSansAsync(
+                application,
+                certificateType,
+                domainNames,
+                certificateRequest,
+                approvedAdditionalUriSans,
+                ct).ConfigureAwait(false);
+        }
+
+        /// <inheritdoc/>
+        public virtual async Task<Certificate> SigningRequestForAuthenticatedEvidenceAsync(
+            NodeId certificateType,
+            string approvedSubjectName,
+            string applicationUri,
+            string productInstanceUri,
+            ArrayOf<string> approvedAdditionalUriSans,
+            ArrayOf<string> approvedDomainNames,
+            ByteString certificateRequest,
+            CancellationToken ct = default)
+        {
+            if (GetType() != typeof(CertificateGroup))
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadNotSupported,
+                    "A CertificateGroup subclass must override authenticated evidence signing.");
+            }
+
+            var approvedUris = new List<string> { applicationUri };
+            if (!approvedUris.Contains(productInstanceUri))
+            {
+                approvedUris.Add(productInstanceUri);
+            }
+            foreach (string approvedUri in approvedAdditionalUriSans.Span)
+            {
+                if (!approvedUris.Contains(approvedUri))
+                {
+                    approvedUris.Add(approvedUri);
+                }
+            }
+
+            return await SigningRequestWithApprovedIdentityAsync(
+                certificateType,
+                approvedSubjectName,
+                approvedUris.ToArray(),
+                approvedDomainNames.Span.ToArray(),
+                certificateRequest,
+                ct).ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// Issues a CSR after adding URI SANs explicitly approved by the host.
+        /// </summary>
+        /// <param name="application">The application the CSR is for.</param>
+        /// <param name="certificateType">The requested certificate type.</param>
+        /// <param name="domainNames">Fallback domain names when the CSR has no DNS or IP SANs.</param>
+        /// <param name="certificateRequest">The DER encoded PKCS#10 request.</param>
+        /// <param name="approvedAdditionalUriSans">Additional URI SANs explicitly approved by the host.</param>
+        /// <param name="ct">The cancellation token.</param>
+        /// <returns>The issued certificate.</returns>
+        protected async Task<Certificate> SigningRequestWithApprovedUriSansAsync(
+            ApplicationRecordDataType application,
+            NodeId certificateType,
+            string[] domainNames,
+            ByteString certificateRequest,
+            ArrayOf<string> approvedAdditionalUriSans,
             CancellationToken ct = default)
         {
             try
@@ -520,6 +614,7 @@ namespace Opc.Ua.Gds.Server
 
                 X509SubjectAltNameExtension? altNameExtension =
                     Pkcs10Utils.GetSubjectAltNameExtension(pkcs10CertificationRequest.Attributes);
+                var applicationUris = new List<string> { application.ApplicationUri! };
                 if (altNameExtension == null)
                 {
                     // OPC 10000-12 §7.9.3: the ApplicationUri shall be specified in the CSR.
@@ -545,6 +640,22 @@ namespace Opc.Ua.Gds.Server
                             applicationUriMissing.ToString());
                     }
 
+                    foreach (string approvedUri in approvedAdditionalUriSans.Span)
+                    {
+                        if (string.IsNullOrWhiteSpace(approvedUri) ||
+                            !Uri.TryCreate(approvedUri, UriKind.Absolute, out _))
+                        {
+                            throw new ServiceResultException(
+                                StatusCodes.BadCertificateUriInvalid,
+                                "An approved URI SAN is invalid.");
+                        }
+
+                        if (!applicationUris.Contains(approvedUri))
+                        {
+                            applicationUris.Add(approvedUri);
+                        }
+                    }
+
                     if (altNameExtension.IPAddresses.Count > 0 ||
                         altNameExtension.DomainNames.Count > 0)
                     {
@@ -567,7 +678,94 @@ namespace Opc.Ua.Gds.Server
                 ICertificateBuilder builder = CertificateBuilder
                     .Create(subjectName)
                     .AddExtension(
-                        new X509SubjectAltNameExtension(application.ApplicationUri!, domainNames))
+                        new X509SubjectAltNameExtension(applicationUris, domainNames))
+                    .SetNotBefore(yesterday)
+                    .SetLifeTime(Configuration.DefaultCertificateLifetime);
+
+                return TryGetECCCurve(certificateType, out ECCurve curve)
+                    ? builder
+                        .SetIssuer(signingKey)
+                        .SetECDsaPublicKey(pkcs10CertificationRequest.SubjectPublicKeyInfo)
+                        .CreateForECDsa()
+                    : builder
+                        .SetHashAlgorithm(X509Utils.GetRSAHashAlgorithmName(
+                            Configuration.DefaultCertificateHashSize))
+                        .SetIssuer(signingKey)
+                        .SetRSAPublicKey(pkcs10CertificationRequest.SubjectPublicKeyInfo)
+                        .CreateForRSA();
+            }
+            catch (Exception ex) when (ex is not ServiceResultException)
+            {
+                throw new ServiceResultException(StatusCodes.BadInvalidArgument, ex.Message);
+            }
+        }
+
+        /// <summary>
+        /// Issues a CSR using identity values explicitly approved by the authenticated host.
+        /// </summary>
+        /// <param name="certificateType">The requested certificate type.</param>
+        /// <param name="approvedSubjectName">The X.500 subject name selected by the host.</param>
+        /// <param name="approvedUriSans">URI SANs approved by the host.</param>
+        /// <param name="approvedDomainNames">DNS names or IP addresses approved by the host.</param>
+        /// <param name="certificateRequest">The DER encoded PKCS#10 request.</param>
+        /// <param name="ct">The cancellation token.</param>
+        /// <returns>The issued certificate.</returns>
+        protected async Task<Certificate> SigningRequestWithApprovedIdentityAsync(
+            NodeId certificateType,
+            string approvedSubjectName,
+            string[] approvedUriSans,
+            string[] approvedDomainNames,
+            ByteString certificateRequest,
+            CancellationToken ct = default)
+        {
+            try
+            {
+                VerifySigningRequestKey(certificateType, certificateRequest);
+                var pkcs10CertificationRequest = new Pkcs10CertificationRequest(certificateRequest.ToArray());
+                if (!pkcs10CertificationRequest.Verify())
+                {
+                    throw new ServiceResultException(StatusCodes.BadInvalidArgument, "CSR signature invalid.");
+                }
+
+                if (string.IsNullOrWhiteSpace(approvedSubjectName) || approvedUriSans.Length == 0)
+                {
+                    throw new ServiceResultException(
+                        StatusCodes.BadInvalidArgument,
+                        "The host-approved subject and at least one URI SAN are required.");
+                }
+
+                foreach (string approvedUri in approvedUriSans)
+                {
+                    if (string.IsNullOrWhiteSpace(approvedUri) ||
+                        !Uri.TryCreate(approvedUri, UriKind.Absolute, out _))
+                    {
+                        throw new ServiceResultException(
+                            StatusCodes.BadCertificateUriInvalid,
+                            "An approved URI SAN is invalid.");
+                    }
+                }
+
+                foreach (string domainName in approvedDomainNames)
+                {
+                    if (string.IsNullOrWhiteSpace(domainName) ||
+                        Uri.CheckHostName(domainName) is not
+                            (UriHostNameType.Dns or UriHostNameType.IPv4 or UriHostNameType.IPv6))
+                    {
+                        throw new ServiceResultException(
+                            StatusCodes.BadInvalidArgument,
+                            "An approved DNS name or IP address is invalid.");
+                    }
+                }
+
+                DateTime yesterday = DateTime.Today.AddDays(-1);
+                using Certificate signingKey = await LoadSigningKeyAsync(
+                    Certificates[certificateType]!,
+                    null,
+                    m_telemetry,
+                    ct).ConfigureAwait(false);
+                ICertificateBuilder builder = CertificateBuilder
+                    .Create(new X500DistinguishedName(approvedSubjectName))
+                    .AddExtension(new X509SubjectAltNameExtension(approvedUriSans, approvedDomainNames))
                     .SetNotBefore(yesterday)
                     .SetLifeTime(Configuration.DefaultCertificateLifetime);
 
