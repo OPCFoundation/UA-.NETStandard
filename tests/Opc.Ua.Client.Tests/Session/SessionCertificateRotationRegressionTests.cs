@@ -3,6 +3,7 @@
 
 using System;
 using System.IO;
+using System.Reflection;
 using System.Security.Cryptography;
 using System.Threading;
 using System.Threading.Tasks;
@@ -218,6 +219,103 @@ namespace Opc.Ua.Client.Tests
                     Directory.Delete(path, true);
                 }
             }
+        }
+
+        /// <summary>
+        /// Verifies an unmanaged load reuses the key the certificate manager
+        /// loaded for the configured store, and that a replacement of the
+        /// configured identifier and store is still loaded from that store.
+        /// </summary>
+        [Test]
+        public async Task UnmanagedCertificateLoadReusesTheManagerKeyUntilTheConfiguredStoreIsReplacedAsync()
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            using Certificate validated = CertificateBuilder.Create("CN=ValidatedClient").CreateForRSA();
+            using Certificate replacement = CertificateBuilder.Create("CN=ReplacementClient").CreateForRSA();
+            string validatedPath = Path.Combine(
+                Path.GetTempPath(), "SessionCertificate-" + Guid.NewGuid().ToString("N"));
+            string replacementPath = Path.Combine(
+                Path.GetTempPath(), "SessionCertificate-" + Guid.NewGuid().ToString("N"));
+            var validatedId = new CertificateIdentifier
+            {
+                StoreType = CertificateStoreType.Directory,
+                StorePath = validatedPath,
+                Thumbprint = validated.Thumbprint,
+                SubjectName = validated.Subject,
+                CertificateType = ObjectTypeIds.RsaSha256ApplicationCertificateType
+            };
+            var replacementId = new CertificateIdentifier
+            {
+                StoreType = CertificateStoreType.Directory,
+                StorePath = replacementPath,
+                Thumbprint = replacement.Thumbprint,
+                SubjectName = replacement.Subject,
+                CertificateType = ObjectTypeIds.RsaSha256ApplicationCertificateType
+            };
+            await using var manager = new CertificateManager(telemetry);
+            var configuration = new ApplicationConfiguration(telemetry)
+            {
+                CertificateManager = manager,
+                SecurityConfiguration = new SecurityConfiguration { ApplicationCertificate = validatedId }
+            };
+            try
+            {
+                using (ICertificateStore store = CertificateIdentifierResolver.OpenStore(validatedId, telemetry)!)
+                {
+                    await store!.AddAsync(validated).ConfigureAwait(false);
+                }
+                using (ICertificateStore store = CertificateIdentifierResolver.OpenStore(replacementId, telemetry)!)
+                {
+                    await store!.AddAsync(replacement).ConfigureAwait(false);
+                }
+                await manager.LoadApplicationCertificatesAsync(
+                    configuration.SecurityConfiguration,
+                    configuration.ApplicationUri).ConfigureAwait(false);
+                using CertificateEntry managed = manager.AcquireApplicationCertificateByType(
+                    ObjectTypeIds.RsaSha256ApplicationCertificateType)!;
+                Assert.That(managed, Is.Not.Null);
+
+                using (CertificateEntry reused = await Session.LoadInstanceCertificateEntryAsync(
+                    configuration,
+                    SecurityPolicies.Basic256Sha256,
+                    telemetry).ConfigureAwait(false))
+                {
+                    Assert.That(reused.Certificate.Thumbprint, Is.EqualTo(validated.Thumbprint));
+                    Assert.That(reused.Certificate.HasPrivateKey, Is.True);
+                    Assert.That(X509Of(reused.Certificate), Is.SameAs(X509Of(managed.Certificate)));
+                }
+
+                configuration.SecurityConfiguration.ApplicationCertificate = replacementId;
+                using CertificateEntry replaced = await Session.LoadInstanceCertificateEntryAsync(
+                    configuration,
+                    SecurityPolicies.Basic256Sha256,
+                    telemetry).ConfigureAwait(false);
+
+                Assert.That(replaced.Certificate.Thumbprint, Is.EqualTo(replacement.Thumbprint));
+                Assert.That(replaced.Certificate.HasPrivateKey, Is.True);
+                Assert.That(X509Of(replaced.Certificate), Is.Not.SameAs(X509Of(managed.Certificate)));
+            }
+            finally
+            {
+                foreach (string path in new[] { validatedPath, replacementPath })
+                {
+                    if (Directory.Exists(path))
+                    {
+                        Directory.Delete(path, true);
+                    }
+                }
+            }
+        }
+
+        /// <summary>
+        /// The wrapped X509 instance. It is internal to the certificates
+        /// assembly; reuse shares it, a store load creates a new one.
+        /// </summary>
+        private static object X509Of(Certificate certificate)
+        {
+            return typeof(Certificate)
+                .GetProperty("X509", BindingFlags.Instance | BindingFlags.NonPublic)!
+                .GetValue(certificate)!;
         }
     }
 }
