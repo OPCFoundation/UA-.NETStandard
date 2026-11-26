@@ -51,7 +51,8 @@ namespace Opc.Ua.Server
         ICertificateValidatorProvider,
         INodeIdFactoryProvider,
         IServerServiceLevelControl,
-        IServerServiceLevelControlRevocation
+        IServerServiceLevelControlRevocation,
+        IServerAuthorizationPolicyProvider
     {
         /// <summary>
         /// Initializes the datastore with the server configuration.
@@ -642,6 +643,48 @@ namespace Opc.Ua.Server
         {
             ThrowIfBindPhaseComplete();
             UserManagement = userManagement ?? throw new ArgumentNullException(nameof(userManagement));
+        }
+
+        /// <inheritdoc/>
+        public IServerAuthorizationPolicy AuthorizationPolicy { get; private set; } = ServerAuthorizationPolicy.Default;
+
+        /// <summary>
+        /// Sets the authorization policy that every administrator check of the server consults.
+        /// </summary>
+        /// <param name="authorizationPolicy">The policy.</param>
+        /// <exception cref="ArgumentNullException"><paramref name="authorizationPolicy"/> is <c>null</c>.</exception>
+        public void SetAuthorizationPolicy(IServerAuthorizationPolicy authorizationPolicy)
+        {
+            ThrowIfBindPhaseComplete();
+            AuthorizationPolicy = authorizationPolicy ?? throw new ArgumentNullException(nameof(authorizationPolicy));
+        }
+
+        /// <summary>
+        /// The sink that receives every audit event the server reports while
+        /// <see cref="Auditing"/> is enabled. The default publishes the event in the address space.
+        /// </summary>
+        public IAuditEventSink AuditEventSink => m_auditEventSink ??= new AddressSpaceAuditEventSink(this);
+
+        /// <summary>
+        /// Sets the sink that receives the audit events of the server.
+        /// </summary>
+        /// <param name="auditEventSink">The sink.</param>
+        /// <exception cref="ArgumentNullException"><paramref name="auditEventSink"/> is <c>null</c>.</exception>
+        public void SetAuditEventSink(IAuditEventSink auditEventSink)
+        {
+            ThrowIfBindPhaseComplete();
+            m_auditEventSink = auditEventSink ?? throw new ArgumentNullException(nameof(auditEventSink));
+        }
+
+        /// <summary>
+        /// Publishes an audit event in the address space of the server, through the Server object
+        /// and its notifiers. This is the default <see cref="AuditEventSink"/>.
+        /// </summary>
+        /// <param name="context">The context.</param>
+        /// <param name="e">The audit event.</param>
+        public void PublishAuditEvent(ISystemContext context, AuditEventState e)
+        {
+            ReportEvent(context, e);
         }
 
         /// <inheritdoc/>
@@ -1312,7 +1355,7 @@ namespace Opc.Ua.Server
                 return;
             }
 
-            ReportEvent(context, e);
+            AuditEventSink.ReportAuditEvent(context, e);
         }
 
         /// <summary>
@@ -1852,15 +1895,8 @@ namespace Opc.Ua.Server
         /// </summary>
         private static bool HasDiagnosticsAdminAccess(ISystemContext context)
         {
-            if (context is not SessionSystemContext { OperationContext: OperationContext operationContext } session ||
-                operationContext.ChannelContext?.EndpointDescription?.SecurityMode != MessageSecurityMode.SignAndEncrypt)
-            {
-                return false;
-            }
-
-            ArrayOf<NodeId> roles = session.UserIdentity?.GrantedRoleIds ?? default;
-            return roles.Contains(ObjectIds.WellKnownRole_SecurityAdmin) ||
-                roles.Contains(ObjectIds.WellKnownRole_ConfigureAdmin);
+            return ServiceResult.IsGood(
+                RoleAuthorizationGate.Check(context, ServerAuthorizationDecision.DiagnosticsConfiguration));
         }
 
         /// <summary>
@@ -1928,6 +1964,7 @@ namespace Opc.Ua.Server
         private readonly Lock m_serviceLevelLock = new();
         private byte m_initialServiceLevel = ServiceLevels.Maximum;
         private ServiceLevelWriter? m_serviceLevelOwner;
+        private IAuditEventSink? m_auditEventSink;
 
         /// <summary>
         /// Provides a revocable service-level writer tied to the current explicit owner.

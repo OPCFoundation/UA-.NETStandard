@@ -24,5 +24,14 @@ namespace Opc.Ua.Server.Hosting
             SecurityPolicies.Aes128_Sha256_RsaOaep,
             SecurityPolicies.Basic256Sha256
         ];
+
+        /// <summary>
+        /// Host policy awaited after the server authorization policy grants
+        /// <see cref="ServerAuthorizationDecision.KeyCredentialPush"/>. When <c>null</c>, the
+        /// binding uses the certificate push authorization of the server that binds it
+        /// (<see cref="ServerConfigurationOptions.PushAuthorization"/> or a registered
+        /// <see cref="IPushConfigurationAuthorization"/>).
+        /// </summary>
+        public IPushConfigurationAuthorization? PushAuthorization { get; set; }
     }
 }

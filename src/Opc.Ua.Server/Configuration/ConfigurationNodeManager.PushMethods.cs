@@ -60,6 +60,7 @@ namespace Opc.Ua.Server
             }
 
             subject.ConfigureEncryption(m_configuration.CertificateManager);
+            subject.ConfigurePushAuthorization(m_serverConfigurationOptions.PushAuthorization);
             await subject.BindAsync(
                     folder,
                     SystemContext,

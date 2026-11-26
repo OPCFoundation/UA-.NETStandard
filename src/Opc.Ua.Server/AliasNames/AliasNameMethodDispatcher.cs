@@ -227,17 +227,8 @@ namespace Opc.Ua.Server.AliasNames
         /// </summary>
         internal static bool HasSecureAdminAccess(ISystemContext context)
         {
-            if (context is SessionSystemContext { OperationContext: OperationContext op } session)
-            {
-                if (op.ChannelContext?.EndpointDescription?.SecurityMode !=
-                    MessageSecurityMode.SignAndEncrypt)
-                {
-                    return false;
-                }
-                return session.UserIdentity?.GrantedRoleIds
-                    .Contains(ObjectIds.WellKnownRole_SecurityAdmin) == true;
-            }
-            return false;
+            return ServiceResult.IsGood(
+                RoleAuthorizationGate.Check(context, ServerAuthorizationDecision.AliasManagement));
         }
 
         /// <summary>

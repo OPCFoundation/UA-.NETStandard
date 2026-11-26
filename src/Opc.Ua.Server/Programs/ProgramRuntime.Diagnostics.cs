@@ -141,8 +141,9 @@ namespace Opc.Ua.Server.Programs
         }
 
         /// <summary>
-        /// Part 10 ProgramDiagnostic2Type: diagnostics are readable by the creating session or a SecurityAdmin, over a
-        /// confidential channel. Only an in-process read without a request (no operation context) is
+        /// Part 10 ProgramDiagnostic2Type: diagnostics are readable by the creating session over a
+        /// confidential channel, or by a caller the server authorization policy grants
+        /// <see cref="ServerAuthorizationDecision.DiagnosticsRead"/>. Only an in-process read without a request (no operation context) is
         /// trusted; a remote sessionless request carries an operation context and is authorized like
         /// any other caller, so it needs the SecurityAdmin role.
         /// </summary>
@@ -178,8 +179,10 @@ namespace Opc.Ua.Server.Programs
             }
             bool creator = !sessionId.IsNull && !m_diagnostics.CreateSessionId.IsNull &&
                 sessionId == m_diagnostics.CreateSessionId;
-            bool securityAdmin =
-                identity?.GrantedRoleIds.Contains(ObjectIds.WellKnownRole_SecurityAdmin) == true;
+            // The administrator path is the server's DiagnosticsRead decision; a context
+            // without an operation context never reaches here as a remote caller.
+            bool securityAdmin = identity != null && ServiceResult.IsGood(
+                RoleAuthorizationGate.Check(context, ServerAuthorizationDecision.DiagnosticsRead));
             return confidential && (creator || securityAdmin)
                 ? ServiceResult.Good
                 : new ServiceResult(StatusCodes.BadUserAccessDenied);

@@ -39,7 +39,7 @@ namespace Opc.Ua.Gds.Tests
         public void HasAuthorizationWithNullContextDoesNotThrow()
         {
             Assert.DoesNotThrow(() =>
-                AuthorizationHelper.HasAuthorization(null!, AuthorizationHelper.DiscoveryAdmin));
+                AuthorizationHelper.HasAuthorization(null!, ServerAuthorizationDecision.ApplicationRegistration, AuthorizationHelper.DiscoveryAdmin));
         }
 
         [Test]
@@ -55,6 +55,7 @@ namespace Opc.Ua.Gds.Tests
             ServiceResultException ex = Assert.Throws<ServiceResultException>(() =>
                 AuthorizationHelper.HasAuthorization(
                     context,
+                    ServerAuthorizationDecision.ApplicationRegistration,
                     AuthorizationHelper.DiscoveryAdmin));
 
             Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadUserAccessDenied));
@@ -76,6 +77,7 @@ namespace Opc.Ua.Gds.Tests
             Assert.DoesNotThrow(() =>
                 AuthorizationHelper.HasAuthorization(
                     context,
+                    ServerAuthorizationDecision.ApplicationRegistration,
                     AuthorizationHelper.DiscoveryAdmin));
         }
 
@@ -96,6 +98,7 @@ namespace Opc.Ua.Gds.Tests
             Assert.DoesNotThrow(() =>
                 AuthorizationHelper.HasAuthorization(
                     context,
+                    ServerAuthorizationDecision.ApplicationRegistration,
                     AuthorizationHelper.DiscoveryAdminOrSelfAdmin,
                     appId));
         }
@@ -174,6 +177,7 @@ namespace Opc.Ua.Gds.Tests
             ServiceResultException ex = Assert.Throws<ServiceResultException>(() =>
                 AuthorizationHelper.HasAuthorization(
                     context,
+                    ServerAuthorizationDecision.ApplicationRegistration,
                     AuthorizationHelper.DiscoveryAdminOrSelfAdmin,
                     otherAppId));
 
@@ -197,6 +201,7 @@ namespace Opc.Ua.Gds.Tests
             ServiceResultException ex = Assert.Throws<ServiceResultException>(() =>
                 AuthorizationHelper.HasAuthorization(
                     context,
+                    ServerAuthorizationDecision.ApplicationRegistration,
                     AuthorizationHelper.DiscoveryAdminOrSelfAdmin,
                     NodeId.Null));
 
@@ -216,6 +221,7 @@ namespace Opc.Ua.Gds.Tests
             ServiceResultException ex = Assert.Throws<ServiceResultException>(() =>
                 AuthorizationHelper.HasAuthorization(
                     context,
+                    ServerAuthorizationDecision.ApplicationRegistration,
                     AuthorizationHelper.CertificateAuthorityAdmin));
 
             Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadUserAccessDenied));
@@ -237,6 +243,7 @@ namespace Opc.Ua.Gds.Tests
             Assert.DoesNotThrow(() =>
                 AuthorizationHelper.HasAuthorization(
                     context,
+                    ServerAuthorizationDecision.ApplicationRegistration,
                     AuthorizationHelper.CertificateAuthorityAdmin));
         }
 
@@ -256,6 +263,7 @@ namespace Opc.Ua.Gds.Tests
             Assert.DoesNotThrow(() =>
                 AuthorizationHelper.HasAuthorization(
                     context,
+                    ServerAuthorizationDecision.ApplicationRegistration,
                     AuthorizationHelper.KeyCredentialAdmin));
         }
 
@@ -278,11 +286,13 @@ namespace Opc.Ua.Gds.Tests
             Assert.DoesNotThrow(() =>
                 AuthorizationHelper.HasAuthorization(
                     context,
+                    ServerAuthorizationDecision.ApplicationRegistration,
                     AuthorizationHelper.KeyCredentialAdminOrSelfAdminOrAppAdmin,
                     ownAppId));
             Assert.That(
                 () => AuthorizationHelper.HasAuthorization(
                     context,
+                    ServerAuthorizationDecision.ApplicationRegistration,
                     AuthorizationHelper.KeyCredentialAdminOrSelfAdminOrAppAdmin,
                     otherAppId),
                 Throws.TypeOf<ServiceResultException>()
@@ -310,11 +320,13 @@ namespace Opc.Ua.Gds.Tests
             Assert.DoesNotThrow(() =>
                 AuthorizationHelper.HasAuthorization(
                     context,
+                    ServerAuthorizationDecision.ApplicationRegistration,
                     AuthorizationHelper.KeyCredentialAdminOrSelfAdminOrAppAdmin,
                     managedAppId));
             Assert.That(
                 () => AuthorizationHelper.HasAuthorization(
                     context,
+                    ServerAuthorizationDecision.ApplicationRegistration,
                     AuthorizationHelper.KeyCredentialAdminOrSelfAdminOrAppAdmin,
                     unmanagedAppId),
                 Throws.TypeOf<ServiceResultException>()
@@ -589,6 +601,7 @@ namespace Opc.Ua.Gds.Tests
             Assert.DoesNotThrow(() =>
                 AuthorizationHelper.HasAuthorization(
                     context,
+                    ServerAuthorizationDecision.ApplicationRegistration,
                     AuthorizationHelper.AuthenticatedUser));
         }
 
@@ -608,6 +621,7 @@ namespace Opc.Ua.Gds.Tests
             ServiceResultException ex = Assert.Throws<ServiceResultException>(() =>
                 AuthorizationHelper.HasAuthorization(
                     context,
+                    ServerAuthorizationDecision.ApplicationRegistration,
                     AuthorizationHelper.CertificateAuthorityAdminOrSelfAdmin,
                     new NodeId(42)));
 
@@ -630,6 +644,7 @@ namespace Opc.Ua.Gds.Tests
             Assert.DoesNotThrow(() =>
                 AuthorizationHelper.HasAuthorization(
                     context,
+                    ServerAuthorizationDecision.ApplicationRegistration,
                     AuthorizationHelper.CertificateAuthorityAdminOrSelfAdmin,
                     new NodeId(42)));
         }
@@ -655,12 +670,14 @@ namespace Opc.Ua.Gds.Tests
             Assert.DoesNotThrow(() =>
                 AuthorizationHelper.HasAuthorization(
                     context,
+                    ServerAuthorizationDecision.ApplicationRegistration,
                     AuthorizationHelper.DiscoveryAdminOrSelfAdminOrAppAdmin,
                     managedApp2));
 
             Assert.DoesNotThrow(() =>
                 AuthorizationHelper.HasAuthorization(
                     context,
+                    ServerAuthorizationDecision.ApplicationRegistration,
                     AuthorizationHelper.CertificateAuthorityAdminOrSelfAdminOrAppAdmin,
                     managedApp1));
         }
@@ -686,6 +703,7 @@ namespace Opc.Ua.Gds.Tests
             ServiceResultException ex = Assert.Throws<ServiceResultException>(() =>
                 AuthorizationHelper.HasAuthorization(
                     context,
+                    ServerAuthorizationDecision.ApplicationRegistration,
                     AuthorizationHelper.DiscoveryAdminOrSelfAdminOrAppAdmin,
                     unmanagedApp));
 
@@ -714,6 +732,7 @@ namespace Opc.Ua.Gds.Tests
             Assert.DoesNotThrow(() =>
                 AuthorizationHelper.HasAuthorization(
                     context,
+                    ServerAuthorizationDecision.ApplicationRegistration,
                     AuthorizationHelper.DiscoveryAdminOrAppAdmin));
         }
 
@@ -737,6 +756,7 @@ namespace Opc.Ua.Gds.Tests
             ServiceResultException ex = Assert.Throws<ServiceResultException>(() =>
                 AuthorizationHelper.HasAuthorization(
                     context,
+                    ServerAuthorizationDecision.ApplicationRegistration,
                     AuthorizationHelper.DiscoveryAdminOrAppAdmin));
 
             Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadUserAccessDenied));

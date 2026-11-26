@@ -7,9 +7,18 @@ using System.Threading.Tasks;
 namespace Opc.Ua.Server
 {
     /// <summary>
-    /// Adds asynchronous host policy to standard certificate-push mutations without replacing channel,
-    /// SecurityAdmin or transaction-owner checks. Configure before the server creates its address space.
+    /// Adds asynchronous host policy to standard certificate-push and KeyCredential-push operations
+    /// without replacing channel, SecurityAdmin or transaction-owner checks. Configure before the
+    /// server creates its address space.
     /// </summary>
+    /// <remarks>
+    /// The hook runs after the server's <see cref="IServerAuthorizationPolicy"/> grants
+    /// <see cref="ServerAuthorizationDecision.CertificatePush"/>,
+    /// <see cref="ServerAuthorizationDecision.CertificatePushEncrypted"/> or
+    /// <see cref="ServerAuthorizationDecision.KeyCredentialPush"/>. Use it for a decision that is
+    /// specific to one push target (as the GDS does for each managed application); use an
+    /// <see cref="IServerAuthorizationPolicy"/> for server-wide rules.
+    /// </remarks>
     public interface IPushConfigurationAuthorization
     {
         /// <summary>

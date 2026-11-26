@@ -167,6 +167,30 @@ namespace Opc.Ua.Server.Hosting
         }
 
         /// <inheritdoc/>
+        protected override IServerAuthorizationPolicy CreateAuthorizationPolicy(
+            IServerInternal server,
+            ApplicationConfiguration configuration)
+        {
+            return m_services.GetService<IServerAuthorizationPolicy>() ??
+                base.CreateAuthorizationPolicy(server, configuration);
+        }
+
+        /// <inheritdoc/>
+        /// <remarks>
+        /// Every <see cref="IAuditEventSink"/> registered in the service container receives each
+        /// audit event after the address space publication.
+        /// </remarks>
+        protected override IAuditEventSink CreateAuditEventSink(
+            IServerInternal server,
+            IAuditEventSink addressSpaceSink)
+        {
+            return CompositeAuditEventSink.Combine(
+                base.CreateAuditEventSink(server, addressSpaceSink),
+                m_services.GetServices<IAuditEventSink>(),
+                server.Telemetry);
+        }
+
+        /// <inheritdoc/>
         protected override IMainNodeManagerFactory CreateMainNodeManagerFactory(
             IServerInternal server,
             ApplicationConfiguration configuration)

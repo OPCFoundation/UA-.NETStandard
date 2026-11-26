@@ -851,7 +851,7 @@ namespace Opc.Ua.Server
 
             var result = new AddRoleMethodStateResult { RoleNodeId = NodeId.Null };
 
-            ServiceResult auth = RoleAuthorizationGate.CheckAdmin(context);
+            ServiceResult auth = RoleAuthorizationGate.Check(context, ServerAuthorizationDecision.RoleManagement);
             if (ServiceResult.IsBad(auth))
             {
                 result.ServiceResult = auth;
@@ -919,7 +919,7 @@ namespace Opc.Ua.Server
         {
             await Task.Yield();
 
-            ServiceResult auth = RoleAuthorizationGate.CheckAdmin(context);
+            ServiceResult auth = RoleAuthorizationGate.Check(context, ServerAuthorizationDecision.RoleManagement);
             if (ServiceResult.IsBad(auth))
             {
                 return new RemoveRoleMethodStateResult { ServiceResult = auth };
@@ -1238,7 +1238,7 @@ namespace Opc.Ua.Server
 
             var ruleVariant = Variant.FromStructure(rule);
             var result = new AddIdentityMethodStateResult();
-            ServiceResult auth = RoleAuthorizationGate.CheckAdmin(context);
+            ServiceResult auth = RoleAuthorizationGate.Check(context, ServerAuthorizationDecision.RoleManagement);
             if (ServiceResult.IsBad(auth))
             {
                 result.ServiceResult = auth;
@@ -1262,7 +1262,7 @@ namespace Opc.Ua.Server
 
             var ruleVariant = Variant.FromStructure(rule);
             var result = new RemoveIdentityMethodStateResult();
-            ServiceResult auth = RoleAuthorizationGate.CheckAdmin(context);
+            ServiceResult auth = RoleAuthorizationGate.Check(context, ServerAuthorizationDecision.RoleManagement);
             if (ServiceResult.IsBad(auth))
             {
                 result.ServiceResult = auth;
@@ -1286,7 +1286,7 @@ namespace Opc.Ua.Server
 
             var uriVariant = Variant.From(applicationUri);
             var result = new AddApplicationMethodStateResult();
-            ServiceResult auth = RoleAuthorizationGate.CheckAdmin(context);
+            ServiceResult auth = RoleAuthorizationGate.Check(context, ServerAuthorizationDecision.RoleManagement);
             if (ServiceResult.IsBad(auth))
             {
                 result.ServiceResult = auth;
@@ -1310,7 +1310,7 @@ namespace Opc.Ua.Server
 
             var uriVariant = Variant.From(applicationUri);
             var result = new RemoveApplicationMethodStateResult();
-            ServiceResult auth = RoleAuthorizationGate.CheckAdmin(context);
+            ServiceResult auth = RoleAuthorizationGate.Check(context, ServerAuthorizationDecision.RoleManagement);
             if (ServiceResult.IsBad(auth))
             {
                 result.ServiceResult = auth;
@@ -1334,7 +1334,7 @@ namespace Opc.Ua.Server
 
             var epVariant = Variant.FromStructure(endpoint);
             var result = new AddEndpointMethodStateResult();
-            ServiceResult auth = RoleAuthorizationGate.CheckAdmin(context);
+            ServiceResult auth = RoleAuthorizationGate.Check(context, ServerAuthorizationDecision.RoleManagement);
             if (ServiceResult.IsBad(auth))
             {
                 result.ServiceResult = auth;
@@ -1358,7 +1358,7 @@ namespace Opc.Ua.Server
 
             var epVariant = Variant.FromStructure(endpoint);
             var result = new RemoveEndpointMethodStateResult();
-            ServiceResult auth = RoleAuthorizationGate.CheckAdmin(context);
+            ServiceResult auth = RoleAuthorizationGate.Check(context, ServerAuthorizationDecision.RoleManagement);
             if (ServiceResult.IsBad(auth))
             {
                 result.ServiceResult = auth;
@@ -1375,7 +1375,7 @@ namespace Opc.Ua.Server
         private ServiceResult OnWriteExclude(
             ISystemContext context, NodeId roleId, ref Variant value, bool isApplications)
         {
-            ServiceResult auth = RoleAuthorizationGate.CheckAdmin(context);
+            ServiceResult auth = RoleAuthorizationGate.Check(context, ServerAuthorizationDecision.RoleManagement);
             if (ServiceResult.IsBad(auth))
             {
                 return auth;
@@ -1392,7 +1392,7 @@ namespace Opc.Ua.Server
         private ServiceResult OnWriteCustomConfiguration(
             ISystemContext context, NodeId roleId, ref Variant value)
         {
-            ServiceResult auth = RoleAuthorizationGate.CheckAdmin(context);
+            ServiceResult auth = RoleAuthorizationGate.Check(context, ServerAuthorizationDecision.RoleManagement);
             if (ServiceResult.IsBad(auth))
             {
                 return auth;

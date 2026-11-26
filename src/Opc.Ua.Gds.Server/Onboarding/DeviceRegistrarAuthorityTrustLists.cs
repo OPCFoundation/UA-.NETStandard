@@ -148,6 +148,38 @@ namespace Opc.Ua.Gds.Server.Onboarding
         /// </summary>
         private static void RequireRegistrarAdmin(ISystemContext context, CertificateStoreIdentifier _)
         {
+            ServiceResult result = ServerAuthorizationPolicy.Resolve(context).Authorize(
+                context,
+                new ServerAuthorizationRequest(
+                    ServerAuthorizationDecision.DeviceOnboarding,
+                    NodeId.Null,
+                    s_registrarAdminRule));
+            if (ServiceResult.IsBad(result))
+            {
+                throw new ServiceResultException(result);
+            }
+        }
+
+        private static readonly Func<ISystemContext, ServiceResult> s_registrarAdminRule = EvaluateRegistrarAdmin;
+
+        /// <summary>
+        /// The Part 21 standard rule for the registrar authority TrustLists.
+        /// </summary>
+        private static ServiceResult EvaluateRegistrarAdmin(ISystemContext context)
+        {
+            try
+            {
+                RequireRegistrarAdminCore(context);
+                return ServiceResult.Good;
+            }
+            catch (ServiceResultException ex)
+            {
+                return ex.Result;
+            }
+        }
+
+        private static void RequireRegistrarAdminCore(ISystemContext context)
+        {
             AuthorizationHelper.HasAuthenticatedSecureChannel(context, requireEncryption: true);
             AuthorizationHelper.GetClientCertificateFingerprint(context);
             if (context is not ISessionSystemContext { UserIdentity: { } identity, SessionId.IsNull: false })

@@ -128,6 +128,13 @@ namespace Opc.Ua.Server
                         m_server.m_serverInternal.SetUserManagement(userManagement);
                     }
 
+                    m_server.m_serverInternal.SetAuthorizationPolicy(
+                        m_server.CreateAuthorizationPolicy(m_server.m_serverInternal, configuration));
+                    m_server.m_serverInternal.SetAuditEventSink(
+                        m_server.CreateAuditEventSink(
+                            m_server.m_serverInternal,
+                            m_server.m_serverInternal.AuditEventSink));
+
                     if (m_server.m_serverInternal.Factory is not EncodeableFactory)
                     {
                         throw new NotSupportedException("The server factory does not support prepared publication.");

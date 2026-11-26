@@ -167,7 +167,7 @@ namespace Opc.Ua.Gds.Server.Onboarding
             {
                 throw new ServiceResultException(StatusCodes.BadUserAccessDenied);
             }
-            AuthorizationHelper.HasAuthorization(context, [Role.SecurityAdmin]);
+            AuthorizationHelper.HasAuthorization(context, ServerAuthorizationDecision.DeviceOnboarding, [Role.SecurityAdmin]);
             ArrayOf<ApplicationDescription> detached = SnapshotRegistrars(registrars);
             if (m_registrarConfiguration is { } configuration)
             {

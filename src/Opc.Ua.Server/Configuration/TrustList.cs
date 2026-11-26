@@ -465,6 +465,40 @@ namespace Opc.Ua.Server
             CertificateStoreIdentifier trustedStore);
 
         /// <summary>
+        /// A <see cref="SecureAccess"/> read check that asks the server's
+        /// <see cref="IServerAuthorizationPolicy"/> for <see cref="ServerAuthorizationDecision.TrustListRead"/>.
+        /// Pass it as the read access of a TrustList so host policy applies to it.
+        /// </summary>
+        /// <param name="context">The calling context.</param>
+        /// <param name="trustedStore">The trusted store of the TrustList.</param>
+        /// <exception cref="ServiceResultException">The policy denies the read.</exception>
+        public static void AuthorizeReadByPolicy(ISystemContext context, CertificateStoreIdentifier trustedStore)
+        {
+            ThrowIfBad(RoleAuthorizationGate.Check(context, ServerAuthorizationDecision.TrustListRead));
+        }
+
+        /// <summary>
+        /// A <see cref="SecureAccess"/> write check that asks the server's
+        /// <see cref="IServerAuthorizationPolicy"/> for <see cref="ServerAuthorizationDecision.TrustListWrite"/>.
+        /// Pass it as the write access of a TrustList so host policy applies to it.
+        /// </summary>
+        /// <param name="context">The calling context.</param>
+        /// <param name="trustedStore">The trusted store of the TrustList.</param>
+        /// <exception cref="ServiceResultException">The policy denies the write.</exception>
+        public static void AuthorizeWriteByPolicy(ISystemContext context, CertificateStoreIdentifier trustedStore)
+        {
+            ThrowIfBad(RoleAuthorizationGate.Check(context, ServerAuthorizationDecision.TrustListWrite));
+        }
+
+        private static void ThrowIfBad(ServiceResult result)
+        {
+            if (ServiceResult.IsBad(result))
+            {
+                throw new ServiceResultException(result);
+            }
+        }
+
+        /// <summary>
         /// Closes every open read/write handle of this TrustList owned by
         /// <paramref name="sessionId"/>. Called by
         /// <see cref="ConfigurationNodeManager.SessionClosingAsync"/> so an

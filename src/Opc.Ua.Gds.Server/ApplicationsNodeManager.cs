@@ -1193,6 +1193,7 @@ namespace Opc.Ua.Gds.Server
             NodeId applicationId;
             AuthorizationHelper.HasAuthorization(
                 context,
+                ServerAuthorizationDecision.ApplicationRegistration,
                 AuthorizationHelper.DiscoveryAdminOrAppAdmin);
 
             m_logger.OnRegisterApplication(application.ApplicationUri);
@@ -1237,6 +1238,7 @@ namespace Opc.Ua.Gds.Server
         {
             AuthorizationHelper.HasAuthorization(
                 context,
+                ServerAuthorizationDecision.ApplicationRegistration,
                 AuthorizationHelper.DiscoveryAdminOrSelfAdminOrAppAdmin,
                 application.ApplicationId);
 
@@ -1288,6 +1290,7 @@ namespace Opc.Ua.Gds.Server
         {
             AuthorizationHelper.HasAuthorization(
                 context,
+                ServerAuthorizationDecision.ApplicationRegistration,
                 AuthorizationHelper.DiscoveryAdminOrSelfAdminOrAppAdmin,
                 applicationId);
 
@@ -1367,7 +1370,11 @@ namespace Opc.Ua.Gds.Server
 
             try
             {
-                AuthorizationHelper.HasAuthorization(context, AuthorizationHelper.CertificateAuthorityAdmin);
+                AuthorizationHelper.HasAuthorization(
+                    context,
+                    ServerAuthorizationDecision.CertificateRevocation,
+                    AuthorizationHelper.CertificateAuthorityAdmin,
+                    applicationId);
 
                 if (m_database.GetApplication(applicationId) == null)
                 {
@@ -1478,6 +1485,7 @@ namespace Opc.Ua.Gds.Server
         {
             AuthorizationHelper.HasAuthorization(
                 context,
+                ServerAuthorizationDecision.ApplicationQuery,
                 AuthorizationHelper.AuthenticatedUserOrSelfAdmin,
                 applicationId);
             m_logger.OnGetApplication(applicationId);
@@ -2151,6 +2159,7 @@ namespace Opc.Ua.Gds.Server
                     }
                     AuthorizationHelper.HasAuthorization(
                         context,
+                        ServerAuthorizationDecision.CertificateManagement,
                         AuthorizationHelper.CertificateAuthorityAdminOrSelfAdminOrAppAdmin,
                         applicationId);
                 }
@@ -2771,6 +2780,7 @@ namespace Opc.Ua.Gds.Server
         {
             AuthorizationHelper.HasAuthorization(
                 context,
+                ServerAuthorizationDecision.CertificateManagement,
                 AuthorizationHelper.CertificateAuthorityAdminOrSelfAdminOrAppAdmin,
                 applicationId);
 
@@ -2808,6 +2818,7 @@ namespace Opc.Ua.Gds.Server
             }
             AuthorizationHelper.HasAuthorization(
                 context,
+                ServerAuthorizationDecision.CertificateManagement,
                 AuthorizationHelper.CertificateAuthorityAdminOrSelfAdminOrAppAdmin,
                 applicationId);
 
@@ -2862,6 +2873,7 @@ namespace Opc.Ua.Gds.Server
             // ApplicationSelfAdmin Privilege, or the ApplicationAdmin Privilege.
             AuthorizationHelper.HasAuthorization(
                 context,
+                ServerAuthorizationDecision.CertificateManagement,
                 AuthorizationHelper.CertificateAuthorityAdminOrSelfAdminOrAppAdmin,
                 applicationId);
 
@@ -3257,6 +3269,7 @@ namespace Opc.Ua.Gds.Server
                 NodeId applicationId = ResolveKeyCredentialApplicationId(m_database, applicationUri);
                 AuthorizationHelper.HasAuthorization(
                     context,
+                    ServerAuthorizationDecision.KeyCredentialManagement,
                     AuthorizationHelper.KeyCredentialAdminOrSelfAdminOrAppAdmin,
                     applicationId);
                 IApplicationOwnedKeyCredentialRequestStore store = GetApplicationOwnedKeyCredentialStore();
@@ -3309,6 +3322,7 @@ namespace Opc.Ua.Gds.Server
                     .ConfigureAwait(false);
                 AuthorizationHelper.HasAuthorization(
                     context,
+                    ServerAuthorizationDecision.KeyCredentialManagement,
                     AuthorizationHelper.KeyCredentialAdminOrSelfAdminOrAppAdmin,
                     applicationId);
 
@@ -3363,6 +3377,7 @@ namespace Opc.Ua.Gds.Server
                     .ConfigureAwait(false);
                 AuthorizationHelper.HasAuthorization(
                     context,
+                    ServerAuthorizationDecision.KeyCredentialManagement,
                     AuthorizationHelper.KeyCredentialAdminOrSelfAdminOrAppAdmin,
                     applicationId);
 

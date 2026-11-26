@@ -351,6 +351,66 @@ namespace Opc.Ua.PubSub.Server.Tests
             Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadServiceUnsupported));
         }
 
+        /// <summary>
+        /// A remote user whose name is "sks" gets no key push access from the name alone: the
+        /// server authorization policy needs SecurityAdmin or SecurityKeyServerPush.
+        /// </summary>
+        [TestCase(MessageSecurityMode.SignAndEncrypt, false, nameof(StatusCodes.BadUserAccessDenied))]
+        [TestCase(MessageSecurityMode.Sign, true, nameof(StatusCodes.BadSecurityModeInsufficient))]
+        [TestCase(MessageSecurityMode.SignAndEncrypt, true, nameof(StatusCodes.Good))]
+        [TestSpec("9.1.3.3", Part = 14, Summary = "SetSecurityKeys authorization")]
+        public async Task OnSetSecurityKeysRequiresTheKeyPushRoleNotTheUserNameAsync(
+            MessageSecurityMode securityMode,
+            bool grantKeyPushRole,
+            string expected)
+        {
+            var provider = new PushSecurityKeyProvider("push-grp", NUnitTelemetryContext.Create());
+            PubSubMethodHandlers handlers = CreateHandlers(out _, out _, pushProvider: provider);
+            ByteString currentKey = await CreatePackedKeyAsync().ConfigureAwait(false);
+            IUserIdentity identity = new UserIdentity("sks", "secret"u8.ToArray());
+            if (grantKeyPushRole)
+            {
+                identity = new Opc.Ua.Server.RoleBasedIdentity(
+                    identity,
+                    [new Opc.Ua.Server.Role(
+                        ObjectIds.WellKnownRole_SecurityKeyServerPush,
+                        BrowseNames.WellKnownRole_SecurityKeyServerPush)],
+                    new NamespaceTable());
+            }
+            var operationContext = new Opc.Ua.Server.OperationContext(
+                new RequestHeader(),
+                new SecureChannelContext(
+                    "test",
+                    new EndpointDescription { SecurityMode = securityMode },
+                    RequestEncoding.Binary),
+                Opc.Ua.Server.RequestType.Call,
+                RequestLifetime.None,
+                identity);
+            var context = new SessionSystemContext(operationContext, NUnitTelemetryContext.Create());
+            Assert.That(context.UserId, Is.EqualTo("sks"));
+
+            ServiceResult result = handlers.OnSetSecurityKeys(
+                context,
+                method: null!,
+                inputArguments: BuildArray(
+                    Variant.From("push-grp"),
+                    Variant.From(PubSubSecurityPolicyUri.PubSubAes128Ctr),
+                    Variant.From(42U),
+                    Variant.From(currentKey),
+                    Variant.From((ArrayOf<ByteString>)[]),
+                    Variant.From(1_000.0),
+                    Variant.From(60_000.0)),
+                outputArguments: []);
+
+            StatusCode expectedCode = expected switch
+            {
+                nameof(StatusCodes.BadUserAccessDenied) => StatusCodes.BadUserAccessDenied,
+                nameof(StatusCodes.BadSecurityModeInsufficient) => StatusCodes.BadSecurityModeInsufficient,
+                _ => StatusCodes.Good
+            };
+            Assert.That(result.StatusCode, Is.EqualTo(expectedCode));
+        }
+
         [Test]
         [TestSpec("9.1.3.3", Part = 14, Summary = "SetSecurityKeys push target")]
         public async Task OnSetSecurityKeysPushesKeysToProvider()

@@ -696,6 +696,32 @@ namespace Opc.Ua.Server.Tests.NodeManager
         /// <summary>
         /// Creates isolated serving metadata and context without starting a server.
         /// </summary>
+        /// <summary>
+        /// A factory-created node manager keeps the staging server in its request contexts after
+        /// publication, so the facade must forward the serving server's authorization policy.
+        /// </summary>
+        [Test]
+        public async Task StagingServerForwardsTheServingAuthorizationPolicyAsync()
+        {
+            Mock<IServerInternal> server = CreateServer();
+            var policy = new Mock<IServerAuthorizationPolicy>();
+            policy.Setup(value => value.Authorize(It.IsAny<ISystemContext>(), It.IsAny<ServerAuthorizationRequest>()))
+                .Returns(new ServiceResult(StatusCodes.BadUserAccessDenied));
+            server.As<IServerAuthorizationPolicyProvider>()
+                .SetupGet(value => value.AuthorizationPolicy)
+                .Returns(policy.Object);
+            await using ChangePreparer.StagingServer staging = new ChangePreparer(server.Object).CreateServer();
+            var context = new ServerSystemContext(staging);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(ServerAuthorizationPolicy.Resolve(context), Is.SameAs(policy.Object));
+                Assert.That(
+                    RoleAuthorizationGate.Check(context, ServerAuthorizationDecision.AliasManagement).StatusCode,
+                    Is.EqualTo(StatusCodes.BadUserAccessDenied));
+            });
+        }
+
         private static Mock<IServerInternal> CreateServer()
         {
             var server = new Mock<IServerInternal>();
