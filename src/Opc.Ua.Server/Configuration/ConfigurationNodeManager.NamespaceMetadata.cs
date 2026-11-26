@@ -22,8 +22,13 @@ namespace Opc.Ua.Server
     public partial class ConfigurationNodeManager :
         INamespaceMetadataHost,
         INamespaceMetadataSnapshot,
-        INamespaceMetadataSource
+        INamespaceMetadataSource,
+        INamespaceDefaultPermissionCacheProvider
     {
+        /// <inheritdoc/>
+        NamespaceDefaultPermissionCache INamespaceDefaultPermissionCacheProvider.DefaultPermissionCache
+            => m_namespaceMetadata.DefaultPermissionCache;
+
         /// <inheritdoc/>
         public event EventHandler? DefaultPermissionsChanged
         {

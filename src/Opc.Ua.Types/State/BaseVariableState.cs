@@ -72,6 +72,9 @@ namespace Opc.Ua
                 m_minimumSamplingInterval = instance.m_minimumSamplingInterval;
                 m_historizing = instance.m_historizing;
                 m_valueTouched = instance.m_valueTouched;
+                // after the copy, which takes no lock: a decode that read a version taken
+                // before or during it no longer matches.
+                Interlocked.Increment(ref m_valueVersion);
             }
 
             base.Initialize(context, source);
@@ -299,11 +302,19 @@ namespace Opc.Ua
                     }
 
                     m_value = value;
+                    Interlocked.Increment(ref m_valueVersion);
 
                     m_valueTouched = true;
                 }
             }
         }
+
+        /// <summary>
+        /// A counter moved by every assignment of the value or its status code, including one
+        /// equal to the current value, which sets no change mask. Read without a lock, it lets a
+        /// cache of something derived from the value detect any later assignment.
+        /// </summary>
+        internal long ValueVersion => Interlocked.Read(ref m_valueVersion);
 
         /// <summary>
         /// The value of the variable as a Variant.
@@ -365,6 +376,7 @@ namespace Opc.Ua
                     }
 
                     m_statusCode = value;
+                    Interlocked.Increment(ref m_valueVersion);
                 }
             }
         }
@@ -989,6 +1001,7 @@ namespace Opc.Ua
             if ((attributesToLoad & AttributesToSave.StatusCode) != 0)
             {
                 m_statusCode = decoder.ReadStatusCode(null);
+                Interlocked.Increment(ref m_valueVersion);
             }
 
             if ((attributesToLoad & AttributesToSave.DataType) != 0)
@@ -1718,6 +1731,7 @@ namespace Opc.Ua
                 lock (m_attributeLock)
                 {
                     m_value = MergeIndexRange(indexRange, value);
+                    Interlocked.Increment(ref m_valueVersion);
                     m_statusCode = statusCode;
                     m_timestamp = sourceTimestamp == DateTimeUtc.MinValue
                         ? DateTimeUtc.Now
@@ -1786,6 +1800,7 @@ namespace Opc.Ua
                     }
 
                     m_value = target;
+                    Interlocked.Increment(ref m_valueVersion);
                     m_statusCode = statusCode;
                     m_timestamp = sourceTimestamp;
                 }
@@ -1800,6 +1815,7 @@ namespace Opc.Ua
             lock (m_attributeLock)
             {
                 m_value = value;
+                Interlocked.Increment(ref m_valueVersion);
                 m_statusCode = statusCode;
                 m_timestamp = sourceTimestamp;
             }
@@ -2602,6 +2618,7 @@ namespace Opc.Ua
                                 valueToWrite = cachedValue;
                             }
                             m_value = valueToWrite;
+                            Interlocked.Increment(ref m_valueVersion);
                             m_statusCode = statusCode;
                             m_timestamp = effectiveTimestamp;
                             ChangeMasks |= NodeStateChangeMasks.Value;
@@ -2630,6 +2647,7 @@ namespace Opc.Ua
                             }
                         }
                         m_value = valueToWrite;
+                        Interlocked.Increment(ref m_valueVersion);
                         m_statusCode = statusCode;
                         m_timestamp = effectiveTimestamp;
                         ChangeMasks |= NodeStateChangeMasks.Value;
@@ -2674,6 +2692,7 @@ namespace Opc.Ua
                 lock (m_attributeLock)
                 {
                     m_value = valueToWrite;
+                    Interlocked.Increment(ref m_valueVersion);
                     m_statusCode = statusCode;
                     m_timestamp = sourceTimestamp;
                     ChangeMasks |= NodeStateChangeMasks.Value;
@@ -2708,6 +2727,7 @@ namespace Opc.Ua
         /// </summary>
         private NodeValueWriteEventHandlerAsync? m_writeValueAsyncPolicyWithSimpleOverride;
         private Variant m_value;
+        private long m_valueVersion;
         private DateTimeUtc m_timestamp;
         private bool m_valueTouched;
         private StatusCode m_statusCode;

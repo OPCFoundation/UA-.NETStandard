@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: MIT
 
 using System;
+using System.Collections.Concurrent;
 using System.Runtime.CompilerServices;
 using System.Threading;
 
@@ -1089,28 +1090,39 @@ namespace Opc.Ua.Server
         /// <remarks>
         /// Permission checks read the DefaultAccessRestrictions, DefaultRolePermissions
         /// and DefaultUserRolePermissions of the node's namespace for every node of a
-        /// request, which took two server-wide locks and deep-copied the role permission
-        /// array per node. One read per namespace and request is enough. Contexts that
-        /// are not a service request (monitored item and session contexts, which can be
-        /// kept for a long time) remember nothing, so a changed default applies to them
-        /// at once.
+        /// request. Static defaults are remembered server-wide by
+        /// <see cref="NamespaceDefaultPermissionCache"/>; this cache keeps the defaults
+        /// that depend on the caller (read callbacks) for one service request. Contexts
+        /// that are not a service request (monitored item and session contexts, which can
+        /// be kept for a long time) remember nothing here, so a changed dynamic default
+        /// applies to them at once. Entries are indexed by namespace index: a slot array
+        /// for the first <see cref="kDefaultPermissionSlots"/> namespaces, sized to the highest
+        /// index seen, and a concurrent dictionary beyond it.
         /// </remarks>
         internal bool TryGetDefaultPermissions(
             ushort namespaceIndex,
             out NamespaceDefaultPermissions permissions)
         {
-            NamespaceDefaultPermissions[]? entries = m_defaultPermissions;
-            if (entries != null)
+            StrongBox<NamespaceDefaultPermissions>? entry = null;
+            if (namespaceIndex < kDefaultPermissionSlots)
             {
-                long generation = NamespaceDefaultPermissionReader.Generation;
-                foreach (NamespaceDefaultPermissions entry in entries)
+                StrongBox<NamespaceDefaultPermissions>?[]? slots = Volatile.Read(ref m_defaultPermissionSlots);
+                if (slots != null && namespaceIndex < slots.Length)
                 {
-                    if (entry.NamespaceIndex == namespaceIndex && entry.Generation == generation)
-                    {
-                        permissions = entry;
-                        return true;
-                    }
+                    entry = Volatile.Read(ref slots[namespaceIndex]);
                 }
+            }
+            else
+            {
+                ConcurrentDictionary<ushort, StrongBox<NamespaceDefaultPermissions>>? overflow =
+                    Volatile.Read(ref m_defaultPermissionOverflow);
+                overflow?.TryGetValue(namespaceIndex, out entry);
+            }
+
+            if (entry != null && entry.Value.Generation == NamespaceDefaultPermissionReader.Generation)
+            {
+                permissions = entry.Value;
+                return true;
             }
 
             permissions = default;
@@ -1119,6 +1131,8 @@ namespace Opc.Ua.Server
 
         /// <summary>
         /// Remembers the namespace default permissions for the rest of this service request.
+        /// Node managers can validate nodes of one request concurrently: each slot is replaced
+        /// as a whole, and a lost update only costs a second read.
         /// </summary>
         internal void SetDefaultPermissions(NamespaceDefaultPermissions permissions)
         {
@@ -1130,19 +1144,63 @@ namespace Opc.Ua.Server
                 return;
             }
 
-            // copy on write: node managers can validate nodes of one request concurrently,
-            // and a lost update only costs a second read.
-            NamespaceDefaultPermissions[]? entries = m_defaultPermissions;
-            if (entries == null)
+            var entry = new StrongBox<NamespaceDefaultPermissions>(permissions);
+            ushort namespaceIndex = permissions.NamespaceIndex;
+            if (namespaceIndex < kDefaultPermissionSlots)
             {
-                m_defaultPermissions = [permissions];
+                StrongBox<NamespaceDefaultPermissions>?[] slots = GetDefaultPermissionSlots(namespaceIndex);
+
+                Volatile.Write(ref slots[namespaceIndex], entry);
                 return;
             }
 
-            var updated = new NamespaceDefaultPermissions[entries.Length + 1];
-            Array.Copy(entries, updated, entries.Length);
-            updated[entries.Length] = permissions;
-            m_defaultPermissions = updated;
+            ConcurrentDictionary<ushort, StrongBox<NamespaceDefaultPermissions>>? overflow =
+                Volatile.Read(ref m_defaultPermissionOverflow);
+            if (overflow == null)
+            {
+                overflow = new ConcurrentDictionary<ushort, StrongBox<NamespaceDefaultPermissions>>();
+                overflow = Interlocked.CompareExchange(ref m_defaultPermissionOverflow, overflow, null) ?? overflow;
+            }
+
+            overflow[namespaceIndex] = entry;
+        }
+
+        /// <summary>
+        /// Returns a slot array that holds <paramref name="namespaceIndex"/>, sized to the
+        /// highest index seen so a request over a few low namespaces allocates little. A
+        /// store into an array that a concurrent grow just replaced is lost; that only costs
+        /// a second read.
+        /// </summary>
+        private StrongBox<NamespaceDefaultPermissions>?[] GetDefaultPermissionSlots(ushort namespaceIndex)
+        {
+            while (true)
+            {
+                StrongBox<NamespaceDefaultPermissions>?[]? slots = Volatile.Read(ref m_defaultPermissionSlots);
+                if (slots != null && namespaceIndex < slots.Length)
+                {
+                    return slots;
+                }
+
+                int length = slots?.Length ?? 4;
+                while (length <= namespaceIndex)
+                {
+                    length *= 2;
+                }
+
+                var grown = new StrongBox<NamespaceDefaultPermissions>?[Math.Min(length, kDefaultPermissionSlots)];
+                if (slots != null)
+                {
+                    for (int ii = 0; ii < slots.Length; ii++)
+                    {
+                        grown[ii] = Volatile.Read(ref slots[ii]);
+                    }
+                }
+
+                if (ReferenceEquals(Interlocked.CompareExchange(ref m_defaultPermissionSlots, grown, slots), slots))
+                {
+                    return grown;
+                }
+            }
         }
 
         /// <summary>
@@ -1153,7 +1211,8 @@ namespace Opc.Ua.Server
         internal void DisableDefaultPermissionCache()
         {
             m_defaultPermissionCacheDisabled = true;
-            m_defaultPermissions = null;
+            Volatile.Write(ref m_defaultPermissionSlots, null);
+            Volatile.Write(ref m_defaultPermissionOverflow, null);
         }
 
         /// <summary>
@@ -1365,7 +1424,9 @@ namespace Opc.Ua.Server
         private readonly Action? m_beforeRoutingBootstrap;
 
         private SystemContextCache? m_systemContextCache;
-        private NamespaceDefaultPermissions[]? m_defaultPermissions;
+        private StrongBox<NamespaceDefaultPermissions>?[]? m_defaultPermissionSlots;
+        private ConcurrentDictionary<ushort, StrongBox<NamespaceDefaultPermissions>>? m_defaultPermissionOverflow;
+        private const int kDefaultPermissionSlots = 64;
         private bool m_defaultPermissionCacheDisabled;
         private static uint s_lastRequestId;
         private const int kRoutingPinUnclaimed = 0;

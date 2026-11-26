@@ -75,6 +75,29 @@ namespace Opc.Ua.Server
         {
             m_host = host ?? throw new ArgumentNullException(nameof(host));
             m_logger = logger ?? throw new ArgumentNullException(nameof(logger));
+            DefaultPermissionCache = new NamespaceDefaultPermissionCache(AreDefaultPropertiesTracked);
+        }
+
+        /// <summary>
+        /// Returns <c>true</c> when this registry is subscribed to the value changes of each of
+        /// the given default properties of <paramref name="metadata"/>. Only then does a reported
+        /// change of one of them move <see cref="NamespaceDefaultPermissionReader.Generation"/>,
+        /// so only then may its decoded defaults be cached. A property replaced in a typed state
+        /// is subscribed once the change of the node's children is reported.
+        /// </summary>
+        internal bool AreDefaultPropertiesTracked(
+            NamespaceMetadataNode metadata,
+            BaseVariableState? accessRestrictions,
+            BaseVariableState? rolePermissions,
+            BaseVariableState? userRolePermissions)
+        {
+            lock (m_lock)
+            {
+                return m_trackedProperties.TryGetValue(metadata.Node, out HashSet<BaseVariableState>? tracked) &&
+                    (accessRestrictions == null || tracked.Contains(accessRestrictions)) &&
+                    (rolePermissions == null || tracked.Contains(rolePermissions)) &&
+                    (userRolePermissions == null || tracked.Contains(userRolePermissions));
+            }
         }
 
         /// <summary>
@@ -85,6 +108,13 @@ namespace Opc.Ua.Server
         /// node manager.
         /// </summary>
         public event EventHandler? DefaultPermissionsChanged;
+
+        /// <summary>
+        /// The server-wide cache of decoded static namespace defaults. Its entries are retired
+        /// by every move of <see cref="NamespaceDefaultPermissionReader.Generation"/> this
+        /// registry makes, and dropped by <see cref="Detach"/>.
+        /// </summary>
+        public NamespaceDefaultPermissionCache DefaultPermissionCache { get; }
 
         /// <summary>
         /// Gets the <see cref="NamespaceMetadataState"/> for
@@ -889,6 +919,7 @@ namespace Opc.Ua.Server
             }
 
             NamespaceDefaultPermissionReader.Invalidate();
+            DefaultPermissionCache.Clear();
         }
 
         /// <summary>
