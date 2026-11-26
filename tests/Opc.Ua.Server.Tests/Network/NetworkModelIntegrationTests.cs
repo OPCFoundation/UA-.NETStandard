@@ -26,7 +26,7 @@ namespace Opc.Ua.Server.Tests.Network
     [TestFixture]
     [Category("NetworkModel")]
     [NonParallelizable]
-    public sealed class NetworkModelIntegrationTests
+    public sealed partial class NetworkModelIntegrationTests
     {
         /// <summary>
         /// Starts a real server and client around the deterministic provider boundary.

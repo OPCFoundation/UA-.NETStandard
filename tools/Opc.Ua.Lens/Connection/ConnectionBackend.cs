@@ -232,9 +232,6 @@ internal sealed class StackConnectionBackend : IConfiguredConnectionBackend, IAs
                 .WithSessionName("UaLens")
                 .WithCheckDomain()
                 .WithReconnectPolicy(new InitialConnectPolicy())
-                .WithServerRedundancy(new ProfileRedundancyHandler(
-                    profile,
-                    new DefaultServerRedundancyHandler(new DefaultRedundantServerEndpointResolver(m_telemetry))))
                 .UseSubscriptionEngine(engineFactory);
             if (profile.ReverseConnection is { } reverse)
             {
@@ -338,42 +335,6 @@ internal sealed class StackConnectionBackend : IConfiguredConnectionBackend, IAs
     private readonly ITelemetryContext m_telemetry;
     private readonly Func<CancellationToken, Task<ApplicationConfiguration>> m_configurationFactory;
     private readonly bool m_ownsReverseConnections;
-}
-
-/// <summary>
-/// Preserves stack redundancy discovery without allowing automatic failover to
-/// leave the explicitly authorized endpoint/security/identity profile.
-/// Accept-once cannot follow the same certificate to a different endpoint.
-/// </summary>
-internal sealed class ProfileRedundancyHandler : IServerRedundancyHandler
-{
-    public ProfileRedundancyHandler(ConnectionProfile profile, IServerRedundancyHandler inner)
-    {
-        m_profile = profile ?? throw new ArgumentNullException(nameof(profile));
-        m_inner = inner ?? throw new ArgumentNullException(nameof(inner));
-    }
-
-    public ValueTask<ServerRedundancyInfo> FetchRedundancyInfoAsync(
-        ISession session,
-        CancellationToken ct = default)
-    {
-        return m_inner.FetchRedundancyInfoAsync(session, ct);
-    }
-
-    public ConfiguredEndpoint? SelectFailoverTarget(
-        ServerRedundancyInfo redundancyInfo,
-        ConfiguredEndpoint currentEndpoint)
-    {
-        ConfiguredEndpoint? endpoint = m_inner.SelectFailoverTarget(redundancyInfo, currentEndpoint);
-        if (endpoint is not null)
-        {
-            m_profile.RequireMatch(endpoint.Description);
-        }
-        return endpoint;
-    }
-
-    private readonly ConnectionProfile m_profile;
-    private readonly IServerRedundancyHandler m_inner;
 }
 
 /// <summary>

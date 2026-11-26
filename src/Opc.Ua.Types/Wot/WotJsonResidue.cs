@@ -250,6 +250,49 @@ namespace Opc.Ua.Wot
             nodeSet.Extensions = extensions.Count == 0 && !emptyNativeExtensions ? null : [.. extensions];
         }
 
+        /// <summary>
+        /// Separates regenerated engineering metadata before restoring named payload constraints.
+        /// </summary>
+        private static void PrepareNamedValueProjections(JsonNode root, List<Entry> entries)
+        {
+            if (root["properties"] is not JsonObject properties)
+            {
+                return;
+            }
+            var pointers = new HashSet<string>(entries.Select(entry => entry.Pointer), StringComparer.Ordinal);
+            foreach ((string name, JsonNode? value) in properties)
+            {
+                string pointer = "/properties/" + Escape(name);
+                if (value is not JsonObject property ||
+                    (!pointers.Contains(pointer + "/uav:typeName") &&
+                        !pointers.Contains(pointer + "/" + WotNodeSetConverter.EuRangeTerm)))
+                {
+                    continue;
+                }
+                var range = new JsonObject();
+                foreach (string endpoint in new[] { "minimum", "maximum" })
+                {
+                    if (property.TryGetPropertyValue(endpoint, out JsonNode? bound))
+                    {
+                        property.Remove(endpoint);
+                        range[endpoint] = bound;
+                    }
+                }
+                if (range.Count > 0)
+                {
+                    property[WotNodeSetConverter.EuRangeTerm] = range;
+                }
+                property.Remove(WotNodeSetConverter.UnitPropertyTerm);
+                if (property.ContainsKey(WotNodeSetConverter.EngineeringUnitsTerm))
+                {
+                    property.Remove("default");
+                }
+            }
+        }
+
+        /// <summary>
+        /// Identifies generated parent links without discarding authored link metadata.
+        /// </summary>
         private static bool IsDocumentSetParentLink(JsonElement value)
         {
             if (value.ValueKind != JsonValueKind.Object)
@@ -321,6 +364,7 @@ namespace Opc.Ua.Wot
                 return generatedJson;
             }
 
+            PrepareNamedValueProjections(root, entries);
             var rawValues = new Dictionary<JsonNode, RawValue>();
             using var generatedDocument = WotDocument.FromOwnedBytes(generatedJson, options);
             foreach (Entry entry in entries)
@@ -858,7 +902,8 @@ namespace Opc.Ua.Wot
                 {
                     string projectedName = WotPortableIdentity.AllocateName(
                         WotPortableIdentity.AffordanceName(affordance.Value, affordance.Name), used);
-                    if (GetString(affordance.Value, "uav:modellingRule") is "Optional" or "OptionalPlaceholder")
+                    if (GetString(affordance.Value, "uav:modellingRule") is
+                        "Optional" or "OptionalPlaceholder" or "MandatoryPlaceholder")
                     {
                         expected.Add("/" + collection + "/" + Escape(projectedName));
                     }

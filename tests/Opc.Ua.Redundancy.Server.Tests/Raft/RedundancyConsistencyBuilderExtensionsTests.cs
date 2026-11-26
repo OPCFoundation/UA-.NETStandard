@@ -175,10 +175,10 @@ namespace Opc.Ua.Server.Tests.Redundancy
         }
 
         /// <summary>
-        /// Aggregates mandatory sequence and configured lease keys without moving CRDT payload keyspaces to Raft.
+        /// Routes coordination keys to the default local Raft backend without moving CRDT payloads there.
         /// </summary>
         [Test]
-        public async Task DistributedAddressSpaceKeepsCoordinationStrongWithCustomPrefixesAsync()
+        public async Task CustomCoordinationPrefixesStayLinearizableButProcessLocalByDefaultAsync()
         {
             await using var network = new InMemoryNetwork();
             await using var crdt = new ReplicatedSharedKeyValueStore(
@@ -208,8 +208,7 @@ namespace Opc.Ua.Server.Tests.Redundancy
             Assert.That(hybrid.IsStrongKey("v/ns=1;s=payload"), Is.False);
             Assert.That(hybrid.IsStrongKey("dlog/00000000000000000001"), Is.False);
             Assert.That(hybrid.IsLinearizable(InMemoryNodeStateStore.SequenceKey), Is.True);
-            Assert.That(hybrid.IsProcessLocal(InMemoryNodeStateStore.SequenceKey), Is.False);
-            Assert.That(provider.GetRequiredService<ILeaderElection>(), Is.InstanceOf<SharedStoreLeaseElection>());
+            Assert.That(hybrid.IsProcessLocal(InMemoryNodeStateStore.SequenceKey), Is.True);
 
             bool reserved = await hybrid.CompareAndSwapAsync(
                 InMemoryNodeStateStore.SequenceKey, default, new ByteString(new byte[sizeof(ulong)]))

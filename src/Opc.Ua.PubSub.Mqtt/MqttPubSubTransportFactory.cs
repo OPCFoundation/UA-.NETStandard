@@ -168,6 +168,7 @@ namespace Opc.Ua.PubSub.Mqtt
             }
 
             MqttEndpoint endpoint = MqttEndpointParser.Parse(url);
+            EnsureCredentialsBoundToEndpoint(m_defaultOptions, endpoint, connection.Name);
             MqttConnectionOptions options = CloneOptionsWithEndpoint(m_defaultOptions, url);
             ApplyAuthenticationSettings(connection, options);
             ResolvePassword(options);
@@ -182,6 +183,68 @@ namespace Opc.Ua.PubSub.Mqtt
                 telemetry,
                 timeProvider,
                 m_diagnostics);
+        }
+
+        /// <summary>
+        /// The broker URL of a connection comes from the PubSub configuration,
+        /// which a configuration client can change remotely, while user name and
+        /// password come from the host options. Host credentials are only sent to
+        /// the broker the host named: <see cref="MqttConnectionOptions.Endpoint"/>
+        /// or an entry of <see cref="MqttConnectionOptions.CredentialEndpoints"/>.
+        /// </summary>
+        /// <exception cref="InvalidOperationException">
+        /// The host options carry credentials and the connection names another broker.
+        /// </exception>
+        internal static void EnsureCredentialsBoundToEndpoint(
+            MqttConnectionOptions source,
+            MqttEndpoint endpoint,
+            string? connectionName)
+        {
+            if (string.IsNullOrEmpty(source.UserName) && string.IsNullOrEmpty(source.PasswordSecretId))
+            {
+                return;
+            }
+            if (IsSameBroker(source.Endpoint, endpoint))
+            {
+                return;
+            }
+            foreach (string allowed in source.CredentialEndpoints)
+            {
+                if (IsSameBroker(allowed, endpoint))
+                {
+                    return;
+                }
+            }
+            throw new InvalidOperationException(
+                $"MQTT connection '{connectionName}' names a broker that is not " +
+                "MqttConnectionOptions.Endpoint or listed in MqttConnectionOptions.CredentialEndpoints. " +
+                "The configured MQTT credentials are only sent to those brokers.");
+        }
+
+        private static bool IsSameBroker(string? allowed, MqttEndpoint endpoint)
+        {
+            if (string.IsNullOrWhiteSpace(allowed))
+            {
+                return false;
+            }
+            string candidate = allowed!.Trim();
+            if (!candidate.Contains("://", StringComparison.Ordinal))
+            {
+                // host[:port] form: the port defaults to the port of the
+                // connection's own scheme.
+                candidate = endpoint.Uri.Scheme + "://" + candidate;
+            }
+            MqttEndpoint parsed;
+            try
+            {
+                parsed = MqttEndpointParser.Parse(candidate);
+            }
+            catch (FormatException)
+            {
+                return false;
+            }
+            return string.Equals(parsed.Host, endpoint.Host, StringComparison.OrdinalIgnoreCase) &&
+                parsed.Port == endpoint.Port;
         }
 
         private static MqttConnectionOptions CloneOptionsWithEndpoint(
@@ -208,8 +271,15 @@ namespace Opc.Ua.PubSub.Mqtt
                 Topics = source.Topics,
                 ConnectTimeout = source.ConnectTimeout,
                 MaxConcurrentSubscriptions = source.MaxConcurrentSubscriptions,
-                MaxNetworkMessageSize = source.MaxNetworkMessageSize
+                MaxNetworkMessageSize = source.MaxNetworkMessageSize,
+                AutoReconnect = source.AutoReconnect,
+                ReconnectDelay = source.ReconnectDelay,
+                MaxReconnectDelay = source.MaxReconnectDelay
             };
+            foreach (string credentialEndpoint in source.CredentialEndpoints)
+            {
+                clone.CredentialEndpoints.Add(credentialEndpoint);
+            }
 #if NET8_0_OR_GREATER
             if (source.GetStreamProvider() is { } streamProvider)
             {

@@ -24,7 +24,7 @@ namespace Opc.Ua.Wot
     /// source has one. Where it does not - a Node authored in the plant's
     /// language and read against another default locale - the plural member is
     /// still written in full and the singular member carries the
-    /// code-point-first entry as a display fallback that asserts no locale.
+    /// code-point-first entry as a display fallback with its source locale.
     /// Section 9.1.1 states it that way on purpose: requiring the default
     /// locale would make the commonest real NodeSet unrepresentable in the
     /// readable mapping and push an ordinary document into the exceptional
@@ -98,15 +98,23 @@ namespace Opc.Ua.Wot
 
         private static string? ProjectedTextLocale(Export.LocalizedText[]? texts, string defaultLocale)
         {
+            string? selected = SelectLocalizedValue(texts, defaultLocale);
+            string? selectedLocale = null;
             foreach (Export.LocalizedText text in texts ?? [])
             {
-                if (!string.IsNullOrEmpty(text.Value) &&
-                    (string.IsNullOrEmpty(text.Locale) || text.Locale == defaultLocale))
+                if (text.Value == selected)
                 {
-                    return string.IsNullOrEmpty(text.Locale) ? null : text.Locale;
+                    if (string.IsNullOrEmpty(text.Locale) || text.Locale == defaultLocale)
+                    {
+                        return string.IsNullOrEmpty(text.Locale) ? null : text.Locale;
+                    }
+                    if (selectedLocale is null || WotCodePointComparer.Instance.Compare(text.Locale, selectedLocale) < 0)
+                    {
+                        selectedLocale = text.Locale;
+                    }
                 }
             }
-            return null;
+            return selectedLocale;
         }
 
         private static bool LacksDefaultLocale(
@@ -715,8 +723,8 @@ namespace Opc.Ua.Wot
             {
                 // Section 9.1.1: a plural member with no entry for the default
                 // locale is not invalid. The singular member is then the
-                // code-point-first entry and is a display fallback that asserts
-                // no locale - which is what makes a NodeSet authored in the
+                // code-point-first entry and retains its source locale,
+                // which makes a NodeSet authored in the
                 // plant's language an ordinary document rather than one that
                 // has to fall back to the native projection to say something the
                 // plural member already says.
@@ -730,7 +738,7 @@ namespace Opc.Ua.Wot
                         $"locale '{defaultLocale}', so the {singular} member shall equal the " +
                         "entry whose language tag is first in ascending Unicode code-point " +
                         $"order ('{codePointFirstLocale}'). The value is a display fallback " +
-                        "and asserts no locale (WoT Binding Section 9.1.1).",
+                        "with its source locale (WoT Binding Section 9.1.1).",
                         WotLocation.FromPointer(parentPointer + "/" + singular)));
                 }
                 return;

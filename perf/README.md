@@ -85,7 +85,7 @@ perf/ServerLoadHarness/bin/Release/net10.0/ServerLoadHarness.exe run --scenario 
 | `--isolation` | `default` | `sharedonly`: run the server with the SharedOnly [resource isolation](../docs/ResourceIsolation.md) mode (no isolation provider, one FIFO request queue) instead of the default profile. |
 | `--owner-share` | 1 | `ServerResourceIsolationOptions.DefaultOwnerShare` of the server. Every workload session (and every native worker) connects from this machine, so the server sees one owner; the harness lets it take the whole request queue and all workers. The library default is 0.5. |
 | `--trace <file>` | | Record the measurement window with `dotnet-trace`. |
-| `--trace-profile` | `cpu` | `cpu` (sampled thread time), `alloc` (allocation ticks), `contention` or `gc`. |
+| `--trace-profile` | `cpu` | `cpu` (sampled thread time), `alloc` (allocation ticks), `contention`, `gc`, `arraypool` (ArrayPool misses) or `arraypool-verbose` (every rent and return, plus GC events). |
 | `--trace-side` | `server` | The process to record: `server` (the child) or `client` (the harness itself). |
 | `--out <file>` | | Append the result block to a file. |
 | `--server-harness <executable>` | this harness | Start another compatible harness executable as the measured server child. This keeps the client executable and assemblies fixed when comparing server builds. The selected child must implement the same READY/MARKED/REPORT control protocol; this is not the native-worker `--server-exe` option. |
@@ -337,6 +337,7 @@ dotnet perf/TraceAnalyzer/bin/Release/net10.0/TraceAnalyzer.dll samples trace.ne
 dotnet perf/TraceAnalyzer/bin/Release/net10.0/TraceAnalyzer.dll suspend trace.nettrace 5
 dotnet perf/TraceAnalyzer/bin/Release/net10.0/TraceAnalyzer.dll threads trace.nettrace 10
 dotnet perf/TraceAnalyzer/bin/Release/net10.0/TraceAnalyzer.dll frames trace.nettrace 0 NamespaceDefaultPermissionReader,ConditionalWeakTable
+dotnet perf/TraceAnalyzer/bin/Release/net10.0/TraceAnalyzer.dll pool trace.nettrace 30
 ```
 
 `frames <trace> 0 <p1,p2,...>` prints, for each comma-separated substring, the share of on-CPU
@@ -373,6 +374,12 @@ events, including `HEAPS <n> gen0budget~<bytes>` (the heap count DATAS chose, fr
 its main roles. This is a sample ratio, not a measurement of wall-clock CPU utilization.
 A thread near 100% busy while other cores are idle points to a possible serialized stage;
 confirm with its call stacks and the workload's available parallelism.
+
+`pool` reads a `--trace-profile arraypool` or `arraypool-verbose` trace. It counts the
+`System.Buffers.ArrayPoolEventSource` events by pool id, event, buffer size, reason and first
+`Opc.Ua` frame. `BufferAllocated` with `reason=2` (pool exhausted) is a rent that missed the pool;
+`BufferDropped` with `reason=0` (bucket full) is a return the pool discarded. With `arraypool-verbose` it
+also names the `Opc.Ua` frame that rents from each pool id.
 
 The `sub` and `events` scenarios add a `per-op2` line with the server cost per written value or
 per generated event. Async methods with loops run on-stack-replaced code that the trace rundown

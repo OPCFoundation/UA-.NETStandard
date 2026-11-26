@@ -31,7 +31,7 @@ namespace Opc.Ua.Wot.Exporter.Tests
             Directory.CreateDirectory(m_folder);
             m_output = new StringWriter(CultureInfo.InvariantCulture);
             m_error = new StringWriter(CultureInfo.InvariantCulture);
-            m_command = new ExportCommand(m_output, m_error);
+            m_command = new ExportCommand(m_output, m_error, getEnvironmentVariable: _ => null);
         }
 
         /// <summary>
@@ -69,6 +69,231 @@ namespace Opc.Ua.Wot.Exporter.Tests
             Assert.That(code, Is.Zero);
             Assert.That(m_output.ToString(), Does.Contain("Usage:"));
             Assert.That(Directory.EnumerateFileSystemEntries(m_folder), Is.Empty);
+        }
+
+        /// <summary>
+        /// Rejects missing option values, duplicate options and registry URLs with ambiguous components.
+        /// </summary>
+        [TestCase("--registry-base-url")]
+        [TestCase("--group-id")]
+        [TestCase("--registry-base-url", "urn:registry")]
+        [TestCase("--registry-base-url", "https://example.test?query")]
+        [TestCase("--registry-base-url", "https://example.test/#fragment")]
+        [TestCase("--registry-base-url", "https://user@example.test")]
+        [TestCase("--registry-base-url", "https://one.test", "--registry-base-url", "https://two.test")]
+        [TestCase("--group-id", "..")]
+        [TestCase("--group-id", "")]
+        [TestCase("--metadata")]
+        [TestCase("--metadata", "one.json", "--metadata", "two.json")]
+        [TestCase("--identifier-safe-keys", "--identifier-safe-keys")]
+        public async Task InvalidRegistryOptionsReturnUsageErrorAsync(params string[] options)
+        {
+            int code = await m_command.RunAsync([m_folder, .. options]).ConfigureAwait(false);
+            Assert.That(code, Is.EqualTo(2));
+            Assert.That(Directory.EnumerateFileSystemEntries(m_folder), Is.Empty);
+        }
+
+        /// <summary>
+        /// Applies publisher metadata, safe keys, optionality, bounds and locale rules through the command.
+        /// </summary>
+        [Test]
+        public async Task PublisherMetadataAndIdentifierKeysAreAppliedTogetherAsync()
+        {
+            string source = Path.Combine(m_folder, "Test.NodeSet2.xml");
+            string metadata = Path.Combine(m_folder, "publisher.json");
+            string xml = k_nodeSet.Replace("</UANodeSet>", """
+                <UAVariable NodeId="ns=1;i=10" BrowseName="1:&lt;Link&gt;" SymbolicName="Link" DataType="i=5">
+                  <DisplayName Locale="de">Anzahl</DisplayName>
+                  <References>
+                    <Reference ReferenceType="i=47" IsForward="false">ns=1;i=1</Reference>
+                    <Reference ReferenceType="i=37">i=11510</Reference>
+                  </References>
+                </UAVariable>
+                </UANodeSet>
+                """, StringComparison.Ordinal);
+            await File.WriteAllTextAsync(source, xml).ConfigureAwait(false);
+            await File.WriteAllTextAsync(metadata, /*lang=json,strict*/ """
+                {
+                  "nsu=https://test.export;i=1":{"isStandalone":true},
+                  "nsu=https://test.export;i=10":{
+                    "name":"export.test.PumpType.Link","eventContractType":["plant.Count.v1"]}
+                }
+                """).ConfigureAwait(false);
+            int code = await m_command.RunAsync([source, "--metadata", metadata, "--identifier-safe-keys"])
+                .ConfigureAwait(false);
+            Assert.That(code, Is.Zero, m_error.ToString());
+            string target = Path.Combine(m_folder, "out", "Test.NodeSet2.xml", "model.TM.json");
+            using var document = JsonDocument.Parse(await File.ReadAllTextAsync(target).ConfigureAwait(false));
+            JsonElement root = document.RootElement;
+            Assert.That(root.GetProperty("uav:isStandalone").GetBoolean(), Is.True);
+            Assert.That(root.GetProperty("tm:optional")[0].GetString(), Is.EqualTo("/properties/Link"));
+            JsonElement property = root.GetProperty("properties").GetProperty("Link");
+            Assert.That(property.GetProperty("uav:fullName").GetString(), Is.EqualTo("export.test.PumpType.Link"));
+            Assert.That(property.GetProperty("uav:browseName").GetString(), Is.EqualTo("ns1:<Link>"));
+            Assert.That(property.GetProperty("maximum").GetInt32(), Is.EqualTo(65535));
+            Assert.That(property.GetProperty("@context").GetProperty("title").GetProperty("@language").GetString(),
+                Is.EqualTo("de"));
+            Assert.That(property.GetProperty("uav:eventContractType")[0].GetString(), Is.EqualTo("plant.Count.v1"));
+            Assert.That(m_error.ToString(), Does.Contain("Incomplete WoT inheritance"));
+        }
+
+        /// <summary>
+        /// Resolves cross-file inheritance and instance type links using the target's actual namespace version.
+        /// </summary>
+        [TestCase("A", "Z", "42")]
+        [TestCase("Z", "A", "42")]
+        [TestCase("A", "Z", null)]
+        public async Task RegistryLinksUseTargetNamespaceVersionAsync(
+            string childPrefix, string parentPrefix, string? parentVersion)
+        {
+            const string child = """
+            <UANodeSet xmlns="http://opcfoundation.org/UA/2011/03/UANodeSet.xsd">
+              <NamespaceUris>
+                <Uri>https://child.export</Uri><Uri>http://opcfoundation.org/UA/ADI/</Uri>
+              </NamespaceUris>
+              <Models><Model ModelUri="https://child.export" Version="1.0">
+                <RequiredModel ModelUri="http://opcfoundation.org/UA/ADI/" Version="41" />
+              </Model></Models>
+              <UAObjectType NodeId="ns=1;i=1" BrowseName="1:ChildType">
+                <References><Reference ReferenceType="i=45" IsForward="false">ns=2;i=1</Reference></References>
+              </UAObjectType>
+              <UAObject NodeId="ns=1;i=2" BrowseName="1:Instance">
+                <References><Reference ReferenceType="i=40">ns=2;i=1</Reference></References>
+              </UAObject>
+            </UANodeSet>
+            """;
+            string parent = k_nodeSet
+                .Replace("https://test.export", "http://opcfoundation.org/UA/ADI/", StringComparison.Ordinal)
+                .Replace("PumpType", "AccessorySlotStateMachineType", StringComparison.Ordinal)
+                .Replace("Version=\"1.0\"", parentVersion is null ? string.Empty : $"Version=\"{parentVersion}\"",
+                    StringComparison.Ordinal);
+            string childName = childPrefix + ".Child.NodeSet2.xml";
+            string parentName = parentPrefix + ".Parent.NodeSet2.xml";
+            await File.WriteAllTextAsync(Path.Combine(m_folder, childName), child).ConfigureAwait(false);
+            await File.WriteAllTextAsync(Path.Combine(m_folder, parentName), parent).ConfigureAwait(false);
+
+            int code = await m_command.RunAsync([m_folder]).ConfigureAwait(false);
+
+            if (parentVersion is null)
+            {
+                Assert.That(code, Is.EqualTo(1));
+                Assert.That(m_error.ToString(), Does.Contain("No valid Model Version")
+                    .And.Contain("http://opcfoundation.org/UA/ADI/"));
+                Assert.That(Directory.Exists(Path.Combine(m_folder, "out")), Is.False);
+                return;
+            }
+            Assert.That(code, Is.Zero, m_error.ToString());
+            const string expectedHref = "https://opcfoundation.org/thingmodelgroups/opcua/thingmodels/" +
+                "aacc8e0db1e57bb41a53019c162369a4f63680be6ee5c292d67f70f613274d26/versions/42";
+            string[] childPaths = Directory.GetFiles(Path.Combine(m_folder, "out", childName));
+            Assert.That(childPaths, Has.Length.EqualTo(2));
+            foreach (string path in childPaths)
+            {
+                using var document = JsonDocument.Parse(await File.ReadAllTextAsync(path).ConfigureAwait(false));
+                JsonElement root = document.RootElement;
+                bool type = root.GetProperty("uav:id").GetString() == "nsu=https://child.export;i=1";
+                JsonElement link = root.GetProperty("links").EnumerateArray().Single(link =>
+                    link.GetProperty("rel").GetString() == (type ? "tm:extends" : "ua:HasTypeDefinition"));
+                Assert.That(link.GetProperty("href").GetString(), Is.EqualTo(expectedHref));
+                Assert.That(link.GetProperty("type").GetString(), Is.EqualTo("application/tm+json"));
+                Assert.That(link.GetProperty("rel").GetString(),
+                    Is.EqualTo(type ? "tm:extends" : "ua:HasTypeDefinition"));
+                if (type)
+                {
+                    Assert.That(root.GetProperty("links").EnumerateArray().Any(link =>
+                        link.GetProperty("rel").GetString() == "ua:HasSupertype" &&
+                        link.GetProperty("href").GetString() == "nsu=http://opcfoundation.org/UA/ADI/;i=1"),
+                        Is.True);
+                    Assert.That(root.GetProperty("version").GetProperty("model").GetString(), Is.EqualTo("1.0"));
+                }
+            }
+            using var target = JsonDocument.Parse(await File.ReadAllTextAsync(
+                Path.Combine(m_folder, "out", parentName, "model.TM.json")).ConfigureAwait(false));
+            Assert.That(target.RootElement.GetProperty("id").GetString(),
+                Is.EqualTo("urn:org.opcfoundation.UA.ADI.AccessorySlotStateMachineType"));
+            Assert.That(target.RootElement.GetProperty("version").GetProperty("model").GetString(), Is.EqualTo("42"));
+            using var exported = new WotDocumentSet("model.TM.json", [
+                new WotDocumentSetEntry("model.TM.json", WotDocument.Parse(await File.ReadAllBytesAsync(
+                    Path.Combine(m_folder, "out", childName, "model.TM.json")).ConfigureAwait(false)))
+            ]);
+            WotConversionResult<UANodeSet> restored = await WotNodeSetConverter.ToNodeSetAsync(exported)
+                .ConfigureAwait(false);
+            Assert.That(restored.Success, Is.True,
+                string.Join(Environment.NewLine, restored.Diagnostics.Select(diagnostic => diagnostic.ToString())));
+            UAObjectType restoredType = restored.Value!.Items!.OfType<UAObjectType>().Single();
+            Assert.That(restoredType.References!.Any(reference => !reference.IsForward &&
+                reference.ReferenceType is "HasSubtype" or "i=45" &&
+                reference.Value == "ns=2;i=1"), Is.True);
+        }
+
+        /// <summary>
+        /// Applies environment configuration and CLI overrides to sibling models and encodes path components.
+        /// </summary>
+        /// <exception cref="InvalidOperationException"></exception>
+        [TestCase("https://example.test/registry/", false)]
+        [TestCase("https://ignored.test", true)]
+        [TestCase("not a URL", true)]
+        public async Task RegistryOptionsApplyToLocalModelLinksAsync(string environmentUrl, bool useCli)
+        {
+            string source = Path.Combine(m_folder, "Test.NodeSet2.xml");
+            using (var input = new MemoryStream(Encoding.UTF8.GetBytes(k_nodeSet)))
+            {
+                UANodeSet nodeSet = UANodeSet.Read(input) ??
+                    throw new InvalidOperationException("The test NodeSet could not be read.");
+                nodeSet.Items![1].References![0].Value = "ns=1;i=1";
+                using var buffer = new MemoryStream();
+                nodeSet.Write(buffer);
+                await File.WriteAllBytesAsync(source, buffer.ToArray()).ConfigureAwait(false);
+            }
+
+            var command = new ExportCommand(m_output, m_error, getEnvironmentVariable:
+                name => name == "OPCUA_WOT_REGISTRY_BASE_URL" ? environmentUrl : null);
+            string[] args = useCli
+                ? ["--registry-base-url", "https://example.test/registry/", source, "--group-id", "OPC UA/models"]
+                : [source, "--group-id", "OPC UA/models"];
+            int code = await command.RunAsync(args).ConfigureAwait(false);
+
+            Assert.That(code, Is.Zero, m_error.ToString());
+            string target = Path.Combine(m_folder, "out", "Test.NodeSet2.xml", "model.TM.json-valvetype");
+            using var document = JsonDocument.Parse(await File.ReadAllTextAsync(target).ConfigureAwait(false));
+            JsonElement link = document.RootElement.GetProperty("links").EnumerateArray().Single(link =>
+                link.GetProperty("rel").GetString() == "tm:extends");
+            Assert.That(link.GetProperty("href").GetString(),
+                Does.StartWith("https://example.test/registry/thingmodelgroups/OPC%20UA%2Fmodels/thingmodels/")
+                    .And.EndsWith("/versions/1.0"));
+            Assert.That(link.GetProperty("rel").GetString(), Is.EqualTo("tm:extends"));
+        }
+
+        /// <summary>
+        /// Rejects an invalid environment URL when no CLI override is supplied.
+        /// </summary>
+        [Test]
+        public async Task InvalidRegistryEnvironmentReturnsUsageErrorAsync()
+        {
+            var command = new ExportCommand(m_output, m_error, getEnvironmentVariable: _ => "not a URL");
+
+            int code = await command.RunAsync([m_folder]).ConfigureAwait(false);
+
+            Assert.That(code, Is.EqualTo(2));
+            Assert.That(Directory.EnumerateFileSystemEntries(m_folder), Is.Empty);
+        }
+
+        /// <summary>
+        /// Rejects different types from separate sources that claim the same registry resources.
+        /// </summary>
+        [Test]
+        public async Task DuplicateResourceClaimsAcrossSourcesWriteNoFilesAsync()
+        {
+            string second = k_nodeSet.Replace("NodeId=\"ns=1;i=1\"", "NodeId=\"ns=1;i=3\"", StringComparison.Ordinal)
+                .Replace("NodeId=\"ns=1;i=2\"", "NodeId=\"ns=1;i=4\"", StringComparison.Ordinal);
+            await File.WriteAllTextAsync(Path.Combine(m_folder, "First.NodeSet2.xml"), k_nodeSet).ConfigureAwait(false);
+            await File.WriteAllTextAsync(Path.Combine(m_folder, "Second.NodeSet2.xml"), second).ConfigureAwait(false);
+
+            int code = await m_command.RunAsync([m_folder]).ConfigureAwait(false);
+
+            Assert.That(code, Is.EqualTo(1));
+            Assert.That(m_error.ToString(), Does.Contain("ambiguous"));
+            Assert.That(Directory.Exists(Path.Combine(m_folder, "out")), Is.False);
         }
 
         /// <summary>
@@ -132,9 +357,9 @@ namespace Opc.Ua.Wot.Exporter.Tests
         {
             string child = """
             <UANodeSet xmlns="http://opcfoundation.org/UA/2011/03/UANodeSet.xsd">
-              <NamespaceUris><Uri>urn:export:child</Uri><Uri>urn:export:parent</Uri></NamespaceUris>
-              <Models><Model ModelUri="urn:export:child" Version="1.0">
-                <RequiredModel ModelUri="urn:export:parent" Version="1.0" />
+              <NamespaceUris><Uri>https://child.export</Uri><Uri>https://parent.export</Uri></NamespaceUris>
+              <Models><Model ModelUri="https://child.export" Version="1.0">
+                <RequiredModel ModelUri="https://parent.export" Version="1.0" />
               </Model></Models>
               <UAObjectType NodeId="ns=1;i=1" BrowseName="1:ChildType">
                 <DisplayName>ChildType</DisplayName>
@@ -154,8 +379,8 @@ namespace Opc.Ua.Wot.Exporter.Tests
             }
             string parent = $$"""
             <UANodeSet xmlns="http://opcfoundation.org/UA/2011/03/UANodeSet.xsd">
-              <NamespaceUris><Uri>urn:export:parent</Uri></NamespaceUris>
-              <Models><Model ModelUri="urn:export:parent" Version="1.0" /></Models>
+              <NamespaceUris><Uri>https://parent.export</Uri></NamespaceUris>
+              <Models><Model ModelUri="https://parent.export" Version="1.0" /></Models>
               <UAObjectType NodeId="ns=1;i=1" BrowseName="1:ParentType">
                 <DisplayName>ParentType</DisplayName>
                 <References>
@@ -200,6 +425,7 @@ namespace Opc.Ua.Wot.Exporter.Tests
         /// <summary>
         /// Resolves shared argument properties through forward references without importing dependency nodes.
         /// </summary>
+        /// <exception cref="InvalidOperationException"></exception>
         [TestCase("A", "Z", "valid")]
         [TestCase("Z", "A", "valid")]
         [TestCase("A", "Z", "missing")]
@@ -212,9 +438,9 @@ namespace Opc.Ua.Wot.Exporter.Tests
         {
             const string source = """
             <UANodeSet xmlns="http://opcfoundation.org/UA/2011/03/UANodeSet.xsd">
-              <NamespaceUris><Uri>urn:export:child</Uri><Uri>urn:export:arguments</Uri></NamespaceUris>
-              <Models><Model ModelUri="urn:export:child" Version="1.0">
-                <RequiredModel ModelUri="urn:export:arguments" Version="1.0" />
+              <NamespaceUris><Uri>https://child.export</Uri><Uri>https://arguments.export</Uri></NamespaceUris>
+              <Models><Model ModelUri="https://child.export" Version="1.0">
+                <RequiredModel ModelUri="https://arguments.export" Version="1.0" />
               </Model></Models>
               <UAObjectType NodeId="ns=1;i=1" BrowseName="1:AssetType">
                 <DisplayName>AssetType</DisplayName>
@@ -236,8 +462,8 @@ namespace Opc.Ua.Wot.Exporter.Tests
             const string dependency = """
             <UANodeSet xmlns="http://opcfoundation.org/UA/2011/03/UANodeSet.xsd"
                        xmlns:uax="http://opcfoundation.org/UA/2008/02/Types.xsd">
-              <NamespaceUris><Uri>urn:export:arguments</Uri></NamespaceUris>
-              <Models><Model ModelUri="urn:export:arguments" Version="1.0" /></Models>
+              <NamespaceUris><Uri>https://arguments.export</Uri></NamespaceUris>
+              <Models><Model ModelUri="https://arguments.export" Version="1.0" /></Models>
               <UAObjectType NodeId="ns=1;i=1" BrowseName="1:SharedAssetType">
                 <DisplayName>SharedAssetType</DisplayName>
                 <References><Reference ReferenceType="i=47">ns=1;i=1476</Reference></References>
@@ -309,7 +535,7 @@ namespace Opc.Ua.Wot.Exporter.Tests
             {
                 Assert.That(code, Is.EqualTo(1));
                 Assert.That(m_error.ToString(),
-                    Does.Contain("argument metadata").And.Contain("nsu=urn:export:arguments;i=1422"));
+                    Does.Contain("argument metadata").And.Contain("nsu=https://arguments.export;i=1422"));
                 Assert.That(Directory.Exists(Path.Combine(m_folder, "out", sourceName)), Is.False);
                 return;
             }
@@ -332,7 +558,7 @@ namespace Opc.Ua.Wot.Exporter.Tests
             JsonElement mode = input.GetProperty("properties").GetProperty("VerificationMode");
             Assert.That(mode.GetProperty("type").GetString(), Is.EqualTo("integer"));
             Assert.That(mode.GetProperty("uav:mapToType").GetString(),
-                Is.EqualTo("nsu=urn:export:arguments;i=3001"));
+                Is.EqualTo("nsu=https://arguments.export;i=3001"));
             Assert.That(output.GetProperty("uav:argumentLayout").GetString(), Is.EqualTo("named"));
             Assert.That(output.GetProperty("uav:fieldOrder")[0].GetString(), Is.EqualTo("VerificationErrors"));
             JsonElement errors = output.GetProperty("properties").GetProperty("VerificationErrors");
@@ -341,7 +567,9 @@ namespace Opc.Ua.Wot.Exporter.Tests
             Assert.That(errors.GetProperty("uav:mapToType").GetString(), Is.EqualTo("i=19"));
 
             using var dependencyXml = new MemoryStream(Encoding.UTF8.GetBytes(dependency));
-            var resolver = WotDocumentNodeResolver.FromNodeSets([UANodeSet.Read(dependencyXml)]);
+            UANodeSet dependencyNodeSet = UANodeSet.Read(dependencyXml) ??
+                throw new InvalidOperationException("The dependency NodeSet could not be read.");
+            var resolver = WotDocumentNodeResolver.FromNodeSets([dependencyNodeSet]);
             foreach (string argumentName in (string[])["VerificationMode", "VerificationErrors"])
             {
                 string changed = document.RootElement.GetRawText().Replace(
@@ -369,12 +597,12 @@ namespace Opc.Ua.Wot.Exporter.Tests
             "urn:org.opcfoundation.www.UA.2013.01.ISA95.PumpType")]
         [TestCase("http://fdi-cooperation.com/OPCUA/FDI5/", "1:PumpType",
             "urn:com.fdi-cooperation.OPCUA.FDI5.PumpType")]
-        [TestCase("urn:export:test", "1:PumpType", "urn:export:test.PumpType")]
+        [TestCase("https://test.export", "1:PumpType", "urn:export.test.PumpType")]
         public async Task ExportGeneratesBaselineModelIdsAsync(
             string namespaceUri, string browseName, string expectedId)
         {
             string source = Path.Combine(m_folder, "Test.NodeSet2.xml");
-            string xml = k_nodeSet.Replace("urn:export:test", namespaceUri, StringComparison.Ordinal)
+            string xml = k_nodeSet.Replace("https://test.export", namespaceUri, StringComparison.Ordinal)
                 .Replace("BrowseName=\"1:PumpType\"", $"BrowseName=\"{browseName}\"", StringComparison.Ordinal)
                 .Replace("<DisplayName>PumpType</DisplayName>", "<DisplayName>A pump</DisplayName>",
                     StringComparison.Ordinal);
@@ -385,7 +613,18 @@ namespace Opc.Ua.Wot.Exporter.Tests
             }
             await File.WriteAllTextAsync(source, xml).ConfigureAwait(false);
 
-            Assert.That(await m_command.RunAsync([source]).ConfigureAwait(false), Is.Zero, m_error.ToString());
+            string metadata = Path.Combine(m_folder, "metadata.json");
+            string firstId = namespaceUri == Types.Namespaces.OpcUa ? "i=1000001" : $"nsu={namespaceUri};i=1";
+            string secondId = namespaceUri == Types.Namespaces.OpcUa ? "i=1000002" : $"nsu={namespaceUri};i=2";
+            await File.WriteAllTextAsync(metadata,
+                $$"""
+                {
+                  "{{firstId}}": {"name": "test.models.PumpType"},
+                  "{{secondId}}": {"name": "test.models.ValveType"}
+                }
+                """).ConfigureAwait(false);
+            Assert.That(await m_command.RunAsync([source, "--metadata", metadata]).ConfigureAwait(false),
+                Is.Zero, m_error.ToString());
 
             string target = Path.Combine(m_folder, "out", "Test.NodeSet2.xml", "model.TM.json");
             using var document = JsonDocument.Parse(await File.ReadAllTextAsync(target).ConfigureAwait(false));
@@ -413,7 +652,44 @@ namespace Opc.Ua.Wot.Exporter.Tests
             string target = Path.Combine(m_folder, "out", "Test.NodeSet2.xml", "model.TM.json");
             using var document = JsonDocument.Parse(await File.ReadAllTextAsync(target).ConfigureAwait(false));
             Assert.That(document.RootElement.GetProperty("id").GetString(),
-                Is.EqualTo("urn:export:test.PumpType"));
+                Is.EqualTo("urn:export.test.PumpType"));
+        }
+
+        /// <summary>
+        /// Registers fallback model roots without discarding the native view or method.
+        /// </summary>
+        [TestCase("UAView")]
+        [TestCase("UAMethod")]
+        public async Task FallbackRootModelsAreExportedAsync(string nodeClass)
+        {
+            string source = Path.Combine(m_folder, "Test.NodeSet2.xml");
+            string xml = $$"""
+            <UANodeSet xmlns="http://opcfoundation.org/UA/2011/03/UANodeSet.xsd">
+              <NamespaceUris><Uri>https://test.export</Uri></NamespaceUris>
+              <Models><Model ModelUri="https://test.export" Version="1.0" /></Models>
+              <{{nodeClass}} NodeId="ns=1;i=1" BrowseName="1:Standalone">
+                <DisplayName>Standalone</DisplayName>
+              </{{nodeClass}}>
+            </UANodeSet>
+            """;
+            await File.WriteAllTextAsync(source, xml).ConfigureAwait(false);
+
+            Assert.That(await m_command.RunAsync([source]).ConfigureAwait(false), Is.Zero, m_error.ToString());
+
+            using var documents = new WotDocumentSet("model.TM.json", [
+                new WotDocumentSetEntry("model.TM.json", WotDocument.Parse(await File.ReadAllBytesAsync(
+                    Path.Combine(m_folder, "out", "Test.NodeSet2.xml", "model.TM.json")).ConfigureAwait(false)))
+            ]);
+            JsonElement root = documents.Entries[0].Document.RootElement;
+            Assert.That(root.GetProperty("id").GetString(), Is.EqualTo("urn:export.test.Standalone"));
+            Assert.That(root.GetProperty("version").GetProperty("model").GetString(), Is.EqualTo("1.0"));
+            Assert.That(root.GetProperty("uav:id").GetString(), Is.EqualTo("nsu=https://test.export;i=1"));
+            WotConversionResult<UANodeSet> restored = await WotNodeSetConverter.ToNodeSetAsync(documents)
+                .ConfigureAwait(false);
+            Assert.That(restored.Success, Is.True,
+                string.Join(Environment.NewLine, restored.Diagnostics.Select(diagnostic => diagnostic.ToString())));
+            Assert.That(restored.Value!.Items, Has.Length.EqualTo(1));
+            Assert.That(restored.Value.Items![0].GetType().Name, Is.EqualTo(nodeClass));
         }
 
         /// <summary>
@@ -425,6 +701,7 @@ namespace Opc.Ua.Wot.Exporter.Tests
             const string xml = """
             <UANodeSet xmlns="http://opcfoundation.org/UA/2011/03/UANodeSet.xsd">
               <NamespaceUris><Uri>http://opcfoundation.org/UA/AMLLibs/</Uri></NamespaceUris>
+              <Models><Model ModelUri="http://opcfoundation.org/UA/AMLLibs/" Version="1.0" /></Models>
               <UAObject NodeId="ns=1;i=100" BrowseName="Communication">
                 <DisplayName>Communication</DisplayName>
                 <References><Reference ReferenceType="i=40">i=58</Reference></References>
@@ -442,7 +719,15 @@ namespace Opc.Ua.Wot.Exporter.Tests
             string source = Path.Combine(m_folder, "Test.NodeSet2.xml");
             await File.WriteAllTextAsync(source, xml).ConfigureAwait(false);
 
-            Assert.That(await m_command.RunAsync([source]).ConfigureAwait(false), Is.Zero, m_error.ToString());
+            string metadata = Path.Combine(m_folder, "metadata.json");
+            await File.WriteAllTextAsync(metadata, /*lang=json,strict*/ """
+                {
+                  "nsu=http://opcfoundation.org/UA/AMLLibs/;i=40": {"name": "test.models.FirstCommunication"},
+                  "nsu=http://opcfoundation.org/UA/AMLLibs/;i=179": {"name": "test.models.SecondCommunication"}
+                }
+                """).ConfigureAwait(false);
+            Assert.That(await m_command.RunAsync([source, "--metadata", metadata]).ConfigureAwait(false),
+                Is.Zero, m_error.ToString());
 
             var ids = new Dictionary<string, string?>(StringComparer.Ordinal);
             string target = Path.Combine(m_folder, "out", "Test.NodeSet2.xml");
@@ -476,11 +761,12 @@ namespace Opc.Ua.Wot.Exporter.Tests
               "@type": ["tm:ThingModel", "uav:objectType"],
               "id": "urn:catalogue:authored:pump",
               "title": "Pump",
-              "uav:id": "nsu=urn:export:test;i=1",
-              "uav:browseName": "nsu=urn:export:test;PumpType"
+              "uav:id": "nsu=https://test.export;i=1",
+              "uav:browseName": "nsu=https://test.export;PumpType"
             }
             """));
             UANodeSet nodeSet = WotNodeSetConverter.ToNodeSet(original);
+            nodeSet.Models = [new ModelTableEntry { ModelUri = "https://test.export", Version = "2.3" }];
             string source = Path.Combine(m_folder, "Test.NodeSet2.xml");
             using (var buffer = new MemoryStream())
             {
@@ -587,8 +873,8 @@ namespace Opc.Ua.Wot.Exporter.Tests
         /// </summary>
         private const string k_nodeSet = """
         <UANodeSet xmlns="http://opcfoundation.org/UA/2011/03/UANodeSet.xsd">
-          <NamespaceUris><Uri>urn:export:test</Uri></NamespaceUris>
-          <Models><Model ModelUri="urn:export:test" Version="1.0" /></Models>
+          <NamespaceUris><Uri>https://test.export</Uri></NamespaceUris>
+          <Models><Model ModelUri="https://test.export" Version="1.0" /></Models>
           <UAObjectType NodeId="ns=1;i=1" BrowseName="1:PumpType">
             <DisplayName>PumpType</DisplayName>
             <References><Reference ReferenceType="i=45" IsForward="false">i=58</Reference></References>

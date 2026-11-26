@@ -407,7 +407,7 @@ namespace Opc.Ua.Core.Tests.Redundancy
             TimeProvider time)
         {
             return new SharedStoreLeaseElection(
-                store, kLeaseKey, nodeId, s_leaseDuration, s_renewInterval, time);
+                store, kLeaseKey, nodeId, s_leaseDuration, s_renewInterval, default, time, null, isolated: true);
         }
 
         /// <summary>

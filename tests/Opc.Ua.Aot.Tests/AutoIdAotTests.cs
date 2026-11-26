@@ -467,6 +467,8 @@ namespace Opc.Ua.Aot.Tests
                 Guid.NewGuid().ToString("N"));
             options.PkiRoot = m_serverPkiRoot;
             options.AutoAcceptUntrustedCertificates = true;
+            // The tests drive the server through anonymous sessions.
+            options.AnonymousAccess = AnonymousAccess.Unrestricted;
             options.IncludeUnsecurePolicyNone = true;
             options.EndpointUrls.Clear();
             options.EndpointUrls.Add(m_endpointUrl);

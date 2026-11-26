@@ -15,6 +15,120 @@ namespace Opc.Ua.PubSub.Redundancy
     internal static class FencedSharedStoreValue
     {
         /// <summary>
+        /// Requires an actual freshness view unless a process-local memory store was explicitly supplied.
+        /// </summary>
+        internal static ISharedKeyValueStore RequireStore(ISharedKeyValueStore store)
+        {
+            if (store is null)
+            {
+                throw new ArgumentNullException(nameof(store));
+            }
+            return store is FreshnessProtectedKeyValueStore or InMemorySharedKeyValueStore
+                ? store
+                : throw new ArgumentException(
+                    "External PubSub records require a FreshnessProtectedKeyValueStore.", nameof(store));
+        }
+
+        /// <summary>
+        /// Reads an authoritative record without treating prior deletion as a new record.
+        /// </summary>
+        internal static ValueTask<(bool Found, ByteString Value)> ReadRetainedAsync(
+            ISharedKeyValueStore store,
+            string key,
+            CancellationToken cancellationToken)
+        {
+            return store is FreshnessProtectedKeyValueStore protectedStore
+                ? protectedStore.TryGetRetainedAsync(key, cancellationToken)
+                : store.TryGetAsync(key, cancellationToken);
+        }
+
+        /// <summary>
+        /// Commits a record without recreating a previously deleted authoritative key.
+        /// </summary>
+        internal static ValueTask<bool> CompareAndSwapRetainedAsync(
+            ISharedKeyValueStore store,
+            string key,
+            ByteString expected,
+            ByteString value,
+            CancellationToken cancellationToken)
+        {
+            return store is FreshnessProtectedKeyValueStore protectedStore
+                ? protectedStore.CompareAndSwapRetainedAsync(key, expected, value, cancellationToken)
+                : store.CompareAndSwapAsync(key, expected, value, cancellationToken);
+        }
+
+        /// <summary>
+        /// Decodes a fixed-size record with a positive fence, or a legacy process-local payload.
+        /// </summary>
+        internal static bool TryExtractFixedPayload(
+            ByteString stored,
+            int payloadLength,
+            bool allowUnfenced,
+            out ByteString payload,
+            out long fencingToken)
+        {
+            payload = default;
+            fencingToken = 0;
+            ReadOnlySpan<byte> span = stored.Span;
+            if (allowUnfenced && span.Length == payloadLength)
+            {
+                payload = stored;
+                return true;
+            }
+            if (TryDecodeEnvelope(span, out long token, out int offset, out int length) &&
+                token > 0 && length == payloadLength)
+            {
+                payload = ByteString.From(span.Slice(offset, length).ToArray());
+                fencingToken = token;
+                return true;
+            }
+            if (!allowUnfenced)
+            {
+                throw InvalidRecord();
+            }
+            return false;
+        }
+
+        /// <summary>
+        /// Commits a fixed-size state record without allowing a stored fence to be lowered or discarded.
+        /// </summary>
+        internal static async ValueTask StoreFixedAsync(
+            ISharedKeyValueStore store,
+            string key,
+            ByteString payload,
+            long? fencingToken,
+            CancellationToken cancellationToken)
+        {
+            bool allowUnfenced = store is InMemorySharedKeyValueStore;
+            if ((!allowUnfenced && !fencingToken.HasValue) || fencingToken is <= 0)
+            {
+                throw new InvalidOperationException("The PubSub write requires a positive activation fence.");
+            }
+            ByteString next = fencingToken.HasValue ? Wrap(payload, fencingToken.Value) : payload;
+            for (int attempt = 0; attempt < s_maxCompareAndSwapAttempts; attempt++)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                (bool found, ByteString current) = await ReadRetainedAsync(store, key, cancellationToken)
+                    .ConfigureAwait(false);
+                long currentFence = 0;
+                if (found && !TryExtractFixedPayload(current, payload.Length, allowUnfenced, out _, out currentFence))
+                {
+                    throw InvalidRecord();
+                }
+                if (fencingToken.GetValueOrDefault() < currentFence)
+                {
+                    throw new InvalidOperationException("A newer activation fence already wrote this PubSub record.");
+                }
+                if (await CompareAndSwapRetainedAsync(store, key, current, next, cancellationToken)
+                    .ConfigureAwait(false))
+                {
+                    return;
+                }
+            }
+            throw new InvalidOperationException("Unable to commit a fenced PubSub record due to concurrent writes.");
+        }
+
+        /// <summary>
         /// Attempts to unwrap a stored shared-store value into its payload and fencing token.
         /// </summary>
         /// <param name="stored">The stored value to inspect.</param>
@@ -102,7 +216,10 @@ namespace Opc.Ua.PubSub.Redundancy
                 "attempts.");
         }
 
-        private static ByteString Wrap(ByteString payload, long fencingToken)
+        /// <summary>
+        /// Encodes a payload with its fencing token for a conditional write.
+        /// </summary>
+        internal static ByteString Wrap(ByteString payload, long fencingToken)
         {
             byte[]? payloadBytes = payload.IsNull ? null : payload.ToArray();
             int payloadLength = payloadBytes?.Length ?? 0;
@@ -152,6 +269,12 @@ namespace Opc.Ua.PubSub.Redundancy
 
             payloadOffset = s_headerLength;
             return true;
+        }
+
+        private static ServiceResultException InvalidRecord()
+        {
+            return new ServiceResultException(
+                StatusCodes.BadSecurityChecksFailed, "The shared PubSub fence or payload is invalid.");
         }
 
         private const uint s_magic = 0x46535048;

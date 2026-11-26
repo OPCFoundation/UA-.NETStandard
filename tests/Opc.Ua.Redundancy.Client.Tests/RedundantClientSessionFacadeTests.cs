@@ -171,7 +171,7 @@ namespace Opc.Ua.Client.Redundancy.Tests
             // Reference-typed members whose concrete instances are awkward to fabricate are asserted by delegation.
             _ = facade.ConfiguredEndpoint;
             _ = facade.PreferredLocales;
-            _ = facade.DefaultSubscription;
+            _ = ((ISession)facade).DefaultSubscription;
             _ = facade.OperationLimits;
             _ = facade.ServerCapabilities;
             _ = facade.Endpoint;
@@ -202,7 +202,7 @@ namespace Opc.Ua.Client.Redundancy.Tests
             facade.ReturnDiagnostics = DiagnosticsMasks.ServiceSymbolicId;
             facade.OperationTimeout = 30000;
             facade.DefaultTimeoutHint = 12345;
-            facade.DefaultSubscription = null!;
+            ((ISession)facade).DefaultSubscription = null!;
 
             session.VerifySet(s => s.DeleteSubscriptionsOnClose = true, Times.Once());
             session.VerifySet(s => s.PublishRequestCancelDelayOnCloseSession = 11, Times.Once());
@@ -254,8 +254,8 @@ namespace Opc.Ua.Client.Redundancy.Tests
             session.Verify(s => s.StartPublishing(1000, true), Times.Once());
 
             ITransportChannel channel = Mock.Of<ITransportChannel>();
-            facade.AttachChannel(channel);
-            facade.DetachChannel();
+            ((ISession)facade).AttachChannel(channel);
+            ((ISession)facade).DetachChannel();
             session.Verify(s => s.AttachChannel(channel), Times.Once());
             session.Verify(s => s.DetachChannel(), Times.Once());
         }
@@ -876,7 +876,7 @@ namespace Opc.Ua.Client.Redundancy.Tests
             facade.KeepAlive += KeepAliveHandler;
             facade.Notification += NotificationHandler;
             facade.PublishError += PublishErrorHandler;
-            facade.PublishSequenceNumbersToAcknowledge += AcknowledgeHandler;
+            ((ISession)facade).PublishSequenceNumbersToAcknowledge += AcknowledgeHandler;
             facade.SubscriptionsChanged += SubscriptionsChangedHandler;
             facade.SessionClosing += SessionClosingHandler;
             facade.SessionConfigurationChanged += SessionConfigurationChangedHandler;
@@ -918,7 +918,7 @@ namespace Opc.Ua.Client.Redundancy.Tests
             facade.KeepAlive -= KeepAliveHandler;
             facade.Notification -= NotificationHandler;
             facade.PublishError -= PublishErrorHandler;
-            facade.PublishSequenceNumbersToAcknowledge -= AcknowledgeHandler;
+            ((ISession)facade).PublishSequenceNumbersToAcknowledge -= AcknowledgeHandler;
             facade.SubscriptionsChanged -= SubscriptionsChangedHandler;
             facade.SessionClosing -= SessionClosingHandler;
             facade.SessionConfigurationChanged -= SessionConfigurationChangedHandler;

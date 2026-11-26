@@ -21,6 +21,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
     /// </summary>
     [TestFixture]
     [Category("WoT")]
+    [Category("Integration")]
     public sealed class WotMaterializationCallerContextTests
     {
         private readonly List<(string Phase, IOperationContext? Context)> m_observed = [];

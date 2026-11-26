@@ -291,7 +291,8 @@ namespace Opc.Ua.Client.Redundancy
                 ManagedSession leader = await standby.CreateTakeoverSessionAsync(
                     handoff,
                     new SessionTakeoverOptions { Identity = identity },
-                    ct).ConfigureAwait(false);
+                    ct,
+                    requireIndependentPeerIdentity: true).ConfigureAwait(false);
                 m_session = leader;
                 m_adoptedSession = leader;
                 standby.SessionConfigurationChanged -= OnSessionConfigurationChanged;

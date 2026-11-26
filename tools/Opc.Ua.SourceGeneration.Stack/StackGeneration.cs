@@ -3,7 +3,6 @@
 
 using System;
 using System.Linq;
-using System.Text;
 using System.Threading;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
@@ -76,8 +75,8 @@ namespace Opc.Ua.SourceGeneration
                 foreach (string file in fileSystem.CreatedFiles
                     .Where(f => f.EndsWith(".cs", StringComparison.OrdinalIgnoreCase)))
                 {
-                    string content = Encoding.UTF8.GetString(fileSystem.Get(file));
-                    m_context.AddSource(file, content);
+                    cancellationToken.ThrowIfCancellationRequested();
+                    m_context.AddSource(file, SourceGenerator.ReadGeneratedSource(fileSystem, file));
                 }
             }
             catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)

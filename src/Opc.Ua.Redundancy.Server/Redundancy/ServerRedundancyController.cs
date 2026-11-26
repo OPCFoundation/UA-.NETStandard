@@ -46,8 +46,17 @@ namespace Opc.Ua.Redundancy.Server
         /// <param name="options">The server redundancy options.</param>
         /// <exception cref="ArgumentNullException"><paramref name="options"/> is <c>null</c>.</exception>
         public ServerRedundancyController(ServerRedundancyOptions options)
+            : this(options, null)
+        {
+        }
+
+        /// <summary>
+        /// Creates the controller with the optional shared peer-status exchange.
+        /// </summary>
+        internal ServerRedundancyController(ServerRedundancyOptions options, SharedRedundantPeerStatus? peerStatus)
         {
             m_options = options ?? throw new ArgumentNullException(nameof(options));
+            m_peerStatus = peerStatus;
         }
 
         /// <inheritdoc/>
@@ -131,6 +140,44 @@ namespace Opc.Ua.Redundancy.Server
         /// </summary>
         internal ServerRedundancyOptions Options => m_options;
 
+        /// <summary>
+        /// Reads the current peer observations and refreshes the published redundancy array.
+        /// </summary>
+        internal async ValueTask RefreshPeerStatusAsync(CancellationToken cancellationToken)
+        {
+            await m_gate.WaitAsync(cancellationToken).ConfigureAwait(false);
+            try
+            {
+                if (m_server is not { ServerObject: { ServerRedundancy.RedundantServerArray: { } array } serverObject }
+                    server ||
+                    Mode == RedundancySupport.None)
+                {
+                    return;
+                }
+
+                ArrayOf<string> ids = GetPhysicalServerIds(server, m_options);
+                string? localId = GetLocalServerId(server, m_options);
+                bool refreshed = false;
+                try
+                {
+                    await UpdateServerArrayAsync(server, serverObject, array, ids, localId, cancellationToken)
+                        .ConfigureAwait(false);
+                    refreshed = true;
+                }
+                finally
+                {
+                    if (!refreshed)
+                    {
+                        PublishLocalServerArray(server, serverObject, array, ids, localId);
+                    }
+                }
+            }
+            finally
+            {
+                m_gate.Release();
+            }
+        }
+
         /// <inheritdoc/>
         public void Dispose()
         {
@@ -197,7 +244,7 @@ namespace Opc.Ua.Redundancy.Server
                 redundancy = (ServerRedundancyState)replaced;
             }
 
-            ApplyValues(context, redundancy, options);
+            ApplyValues(server, serverObject, redundancy, options);
             redundancy.ClearChangeMasks(context, false);
         }
 
@@ -205,7 +252,8 @@ namespace Opc.Ua.Redundancy.Server
         /// Publishes the mode-specific redundancy values onto the live node.
         /// </summary>
         private static void ApplyValues(
-            ISystemContext context,
+            IServerContext server,
+            ServerObjectState serverObject,
             ServerRedundancyState redundancy,
             ServerRedundancyOptions options)
         {
@@ -214,24 +262,12 @@ namespace Opc.Ua.Redundancy.Server
                 return;
             }
 
+            ISystemContext context = server.DefaultSystemContext;
             ArrayOf<string> peerUris = options.GetPeerApplicationUris();
-
-            if (redundancy.RedundantServerArray != null)
+            if (redundancy.RedundantServerArray is { } array)
             {
-                var servers = new List<RedundantServerDataType>(peerUris.Count);
-                foreach (string peerUri in peerUris)
-                {
-                    servers.Add(new RedundantServerDataType
-                    {
-                        ServerId = peerUri,
-                        ServiceLevel = options.PeerServiceLevel,
-                        ServerState = ServerState.Running
-                    });
-                }
-
-                redundancy.RedundantServerArray.Value =
-                    new ArrayOf<RedundantServerDataType>(servers.ToArray());
-                redundancy.RedundantServerArray.ClearChangeMasks(context, false);
+                PublishLocalServerArray(
+                    server, serverObject, array, GetPhysicalServerIds(server, options), GetLocalServerId(server, options));
             }
 
             if (redundancy is TransparentRedundancyState transparent &&
@@ -246,6 +282,118 @@ namespace Opc.Ua.Redundancy.Server
                 nonTransparent.ServerUriArray.Value = peerUris;
                 nonTransparent.ServerUriArray.ClearChangeMasks(context, false);
             }
+        }
+
+        private async ValueTask UpdateServerArrayAsync(
+            IServerContext server,
+            ServerObjectState serverObject,
+            PropertyState<ArrayOf<RedundantServerDataType>> array,
+            ArrayOf<string> ids,
+            string? localId,
+            CancellationToken ct)
+        {
+            SharedRedundantPeerStatus? peerStatus = m_peerStatus;
+            if (peerStatus == null)
+            {
+                PublishLocalServerArray(server, serverObject, array, ids, localId);
+                return;
+            }
+
+            (byte localLevel, ServerState localState) = ReadLocalStatus(server, serverObject);
+            if (!string.IsNullOrEmpty(localId))
+            {
+                await peerStatus.PublishAsync(localId, localLevel, localState, ct).ConfigureAwait(false);
+            }
+
+            var peers = new RedundantServerDataType[ids.Count];
+            for (int i = 0; i < ids.Count; i++)
+            {
+                string id = ids[i];
+                (byte level, ServerState state) = id == localId
+                    ? (localLevel, localState)
+                    : await peerStatus.ReadAsync(id, ct).ConfigureAwait(false);
+                peers[i] = CreatePeer(id, level, state);
+            }
+            PublishServerArray(server, array, peers);
+        }
+
+        private static void PublishLocalServerArray(
+            IServerContext server,
+            ServerObjectState serverObject,
+            PropertyState<ArrayOf<RedundantServerDataType>> array,
+            ArrayOf<string> ids,
+            string? localId)
+        {
+            (byte level, ServerState state) = ReadLocalStatus(server, serverObject);
+            var peers = new RedundantServerDataType[ids.Count];
+            for (int i = 0; i < ids.Count; i++)
+            {
+                string id = ids[i];
+                peers[i] = id == localId
+                    ? CreatePeer(id, level, state)
+                    : CreatePeer(id, ServiceLevels.NoData, ServerState.Unknown);
+            }
+            PublishServerArray(server, array, peers);
+        }
+
+        private static void PublishServerArray(
+            IServerContext server,
+            PropertyState<ArrayOf<RedundantServerDataType>> array,
+            RedundantServerDataType[] peers)
+        {
+            var values = new ArrayOf<RedundantServerDataType>(peers);
+            if (!CoreUtils.IsEqual(array.Value, values))
+            {
+                array.Value = values;
+                array.ClearChangeMasks(server.DefaultSystemContext, false);
+            }
+        }
+
+        private static RedundantServerDataType CreatePeer(string id, byte level, ServerState state)
+        {
+            return new RedundantServerDataType
+            {
+                ServerId = id,
+                ServiceLevel = level,
+                ServerState = state
+            };
+        }
+
+        private static (byte ServiceLevel, ServerState State) ReadLocalStatus(
+            IServerContext server,
+            ServerObjectState serverObject)
+        {
+            return (serverObject.ServiceLevel?.Value ?? ServiceLevels.NoData, server.CurrentState);
+        }
+
+        private static ArrayOf<string> GetPhysicalServerIds(IServerContext server, ServerRedundancyOptions options)
+        {
+            var ids = new HashSet<string>(StringComparer.Ordinal);
+            var ordered = new List<string>();
+            ArrayOf<string> configured = options.Mode == RedundancySupport.Transparent &&
+                options.TransparentPeerServerIds.Count > 0
+                ? new ArrayOf<string>(options.TransparentPeerServerIds.ToArray())
+                : options.GetPeerApplicationUris();
+            foreach (string id in configured)
+            {
+                if (!string.IsNullOrWhiteSpace(id) && ids.Add(id))
+                {
+                    ordered.Add(id);
+                }
+            }
+            string? localId = GetLocalServerId(server, options);
+            if (!string.IsNullOrWhiteSpace(localId) && ids.Add(localId))
+            {
+                ordered.Add(localId);
+            }
+            return new ArrayOf<string>([.. ordered]);
+        }
+
+        private static string? GetLocalServerId(IServerContext server, ServerRedundancyOptions options)
+        {
+            return options.Mode == RedundancySupport.Transparent
+                ? options.CurrentServerId
+                : server.DefaultSystemContext.ServerUris.GetString(0);
         }
 
         /// <summary>
@@ -276,6 +424,7 @@ namespace Opc.Ua.Redundancy.Server
         }
 
         private readonly ServerRedundancyOptions m_options;
+        private readonly SharedRedundantPeerStatus? m_peerStatus;
         private readonly SemaphoreSlim m_gate = new(1, 1);
         private IServerContext? m_server;
     }

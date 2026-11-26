@@ -187,7 +187,7 @@ namespace Opc.Ua.MachineTool.Server
             /// <summary>A status event.</summary>
             Status = 1,
 
-            /// <summary>An update or removal.</summary>
+            /// <summary>A committed catalog mutation.</summary>
             Catalog = 2,
 
             /// <summary>An explicit response.</summary>

@@ -29,7 +29,6 @@ namespace Opc.Ua.WotCon.Tests
     [TestFixture]
     [Category("WotCon")]
     [Category("Integration")]
-    [NonParallelizable]
     public sealed class WotLegacyMaterializationLiveTests
     {
         /// <summary>
@@ -54,6 +53,7 @@ namespace Opc.Ua.WotCon.Tests
             ISession? session = null;
             try
             {
+                await WotTestPki.SeedAsync(directory).ConfigureAwait(false);
                 server = await fixture.StartAsync(directory).ConfigureAwait(false);
                 var options = new WotConnectivityServerOptions
                 {
@@ -70,6 +70,7 @@ namespace Opc.Ua.WotCon.Tests
                     [LifecycleChange.Add(new WotConnectivityNodeManagerFactory(options))])
                     .ConfigureAwait(false);
                 clientFixture = new ClientFixture(false, false, telemetry);
+                await WotTestPki.SeedAsync(directory).ConfigureAwait(false);
                 await clientFixture.LoadClientConfigurationAsync(directory).ConfigureAwait(false);
                 session = await clientFixture.ConnectAsync(
                     new Uri($"{Utils.UriSchemeOpcTcp}://localhost:{fixture.Port}"),

@@ -31,7 +31,10 @@ namespace Opc.Ua.WotCon.Tests.Samples
         {
             cancellationToken.ThrowIfCancellationRequested();
             var documents = new List<SampleDocument>();
-            IWotNodeResolver nodeResolver = CreateCompanionNodeResolver(repositoryRoot);
+            // The companion resolver is read-only context derived from the
+            // source NodeSets, which no writer touches; every document below
+            // is still regenerated from its source.
+            IWotNodeResolver nodeResolver = SampleInputCache.CompanionNodeResolver(repositoryRoot);
             for (int modelIndex = 0; modelIndex < CompanionModels.Count; modelIndex++)
             {
                 ModelSource model = CompanionModels[modelIndex];
@@ -424,6 +427,7 @@ namespace Opc.Ua.WotCon.Tests.Samples
                     }
                 }
             }
+            SampleInputCache.Invalidate();
         }
 
         public static async Task WriteBytesAsync(
@@ -431,14 +435,18 @@ namespace Opc.Ua.WotCon.Tests.Samples
             ByteString bytes,
             CancellationToken cancellationToken = default)
         {
-            using var stream = new FileStream(
-                path, FileMode.Create, FileAccess.Write, FileShare.None, 81920, useAsync: true);
+            SampleInputCache.Invalidate();
+            using (var stream = new FileStream(
+                path, FileMode.Create, FileAccess.Write, FileShare.None, 81920, useAsync: true))
+            {
 #if NETFRAMEWORK
-            byte[] buffer = bytes.ToArray();
-            await stream.WriteAsync(buffer, 0, buffer.Length, cancellationToken).ConfigureAwait(false);
+                byte[] buffer = bytes.ToArray();
+                await stream.WriteAsync(buffer, 0, buffer.Length, cancellationToken).ConfigureAwait(false);
 #else
-            await stream.WriteAsync(bytes.Memory, cancellationToken).ConfigureAwait(false);
+                await stream.WriteAsync(bytes.Memory, cancellationToken).ConfigureAwait(false);
 #endif
+            }
+            SampleInputCache.Invalidate();
         }
 
         private static WoTDocumentKindEnum DocumentKind(JsonElement root)

@@ -39,10 +39,10 @@ namespace Opc.Ua.Server.Tests.NodeManager
             NodeId rootId = new(kRootNodeId, ns);
             NodeId valueId = new(kValueNodeId, ns);
             NodeState objects = await GetObjectsReferenceOwnerAsync(timeout.Token).ConfigureAwait(false);
-            var oldRoot = (NodeHandle)await original.NodeManager.GetManagerHandleAsync(rootId, timeout.Token)
-                .ConfigureAwait(false);
-            var oldValue = (NodeHandle)await original.NodeManager.GetManagerHandleAsync(valueId, timeout.Token)
-                .ConfigureAwait(false);
+            var oldRoot = (NodeHandle)(await original.NodeManager.GetManagerHandleAsync(rootId, timeout.Token)
+                .ConfigureAwait(false))!;
+            var oldValue = (NodeHandle)(await original.NodeManager.GetManagerHandleAsync(valueId, timeout.Token)
+                .ConfigureAwait(false))!;
             oldRoot.Node.AddReference(ReferenceTypeIds.HasComponent, false, valueId);
             oldValue.Node.AddReference(ReferenceTypeIds.HasComponent, true, rootId);
             oldRoot.Node.AddReference(ReferenceTypeIds.HasComponent, true, ObjectIds.ObjectsFolder);
@@ -59,10 +59,10 @@ namespace Opc.Ua.Server.Tests.NodeManager
             if (replace)
             {
                 IAsyncNodeManager replacement = RequireRegistration(prepared.Registrations[0]).NodeManager;
-                var root = (NodeHandle)await replacement.GetManagerHandleAsync(rootId, timeout.Token)
-                    .ConfigureAwait(false);
-                var value = (NodeHandle)await replacement.GetManagerHandleAsync(valueId, timeout.Token)
-                    .ConfigureAwait(false);
+                var root = (NodeHandle)(await replacement.GetManagerHandleAsync(rootId, timeout.Token)
+                    .ConfigureAwait(false))!;
+                var value = (NodeHandle)(await replacement.GetManagerHandleAsync(valueId, timeout.Token)
+                    .ConfigureAwait(false))!;
                 replacementRoot = root.Node;
                 replacementValue = value.Node;
                 replacementRoot.AddReference(ReferenceTypeIds.HasComponent, false, valueId);
@@ -103,8 +103,8 @@ namespace Opc.Ua.Server.Tests.NodeManager
             ushort ns = (ushort)m_server.CurrentInstance.NamespaceUris.GetIndex(kModelNamespaceUri);
             NodeId rootId = new(kRootNodeId, ns);
             NodeState objects = await GetObjectsReferenceOwnerAsync(timeout.Token).ConfigureAwait(false);
-            var oldRoot = (NodeHandle)await current.NodeManager.GetManagerHandleAsync(rootId, timeout.Token)
-                .ConfigureAwait(false);
+            var oldRoot = (NodeHandle)(await current.NodeManager.GetManagerHandleAsync(rootId, timeout.Token)
+                .ConfigureAwait(false))!;
             oldRoot.Node.AddReference(ReferenceTypeIds.HasComponent, true, ObjectIds.ObjectsFolder);
             objects.AddReference(ReferenceTypeIds.HasComponent, false, rootId);
             INodeManagerLifecycle lifecycle = m_server.NodeManagerLifecycle;
@@ -155,11 +155,11 @@ namespace Opc.Ua.Server.Tests.NodeManager
             NodeId rootId = new(kRootNodeId, ns);
             ushort sourceNamespace = (ushort)m_server.CurrentInstance.NamespaceUris.GetIndex(kSecondModelNamespaceUri);
             NodeId sourceId = new(kRootNodeId, sourceNamespace);
-            var sourceHandle = (NodeHandle)await source.NodeManager.GetManagerHandleAsync(sourceId, timeout.Token)
-                .ConfigureAwait(false);
+            var sourceHandle = (NodeHandle)(await source.NodeManager.GetManagerHandleAsync(sourceId, timeout.Token)
+                .ConfigureAwait(false))!;
             NodeState objects = sourceHandle.Node;
-            var oldRoot = (NodeHandle)await original.NodeManager.GetManagerHandleAsync(rootId, timeout.Token)
-                .ConfigureAwait(false);
+            var oldRoot = (NodeHandle)(await original.NodeManager.GetManagerHandleAsync(rootId, timeout.Token)
+                .ConfigureAwait(false))!;
             oldRoot.Node.AddReference(ReferenceTypeIds.HasComponent, true, sourceId);
             objects.AddReference(ReferenceTypeIds.HasComponent, false, rootId);
             NodeManagerGeneration owner = NodeManagerGenerationRegistry.GetOrCreate(source.NodeManager);
@@ -231,8 +231,8 @@ namespace Opc.Ua.Server.Tests.NodeManager
             ushort ns = (ushort)m_server.CurrentInstance.NamespaceUris.GetIndex(kModelNamespaceUri);
             NodeId rootId = new(kRootNodeId, ns);
             NodeState objects = await GetObjectsReferenceOwnerAsync(timeout.Token).ConfigureAwait(false);
-            var oldRoot = (NodeHandle)await original.NodeManager.GetManagerHandleAsync(rootId, timeout.Token)
-                .ConfigureAwait(false);
+            var oldRoot = (NodeHandle)(await original.NodeManager.GetManagerHandleAsync(rootId, timeout.Token)
+                .ConfigureAwait(false))!;
             oldRoot.Node.AddReference(ReferenceTypeIds.HasComponent, true, ObjectIds.ObjectsFolder);
             objects.AddReference(ReferenceTypeIds.HasComponent, false, rootId);
             Mock<IAsyncNodeManager> replacement = CreateLifecycleNodeManager(kModelNamespaceUri);
@@ -245,7 +245,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 {
                     Assert.That(NodeManagerGenerationRegistry.GetOrCreate(replacement.Object).Gate.ActiveCount,
                         Is.GreaterThan(0), "Lazy validation must enter the exact replacement generation.");
-                    return new ValueTask<NodeMetadata>(targetExists ? new NodeMetadata(handle, rootId) : null!);
+                    return new ValueTask<NodeMetadata?>(targetExists ? new NodeMetadata(handle, rootId) : null!);
                 });
             var factory = new Mock<IAsyncNodeManagerFactory>();
             factory.Setup(value => value.CreateAsync(
@@ -387,10 +387,10 @@ namespace Opc.Ua.Server.Tests.NodeManager
             ushort targetNamespace = (ushort)m_server.CurrentInstance.NamespaceUris.GetIndex(kModelNamespaceUri);
             NodeId sourceId = new(kRootNodeId, sourceNamespace);
             NodeId targetId = new(kRootNodeId, targetNamespace);
-            var oldSource = (NodeHandle)await source.NodeManager.GetManagerHandleAsync(sourceId, timeout.Token)
-                .ConfigureAwait(false);
-            var oldTarget = (NodeHandle)await target.NodeManager.GetManagerHandleAsync(targetId, timeout.Token)
-                .ConfigureAwait(false);
+            var oldSource = (NodeHandle)(await source.NodeManager.GetManagerHandleAsync(sourceId, timeout.Token)
+                .ConfigureAwait(false))!;
+            var oldTarget = (NodeHandle)(await target.NodeManager.GetManagerHandleAsync(targetId, timeout.Token)
+                .ConfigureAwait(false))!;
             oldSource.Node.AddReference(ReferenceTypeIds.HasComponent, false, targetId);
             oldTarget.Node.AddReference(ReferenceTypeIds.HasComponent, true, sourceId);
             var factory = new Mock<IAsyncNodeManagerFactory>();
@@ -496,8 +496,9 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 {
                     await entered.Task.WaitAsync(timeout.Token).ConfigureAwait(false);
                     Assert.That(added, Is.Empty);
-                    Assert.Throws<InvalidOperationException>(() =>
-                        objects.AddReference(ReferenceTypeIds.Organizes, false, concurrent));
+                    Assert.That(
+                        () => objects.AddReference(ReferenceTypeIds.Organizes, false, concurrent),
+                        Throws.TypeOf<NodeReferencesReservedException>());
                     await AssertNativeReferenceAsync(
                         session, ObjectIds.ObjectsFolder, root, ReferenceTypeIds.Organizes, false, timeout.Token)
                         .ConfigureAwait(false);
@@ -1700,13 +1701,34 @@ namespace Opc.Ua.Server.Tests.NodeManager
             var release = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
             bool before = true;
             bool after = true;
+            bool pinnedAfter = true;
+            bool pinnedBrowserAfter = true;
             survivor.ReadCallbackNodeId = value;
-            survivor.ReadCallback = async (_, token) =>
+            survivor.ReadCallback = async (context, token) =>
             {
                 before = objects.ReferenceExists(ReferenceTypeIds.Organizes, false, root);
                 entered.TrySetResult(true);
                 await release.Task.WaitAsync(token).ConfigureAwait(false);
                 after = objects.ReferenceExists(ReferenceTypeIds.Organizes, false, root);
+                var references = new List<IReference>();
+                objects.GetReferences(new ServerSystemContext(m_server.CurrentInstance, context), references);
+                pinnedAfter = references.Any(reference =>
+                    reference.ReferenceTypeId == ReferenceTypeIds.Organizes &&
+                    !reference.IsInverse &&
+                    reference.TargetId == root);
+                using INodeBrowser browser = objects.CreateBrowser(
+                    new ServerSystemContext(m_server.CurrentInstance, context),
+                    null, ReferenceTypeIds.Organizes, false, BrowseDirection.Forward, default, null, false);
+                pinnedBrowserAfter = false;
+                for (IReference? reference = await browser.NextAsync(token).ConfigureAwait(false);
+                    reference is not null;
+                    reference = await browser.NextAsync(token).ConfigureAwait(false))
+                {
+                    if (reference.TargetId == root)
+                    {
+                        pinnedBrowserAfter = true;
+                    }
+                }
             };
             await using var client = new ClientFixture(false, true, NUnitTelemetryContext.Create());
             await client.LoadClientConfigurationAsync(m_pkiRoot).ConfigureAwait(false);
@@ -1723,6 +1745,9 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 Assert.That(result.CleanupFailure, Is.Null);
                 Assert.That(read.IsCompleted, Is.False);
                 Assert.That(objects.ReferenceExists(ReferenceTypeIds.Organizes, false, root), Is.True);
+                await AssertNativeReferenceAsync(
+                    session, ObjectIds.ObjectsFolder, root, ReferenceTypeIds.Organizes, true, timeout.Token)
+                    .ConfigureAwait(false);
             }
             finally
             {
@@ -1733,6 +1758,8 @@ namespace Opc.Ua.Server.Tests.NodeManager
             Assert.That(response.Results[0].WrappedValue, Is.EqualTo(new Variant(kFirstRegistrationValue)));
             Assert.That(before, Is.False);
             Assert.That(after, Is.True, "Node-owned references are shared even while application values stay pinned.");
+            Assert.That(pinnedAfter, Is.False, "The operation's routing view must retain its prior references.");
+            Assert.That(pinnedBrowserAfter, Is.False, "Browser population must use the operation's prior references.");
             await AssertNativeReferenceAsync(
                 session, ObjectIds.ObjectsFolder, root, ReferenceTypeIds.Organizes, true, timeout.Token)
                 .ConfigureAwait(false);
@@ -1968,10 +1995,10 @@ namespace Opc.Ua.Server.Tests.NodeManager
             var firstRoot = new NodeId(kRootNodeId, firstNamespace);
             var secondRoot = new NodeId(kRootNodeId, secondNamespace);
             var missingTarget = new NodeId(uint.MaxValue, firstNamespace);
-            var firstHandle = (NodeHandle)await first.NodeManager.GetManagerHandleAsync(firstRoot, timeout.Token)
-                .ConfigureAwait(false);
-            var secondHandle = (NodeHandle)await second.NodeManager.GetManagerHandleAsync(secondRoot, timeout.Token)
-                .ConfigureAwait(false);
+            var firstHandle = (NodeHandle)(await first.NodeManager.GetManagerHandleAsync(firstRoot, timeout.Token)
+                .ConfigureAwait(false))!;
+            var secondHandle = (NodeHandle)(await second.NodeManager.GetManagerHandleAsync(secondRoot, timeout.Token)
+                .ConfigureAwait(false))!;
             firstHandle.Node.AddReference(ReferenceTypeIds.HasComponent, false, missingTarget);
             secondHandle.Node.AddReference(ReferenceTypeIds.HasComponent, false, missingTarget);
             long firstDuringCleanup = -1;
@@ -2383,7 +2410,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             manager.SetupGet(value => value.NamespaceUris).Returns(new[] { kModelNamespaceUri });
             var node = new BaseObjectState(null) { NodeId = ObjectIds.ObjectsFolder };
             manager.Setup(value => value.GetManagerHandleAsync(ObjectIds.ObjectsFolder, It.IsAny<CancellationToken>()))
-                .Returns(new ValueTask<object>(new NodeHandle(ObjectIds.ObjectsFolder, node)));
+                .Returns(new ValueTask<object?>(new NodeHandle(ObjectIds.ObjectsFolder, node)));
             manager.Setup(value => value.CreateAddressSpaceAsync(
                 It.IsAny<IDictionary<NodeId, IList<IReference>>>(), It.IsAny<CancellationToken>()))
                 .Callback((IDictionary<NodeId, IList<IReference>> references, CancellationToken _) =>
@@ -2563,7 +2590,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             }
 
             /// <inheritdoc/>
-            public override ValueTask<object> GetManagerHandleAsync(
+            public override ValueTask<object?> GetManagerHandleAsync(
                 NodeId nodeId,
                 CancellationToken cancellationToken = default)
             {
@@ -2572,7 +2599,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 {
                     var handle = new NodeHandle { NodeId = nodeId, Validated = false };
                     m_handles.Enqueue(handle);
-                    return new ValueTask<object>(handle);
+                    return new ValueTask<object?>(handle);
                 }
                 return base.GetManagerHandleAsync(nodeId, cancellationToken);
             }

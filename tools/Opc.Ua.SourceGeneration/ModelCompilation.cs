@@ -6,7 +6,6 @@ using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Globalization;
 using System.Linq;
-using System.Text;
 using System.Threading;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
@@ -305,8 +304,8 @@ namespace Opc.Ua.SourceGeneration
                 foreach (string file in vfs.CreatedFiles
                     .Where(f => f.EndsWith(".cs", StringComparison.OrdinalIgnoreCase)))
                 {
-                    string content = Encoding.UTF8.GetString(vfs.Get(file));
-                    m_context.AddSource(file, content);
+                    cancellationToken.ThrowIfCancellationRequested();
+                    m_context.AddSource(file, SourceGenerator.ReadGeneratedSource(vfs, file));
                 }
             }
             catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
@@ -432,15 +431,15 @@ namespace Opc.Ua.SourceGeneration
                     map[candidate.ModelUri] = candidate;
                     continue;
                 }
-                if (IsMatchingTransitiveReference(candidate, existing))
+                if (IsMatchingTransitiveReference(candidate, existing, m_context.CancellationToken))
                 {
-                    if (IsModelProducer(candidate))
+                    if (IsModelProducer(candidate, m_context.CancellationToken))
                     {
                         map[candidate.ModelUri] = candidate;
                     }
                     continue;
                 }
-                int cmp = CompareReferencedModels(candidate, existing);
+                int cmp = CompareReferencedModels(candidate, existing, m_context.CancellationToken);
                 if (cmp == 0)
                 {
                     continue;
@@ -471,7 +470,8 @@ namespace Opc.Ua.SourceGeneration
         /// </summary>
         private static bool IsMatchingTransitiveReference(
             ModelDependencyReference candidate,
-            ModelDependencyReference existing)
+            ModelDependencyReference existing,
+            CancellationToken cancellationToken)
         {
             if (!string.Equals(candidate.ModelUri, existing.ModelUri, StringComparison.Ordinal) ||
                 !string.Equals(candidate.Prefix, existing.Prefix, StringComparison.Ordinal) ||
@@ -482,8 +482,8 @@ namespace Opc.Ua.SourceGeneration
                 return false;
             }
             return (candidate.Payload.Length == 0 &&
-                    (existing.Payload.Length == 0 || IsModelProducer(existing))) ||
-                (existing.Payload.Length == 0 && IsModelProducer(candidate));
+                    (existing.Payload.Length == 0 || IsModelProducer(existing, cancellationToken))) ||
+                (existing.Payload.Length == 0 && IsModelProducer(candidate, cancellationToken));
         }
 
         /// <summary>
@@ -526,9 +526,11 @@ namespace Opc.Ua.SourceGeneration
         /// </remarks>
         internal static int CompareReferencedModels(
             ModelDependencyReference candidate,
-            ModelDependencyReference existing)
+            ModelDependencyReference existing,
+            CancellationToken cancellationToken = default)
         {
-            int cmp = IsModelProducer(candidate).CompareTo(IsModelProducer(existing));
+            int cmp = IsModelProducer(candidate, cancellationToken)
+                .CompareTo(IsModelProducer(existing, cancellationToken));
             if (cmp == 0)
             {
                 cmp = SemVer.CompareModels(
@@ -563,9 +565,9 @@ namespace Opc.Ua.SourceGeneration
                 : DateTime.MinValue;
         }
 
-        private static bool IsModelProducer(ModelDependencyReference reference)
+        private static bool IsModelProducer(ModelDependencyReference reference, CancellationToken cancellationToken)
         {
-            ModelDependencyV1 dependency = reference.GetDependency();
+            ModelDependencyV1 dependency = reference.GetDependencyForGeneration(cancellationToken);
             return dependency != null &&
                 string.Equals(dependency.ModelUri, reference.ModelUri, StringComparison.Ordinal);
         }

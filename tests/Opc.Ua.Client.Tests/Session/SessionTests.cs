@@ -1961,6 +1961,32 @@ namespace Opc.Ua.Client.Tests
                 Times.Never);
         }
 
+        /// <summary>
+        /// Recovery cannot use a channel without certificate authentication to create or activate a session.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task RecreateOnUnauthenticatedChannelSendsNoSessionRequestsAsync(bool reuseToken)
+        {
+            EndpointDescription endpoint = CreateSessionEndpointDescription("opc.tcp://localhost:4840");
+            endpoint.Server.ApplicationUri = "urn:redundancy:member";
+            using var session = SessionMock.Create(endpoint);
+            session.SetConnected();
+            session.BindRedundantPeerIdentity(endpoint.Server.ApplicationUri);
+            session.EnableTokenReuseFailover = reuseToken;
+            NodeId sessionId = session.SessionId;
+            Mock<ITransportChannel> candidate = CreateReconnectChannelMock(session, endpoint);
+
+            ServiceResultException? error = await Assert.ThrowsAsync<ServiceResultException>(() =>
+                session.RecreateInPlaceAsync(channel: candidate.Object)).ConfigureAwait(false);
+
+            Assert.That(error!.StatusCode, Is.EqualTo(StatusCodes.BadSecurityChecksFailed));
+            Assert.That(session.SessionId, Is.EqualTo(sessionId));
+            candidate.Verify(
+                channel => channel.SendRequestAsync(It.IsAny<IServiceRequest>(), It.IsAny<CancellationToken>()),
+                Times.Never);
+        }
+
         [Test]
         public async Task OpenAsyncDoesNotRequireSelectedApplicationUriForGenericSessionsAsync()
         {
@@ -2650,6 +2676,58 @@ namespace Opc.Ua.Client.Tests
         }
 
         [Test]
+        public async Task ManagedRecoveryCreatesANewSessionWhenSendChannelCertificateChangesAsync()
+        {
+            using var sut = SessionMock.Create();
+            sut.SetConnected();
+            sut.EnableTokenReuseFailover = true;
+            SetServerNonce(sut, [1, 2, 3, 4]);
+            typeof(Session).GetField("m_sessionClientCertificate", PrivateInstance)!
+                .SetValue(sut, ByteString.From(new byte[] { 1 }));
+
+            EndpointDescription endpoint = sut.ConfiguredEndpoint.Description;
+            Mock<IManagedTransportChannel> lease = CreateReconnectChannelMock(sut, endpoint)
+                .As<IManagedTransportChannel>();
+            lease.SetupGet(c => c.ClientChannelCertificate).Returns([1]);
+            Mock<ITransportChannel> recovery = CreateReconnectChannelMock(sut, endpoint);
+            recovery.SetupGet(c => c.ClientChannelCertificate).Returns([2]);
+            NodeId newToken = NodeId.Parse("s=new-auth");
+            ConfigureSuccessfulOpenResponses(recovery, [endpoint], [5, 6, 7, 8], newToken);
+
+            await ((IChannelRecoveryParticipant)sut).RecreateAsync(lease.Object, recovery.Object, default)
+                .ConfigureAwait(false);
+
+            recovery.Verify(c => c.SendRequestAsync(
+                It.IsAny<CreateSessionRequest>(), It.IsAny<CancellationToken>()), Times.Once);
+            recovery.Verify(c => c.SendRequestAsync(
+                It.Is<ActivateSessionRequest>(request => request.RequestHeader.AuthenticationToken == newToken),
+                It.IsAny<CancellationToken>()), Times.Once);
+            recovery.Verify(c => c.SendRequestAsync(
+                It.Is<ActivateSessionRequest>(request => request.RequestHeader.AuthenticationToken != newToken),
+                It.IsAny<CancellationToken>()), Times.Never);
+        }
+
+        [Test]
+        public async Task RequiredMirroredReactivationRejectsAChangedClientCertificateAsync()
+        {
+            using var sut = SessionMock.Create();
+            sut.SetConnected();
+            SetServerNonce(sut, [1, 2, 3, 4]);
+            typeof(Session).GetField("m_sessionClientCertificate", PrivateInstance)!
+                .SetValue(sut, ByteString.From(new byte[] { 1 }));
+            EndpointDescription endpoint = sut.ConfiguredEndpoint.Description;
+            Mock<ITransportChannel> replacement = CreateReconnectChannelMock(sut, endpoint);
+            replacement.SetupGet(c => c.ClientChannelCertificate).Returns([2]);
+
+            ServiceResultException ex = (await Assert.ThrowsAsync<ServiceResultException>(() =>
+                InvokeRecreateInPlaceCoreAsync(sut, sut.ConfiguredEndpoint, replacement.Object, true)))!;
+
+            Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadInvalidState));
+            replacement.Verify(c => c.SendRequestAsync(
+                It.IsAny<ActivateSessionRequest>(), It.IsAny<CancellationToken>()), Times.Never);
+        }
+
+        [Test]
         public async Task ReactivateMirroredSessionAsyncRequiresExistingSession()
         {
             EndpointDescription failoverDescription = CreateSessionEndpointDescription("opc.tcp://failover:4840");
@@ -2886,7 +2964,9 @@ namespace Opc.Ua.Client.Tests
                     typeof(SessionClient),
                     typeof(bool),
                     typeof(bool),
-                    typeof(bool)
+                    typeof(bool),
+                    typeof(bool),
+                    typeof(string)
                 ],
                 null);
 
@@ -2894,7 +2974,10 @@ namespace Opc.Ua.Client.Tests
 
             var task = (Task?)method!.Invoke(
                 session,
-                [endpoint, null, channel, null, CancellationToken.None, false, requireTokenReuse, null, false, false, false]);
+                [
+                    endpoint, null, channel, null, CancellationToken.None, false, requireTokenReuse,
+                    null, false, false, false, true, null
+                ]);
 
             Assert.That(task, Is.Not.Null);
             return task!;

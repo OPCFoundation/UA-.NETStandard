@@ -44,8 +44,8 @@ namespace Opc.Ua.Security.Pkcs11
     /// destructors behind (from itself or from the crypto library it pulls in).
     /// A worker thread that exits after the unload then calls into unmapped
     /// code and the process crashes. Holding one extra loader reference keeps
-    /// the image mapped; <c>C_Initialize</c> and <c>C_Finalize</c> still run
-    /// per library exactly as before.
+    /// the image mapped; the shared library lifetime still balances
+    /// <c>C_Initialize</c> and <c>C_Finalize</c>.
     /// </remarks>
     internal sealed class DefaultPkcs11LibraryLoader : IPkcs11LibraryLoader
     {
@@ -73,8 +73,16 @@ namespace Opc.Ua.Security.Pkcs11
                 factories,
                 modulePath,
                 AppType.MultiThreaded);
-            Pin(modulePath);
-            return library;
+            try
+            {
+                Pin(modulePath);
+                return library;
+            }
+            catch
+            {
+                library.Dispose();
+                throw;
+            }
         }
 
         /// <summary>
@@ -107,6 +115,6 @@ namespace Opc.Ua.Security.Pkcs11
 
         private readonly Func<string, bool> m_tryPin;
         private readonly Lock m_pinLock = new();
-        private readonly HashSet<string> m_pinned = new(StringComparer.Ordinal);
+        private readonly HashSet<string> m_pinned = new(Pkcs11ModulePath.Comparer);
     }
 }

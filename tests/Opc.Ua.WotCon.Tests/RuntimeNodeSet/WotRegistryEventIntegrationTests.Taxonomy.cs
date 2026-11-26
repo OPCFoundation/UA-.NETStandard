@@ -241,6 +241,7 @@ namespace Opc.Ua.WotCon.Tests.RuntimeNodeSet
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
             await using var client = new ClientFixture(false, false, telemetry);
+            await WotTestPki.SeedAsync(m_pkiRoot).ConfigureAwait(false);
             await client.LoadClientConfigurationAsync(m_pkiRoot).ConfigureAwait(false);
             var endpoint = new Uri($"{Utils.UriSchemeOpcTcp}://localhost:{m_fixture.Port}");
             using ISession session = await client.ConnectAsync(endpoint, SecurityPolicies.Basic256Sha256)
@@ -589,6 +590,7 @@ namespace Opc.Ua.WotCon.Tests.RuntimeNodeSet
             const string ResourceId = "bad-native-delete";
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
             await using var client = new ClientFixture(false, false, telemetry);
+            await WotTestPki.SeedAsync(m_pkiRoot).ConfigureAwait(false);
             await client.LoadClientConfigurationAsync(m_pkiRoot).ConfigureAwait(false);
             var endpoint = new Uri($"{Utils.UriSchemeOpcTcp}://localhost:{m_fixture.Port}");
             using ISession session = await client.ConnectAsync(endpoint, SecurityPolicies.Basic256Sha256)

@@ -90,8 +90,8 @@ namespace Opc.Ua.SourceGeneration.Dependency
             node.WriteAccess = WriteAccess;
             node.UserWriteAccess = UserWriteAccess.GetValueOrDefault();
             node.UserWriteAccessSpecified = UserWriteAccess.HasValue;
-            node.RolePermissions = RolePermissions!;
-            node.DefaultRolePermissions = DefaultRolePermissions!;
+            node.RolePermissions = CopyPermissions(RolePermissions)!;
+            node.DefaultRolePermissions = CopyPermissions(DefaultRolePermissions)!;
             node.AccessRestrictions = AccessRestrictions.GetValueOrDefault();
             node.AccessRestrictionsSpecified = AccessRestrictions.HasValue;
             node.DefaultAccessRestrictions = DefaultAccessRestrictions.GetValueOrDefault();
@@ -103,6 +103,38 @@ namespace Opc.Ua.SourceGeneration.Dependency
                 method.UserExecutable = UserExecutable.GetValueOrDefault();
                 method.UserExecutableSpecified = UserExecutable.HasValue;
             }
+        }
+
+        /// <summary>
+        /// Detaches mutable ACLs before a shared dependency is materialized into a model.
+        /// </summary>
+        private static RolePermissionSet? CopyPermissions(RolePermissionSet? input)
+        {
+            if (input == null)
+            {
+                return null;
+            }
+            RolePermission[]? permissions = null;
+            if (input.RolePermission != null)
+            {
+                permissions = new RolePermission[input.RolePermission.Length];
+                for (int index = 0; index < permissions.Length; index++)
+                {
+                    RolePermission permission = input.RolePermission[index];
+                    permissions[index] = new RolePermission
+                    {
+                        Role = permission.Role,
+                        RoleId = permission.RoleId,
+                        Permission = permission.Permission == null ? null! : [.. permission.Permission]
+                    };
+                }
+            }
+            return new RolePermissionSet
+            {
+                Name = input.Name,
+                DoNotInheirit = input.DoNotInheirit,
+                RolePermission = permissions!
+            };
         }
 
         /// <summary>

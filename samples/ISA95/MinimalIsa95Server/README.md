@@ -1,3 +1,8 @@
+<!--
+SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+SPDX-License-Identifier: MIT
+-->
+
 # Minimal ISA-95 Server
 
 This sample hosts the OPC-10030 ISA-95 common model together with OPC-10031-4 Job Control V1 and V2.
@@ -17,6 +22,6 @@ The server listens on `opc.tcp://localhost:62545/MinimalIsa95Server` by default 
 - Server registration via `services.AddOpcUa().AddServer(...).AddIsa95Server().ConfigureModel(...)`.
 - Populating the OPC-10030 common model: Personnel, Equipment, PhysicalAsset, and the full Material class/definition/lot/sublot hierarchy, including `DefinedByMaterialClass` and `MadeUpOfMaterialSublot`.
 - Binding a `GeoSpatialLocationType` instance to the shared `InMemoryGeoLocationProvider`, seeded with a fixed WGS84 position that is published as WKT.
-- Seeding a Job Control V2 job order (`DemoJobSeeder`) with `StoreAndStart` followed by the automatic execution-controller `BeginExecution` transition to `Running`.
+- Seeding a Job Control V2 job order (`DemoJobSeeder`) with `StoreAndStart`, then signaling `MarkReady` and `BeginExecution` through the execution controller.
 
 See the [ISA-95 developer guide](../../../docs/ISA95.md) for the full hosting model, the Job Control V1/V2 state engine, the two documented normative NodeSet repairs, and a conformance matrix.

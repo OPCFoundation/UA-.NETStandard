@@ -55,6 +55,7 @@ namespace Opc.Ua.PubSub.Connections
         private readonly IPubSubDiagnostics m_diagnostics;
         private readonly IPubSubActivationCoordinator m_activationCoordinator;
         private readonly IPubSubWriterCheckpointStore m_writerCheckpointStore;
+        private readonly PubSubNonceSequenceSource? m_nonceSequences;
         private readonly UadpSecurityWrapper? m_securityWrapper;
         private readonly UadpSecurityWrapOptions m_securityWrapOptions;
         private readonly MessageSecurityMode m_requiredSecurityMode;
@@ -227,6 +228,37 @@ namespace Opc.Ua.PubSub.Connections
             IPubSubActivationCoordinator? activationCoordinator,
             IPubSubWriterCheckpointStore? writerCheckpointStore,
             UnauthenticatedMetaDataLimits? unauthenticatedMetaDataLimits)
+            : this(configuration, transportFactory, encoders, decoders, writerGroups, readerGroups,
+                metaDataRegistry, diagnostics, telemetry, timeProvider, securityWrapper, securityWrapOptions,
+                maxNetworkMessageSize, requiredSecurityMode, scheduler, activationCoordinator, writerCheckpointStore,
+                unauthenticatedMetaDataLimits, null, null)
+        {
+        }
+
+        /// <summary>
+        /// Creates a connection that can consume durable nonce reservations when secured.
+        /// </summary>
+        internal PubSubConnection(
+            PubSubConnectionDataType configuration,
+            IPubSubTransportFactory transportFactory,
+            IReadOnlyDictionary<string, INetworkMessageEncoder> encoders,
+            IReadOnlyDictionary<string, INetworkMessageDecoder> decoders,
+            ArrayOf<WriterGroup> writerGroups,
+            ArrayOf<ReaderGroup> readerGroups,
+            IDataSetMetaDataRegistry metaDataRegistry,
+            IPubSubDiagnostics diagnostics,
+            ITelemetryContext telemetry,
+            TimeProvider timeProvider,
+            UadpSecurityWrapper? securityWrapper,
+            UadpSecurityWrapOptions securityWrapOptions,
+            int maxNetworkMessageSize,
+            MessageSecurityMode requiredSecurityMode,
+            IPubSubScheduler? scheduler,
+            IPubSubActivationCoordinator? activationCoordinator,
+            IPubSubWriterCheckpointStore? writerCheckpointStore,
+            UnauthenticatedMetaDataLimits? unauthenticatedMetaDataLimits,
+            IPubSubNonceRangeStore? nonceRangeStore,
+            IPubSubActivationFenceProvider? activationFenceProvider)
         {
             if (configuration is null)
             {
@@ -311,6 +343,12 @@ namespace Opc.Ua.PubSub.Connections
             m_diagnostics = diagnostics;
             m_activationCoordinator = activationCoordinator ?? AlwaysActiveCoordinator.Instance;
             m_writerCheckpointStore = writerCheckpointStore ?? NullPubSubWriterCheckpointStore.Instance;
+            if (securityWrapper is not null &&
+                (nonceRangeStore is not null || m_activationCoordinator is not AlwaysActiveCoordinator))
+            {
+                m_nonceSequences = new PubSubNonceSequenceSource(
+                    nonceRangeStore, m_activationCoordinator, activationFenceProvider);
+            }
             m_telemetry = telemetry;
             m_timeProvider = timeProvider;
             m_scheduler = scheduler ?? new PubSubScheduler(telemetry, timeProvider);
@@ -340,7 +378,8 @@ namespace Opc.Ua.PubSub.Connections
                 State.AttachChild(wg.State);
                 wg.ConfigureActivationCoordinator(
                     BuildWriterGroupComponentId(Name, wg.Name),
-                    m_activationCoordinator);
+                    m_activationCoordinator,
+                    activationFenceProvider);
                 wg.ConfigureWriterCheckpointStore(m_writerCheckpointStore);
                 wg.EncodingProfileOverride = ResolveEncoderProfile();
                 wg.PubSubAddressing = new WriterGroup.PublisherIdHolder
@@ -975,7 +1014,7 @@ namespace Opc.Ua.PubSub.Connections
                     await sinks[i].OnReceivedAsync(received, cancellationToken)
                         .ConfigureAwait(false);
                 }
-                catch (OperationCanceledException)
+                catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
                 {
                     throw;
                 }
@@ -1014,203 +1053,221 @@ namespace Opc.Ua.PubSub.Connections
                     in transport.ReceiveAsync(cancellationToken).ConfigureAwait(false))
                 {
                     cancellationToken.ThrowIfCancellationRequested();
-                    ReadOnlyMemory<byte> framePayload = frame.Payload;
-                    ReadOnlyMemory<byte> rawFrame = frame.Payload;
-                    bool frameSecured = false;
-                    bool frameVerified = false;
-                    bool singleFrame = true;
-
-                    if (UadpDecoder.TryReadPrefix(framePayload, out UadpPrefixInfo framePrefix))
-                    {
-                        int prefixLength = framePrefix.PrefixLength;
-                        bool securityEnabled = framePrefix.SecurityEnabled;
-                        PublisherId framePublisherId = framePrefix.PublisherId;
-                        ushort frameWriterGroupId = framePrefix.WriterGroupId;
-
-                        // Unified inbound message-security enforcement applied to
-                        // single NetworkMessages and to every chunk NetworkMessage:
-                        // each chunk is secured on its own (Part 14 §7.2.4.4.4), so
-                        // chunks are verified, decrypted and replay-checked before
-                        // they reach the reassembler.
-                        if (RequiresInboundSecurity)
-                        {
-                            // Fail-closed: a secured reader never accepts
-                            // an unsecured frame and never trusts the
-                            // wire's securityEnabled bit to opt out.
-                            if (m_securityWrapper is null || !securityEnabled)
-                            {
-                                RecordSecurityFailure(
-                                    StatusCodes.BadSecurityModeRejected,
-                                    "Inbound frame is not secured to the reader's " +
-                                    "configured SecurityMode.");
-                                m_logger.DroppingUnsecuredInboundFrame(Name, m_requiredSecurityMode);
-                                continue;
-                            }
-                            (ReadOnlyMemory<byte> Payload, bool SignatureVerified)? unwrapped =
-                                await TryUnwrapInboundAsync(
-                                    framePayload, prefixLength,
-                                    framePublisherId, frameWriterGroupId,
-                                    m_requiredSecurityMode, cancellationToken)
-                                    .ConfigureAwait(false);
-                            if (unwrapped is null)
-                            {
-                                continue;
-                            }
-                            framePayload = unwrapped.Value.Payload;
-                            frameVerified = unwrapped.Value.SignatureVerified;
-                        }
-                        else if (m_securityWrapper is not null && securityEnabled)
-                        {
-                            (ReadOnlyMemory<byte> Payload, bool SignatureVerified)? unwrapped =
-                                await TryUnwrapInboundAsync(
-                                    framePayload, prefixLength,
-                                    framePublisherId, frameWriterGroupId,
-                                    MessageSecurityMode.None, cancellationToken)
-                                    .ConfigureAwait(false);
-                            if (unwrapped is null)
-                            {
-                                continue;
-                            }
-                            framePayload = unwrapped.Value.Payload;
-
-                            // No SecurityMode is required here, so a frame
-                            // without a signature unwraps too. A message put
-                            // together from chunks is not treated as verified
-                            // either: unsigned chunks can be mixed into it.
-                            frameVerified = unwrapped.Value.SignatureVerified && !framePrefix.ChunkMessage;
-                        }
-
-                        if (framePrefix.ChunkMessage)
-                        {
-                            ReadOnlyMemory<byte>? reassembled;
-                            try
-                            {
-                                reassembled = TryReassembleChunk(framePayload, framePrefix);
-                            }
-                            catch (Exception ex)
-                            {
-                                // Fail-soft: a malformed or hostile chunk
-                                // must not terminate the receive loop.
-                                m_diagnostics.Increment(
-                                    PubSubDiagnosticsCounterKind.ChunksDiscarded);
-                                m_logger.InboundUadpChunkReassemblyThrew(ex);
-                                continue;
-                            }
-                            if (reassembled is null)
-                            {
-                                continue;
-                            }
-                            framePayload = reassembled.Value;
-                            // The message was reassembled from multiple chunk
-                            // frames, so no single wire frame faithfully
-                            // represents it; disable the raw-frame fast path.
-                            singleFrame = false;
-                        }
-
-                        frameSecured = securityEnabled;
-                    }
-                    else if (RequiresInboundSecurity)
-                    {
-                        // Fail-closed: the frame is not a UADP NetworkMessage
-                        // (e.g. a JSON frame, for which no message-security
-                        // wrapper exists), so it cannot be authenticated or
-                        // decrypted to satisfy the reader's configured
-                        // SecurityMode. Dropping it here prevents an attacker
-                        // from delivering forged, unsecured non-UADP frames to
-                        // application sinks on a secured reader. Mirrors the
-                        // send-side refusal to publish unsecured non-UADP
-                        // messages on a connection configured for security.
-                        RecordSecurityFailure(
-                            StatusCodes.BadSecurityModeRejected,
-                            "Inbound non-UADP frame cannot satisfy the reader's " +
-                            "configured SecurityMode.");
-                        // Logged at Debug: this is a per-frame hot path and a
-                        // flood of non-UADP frames (hostile or misconfigured)
-                        // must not amplify into high-volume warning logs. The
-                        // security-failure counter incremented above is the
-                        // rate-safe operational signal.
-                        m_logger.DroppingNonUadpInboundFrame(Name, m_requiredSecurityMode);
-                        continue;
-                    }
-
-                    // Only a frame whose signature was verified above is
-                    // authenticated. The security flag of the frame and a known
-                    // SecurityTokenId are not enough: both are sender-controlled.
-                    bool frameAuthenticated = frameVerified;
-                    PubSubNetworkMessage? message;
+                    // Nothing that happens while one frame is processed may end
+                    // the loop: it is started once per connection and is never
+                    // restarted, so an exception here would silently stop all
+                    // reception on the connection.
                     try
                     {
-                        message = await decoder.TryDecodeAsync(framePayload, context, cancellationToken)
-                            .ConfigureAwait(false);
-                    }
-                    catch (OperationCanceledException)
-                    {
-                        throw;
-                    }
-                    catch (Exception ex)
-                    {
-                        m_logger.DecoderThrewOnInboundFrame(ex);
-                        continue;
-                    }
-                    if (m_metaDataRecoveryPending)
-                    {
-                        await TryRecoverEvictedMetaDataAsync(cancellationToken).ConfigureAwait(false);
-                    }
-                    if (message is null)
-                    {
-                        continue;
-                    }
-                    if (message is UadpDiscoveryRequestMessage discoveryRequest)
-                    {
-                        await TryRespondToDiscoveryRequestAsync(discoveryRequest, cancellationToken)
-                            .ConfigureAwait(false);
-                        continue;
-                    }
-                    if (message is UadpDiscoveryResponseMessage discoveryResponse)
-                    {
-                        RouteInboundDiscoveryResponse(discoveryResponse);
-                        _ = TryRouteInboundMetaData(message, frameAuthenticated, framePayload.Length);
-                        continue;
-                    }
-                    if (message is UadpActionRequestMessage actionRequest)
-                    {
-                        await TryRespondToActionRequestAsync(actionRequest, cancellationToken)
-                            .ConfigureAwait(false);
-                        continue;
-                    }
-                    if (message is UadpActionResponseMessage actionResponse)
-                    {
-                        RouteInboundActionResponse(actionResponse);
-                        continue;
-                    }
-                    if (message is PubSubJsonActionNetworkMessage jsonAction &&
-                        await TryRouteJsonActionAsync(jsonAction, cancellationToken).ConfigureAwait(false))
-                    {
-                        continue;
-                    }
-                    if (TryRouteInboundMetaData(message, frameAuthenticated, framePayload.Length))
-                    {
-                        continue;
-                    }
-                    await NotifyReceivedSinksAsync(
-                        message, singleFrame ? rawFrame : default, frameSecured, cancellationToken)
-                        .ConfigureAwait(false);
-                    for (int i = 0; i < m_readerGroups.Count; i++)
-                    {
-                        ReaderGroup rg = m_readerGroups[i];
+                        ReadOnlyMemory<byte> framePayload = frame.Payload;
+                        ReadOnlyMemory<byte> rawFrame = frame.Payload;
+                        bool frameSecured = false;
+                        bool frameVerified = false;
+                        bool singleFrame = true;
+
+                        if (UadpDecoder.TryReadPrefix(framePayload, out UadpPrefixInfo framePrefix))
+                        {
+                            int prefixLength = framePrefix.PrefixLength;
+                            bool securityEnabled = framePrefix.SecurityEnabled;
+                            PublisherId framePublisherId = framePrefix.PublisherId;
+                            ushort frameWriterGroupId = framePrefix.WriterGroupId;
+
+                            // Unified inbound message-security enforcement applied to
+                            // single NetworkMessages and to every chunk NetworkMessage:
+                            // each chunk is secured on its own (Part 14 §7.2.4.4.4), so
+                            // chunks are verified, decrypted and replay-checked before
+                            // they reach the reassembler.
+                            if (RequiresInboundSecurity)
+                            {
+                                // Fail-closed: a secured reader never accepts
+                                // an unsecured frame and never trusts the
+                                // wire's securityEnabled bit to opt out.
+                                if (m_securityWrapper is null || !securityEnabled)
+                                {
+                                    RecordSecurityFailure(
+                                        StatusCodes.BadSecurityModeRejected,
+                                        "Inbound frame is not secured to the reader's " +
+                                        "configured SecurityMode.");
+                                    m_logger.DroppingUnsecuredInboundFrame(Name, m_requiredSecurityMode);
+                                    continue;
+                                }
+                                (ReadOnlyMemory<byte> Payload, bool SignatureVerified)? unwrapped =
+                                    await TryUnwrapInboundAsync(
+                                        framePayload, prefixLength,
+                                        framePublisherId, frameWriterGroupId,
+                                        m_requiredSecurityMode, cancellationToken)
+                                        .ConfigureAwait(false);
+                                if (unwrapped is null)
+                                {
+                                    continue;
+                                }
+                                framePayload = unwrapped.Value.Payload;
+                                frameVerified = unwrapped.Value.SignatureVerified;
+                            }
+                            else if (m_securityWrapper is not null && securityEnabled)
+                            {
+                                (ReadOnlyMemory<byte> Payload, bool SignatureVerified)? unwrapped =
+                                    await TryUnwrapInboundAsync(
+                                        framePayload, prefixLength,
+                                        framePublisherId, frameWriterGroupId,
+                                        MessageSecurityMode.None, cancellationToken)
+                                        .ConfigureAwait(false);
+                                if (unwrapped is null)
+                                {
+                                    continue;
+                                }
+                                framePayload = unwrapped.Value.Payload;
+
+                                // No SecurityMode is required here, so a frame
+                                // without a signature unwraps too. A message put
+                                // together from chunks is not treated as verified
+                                // either: unsigned chunks can be mixed into it.
+                                frameVerified = unwrapped.Value.SignatureVerified && !framePrefix.ChunkMessage;
+                            }
+
+                            if (framePrefix.ChunkMessage)
+                            {
+                                ReadOnlyMemory<byte>? reassembled;
+                                try
+                                {
+                                    reassembled = TryReassembleChunk(framePayload, framePrefix);
+                                }
+                                catch (Exception ex)
+                                {
+                                    // Fail-soft: a malformed or hostile chunk
+                                    // must not terminate the receive loop.
+                                    m_diagnostics.Increment(
+                                        PubSubDiagnosticsCounterKind.ChunksDiscarded);
+                                    m_logger.InboundUadpChunkReassemblyThrew(ex);
+                                    continue;
+                                }
+                                if (reassembled is null)
+                                {
+                                    continue;
+                                }
+                                framePayload = reassembled.Value;
+                                // The message was reassembled from multiple chunk
+                                // frames, so no single wire frame faithfully
+                                // represents it; disable the raw-frame fast path.
+                                singleFrame = false;
+                            }
+
+                            frameSecured = securityEnabled;
+                        }
+                        else if (RequiresInboundSecurity)
+                        {
+                            // Fail-closed: the frame is not a UADP NetworkMessage
+                            // (e.g. a JSON frame, for which no message-security
+                            // wrapper exists), so it cannot be authenticated or
+                            // decrypted to satisfy the reader's configured
+                            // SecurityMode. Dropping it here prevents an attacker
+                            // from delivering forged, unsecured non-UADP frames to
+                            // application sinks on a secured reader. Mirrors the
+                            // send-side refusal to publish unsecured non-UADP
+                            // messages on a connection configured for security.
+                            RecordSecurityFailure(
+                                StatusCodes.BadSecurityModeRejected,
+                                "Inbound non-UADP frame cannot satisfy the reader's " +
+                                "configured SecurityMode.");
+                            // Logged at Debug: this is a per-frame hot path and a
+                            // flood of non-UADP frames (hostile or misconfigured)
+                            // must not amplify into high-volume warning logs. The
+                            // security-failure counter incremented above is the
+                            // rate-safe operational signal.
+                            m_logger.DroppingNonUadpInboundFrame(Name, m_requiredSecurityMode);
+                            continue;
+                        }
+
+                        // Only a frame whose signature was verified above is
+                        // authenticated. The security flag of the frame and a known
+                        // SecurityTokenId are not enough: both are sender-controlled.
+                        bool frameAuthenticated = frameVerified;
+                        PubSubNetworkMessage? message;
                         try
                         {
-                            await rg.DispatchAsync(message, cancellationToken)
+                            message = await decoder.TryDecodeAsync(framePayload, context, cancellationToken)
                                 .ConfigureAwait(false);
                         }
-                        catch (OperationCanceledException)
+                        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
                         {
                             throw;
                         }
                         catch (Exception ex)
                         {
-                            m_logger.ReaderGroupDispatchThrew(ex, rg.Name);
+                            m_logger.DecoderThrewOnInboundFrame(ex);
+                            continue;
                         }
+                        if (m_metaDataRecoveryPending)
+                        {
+                            await TryRecoverEvictedMetaDataAsync(cancellationToken).ConfigureAwait(false);
+                        }
+                        if (message is null)
+                        {
+                            continue;
+                        }
+                        if (message is UadpDiscoveryRequestMessage discoveryRequest)
+                        {
+                            await TryRespondToDiscoveryRequestAsync(discoveryRequest, cancellationToken)
+                                .ConfigureAwait(false);
+                            continue;
+                        }
+                        if (message is UadpDiscoveryResponseMessage discoveryResponse)
+                        {
+                            RouteInboundDiscoveryResponse(discoveryResponse);
+                            _ = TryRouteInboundMetaData(message, frameAuthenticated, framePayload.Length);
+                            continue;
+                        }
+                        if (message is UadpActionRequestMessage actionRequest)
+                        {
+                            await TryRespondToActionRequestAsync(actionRequest, cancellationToken)
+                                .ConfigureAwait(false);
+                            continue;
+                        }
+                        if (message is UadpActionResponseMessage actionResponse)
+                        {
+                            RouteInboundActionResponse(actionResponse);
+                            continue;
+                        }
+                        if (message is PubSubJsonActionNetworkMessage jsonAction &&
+                            await TryRouteJsonActionAsync(jsonAction, cancellationToken).ConfigureAwait(false))
+                        {
+                            continue;
+                        }
+                        if (TryRouteInboundMetaData(message, frameAuthenticated, framePayload.Length))
+                        {
+                            continue;
+                        }
+                        await NotifyReceivedSinksAsync(
+                            message, singleFrame ? rawFrame : default, frameSecured, cancellationToken)
+                            .ConfigureAwait(false);
+                        for (int i = 0; i < m_readerGroups.Count; i++)
+                        {
+                            ReaderGroup rg = m_readerGroups[i];
+                            try
+                            {
+                                await rg.DispatchAsync(message, cancellationToken)
+                                    .ConfigureAwait(false);
+                            }
+                            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+                            {
+                                throw;
+                            }
+                            catch (Exception ex)
+                            {
+                                m_logger.ReaderGroupDispatchThrew(ex, rg.Name);
+                            }
+                        }
+                    }
+                    catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+                    {
+                        throw;
+                    }
+                    catch (Exception ex)
+                    {
+                        // Includes an OperationCanceledException that does not
+                        // come from the loop's own token, e.g. from a handler,
+                        // sink or transport that cancelled its own operation.
+                        m_logger.InboundFrameProcessingThrew(ex, Name);
                     }
                 }
             }
@@ -2109,7 +2166,7 @@ namespace Opc.Ua.PubSub.Connections
             {
                 return await handler.HandleAsync(invocation, cancellationToken).ConfigureAwait(false);
             }
-            catch (OperationCanceledException)
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
             {
                 throw;
             }
@@ -2285,12 +2342,19 @@ namespace Opc.Ua.PubSub.Connections
                     m_metaDataRegistry,
                     m_diagnostics,
                     m_timeProvider);
+                NoncePermit permit = await GetNoncePermitAsync(networkMessage, null, cancellationToken)
+                    .ConfigureAwait(false);
+                if (!permit.CanPublish)
+                {
+                    return;
+                }
                 ReadOnlyMemory<byte>? payload = await EncodeOutboundAsync(
                     networkMessage,
                     encoder,
                     context,
+                    permit,
                     cancellationToken).ConfigureAwait(false);
-                if (payload is null)
+                if (payload is null || !await HasCurrentFenceAsync(permit, cancellationToken).ConfigureAwait(false))
                 {
                     return;
                 }
@@ -2922,10 +2986,17 @@ namespace Opc.Ua.PubSub.Connections
                 m_diagnostics,
                 m_timeProvider);
 
+            NoncePermit permit = await GetNoncePermitAsync(networkMessage, writerGroup, cancellationToken)
+                .ConfigureAwait(false);
+            if (!permit.CanPublish)
+            {
+                return;
+            }
             ReadOnlyMemory<byte>? encoded = await EncodeOutboundAsync(
                 networkMessage,
                 encoder,
                 context,
+                permit,
                 cancellationToken).ConfigureAwait(false);
             if (encoded is null)
             {
@@ -2937,13 +3008,15 @@ namespace Opc.Ua.PubSub.Connections
                 payload.Length > m_maxNetworkMessageSize &&
                 networkMessage is UadpNetworkMessage uadpForChunk)
             {
-                await SendChunkedAsync(transport, uadpForChunk, context, writerGroup, cancellationToken)
+                await SendChunkedAsync(transport, uadpForChunk, context, writerGroup, permit, cancellationToken)
                     .ConfigureAwait(false);
                 return;
             }
 
-            await transport.SendAsync(payload, topic, cancellationToken)
-                .ConfigureAwait(false);
+            if (await HasCurrentFenceAsync(permit, cancellationToken).ConfigureAwait(false))
+            {
+                await transport.SendAsync(payload, topic, cancellationToken).ConfigureAwait(false);
+            }
         }
 
         /// <summary>
@@ -2956,11 +3029,12 @@ namespace Opc.Ua.PubSub.Connections
             PubSubNetworkMessage networkMessage,
             INetworkMessageEncoder encoder,
             PubSubNetworkMessageContext context,
+            NoncePermit permit,
             CancellationToken cancellationToken)
         {
             if (m_securityWrapper is not null && IsSecurableUadpMessage(networkMessage))
             {
-                return await EncodeAndWrapUadpAsync(networkMessage, context, cancellationToken)
+                return await EncodeAndWrapUadpAsync(networkMessage, context, permit, cancellationToken)
                     .ConfigureAwait(false);
             }
             if (RequiresInboundSecurity ||
@@ -3023,6 +3097,7 @@ namespace Opc.Ua.PubSub.Connections
             UadpNetworkMessage message,
             PubSubNetworkMessageContext context,
             WriterGroup? writerGroup,
+            NoncePermit permit,
             CancellationToken cancellationToken)
         {
             ushort sequenceNumber = unchecked(
@@ -3053,8 +3128,12 @@ namespace Opc.Ua.PubSub.Connections
                 ReadOnlyMemory<byte> frame = chunk.Frame;
                 if (wrapper is not null)
                 {
-                    frame = await WrapChunkAsync(wrapper, chunk, cancellationToken)
+                    frame = await WrapChunkAsync(wrapper, chunk, permit, cancellationToken)
                         .ConfigureAwait(false);
+                }
+                if (!await HasCurrentFenceAsync(permit, cancellationToken).ConfigureAwait(false))
+                {
+                    return;
                 }
                 await transport.SendAsync(frame, topic: null, cancellationToken)
                     .ConfigureAwait(false);
@@ -3064,15 +3143,16 @@ namespace Opc.Ua.PubSub.Connections
         private async ValueTask<ReadOnlyMemory<byte>> WrapChunkAsync(
             UadpSecurityWrapper wrapper,
             UadpChunkFrame chunk,
+            NoncePermit permit,
             CancellationToken cancellationToken)
         {
             try
             {
-                return await wrapper
-                    .WrapAsync(
+                return await WrapOutboundUadpAsync(
+                        wrapper,
                         chunk.Frame[..chunk.PayloadOffset],
                         chunk.Frame[chunk.PayloadOffset..],
-                        m_securityWrapOptions,
+                        permit,
                         cancellationToken)
                     .ConfigureAwait(false);
             }
@@ -3208,6 +3288,7 @@ namespace Opc.Ua.PubSub.Connections
         private async ValueTask<ReadOnlyMemory<byte>> EncodeAndWrapUadpAsync(
             PubSubNetworkMessage message,
             PubSubNetworkMessageContext context,
+            NoncePermit permit,
             CancellationToken cancellationToken)
         {
             ReadOnlyMemory<byte> wrapped;
@@ -3217,8 +3298,7 @@ namespace Opc.Ua.PubSub.Connections
                     message, context, out int payloadOffset);
                 ReadOnlyMemory<byte> prefix = encoded[..payloadOffset];
                 ReadOnlyMemory<byte> inner = encoded[payloadOffset..];
-                wrapped = await m_securityWrapper!
-                    .WrapAsync(prefix, inner, m_securityWrapOptions, cancellationToken)
+                wrapped = await WrapOutboundUadpAsync(m_securityWrapper!, prefix, inner, permit, cancellationToken)
                     .ConfigureAwait(false);
             }
             catch (OperationCanceledException)
@@ -3245,6 +3325,59 @@ namespace Opc.Ua.PubSub.Connections
                     data.DataSetMessages.Count);
             }
             return wrapped;
+        }
+
+        private async ValueTask<NoncePermit> GetNoncePermitAsync(
+            PubSubNetworkMessage message, WriterGroup? writerGroup, CancellationToken cancellationToken)
+        {
+            if (m_nonceSequences is null || !IsSecurableUadpMessage(message))
+            {
+                return default;
+            }
+            string componentId = writerGroup is null
+                ? $"pubsub:control:{Name}"
+                : BuildWriterGroupComponentId(Name, writerGroup.Name);
+            long fence = await m_nonceSequences.GetActiveFenceAsync(componentId, cancellationToken)
+                .ConfigureAwait(false);
+            return new NoncePermit(componentId, fence);
+        }
+
+        private async ValueTask<bool> HasCurrentFenceAsync(NoncePermit permit, CancellationToken cancellationToken)
+        {
+            return permit.ComponentId is null ||
+                await m_nonceSequences!.GetActiveFenceAsync(permit.ComponentId, cancellationToken)
+                    .ConfigureAwait(false) == permit.Fence;
+        }
+
+        private ValueTask<ReadOnlyMemory<byte>> WrapOutboundUadpAsync(
+            UadpSecurityWrapper wrapper,
+            ReadOnlyMemory<byte> prefix,
+            ReadOnlyMemory<byte> inner,
+            NoncePermit permit,
+            CancellationToken cancellationToken)
+        {
+            if (permit.ComponentId is not string componentId)
+            {
+                return wrapper.WrapAsync(prefix, inner, m_securityWrapOptions, cancellationToken);
+            }
+            // Use the subscriber's wire identity; configured ids can be absent from the header.
+            if (!UadpDecoder.TryReadPrefix(prefix, out UadpPrefixInfo wire))
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadSecurityChecksFailed, "Cannot identify the outbound PubSub replay scope.");
+            }
+            return wrapper.WrapWithNonceSequenceAsync(prefix, inner, m_securityWrapOptions,
+                (tokenId, ct) => m_nonceSequences!.NextAsync(
+                    wire.PublisherId, wire.WriterGroupId, tokenId, componentId, permit.Fence, ct),
+                cancellationToken);
+        }
+
+        private readonly record struct NoncePermit(string? ComponentId, long Fence)
+        {
+            /// <summary>
+            /// Whether this send has a current fence or does not require one.
+            /// </summary>
+            public bool CanPublish => ComponentId is null || Fence > 0;
         }
 
         private INetworkMessageEncoder? ResolveEncoder()
@@ -3735,6 +3868,7 @@ namespace Opc.Ua.PubSub.Connections
             {
             }
             m_reassembler.Dispose();
+            m_nonceSequences?.Dispose();
         }
     }
 
@@ -3794,6 +3928,13 @@ namespace Opc.Ua.PubSub.Connections
         [LoggerMessage(EventId = PubSubEventIds.PubSubConnection + 10, Level = LogLevel.Error,
             Message = "Receive loop terminated.")]
         public static partial void ReceiveLoopTerminated(this ILogger logger, Exception exception);
+
+        [LoggerMessage(EventId = PubSubEventIds.PubSubConnection + 26, Level = LogLevel.Warning,
+            Message = "Processing an inbound frame on connection {Connection} failed; the frame was dropped.")]
+        public static partial void InboundFrameProcessingThrew(
+            this ILogger logger,
+            Exception exception,
+            string connection);
 
         [LoggerMessage(EventId = PubSubEventIds.PubSubConnection + 11, Level = LogLevel.Warning,
             Message = "Discarding stale inbound metadata for writer {WriterId}: incoming major {Incoming} < " +

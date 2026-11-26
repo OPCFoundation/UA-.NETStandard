@@ -216,6 +216,7 @@ namespace Opc.Ua.WotCon.Tests.Registry
         [TestCase("WoT-TD/1.1", "application/json", WoTDocumentKindEnum.ThingDescription)]
         [TestCase("Unsupported/1.1", "application/td+json", WoTDocumentKindEnum.ThingDescription)]
         [TestCase("Unsupported/1.1", UnsupportedContentType, WoTDocumentKindEnum.ThingModel)]
+        [Category("Integration")]
         public async Task RestoredPlanAdmissionRunsBeforeAnyRuntimePublication(
             string format, string contentType, WoTDocumentKindEnum storedKind)
         {
@@ -297,6 +298,7 @@ namespace Opc.Ua.WotCon.Tests.Registry
         /// Verifies that changing content type for identical bytes invalidates validation and runtime admission.
         /// </summary>
         [Test]
+        [Category("Integration")]
         public async Task ChangingContentTypeForIdenticalBytesInvalidatesValidationAndRuntimeAdmission()
         {
             await using PreparedWotTestRuntime runtime = await PreparedWotTestRuntime.StartAsync().ConfigureAwait(false);
@@ -466,6 +468,7 @@ namespace Opc.Ua.WotCon.Tests.Registry
         /// Verifies that restoring unsupported metadata fails before runtime publication.
         /// </summary>
         [Test]
+        [Category("Integration")]
         public async Task RestoredUnsupportedMetadataFailsBeforeRuntimePublication()
         {
             string root = Path.Combine(

@@ -410,7 +410,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
                 }
                 if (present)
                 {
-                    NodeMetadata metadata = await owner!.GetNodeMetadataAsync(
+                    NodeMetadata? metadata = await owner!.GetNodeMetadataAsync(
                         context, handle!, BrowseResultMask.NodeClass, cancellationToken).ConfigureAwait(false);
                     if (metadata is null || metadata.NodeClass != source.NodeClass)
                     {

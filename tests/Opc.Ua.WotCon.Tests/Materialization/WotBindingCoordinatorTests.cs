@@ -22,6 +22,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
     /// activate-after-commit / deactivate-before-retire ordering.
     /// </summary>
     [TestFixture]
+    [Category("Integration")]
     public sealed class WotBindingCoordinatorTests
     {
         /// <summary>

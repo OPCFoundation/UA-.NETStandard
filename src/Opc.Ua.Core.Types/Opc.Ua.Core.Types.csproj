@@ -1,3 +1,8 @@
+<!--
+SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+SPDX-License-Identifier: MIT
+-->
+
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <TargetFrameworks>$(LibCoreTargetFrameworks)</TargetFrameworks>
@@ -22,10 +27,12 @@
     <InternalsVisibleTo Include="Opc.Ua.Core" />
     <!-- Server builders coordinate transitions through internal revision guards and per-transition callbacks. -->
     <InternalsVisibleTo Include="Opc.Ua.Server" />
+    <InternalsVisibleTo Include="Opc.Ua.Redundancy.Server" />
     <!-- Scales composes the stock native enum write policy without a public capability API. -->
     <InternalsVisibleTo Include="Opc.Ua.Scales.Server" />
     <!-- Deterministic server regressions verify the internal state revision without exposing it as public API. -->
     <InternalsVisibleTo Include="Opc.Ua.Server.Tests" />
+    <InternalsVisibleTo Include="Opc.Ua.Core.Tests" />
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="Microsoft.Bcl.TimeProvider" />

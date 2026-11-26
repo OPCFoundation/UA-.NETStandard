@@ -434,7 +434,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 It.IsAny<IServerInternal>(), It.IsAny<ApplicationConfiguration>(), It.IsAny<CancellationToken>()),
                 Times.Once);
 
-            async ValueTask<object> ResolveNestedAsync(CancellationToken token)
+            async ValueTask<object?> ResolveNestedAsync(CancellationToken token)
             {
                 if (++ownerCalls > 1)
                 {
@@ -604,7 +604,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             }
             owner.Verify(value => value.GetManagerHandleAsync(source, It.IsAny<CancellationToken>()), Times.Once);
 
-            async ValueTask<object> ResolveAsync(CancellationToken token)
+            async ValueTask<object?> ResolveAsync(CancellationToken token)
             {
                 entered.TrySetResult(true);
                 await release.Task.WaitAsync(token).ConfigureAwait(false);
@@ -1028,7 +1028,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             GC.KeepAlive(nestedMarker);
             GC.KeepAlive(outer);
 
-            async ValueTask<object> ResolveNestedAsync(CancellationToken token)
+            async ValueTask<object?> ResolveNestedAsync(CancellationToken token)
             {
                 if (Interlocked.Increment(ref ownerCalls) != 1)
                 {

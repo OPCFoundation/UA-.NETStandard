@@ -340,13 +340,14 @@ namespace Opc.Ua.Server
         {
             var e = new BigInteger(65537);
             int halfBits = keySizeInBits / 2;
+            int rounds = GetMillerRabinRounds(keySizeInBits);
 
-            BigInteger p = GeneratePrime(halfBits, e, drbg, cancellationToken);
+            BigInteger p = GeneratePrime(halfBits, e, rounds, drbg, cancellationToken);
             BigInteger q;
             BigInteger minDistance = BigInteger.One << (halfBits - 100);
             do
             {
-                q = GeneratePrime(halfBits, e, drbg, cancellationToken);
+                q = GeneratePrime(halfBits, e, rounds, drbg, cancellationToken);
             }
             while (BigInteger.Abs(p - q) < minDistance);
 
@@ -378,9 +379,47 @@ namespace Opc.Ua.Server
             };
         }
 
+        /// <summary>
+        /// Returns the Miller-Rabin round count for the primes of an RSA modulus of the given size.
+        /// </summary>
+        /// <remarks>
+        /// FIPS 186-5 Appendix B.3 (Table B.1) requires 5 rounds with random bases for the primes of
+        /// a 2048-bit modulus and 4 rounds from 3072 bits upward, which keeps the probability of
+        /// accepting a composite below the modulus's security strength. Each round of a prime that
+        /// is accepted costs a full-size modular exponentiation, which is slow with the managed
+        /// <see cref="BigInteger"/> of .NET Framework, so the count is not raised beyond the standard.
+        /// The table's error bounds (Damgård–Landrock–Pomerance) assume what
+        /// <see cref="GeneratePrime"/> does: every candidate is a fresh, uniformly random odd number
+        /// of the prime's size (no incremental search from one start value), and every round
+        /// draws its own random base. Fixing the top two bits draws from half of the odd
+        /// numbers of that size, about the share FIPS 186-5 itself uses (from √2·2^(b-1) up),
+        /// so the error grows at most twofold, far inside the margin of the table. Trial
+        /// division by small primes only rejects composites before Miller-Rabin runs. A modulus
+        /// between table rows uses the row below it, which is conservative because the error
+        /// bound falls as the prime grows.
+        /// Moduli below 2048 bits have no FIPS 186-5 entry and keep a conservative fixed count.
+        /// </remarks>
+        /// <param name="modulusBits">The size of the RSA modulus in bits.</param>
+        /// <returns>The number of Miller-Rabin rounds for each prime.</returns>
+        internal static int GetMillerRabinRounds(int modulusBits)
+        {
+            if (modulusBits >= 3072)
+            {
+                return 4;
+            }
+
+            if (modulusBits >= 2048)
+            {
+                return 5;
+            }
+
+            return kSmallModulusMillerRabinRounds;
+        }
+
         private static BigInteger GeneratePrime(
             int bits,
             BigInteger e,
+            int rounds,
             HmacDrbg drbg,
             CancellationToken cancellationToken)
         {
@@ -397,7 +436,7 @@ namespace Opc.Ua.Server
                     continue;
                 }
 
-                if (IsProbablePrime(candidate, drbg, cancellationToken))
+                if (IsProbablePrime(candidate, rounds, drbg, cancellationToken))
                 {
                     return candidate;
                 }
@@ -406,6 +445,7 @@ namespace Opc.Ua.Server
 
         private static bool IsProbablePrime(
             BigInteger n,
+            int rounds,
             HmacDrbg drbg,
             CancellationToken cancellationToken)
         {
@@ -431,7 +471,7 @@ namespace Opc.Ua.Server
             }
 
             BigInteger nMinus1 = n - BigInteger.One;
-            for (int round = 0; round < kMillerRabinRounds; round++)
+            for (int round = 0; round < rounds; round++)
             {
                 cancellationToken.ThrowIfCancellationRequested();
 
@@ -617,7 +657,7 @@ namespace Opc.Ua.Server
         }
 
         private const int kServerSeedBytes = 48;
-        private const int kMillerRabinRounds = 64;
+        private const int kSmallModulusMillerRabinRounds = 64;
 
         private static readonly byte[] s_personalization =
             System.Text.Encoding.ASCII.GetBytes("OPC UA PushManagement CreateSigningRequest key");

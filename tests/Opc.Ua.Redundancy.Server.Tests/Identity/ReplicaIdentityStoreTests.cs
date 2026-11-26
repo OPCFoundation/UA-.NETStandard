@@ -9,6 +9,7 @@ using Crdt;
 using Crdt.Transport;
 using Moq;
 using NUnit.Framework;
+using Opc.Ua.Tests;
 
 namespace Opc.Ua.Redundancy.Server.Tests.Identity
 {
@@ -125,8 +126,7 @@ namespace Opc.Ua.Redundancy.Server.Tests.Identity
             await using var network = new InMemoryNetwork();
             await using var bulk = new ReplicatedSharedKeyValueStore(
                 ReplicaId.New(), network.CreateTransport(), TimeProvider.System, CrdtReaderOptions.Default);
-            await using var strong = new RaftSharedKeyValueStore(
-                DefaultRaftConsensus.CreateSingleNode(), ownsConsensus: true);
+            using var strong = new SimulatedSharedKeyValueStore();
             await using var hybrid = new HybridSharedKeyValueStore(bulk, strong);
             using AesCbcHmacRecordProtector protector = CreateProtector();
             var identity = new ReplicaNodeIdFactory("identity-set", ["urn:shared:first"]);

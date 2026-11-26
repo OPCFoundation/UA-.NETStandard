@@ -48,7 +48,7 @@ namespace Opc.Ua.Perf.TraceAnalyzer
         {
             if (args.Length < 2)
             {
-                Console.WriteLine("usage: TraceAnalyzer cpu|alloc|contention|frames|gc|samples|suspend|threads <trace> [top|thresholdMs] [focus]");
+                Console.WriteLine("usage: TraceAnalyzer cpu|alloc|contention|frames|gc|pool|samples|suspend|threads <trace> [top|thresholdMs] [focus]");
                 return 1;
             }
 
@@ -82,6 +82,9 @@ namespace Opc.Ua.Perf.TraceAnalyzer
                     break;
                 case "threads":
                     Threads(log, top);
+                    break;
+                case "pool":
+                    Pool(log, top);
                     break;
                 default:
                     Allocations(log, top, focus);
@@ -694,6 +697,49 @@ namespace Opc.Ua.Perf.TraceAnalyzer
         private static string Percent(double part, double total)
         {
             return total == 0 ? "-" : FormattableString.Invariant($"{100.0 * part / total:F2}%");
+        }
+
+        private static void Pool(TraceLog log, int top)
+        {
+            var counts = new Dictionary<string, double>(StringComparer.Ordinal);
+            var poolOfSite = new Dictionary<int, string>();
+            double all = 0;
+            foreach (TraceEvent e in log.Events)
+            {
+                if (e.ProviderName != "System.Buffers.ArrayPoolEventSource")
+                {
+                    continue;
+                }
+                all++;
+                int poolId = Convert.ToInt32(e.PayloadByName("poolId") ?? -1, CultureInfo.InvariantCulture);
+                int size = Convert.ToInt32(e.PayloadByName("bufferSize") ?? -1, CultureInfo.InvariantCulture);
+                object? reason = e.PayloadByName("reason");
+                string frame = "?";
+                for (TraceCallStack? f = e.CallStack(); f != null; f = f.Caller)
+                {
+                    string n = Short(Name(f));
+                    if (IsOurs(n))
+                    {
+                        frame = n;
+                        break;
+                    }
+                }
+                if (e.EventName.Contains("Rented", StringComparison.Ordinal) && frame != "?")
+                {
+                    poolOfSite[poolId] = frame;
+                }
+                Add(counts, FormattableString.Invariant($"pool={poolId} {e.EventName} size={size} reason={reason} <- {frame}"), 1);
+            }
+            Console.WriteLine(FormattableString.Invariant($"arraypool events: {all}"));
+            foreach (KeyValuePair<int, string> kv in poolOfSite)
+            {
+                Console.WriteLine(FormattableString.Invariant($"pool {kv.Key} rented by {kv.Value}"));
+            }
+            Console.WriteLine("--- counts");
+            foreach (KeyValuePair<string, double> kv in counts.OrderByDescending(k => k.Value).Take(top))
+            {
+                Console.WriteLine(FormattableString.Invariant($"{kv.Value,10}  {kv.Key}"));
+            }
         }
 
         private static void Add(Dictionary<string, double> totals, string key, double amount)

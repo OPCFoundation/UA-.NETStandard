@@ -699,6 +699,8 @@ namespace Opc.Ua.WotCon.Samples.Tests
                         options.ApplicationUri = "urn:localhost:OPCFoundation:" + options.ApplicationName;
                         options.ProductUri = "uri:opcfoundation.org:PumpDeviceIntegrationServer";
                         options.AutoAcceptUntrustedCertificates = true;
+                        // The tests drive the server through anonymous sessions.
+                        options.AnonymousAccess = Opc.Ua.Server.Hosting.AnonymousAccess.Unrestricted;
                         options.IncludeUnsecurePolicyNone = true;
                         options.PkiRoot = Path.Combine(root, "Server", "pki");
                         options.RejectSHA1Certificates = true;

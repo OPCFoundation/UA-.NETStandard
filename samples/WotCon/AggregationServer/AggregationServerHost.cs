@@ -116,6 +116,8 @@ namespace AggregationServer
                     server.PkiRoot = options.PkiRoot;
                 }
                 server.AutoAcceptUntrustedCertificates = true;
+                // Sample convenience only: anonymous sessions may write and call. Remove in production.
+                server.AnonymousAccess = AnonymousAccess.Unrestricted;
                 server.IncludeUnsecurePolicyNone = true;
                 server.EndpointUrls.Add(endpoint);
             });

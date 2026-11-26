@@ -48,8 +48,9 @@ namespace Opc.Ua.Gds.Tests
         {
             using var first = await TestTarget.CreateAsync("urn:managed:channel:first").ConfigureAwait(false);
             using var second = await TestTarget.CreateAsync("urn:managed:channel:second").ConfigureAwait(false);
-            string root = Path.Combine(
-                TestContext.CurrentContext.WorkDirectory, "managed-channel", Guid.NewGuid().ToString("N"));
+            // Keep the subject and thumbprint in generated certificate filenames within the net48 path limit.
+            string root = Path.Combine(Path.GetTempPath(), "managed-channel", Guid.NewGuid().ToString("N"));
+            Directory.CreateDirectory(root);
             var listener = new TcpListener(IPAddress.Loopback, 0);
             int port;
             try
@@ -228,6 +229,8 @@ namespace Opc.Ua.Gds.Tests
                     update.updateId, It.IsAny<CancellationToken>()), Times.Once);
                 configurationFile.Verify(provider => provider.ConfirmPendingUpdateAsync(
                     update.updateId, It.IsAny<CancellationToken>()), Times.Once);
+                configurationFile.Verify(provider => provider.ReadConfigurationAsync(
+                    It.IsAny<CancellationToken>()), Times.Once);
                 await session.CloseAsync(5000, true).ConfigureAwait(false);
 
                 using Opc.Ua.Client.ISession observer = await client.ConnectAsync(
@@ -244,7 +247,7 @@ namespace Opc.Ua.Gds.Tests
                     await observerFile.OpenAsync((byte)OpenFileMode.Read).ConfigureAwait(false)).ConfigureAwait(false);
                 Assert.That(fileDenied!.StatusCode, Is.EqualTo(StatusCodes.BadUserAccessDenied));
                 configurationFile.Verify(provider => provider.ReadConfigurationAsync(
-                    It.IsAny<CancellationToken>()), Times.Never);
+                    It.IsAny<CancellationToken>()), Times.Once);
                 await observer.CloseAsync(5000, true).ConfigureAwait(false);
             }
             finally
@@ -463,6 +466,197 @@ namespace Opc.Ua.Gds.Tests
             {
                 second.Configuration.CertificateManager = originalManager;
                 second.Configuration.SecurityConfiguration.TrustedPeerCertificates = originalTrust;
+            }
+        }
+
+        /// <summary>
+        /// Independently prepared facades share the live host's target isolation reservation.
+        /// </summary>
+        [Test]
+        public async Task PreparedApplicationBindingsCannotReserveTheSameTargetAcrossStagingFacades()
+        {
+            using var target = await TestTarget.CreateAsync("urn:managed:staged-isolation").ConfigureAwait(false);
+            var registration = new ManagedApplicationPushRegistration(
+                target, Mock.Of<IPushConfigurationAuthorization>());
+            var applications = new Mock<IProvisionableDeviceApplicationsProvider>(MockBehavior.Strict);
+            applications.Setup(provider => provider.GetApplicationsAsync(It.IsAny<CancellationToken>()))
+                .Returns(new ValueTask<ArrayOf<ManagedApplicationPushRegistration>>([registration]));
+            var runtime = new Mock<IProvisionableDeviceRuntime>();
+            runtime.SetupGet(value => value.IsSingleton).Returns(false);
+            IProvisionableDeviceSecurity security = Mock.Of<IProvisionableDeviceSecurity>();
+            INodeManagerLifecycle lifecycle = ReferenceServer.NodeManagerLifecycle;
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+            LifecycleChange FirstPartyAddition()
+            {
+                return LifecycleChange.Add(new ProvisionableDeviceNodeManagerFactory(
+                    runtime.Object, applications.Object, security));
+            }
+
+            await using (IPreparedChanges first = await lifecycle.PrepareAsync(
+                [FirstPartyAddition()], timeout.Token).ConfigureAwait(false))
+            {
+                ArgumentException? failure = await Assert.ThrowsAsync<ArgumentException>(async () =>
+                {
+                    await using IPreparedChanges unexpected = await lifecycle.PrepareAsync(
+                        [FirstPartyAddition()], timeout.Token).ConfigureAwait(false);
+                }).ConfigureAwait(false);
+                Assert.That(failure!.Message, Does.Contain("independent identities"));
+            }
+
+            await using IPreparedChanges retry = await lifecycle.PrepareAsync(
+                [FirstPartyAddition()], timeout.Token).ConfigureAwait(false);
+            Assert.That(retry.IsCommitted, Is.False);
+        }
+
+        [TestCase(false)]
+        [TestCase(true)]
+        [CancelAfter(60_000)]
+        public async Task DeviceHandoffRetainsManagedTargetWithoutRepeatingProviderRecovery(
+            bool holdFileHandle, CancellationToken cancellationToken)
+        {
+            using var target = await TestTarget.CreateAsync("urn:managed:handoff").ConfigureAwait(false);
+            Mock<IRecoverableApplicationConfigurationFileProvider> file = CreateConfigurationFileProvider();
+            var application = new ManagedApplicationPushRegistration(
+                target, Mock.Of<IPushConfigurationAuthorization>(), configurationFileProvider: file.Object);
+            var provider = new Mock<IProvisionableDeviceApplicationsProvider>(MockBehavior.Strict);
+            provider.Setup(value => value.GetApplicationsAsync(It.IsAny<CancellationToken>()))
+                .Returns(new ValueTask<ArrayOf<ManagedApplicationPushRegistration>>([application]));
+            var security = new Mock<IProvisionableDeviceSecurity>();
+            security.Setup(value => value.CreateApplicationOperations()).Returns(new TestApplicationOperations());
+            var runtime = new Mock<IProvisionableDeviceRuntime>();
+            runtime.SetupGet(value => value.IsSingleton).Returns(false);
+            var releaseTickets = new TaskCompletionSource<ArrayOf<string>>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            runtime.Setup(value => value.RequestTicketsAsync(It.IsAny<CancellationToken>()))
+                .Returns(new ValueTask<ArrayOf<string>>(releaseTickets.Task));
+            var factory = new ProvisionableDeviceNodeManagerFactory(runtime.Object, provider.Object, security.Object);
+            INodeManagerLifecycle lifecycle = ReferenceServer.NodeManagerLifecycle;
+            await using IPreparedChanges added = await lifecycle.PrepareAsync(
+                [LifecycleChange.Add(factory)], cancellationToken).ConfigureAwait(false);
+            LifecycleResult initial = await added.CommitAsync(cancellationToken: cancellationToken)
+                .ConfigureAwait(false);
+            NodeManagerSlot slot = initial.Registrations[0].Slot;
+            try
+            {
+                Assert.That(initial.Registrations[0].TryGetRegistration(out NodeManagerRegistration? before), Is.True);
+                Assert.That(slot.TryGetCurrent(out NodeManagerSlotSnapshot old), Is.True);
+                ApplicationConfigurationState original = await GetApplicationAsync(old.NodeManager)
+                    .ConfigureAwait(false);
+                long revision = lifecycle.Revision;
+                if (holdFileHandle)
+                {
+                    var context = ((AsyncCustomNodeManager)old.NodeManager).SystemContext;
+                    ApplicationConfigurationFileState originalFile = original.ConfigurationFile!;
+                    OpenMethodStateResult opened = await originalFile.Open!.OnCallAsync!(
+                        context, originalFile.Open, originalFile.NodeId, (byte)OpenFileMode.Read, cancellationToken)
+                        .ConfigureAwait(false);
+                    Assert.That(opened.ServiceResult.StatusCode, Is.EqualTo(StatusCodes.Good));
+
+                    object deviceHandle = (await old.NodeManager.GetManagerHandleAsync(new NodeId(29878u),
+                        cancellationToken).ConfigureAwait(false))!;
+                    var device = (ProvisionableDeviceState)((NodeHandle)deviceHandle).Node;
+                    Task<ServiceResult> tickets = device.RequestTickets!.OnCallMethod2Async!(
+                        context, device.RequestTickets, device.NodeId, [], [Variant.Null], cancellationToken)
+                        .AsTask();
+                    try
+                    {
+                        Assert.That(factory.QueueReplacement(lifecycle, before!, cancellationToken),
+                            Is.EqualTo(StatusCodes.Good));
+                        await WaitForCertificatesStatusAsync(context, original, StatusCodes.BadWouldBlock)
+                            .ConfigureAwait(false);
+                        Assert.That(lifecycle.Revision, Is.EqualTo(revision));
+                    }
+                    finally
+                    {
+                        releaseTickets.TrySetResult([]);
+                        await tickets.WaitAsync(cancellationToken).ConfigureAwait(false);
+                    }
+                    await WaitForCertificatesStatusAsync(context, original, StatusCodes.Good)
+                        .ConfigureAwait(false);
+                    Assert.That(lifecycle.Revision, Is.EqualTo(revision));
+                    CloseMethodStateResult closed = await originalFile.Close!.OnCallAsync!(
+                        context, originalFile.Close, originalFile.NodeId, opened.FileHandle, cancellationToken)
+                        .ConfigureAwait(false);
+                    Assert.That(closed.ServiceResult.StatusCode, Is.EqualTo(StatusCodes.Good));
+                }
+
+                StatusCode queued;
+                do
+                {
+                    queued = factory.QueueReplacement(lifecycle, before!, cancellationToken);
+                    if (queued == StatusCodes.BadWouldBlock)
+                    {
+                        await Task.Delay(10, cancellationToken).ConfigureAwait(false);
+                    }
+                }
+                while (queued == StatusCodes.BadWouldBlock);
+                Assert.That(queued, Is.EqualTo(StatusCodes.Good));
+                while (lifecycle.Revision == revision)
+                {
+                    await Task.Delay(10, cancellationToken).ConfigureAwait(false);
+                }
+                Assert.That(slot.TryGetCurrent(out NodeManagerSlotSnapshot current), Is.True);
+                Assert.That(current.Generation, Is.Not.EqualTo(old.Generation));
+                ApplicationConfigurationState successor = await GetApplicationAsync(current.NodeManager)
+                    .ConfigureAwait(false);
+                Assert.That(successor, Is.Not.SameAs(original));
+                Assert.That(successor.NodeId, Is.EqualTo(original.NodeId));
+                Assert.That(successor.ConfigurationFile, Is.Not.SameAs(original.ConfigurationFile));
+                Assert.That(successor.ConfigurationFile!.CurrentVersion!.Value, Is.EqualTo(1u));
+                var certificates = await successor.GetCertificates!.OnCallAsync!(
+                    ((AsyncCustomNodeManager)current.NodeManager).SystemContext,
+                    successor.GetCertificates, successor.NodeId, NodeId.Null, cancellationToken)
+                    .ConfigureAwait(false);
+                Assert.That(certificates.ServiceResult.StatusCode, Is.EqualTo(StatusCodes.Good));
+                Assert.That(certificates.Certificates.Count, Is.EqualTo(1));
+                provider.Verify(value => value.GetApplicationsAsync(It.IsAny<CancellationToken>()), Times.Once);
+                security.Verify(value => value.CreateApplicationOperations(), Times.Once);
+                file.Verify(value => value.GetPendingUpdateAsync(It.IsAny<CancellationToken>()), Times.Once);
+            }
+            finally
+            {
+                using var cleanup = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+                await using IPreparedChanges removal = await lifecycle.PrepareAsync(
+                    [LifecycleChange.Remove(slot)], cleanup.Token).ConfigureAwait(false);
+                LifecycleResult removed = await removal.CommitAsync(cancellationToken: cleanup.Token)
+                    .ConfigureAwait(false);
+                await removed.Retired.WaitAsync(cleanup.Token).ConfigureAwait(false);
+            }
+
+            async ValueTask<ApplicationConfigurationState> GetApplicationAsync(IAsyncNodeManager manager)
+            {
+                ushort ns = checked((ushort)ReferenceServer.CurrentInstance.NamespaceUris.GetIndex(
+                    ProvisionableDeviceNodeManagerFactory.NamespaceUri));
+                object handle = (await manager.GetManagerHandleAsync(
+                    new NodeId($"Application:{target.Configuration.ApplicationUri}", ns), cancellationToken)
+                    .ConfigureAwait(false))!;
+                return (ApplicationConfigurationState)((NodeHandle)handle).Node;
+            }
+
+            async Task WaitForCertificatesStatusAsync(
+                ServerSystemContext context, ApplicationConfigurationState node, StatusCode expected)
+            {
+                while (true)
+                {
+                    StatusCode actual;
+                    try
+                    {
+                        var result = await node.GetCertificates!.OnCallAsync!(
+                            context, node.GetCertificates, node.NodeId, NodeId.Null, cancellationToken)
+                            .ConfigureAwait(false);
+                        actual = result.ServiceResult.StatusCode;
+                    }
+                    catch (ServiceResultException error) when (error.StatusCode == StatusCodes.BadWouldBlock)
+                    {
+                        actual = error.StatusCode;
+                    }
+                    if (actual == expected)
+                    {
+                        return;
+                    }
+                    Assert.That(actual, Is.AnyOf(StatusCodes.Good, StatusCodes.BadWouldBlock));
+                    await Task.Delay(10, cancellationToken).ConfigureAwait(false);
+                }
             }
         }
 
@@ -1002,7 +1196,7 @@ namespace Opc.Ua.Gds.Tests
                 ushort namespaceIndex = checked((ushort)ReferenceServer.CurrentInstance.NamespaceUris.GetIndex(
                     ProvisionableDeviceNodeManagerFactory.NamespaceUri));
                 var applicationNodeId = new NodeId($"Application:{applicationUri}", namespaceIndex);
-                object handle = await retryManager.GetManagerHandleAsync(applicationNodeId).ConfigureAwait(false);
+                object handle = (await retryManager.GetManagerHandleAsync(applicationNodeId).ConfigureAwait(false))!;
 
                 Assert.That(handle, Is.TypeOf<NodeHandle>());
                 var node = ((NodeHandle)handle).Node;
@@ -1046,11 +1240,11 @@ namespace Opc.Ua.Gds.Tests
 
                 ushort namespaceIndex = checked((ushort)ReferenceServer.CurrentInstance.NamespaceUris.GetIndex(
                     ProvisionableDeviceNodeManagerFactory.NamespaceUri));
-                var deviceNodeId = new NodeId("ProvisionableDevice", namespaceIndex);
+                var deviceNodeId = new NodeId(29878u);
                 var firstNodeId = new NodeId($"Application:{firstApplicationUri}", namespaceIndex);
                 var secondNodeId = new NodeId($"Application:{secondApplicationUri}", namespaceIndex);
-                object firstHandle = await manager.GetManagerHandleAsync(firstNodeId).ConfigureAwait(false);
-                object secondHandle = await manager.GetManagerHandleAsync(secondNodeId).ConfigureAwait(false);
+                object firstHandle = (await manager.GetManagerHandleAsync(firstNodeId).ConfigureAwait(false))!;
+                object secondHandle = (await manager.GetManagerHandleAsync(secondNodeId).ConfigureAwait(false))!;
                 Assert.That(firstHandle, Is.TypeOf<NodeHandle>());
                 Assert.That(secondHandle, Is.TypeOf<NodeHandle>());
                 Assert.That(((NodeHandle)firstHandle).Node, Is.TypeOf<ApplicationConfigurationState>());
@@ -1162,9 +1356,9 @@ namespace Opc.Ua.Gds.Tests
                     .ConfigureAwait(false);
                 ushort namespaceIndex = checked((ushort)ReferenceServer.CurrentInstance.NamespaceUris.GetIndex(
                     ProvisionableDeviceNodeManagerFactory.NamespaceUri));
-                object handle = await manager.GetManagerHandleAsync(
+                object handle = (await manager.GetManagerHandleAsync(
                     new NodeId($"Application:{target.Configuration.ApplicationUri}", namespaceIndex))
-                    .ConfigureAwait(false);
+                    .ConfigureAwait(false))!;
                 var application = (ApplicationConfigurationState)((NodeHandle)handle).Node;
                 ApplicationConfigurationFileState file = application.ConfigurationFile!;
                 Assert.That(file, Is.Not.Null);
@@ -1226,9 +1420,9 @@ namespace Opc.Ua.Gds.Tests
                     .ConfigureAwait(false);
                 ushort namespaceIndex = checked((ushort)ReferenceServer.CurrentInstance.NamespaceUris.GetIndex(
                     ProvisionableDeviceNodeManagerFactory.NamespaceUri));
-                object handle = await manager.GetManagerHandleAsync(
+                object handle = (await manager.GetManagerHandleAsync(
                     new NodeId($"Application:{target.Configuration.ApplicationUri}", namespaceIndex))
-                    .ConfigureAwait(false);
+                    .ConfigureAwait(false))!;
                 var application = (ApplicationConfigurationState)((NodeHandle)handle).Node;
                 ApplicationConfigurationFileState file = application.ConfigurationFile!;
                 ServerSystemContext context = ((AsyncCustomNodeManager)manager).SystemContext;
@@ -1620,5 +1814,135 @@ namespace Opc.Ua.Gds.Tests
 
         /// <summary>The test telemetry context.</summary>
         private static readonly ITelemetryContext s_telemetry = NUnitTelemetryContext.Create();
+
+        /// <summary>
+        /// A live NodeManagerLifecycle publication adds the generated device's forward reference to Resources.
+        /// </summary>
+        [Test]
+        public async Task ProvisionableDeviceResourcesForwardReferenceIsPublishedByNodeManager()
+        {
+            var runtime = new Mock<IProvisionableDeviceRuntime>();
+            runtime.SetupGet(value => value.IsSingleton).Returns(true);
+            var factory = new ProvisionableDeviceNodeManagerFactory(runtime.Object);
+            INodeManagerLifecycle lifecycle = ReferenceServer.NodeManagerLifecycle;
+            NodeState resources = await GetResourcesNodeStateAsync().ConfigureAwait(false);
+            NodeManagerRegistration? registration = null;
+
+            try
+            {
+                registration = await AddProvisionableDeviceNodeManagerAsync(lifecycle, factory)
+                    .ConfigureAwait(false);
+                NodeId deviceNodeId = await GetProvisionableDeviceNodeIdAsync(registration)
+                    .ConfigureAwait(false);
+
+                Assert.That(resources.ReferenceExists(
+                    ReferenceTypeIds.Organizes, false, deviceNodeId), Is.True,
+                    "Resources must own a forward Organizes reference to the published device.");
+            }
+            finally
+            {
+                if (registration != null)
+                {
+                    await RemoveProvisionableDeviceNodeManagerAsync(lifecycle, registration)
+                        .ConfigureAwait(false);
+                }
+            }
+        }
+
+        /// <summary>
+        /// Removing and recreating the live manager removes the old parent reference and republishes the new one.
+        /// </summary>
+        [Test]
+        public async Task ProvisionableDeviceResourcesReferenceIsRemovedAndRestoredAfterManagerRecreation()
+        {
+            var runtime = new Mock<IProvisionableDeviceRuntime>();
+            runtime.SetupGet(value => value.IsSingleton).Returns(true);
+            var factory = new ProvisionableDeviceNodeManagerFactory(runtime.Object);
+            INodeManagerLifecycle lifecycle = ReferenceServer.NodeManagerLifecycle;
+            NodeState resources = await GetResourcesNodeStateAsync().ConfigureAwait(false);
+            NodeManagerRegistration? registration = null;
+
+            try
+            {
+                registration = await AddProvisionableDeviceNodeManagerAsync(lifecycle, factory)
+                    .ConfigureAwait(false);
+                NodeId firstDeviceNodeId = await GetProvisionableDeviceNodeIdAsync(registration)
+                    .ConfigureAwait(false);
+                Assert.That(resources.ReferenceExists(
+                    ReferenceTypeIds.Organizes, false, firstDeviceNodeId), Is.True,
+                    "The first manager generation must publish its exact device target.");
+
+                await RemoveProvisionableDeviceNodeManagerAsync(lifecycle, registration).ConfigureAwait(false);
+                registration = null;
+                Assert.That(resources.ReferenceExists(
+                    ReferenceTypeIds.Organizes, false, firstDeviceNodeId), Is.False,
+                    "Retiring the manager must remove its forward Resources reference.");
+
+                registration = await AddProvisionableDeviceNodeManagerAsync(lifecycle, factory)
+                    .ConfigureAwait(false);
+                NodeId recreatedDeviceNodeId = await GetProvisionableDeviceNodeIdAsync(registration)
+                    .ConfigureAwait(false);
+                Assert.That(resources.ReferenceExists(
+                    ReferenceTypeIds.Organizes, false, recreatedDeviceNodeId), Is.True,
+                    "The recreated manager must publish its own generated device target.");
+            }
+            finally
+            {
+                if (registration != null)
+                {
+                    await RemoveProvisionableDeviceNodeManagerAsync(lifecycle, registration)
+                        .ConfigureAwait(false);
+                }
+            }
+        }
+
+        private async Task<NodeState> GetResourcesNodeStateAsync()
+        {
+            (object? handle, _) = await ReferenceServer.CurrentInstance.NodeManager
+                .GetManagerHandleAsync(CoreObjectIds.Resources).ConfigureAwait(false);
+            Assert.That(handle, Is.TypeOf<NodeHandle>());
+            NodeState resources = ((NodeHandle)handle!).Node;
+            Assert.That(resources.NodeId, Is.EqualTo(CoreObjectIds.Resources));
+            return resources;
+        }
+
+        private static async Task<NodeManagerRegistration> AddProvisionableDeviceNodeManagerAsync(
+            INodeManagerLifecycle lifecycle,
+            IAsyncNodeManagerFactory factory)
+        {
+            await using IPreparedChanges prepared = await lifecycle.PrepareAsync(
+                [LifecycleChange.Add(factory)]).ConfigureAwait(false);
+            LifecycleResult result = await prepared.CommitAsync().ConfigureAwait(false);
+            Assert.That(result.CleanupFailure, Is.Null);
+            Assert.That(result.Registrations, Has.Count.EqualTo(1));
+            if (result.Registrations[0].TryGetRegistration(out NodeManagerRegistration? registration) &&
+                registration is not null)
+            {
+                return registration;
+            }
+            throw new InvalidOperationException("The published registration is unavailable.");
+        }
+
+        private async Task<NodeId> GetProvisionableDeviceNodeIdAsync(NodeManagerRegistration registration)
+        {
+            var expectedNodeId = new NodeId(29878u);
+            object handle = (await registration.NodeManager.GetManagerHandleAsync(expectedNodeId)
+                .ConfigureAwait(false))!;
+            Assert.That(handle, Is.TypeOf<NodeHandle>());
+            NodeState device = ((NodeHandle)handle).Node;
+            Assert.That(device.NodeId, Is.EqualTo(expectedNodeId));
+            return device.NodeId;
+        }
+
+        private static async Task RemoveProvisionableDeviceNodeManagerAsync(
+            INodeManagerLifecycle lifecycle,
+            NodeManagerRegistration registration)
+        {
+            await using IPreparedChanges prepared = await lifecycle.PrepareAsync(
+                [LifecycleChange.Remove(registration.Slot)]).ConfigureAwait(false);
+            LifecycleResult result = await prepared.CommitAsync().ConfigureAwait(false);
+            Assert.That(result.CleanupFailure, Is.Null);
+            await result.Retired.ConfigureAwait(false);
+        }
     }
 }

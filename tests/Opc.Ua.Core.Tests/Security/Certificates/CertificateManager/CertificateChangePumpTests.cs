@@ -79,6 +79,73 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             Assert.That(disposed.Values, Is.All.EqualTo(1));
         }
 
+        [TestCase(true)]
+        [TestCase(false)]
+        public async Task PauseDrainsAcceptedBatchAndDefersLaterNotificationsAsync(bool resume)
+        {
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+            var subject = new CertificateChangeSubject();
+            var firstEntered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var releaseFirst = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var laterProcessed = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var processed = new ConcurrentQueue<CertificateChangeKind>();
+            var released = new ConcurrentQueue<CertificateChangeKind>();
+            using var pump = new CertificateChangePump<CertificateChangeEvent>(
+                _ => true,
+                (_, evt) => evt,
+                async (evt, _) =>
+                {
+                    if (evt.Kind == CertificateChangeKind.CrlUpdated)
+                    {
+                        firstEntered.TrySetResult(true);
+                        await releaseFirst.Task.ConfigureAwait(false);
+                    }
+                    processed.Enqueue(evt.Kind);
+                    if (evt.Kind == CertificateChangeKind.CertificateRejected)
+                    {
+                        laterProcessed.TrySetResult(true);
+                    }
+                },
+                release: evt => released.Enqueue(evt.Kind));
+            pump.Subscribe(subject);
+            subject.Notify(Event(CertificateChangeKind.CrlUpdated));
+            try
+            {
+                await firstEntered.Task.WaitAsync(timeout.Token).ConfigureAwait(false);
+                subject.Notify(Event(CertificateChangeKind.TrustListUpdated));
+                CertificateChangePump<CertificateChangeEvent>.DrainPause pause = pump.PauseAfterPending();
+                subject.Notify(Event(CertificateChangeKind.CertificateRejected));
+                Assert.That(pause.Drained.IsCompleted, Is.False);
+                Assert.That(() => pump.PauseAfterPending(), Throws.TypeOf<ServiceResultException>());
+
+                releaseFirst.TrySetResult(true);
+                await pause.Drained.WaitAsync(timeout.Token).ConfigureAwait(false);
+                Assert.That(processed, Is.EqualTo(new[]
+                {
+                    CertificateChangeKind.CrlUpdated,
+                    CertificateChangeKind.TrustListUpdated
+                }));
+                Assert.That(released, Does.Not.Contain(CertificateChangeKind.CertificateRejected));
+
+                pause.Finish(resume);
+                if (resume)
+                {
+                    await laterProcessed.Task.WaitAsync(timeout.Token).ConfigureAwait(false);
+                    Assert.That(processed, Does.Contain(CertificateChangeKind.CertificateRejected));
+                }
+                else
+                {
+                    Assert.That(released, Does.Contain(CertificateChangeKind.CertificateRejected));
+                    Assert.That(laterProcessed.Task.IsCompleted, Is.False);
+                    Assert.That(() => pump.PauseAfterPending(), Throws.TypeOf<ServiceResultException>());
+                }
+            }
+            finally
+            {
+                releaseFirst.TrySetResult(true);
+            }
+        }
+
         private static CertificateChangeEvent Event(
             CertificateChangeKind kind,
             TrustListIdentifier? trustList = null)

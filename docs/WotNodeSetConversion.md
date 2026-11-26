@@ -132,10 +132,11 @@ ModellingRule Object at all. The four rules therefore map as:
 Both conversion directions derive these identifiers from one pair of constants,
 so a round trip preserves the modelling rule it started with.
 
-Generated Thing Models also list affordances with `Optional` or
-`OptionalPlaceholder` modelling rules in the top-level `tm:optional` array.
+Generated Thing Models also list affordances with `Optional`,
+`OptionalPlaceholder`, or `MandatoryPlaceholder` modelling rules in the
+top-level `tm:optional` array.
 The entries are JSON Pointers to the emitted affordance names, with `/` and
-`~` escaped according to RFC 6901. Required members and members without a
+`~` escaped according to RFC 6901. `Mandatory` members and members without a
 modelling rule are not added. Thing Descriptions do not receive this array.
 
 `tm:optional` lets standard W3C Thing Model processors recognize optional
@@ -203,7 +204,7 @@ them.
 | `uav:instrumentRange` (Section 6.4.1) | **Default** / **Fails** | Absent: no `InstrumentRange` Property. Malformed, or an engineering range not contained in it: `InvalidRangeValue` error. Present and valid: an `InstrumentRange` Property (`Range` `i=884`, `HasModellingRule` `Optional`) holding the interval. |
 | `uav:scaleFactor` (Section 6.4) | **Default** / **Fails** | Absent: identity scaling (factor `1`). Malformed (not a non-zero number): `InvalidModelVocabularyValue` error. Present and valid: preserved via residue. It is a static presentation and transport transform, never derived from — nor used to derive — `EngineeringUnits`, `EURange` or `InstrumentRange`. |
 | `uav:decimalPlaces` (Section 6.4) | **Default** / **Fails** | Absent: no rounding is recorded. Malformed (not an integer greater than or equal to zero; `2.0` is rejected as a non-integer literal): `InvalidModelVocabularyValue` error. Present and valid: preserved via residue. |
-| `titles` / `descriptions` (Section 9.1.1) | **Default** / **Fails** | Absent: the singular member materializes one `LocalizedText` using its effective language. Present: every plural entry is authoritative. The singular member repeats the default-locale entry when present; otherwise it repeats the code-point-first language entry and uses a node-local language-neutral override. A missing default locale is valid. A missing singular member, an inconsistent fallback, or an incorrectly language-tagged fallback produces `InvalidLocalizedText`. |
+| `titles` / `descriptions` (Section 9.1.1) | **Default** / **Fails** | Absent: the singular member materializes one `LocalizedText` using its effective language. Present: every plural entry is authoritative. The singular member repeats the default-locale entry when present; otherwise it repeats the code-point-first language entry and uses a node-local override for that source locale. A missing default locale is valid. A missing singular member, an inconsistent fallback, or an incorrectly language-tagged fallback produces `InvalidLocalizedText`. |
 | `uav:semanticId` (Section 6.7) | **Default** / **Fails** | Absent: no semantic reference is recorded. Malformed (not an absolute IRI with a scheme): `NonAbsoluteIri` error. Present and valid: preserved via residue. |
 | `uav:metadata` (Section 6.7) | **Default** | Absent: nothing is recorded. Present: opaque; carried verbatim through residue, never validated and never a reason to reject the document (Section 6.7). |
 | `uav:propertyConfiguration` (Section 6.7) | **Default** | Absent: nothing is recorded. Present: opaque per-affordance configuration; carried verbatim through residue and never validated. |
@@ -796,6 +797,14 @@ an authored QUDT annotation takes precedence over either provider.
 of an `AnalogUnitType` or `AnalogItemType` Variable, and both directions
 materialize it.
 
+The [export tool](WotExportTool.md#payload-schemas-and-engineering-metadata)
+uses named value schemas with separate `uav:euRange` engineering metadata and
+ordinary integer storage bounds. The converter keeps those payload bounds
+separate from native engineering limits during import and residue restoration.
+It checks supplied engineering endpoints against the preserved native range.
+The exporter also writes `uav:withUnit` and code-vocabulary annotations.
+These publisher annotations survive round trips as residue.
+
 Five of the `uav:` terms — `uav:engineeringUnits`, `uav:unitProperty`,
 `uav:instrumentRange`, `uav:scaleFactor` and `uav:decimalPlaces` — describe the
 Variable a **property affordance** projects, and are rejected anywhere else. The
@@ -861,7 +870,7 @@ entry, so the two never disagree. Where it has **no** such entry — a Node
 authored in the plant's language and read against another default locale — the
 plural member is still written in full and the singular member carries the entry
 whose BCP 47 tag is first in ascending Unicode code-point order (Annex G.3), as
-a display fallback that asserts no locale. The document does not claim that text
+a display fallback that retains its source locale. The document does not claim that text
 is written in the default locale, and nothing is pushed into the exceptional
 `uav:nodes` projection to say something the plural member already says.
 
@@ -869,7 +878,7 @@ The W3C Thing Description context explicitly gives `title` and `description`
 the language `en`. A document-level `@language` does not replace these term
 definitions. The converter overrides each term when needed to preserve its
 selected language. Untagged source text uses `"@language": null`. A tagged
-fallback also uses a node-local neutral override under the current binding rule.
+fallback uses a node-local override for its selected source locale.
 Each override retains the term's IRI.
 
 Actions and events inherit the root's term definitions. The converter omits
@@ -885,7 +894,8 @@ type-scoped context**, so a root-level override cannot reach them: the scoped
 context is entered on that object and nowhere else. Where the EUInformation's
 text is not in the document's default locale, the object therefore carries its
 own node-local `@context` re-declaring `displayName` as `uav:unitDisplayName`
-and `description` as `uav:unitDescription`, each with `"@language": null`.
+and `description` as `uav:unitDescription`, each with its selected source locale.
+Only untagged source text uses `"@language": null`.
 `namespaceUri` and `unitId` are short members of that same scoped context, which
 is why the generated document names the Binding context itself
 (`http://opcfoundation.org/UA/WoT-Binding/v1.1/opc-ua-wot-binding.context.jsonld`)

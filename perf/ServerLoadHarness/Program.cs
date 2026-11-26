@@ -938,6 +938,10 @@ namespace Opc.Ua.Perf.ServerLoadHarness
                 "gc" => "--profile gc-verbose",
                 // the Contention keyword
                 "contention" => "--providers Microsoft-Windows-DotNETRuntime:0x4000:4",
+                // ArrayPool misses: BufferAllocated (pool exhausted) and BufferDropped (bucket full)
+                "arraypool" => "--providers System.Buffers.ArrayPoolEventSource:0xFFFFFFFF:4",
+                // every ArrayPool rent and return as well, plus GC events
+                "arraypool-verbose" => "--providers System.Buffers.ArrayPoolEventSource:0xFFFFFFFF:5,Microsoft-Windows-DotNETRuntime:0x1:4",
                 _ => "--profile dotnet-sampled-thread-time"
             };
             return Process.Start(new ProcessStartInfo(

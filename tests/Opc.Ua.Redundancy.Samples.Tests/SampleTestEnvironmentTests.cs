@@ -11,7 +11,7 @@ namespace Opc.Ua.Redundancy.Samples.Tests
     internal sealed class SampleTestEnvironmentTests
     {
         [Test]
-        public void BuildFastDemoUsesLoopbackEndpointAndInsecureDemoKey()
+        public void BuildFastDemoUsesLoopbackEndpointAndExplicitInsecureMode()
         {
             IReadOnlyDictionary<string, string?> env = SampleTestEnvironment.BuildFastDemo();
             Assert.Multiple(() =>

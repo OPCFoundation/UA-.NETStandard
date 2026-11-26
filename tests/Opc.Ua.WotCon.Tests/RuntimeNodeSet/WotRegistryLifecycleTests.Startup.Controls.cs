@@ -227,22 +227,27 @@ namespace Opc.Ua.WotCon.Tests.RuntimeNodeSet
             (_, DeadlineProjectionHost host, _) = await PrepareControlledStartupAsync(runtime).ConfigureAwait(false);
             ushort namespaceIndex = m_server.CurrentInstance.NamespaceUris.GetIndexOrAppend(
                 Opc.Ua.WotCon.Namespaces.WotCon);
-            var readyOwner = coOwnedNamespace
-                ? new CoreNodeManager(m_server.CurrentInstance, m_fixture.Config, namespaceIndex)
-                : null;
+            CoreNodeManager? readyOwner = null;
             NodeId readyObjectId = NodeId.Null;
             NodeId readyMethodId = NodeId.Null;
             int readyCalls = 0;
-            if (readyOwner is not null)
+            if (coOwnedNamespace)
             {
                 var readyFactory = new Mock<IAsyncNodeManagerFactory>();
                 readyFactory.SetupGet(factory => factory.NamespacesUris).Returns([Opc.Ua.WotCon.Namespaces.WotCon]);
                 readyFactory.Setup(factory => factory.CreateAsync(
                     It.IsAny<IServerInternal>(),
                     It.IsAny<ApplicationConfiguration>(),
-                    It.IsAny<CancellationToken>())).Returns(new ValueTask<IAsyncNodeManager>(readyOwner));
+                    It.IsAny<CancellationToken>())).Returns((IServerInternal server,
+                        ApplicationConfiguration configuration, CancellationToken _) =>
+                    {
+                        readyOwner = new CoreNodeManager(server, configuration, namespaceIndex);
+                        return new ValueTask<IAsyncNodeManager>(readyOwner);
+                    });
                 await m_server.NodeManagerLifecycle.ApplyAsync([LifecycleChange.Add(readyFactory.Object)])
                     .ConfigureAwait(false);
+                CoreNodeManager readyManager = readyOwner
+                    ?? throw new InvalidOperationException("The ready co-owner was not created.");
                 var readyObject = new BaseObjectState(null)
                 {
                     NodeId = new NodeId("ReadyCoOwner", namespaceIndex),
@@ -262,12 +267,12 @@ namespace Opc.Ua.WotCon.Tests.RuntimeNodeSet
                     }
                 };
                 readyObject.AddChild(readyMethod);
-                await readyOwner.ImportNodesAsync(m_server.CurrentInstance.DefaultSystemContext, [readyObject])
+                await readyManager.ImportNodesAsync(m_server.CurrentInstance.DefaultSystemContext, [readyObject])
                     .ConfigureAwait(false);
                 readyObjectId = readyObject.NodeId;
                 readyMethodId = readyMethod.NodeId;
-                Assert.That(await readyOwner.GetManagerHandleAsync(readyObjectId).ConfigureAwait(false), Is.Not.Null);
-                Assert.That(await readyOwner.GetManagerHandleAsync(readyMethodId).ConfigureAwait(false), Is.Not.Null);
+                Assert.That(await readyManager.GetManagerHandleAsync(readyObjectId).ConfigureAwait(false), Is.Not.Null);
+                Assert.That(await readyManager.GetManagerHandleAsync(readyMethodId).ConfigureAwait(false), Is.Not.Null);
                 CallMethodResult ready = await CallAsync(readyObjectId, readyMethodId).ConfigureAwait(false);
                 Assert.That(ready.StatusCode, Is.EqualTo(StatusCodes.Good));
                 Assert.That(Interlocked.Exchange(ref readyCalls, 0), Is.EqualTo(1));
@@ -729,6 +734,7 @@ namespace Opc.Ua.WotCon.Tests.RuntimeNodeSet
                 SecurityNone = true,
                 AutoAccept = true
             };
+            await WotTestPki.SeedAsync(m_pkiRoot).ConfigureAwait(false);
             return await m_fixture.StartAsync(m_pkiRoot).ConfigureAwait(false);
         }
 
@@ -967,7 +973,7 @@ namespace Opc.Ua.WotCon.Tests.RuntimeNodeSet
             }
 
             /// <summary>
-            /// Counts the removal and removes the projection under a five-second deadline.
+            /// Counts the removal and removes the projection under the projection deadline.
             /// </summary>
             /// <param name="handle">The WoT projection handle.</param>
             /// <param name="cancellationToken">The cancellation token supplied by the caller.</param>
@@ -976,7 +982,7 @@ namespace Opc.Ua.WotCon.Tests.RuntimeNodeSet
             {
                 Interlocked.Increment(ref m_removeCalls);
                 using var deadline = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-                deadline.CancelAfter(TimeSpan.FromSeconds(5));
+                deadline.CancelAfter(s_projectionDeadline);
                 try
                 {
                     return await inner.RemoveAsync(handle, deadline.Token).ConfigureAwait(false);

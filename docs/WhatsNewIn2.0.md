@@ -1,3 +1,8 @@
+<!--
+SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+SPDX-License-Identifier: MIT
+-->
+
 # What's New in OPC UA .NET Standard 2.0
 
 Version 2.0 expands the SDK beyond the 1.5.378 client/server APIs with managed
@@ -132,7 +137,7 @@ domain-specific companions and draft extensions.
 | Roles and user management | OPC 10000-18 | [Role-Based User Management](RoleBasedUserManagement.md) |
 | Global discovery and certificate management (GDS) | OPC 10000-12 | [Global Discovery Server](GDS.md) |
 | Local discovery (LDS and LDS-ME) | OPC 10000-12 | [LDS / LDS-ME](GDS.md#lds--lds-me-45) and the [Console LDS Server](../samples/Lds/ConsoleLdsServer) sample |
-| Device onboarding: registrar ticket administration | OPC 10000-21 | [OnboardingClient](GDS.md#opc-10000-21-onboardingclient) and the [onboarding sample](../samples/Gds/README.md) |
+| Device onboarding: registrar ticket administration | OPC 10000-21 | [OnboardingClient](Onboarding.md#opc-10000-21-onboardingclient) and the [onboarding sample](../samples/Gds/README.md) |
 
 **Companion and extension models**
 

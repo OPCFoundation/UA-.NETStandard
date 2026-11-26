@@ -1,3 +1,6 @@
+<!-- SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL -->
+<!-- SPDX-License-Identifier: MIT -->
+
 # The synchronous node manager API is deprecated
 
 Since 2.0.3 the synchronous node manager API is marked `[Obsolete]`. It keeps
@@ -20,6 +23,7 @@ fluent node managers built on it. This is step 3 of issue
 - [Registration](#registration)
 - [Changed factories](#changed-factories)
 - [Suppressing the warning](#suppressing-the-warning)
+- [Changes in 2.1](#changes-in-21)
 
 ## UA0031
 
@@ -138,9 +142,15 @@ public class MyNodeManager : AsyncCustomNodeManager
 ```
 
 The constructor overloads match (`namespaceUris`, optional `ILogger`,
-optional `useSamplingGroups`). Pass your own logger to keep a meaningful log
-category; without one the base class logs under the `CustomNodeManager2`
-category, as before.
+optional `useSamplingGroups`). Without a logger (or with a `null` one) the
+base class logs under the full name of the concrete node manager type, for
+example `MyCompany.MyNodeManager`.
+
+> [!NOTE]
+> Until 2.1 the logger-less `AsyncCustomNodeManager` constructors logged under
+> the `Opc.Ua.Server.CustomNodeManager2` category. If your logging
+> configuration filters or routes on that category, switch it to the node
+> manager's own type name, or pass a logger explicitly.
 
 ### Overridden hooks
 
@@ -226,11 +236,31 @@ So when porting:
 ## Direct `INodeManager` implementations
 
 A class that implements `INodeManager`/`INodeManager2`/`INodeManager3`
-directly (like the `SampleNodeManager` that the MemoryBuffer sample still
-derives from) is adapted to the asynchronous seam by `AsyncNodeManagerAdapter`
-at registration. Port it by deriving from `AsyncCustomNodeManager` and moving
+directly is adapted to the asynchronous seam by `AsyncNodeManagerAdapter` at
+registration. Port it by deriving from `AsyncCustomNodeManager` and moving
 each interface method into the matching override from the table above, or
 implement `IAsyncNodeManager` directly if you need full control.
+
+Managers that built their own monitored-item pipeline (a custom
+`MonitoredItem` subclass created in `CreateMonitoredItem` and fed from a
+device scan) do not need to replace the stack's pipeline any more:
+
+- Override `OnCreatingMonitoredItemAsync` and return
+  `MonitoredItemCreateDecision.Use(context => context.CreatePushMonitoredItem())`
+  for the items your source feeds, or `Refuse(...)` for requests it cannot
+  serve. The stack validates, registers, modifies and deletes the item.
+- Connect the item to your source in `OnMonitoredItemCreated` and queue its
+  initial value there; disconnect it in `OnMonitoredItemDeletedAsync`.
+  `OnMonitoredItemAttachedAsync`/`OnMonitoredItemDetachedAsync` cover items
+  that move between managers, and `OnMonitoringModeChangedAsync` lets you send
+  a fresh value when an item is enabled again.
+- Feed values with `QueueValue` on the item.
+
+The MemoryBuffer sample (`samples/Quickstarts.Servers/MemoryBuffer`) was ported
+this way in 2.1. It also shows virtual nodes resolved per operation by
+overriding `GetManagerHandleAsync(ServerSystemContext, NodeId, ...)`. The
+sample's `SampleNodeManager`, `DataChangeMonitoredItem` and `MonitoredNode`
+classes were removed with the port.
 
 ## Registration
 
@@ -266,6 +296,10 @@ code that called `Create(...)` on them calls `CreateAsync(...)` instead:
 - `Opc.Ua.PubSub.Server.PubSubNodeManagerFactory`
 - `Opc.Ua.WotCon.Server.WotConnectivityNodeManagerFactory`
 - `Boiler.BoilerNodeManagerFactory` (Quickstarts sample)
+- `MemoryBuffer.MemoryBufferNodeManagerFactory` (Quickstarts sample, since
+  2.1). `Quickstarts.Servers.Utils.NodeManagerFactories` was removed with it;
+  `Utils.AsyncNodeManagerFactories` lists every sample factory, MemoryBuffer
+  first so the sample namespace indexes stay as they were.
 
 Their node managers are no longer wrapped as async → sync → async; the master
 receives the asynchronous manager directly. Because synchronous factories
@@ -290,3 +324,52 @@ public class MyLegacyManager : CustomNodeManager2
 `UA0031` only suppresses this deprecation; `CS0618` is needed for .NET
 Framework targets. To silence it project-wide while you migrate, add
 `<NoWarn>$(NoWarn);UA0031</NoWarn>` (plus `CS0618` for .NET Framework).
+
+## Changes in 2.1
+
+These changes affect custom node managers built on the asynchronous API.
+
+**Permission checks fail closed for client requests.** Before a service
+operation the master node manager checks RolePermissions and
+AccessRestrictions (Part 3 §8.55, §8.56). When the request comes from a
+client (it has a session, user identity or secure channel), the check now
+returns `Bad_NodeIdUnknown` instead of Good if no node manager resolves the
+NodeId, or if the resolving node manager's `GetNodeMetadataAsync` and
+`GetPermissionMetadataAsync` return `null`. Services already returned
+`Bad_NodeIdUnknown` for such nodes, so well-behaved node managers see no
+change. A node manager that returns a handle but no metadata for nodes it
+actually serves must return metadata now, or those nodes become unreachable
+for clients. Internal calls without a session, identity or channel are not
+checked, as before. `TranslateBrowsePathsToNodeIds` also drops targets whose
+metadata cannot be resolved, and creating an event monitored item on a node
+without metadata fails with `Bad_NodeIdUnknown`.
+
+`AsyncCustomNodeManager.ValidateRolePermissionsAsync`, which also gates event
+delivery by ReceiveEvents on the event's SourceNode, still lets unknown nodes
+through: a SourceNode outside the address space must not suppress the event.
+
+**Nullable lookups.** `IAsyncNodeManager.GetManagerHandleAsync` returns
+`ValueTask<object?>` and `IAsyncNodeManager.GetNodeMetadataAsync` returns
+`ValueTask<NodeMetadata?>`, matching their documented `null` results.
+Implementations and overrides change their return types; callers handle
+`null`. This is an annotation change only; with nullable reference types
+disabled nothing changes.
+
+**`AddNode` registers like `AddPredefinedNodeAsync`.** The synchronous
+`IAsyncNodeManager.AddNode` of `AsyncCustomNodeManager` now assigns NodeIds to
+instance nodes that have none or that collide with a type declaration, and
+calls the new `OnPredefinedNodeAdded(ISystemContext, NodeState)` hook for every
+node, as `AddPredefinedNodeAsync` does. Override `OnPredefinedNodeAdded`,
+rather than `AddPredefinedNodeAsync`, for work that must follow every
+registration. Generated node managers and `RuntimeNodeSetNodeManager` raise
+their per-node `OnNodeAdded` lifecycle handlers from it, so nodes added through
+`AddNode` after start-up now raise them too. Nodes registered while the builder
+is still being configured are notified once, by the replay when it is sealed;
+before 2.1 a generated manager notified asynchronously registered nodes a second
+time during configuration. A hand-written `FluentNodeManagerBase` subclass that
+raises the handlers itself can call `NotifyPredefinedNodeAdded(builder, context,
+node)` from its `OnPredefinedNodeAdded` override for the same behaviour.
+`AddNode` cannot await, so it
+still does not call `AddBehaviourToPredefinedNodeAsync` or overrides of
+`AddPredefinedNodeAsync`; register nodes that need behaviour with
+`AddPredefinedNodeAsync`.

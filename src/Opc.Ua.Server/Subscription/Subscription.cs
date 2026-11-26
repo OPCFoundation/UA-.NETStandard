@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: MIT
 
 using System;
-using System.Buffers;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
@@ -1595,7 +1594,7 @@ namespace Opc.Ua.Server
                     throw new ServiceResultException(StatusCodes.BadNodeIdUnknown);
                 }
                 ServiceResult permission = MasterNodeManager.ValidateRolePermissions(
-                    context, metadata, PermissionType.ReceiveEvents);
+                    m_server, context, metadata, PermissionType.ReceiveEvents);
                 if (ServiceResult.IsGood(permission))
                 {
                     permission = MasterNodeManager.ValidateAccessRestrictions(
@@ -2627,7 +2626,7 @@ namespace Opc.Ua.Server
         {
             notificationCount = 0;
             EventNotificationBuffer? rentedEvents = null;
-            MonitoredItemNotification[]? rentedItems = null;
+            DataChangeNotificationBuffer? rentedItems = null;
 
             var message = (NotificationMessage)NotificationMessageActivator.Instance.CreateInstance();
             message.SequenceNumber = m_messageQueue.AssignSequenceNumber();
@@ -2678,11 +2677,12 @@ namespace Opc.Ua.Server
             // add datachanges (space permitting).
             if (dataChangeCount > 0)
             {
-                // the array is rented and returned with the payload of the message
-                // (NotificationMessageLease); the message sees an exact-length slice.
-                MonitoredItemNotification[] dataChangeList =
-                    ArrayPool<MonitoredItemNotification>.Shared.Rent(dataChangeCount);
-                rentedItems = dataChangeList;
+                // the array is pooled and returned with the payload of the message
+                // (NotificationMessageLease); the message sees an exact-length slice. A
+                // dedicated pool, because every retained message holds one until it is
+                // acknowledged, which is more than ArrayPool.Shared keeps.
+                rentedItems = DataChangeNotificationBuffer.Rent(dataChangeCount);
+                MonitoredItemNotification[] dataChangeList = rentedItems.Items;
 
                 // the diagnostics list is only sent when one of the notifications has one,
                 // which is rare, so it is only allocated then.

@@ -16,6 +16,7 @@ using Opc.Ua.Client.Subscriptions;
 using Opc.Ua.Client.Subscriptions.Streaming;
 using Opc.Ua.Client.TestFramework;
 using Opc.Ua.ISA95.Client;
+using Opc.Ua.ISA95.JobControl;
 using Opc.Ua.ISA95.Server;
 using Opc.Ua.ISA95.Server.Builders;
 using Opc.Ua.ISA95.Server.Hosting;
@@ -437,6 +438,13 @@ namespace Opc.Ua.ISA95.Tests.Integration
             AssertSuccess(await v2.RevokeStartAsync("v2-main", ct: ct).ConfigureAwait(false));
             AssertSuccess(await v2.StartAsync("v2-main", ct: ct).ConfigureAwait(false));
 
+            await execution.TransitionAsync("v2-main", Isa95JobExecutionTransition.MarkReady, ct)
+                .ConfigureAwait(false);
+            ushort v2NamespaceIndex = (ushort)client.Session.NamespaceUris.GetIndex(
+                V2.Namespaces.ISA95JobControlV2);
+            Assert.That(await WaitForJobOrderSubstateNamespaceAsync(
+                client.Session, jobOrderListId, "v2-main", v2NamespaceIndex, ct,
+                V2.BrowseNames.AllowedToStartSubstates, 2).ConfigureAwait(false), Is.True);
             Isa95JobOrderReceiptV2 begin = await execution.TransitionAsync(
                 "v2-main",
                 Isa95JobExecutionTransition.BeginExecution,
@@ -454,15 +462,24 @@ namespace Opc.Ua.ISA95.Tests.Integration
                 Is.True);
             AssertSuccess(await v2.ResumeAsync("v2-main", ct: ct).ConfigureAwait(false));
             AssertSuccess(await v2.StopAsync("v2-main", ct: ct).ConfigureAwait(false));
+            Isa95JobOrderReceiptV2 closed = await execution.TransitionAsync(
+                "v2-main", Isa95JobExecutionTransition.Close, ct).ConfigureAwait(false);
+            AssertSuccess(closed.ReturnStatus);
+            Assert.That(await WaitForJobOrderSubstateNamespaceAsync(
+                client.Session, jobOrderListId, "v2-main", v2NamespaceIndex, ct,
+                V2.BrowseNames.EndedSubstates, 2).ConfigureAwait(false), Is.True);
             AssertSuccess(await v2.ClearAsync("v2-main", ct: ct).ConfigureAwait(false));
 
             AssertSuccess(await v2.StoreAsync(Isa95TestData.V2Order("v2-cancel"), ct: ct)
                 .ConfigureAwait(false));
             AssertSuccess(await v2.CancelAsync("v2-cancel", ct: ct).ConfigureAwait(false));
 
-            AssertSuccess(await v2.StoreAndStartAsync(
-                Isa95TestData.V2Order("v2-abort"),
+            AssertSuccess(await v2.ReceiveNeutralJobOrderAsync(
+                Isa95JobOperation.StoreAndStart,
+                new Isa95JobOrder { Id = "v2-abort" },
                 ct: ct).ConfigureAwait(false));
+            await execution.TransitionAsync("v2-abort", Isa95JobExecutionTransition.MarkReady, ct)
+                .ConfigureAwait(false);
             Isa95JobOrderReceiptV2 abortBegin = await execution.TransitionAsync(
                 "v2-abort",
                 Isa95JobExecutionTransition.BeginExecution,
@@ -484,15 +501,20 @@ namespace Opc.Ua.ISA95.Tests.Integration
                 ct).ConfigureAwait(false);
             Assert.That(invalidCommand, Is.EqualTo(Isa95JobReturnStatus.InvalidCommand));
 
-            AssertSuccess(await v1.ReceiveJobResponseAsync(
-                Isa95TestData.V1Response("v1-response", "response-from-v1"),
+            AssertSuccess(await v1.ReceiveNeutralJobResponseAsync(
+                new Isa95JobResponse
+                {
+                    Id = "v1-response",
+                    JobOrderId = "response-from-v1",
+                    State = Isa95JobCanonicalState.Running
+                },
                 ct).ConfigureAwait(false));
-            (V2.ISA95JobResponseDataType fromV1, ulong fromV1Status) =
-                await v2.RequestJobResponseByJobOrderIdAsync(
+            (Isa95JobResponse? fromV1, ulong fromV1Status) =
+                await v2.RequestNeutralJobResponseByIdAsync(
                     "response-from-v1",
                     ct).ConfigureAwait(false);
             AssertSuccess(fromV1Status);
-            Assert.That(fromV1.JobResponseID, Is.EqualTo("v1-response"));
+            Assert.That(fromV1?.Id, Is.EqualTo("v1-response"));
 
             V2.ISA95JobResponseDataType response =
                 Isa95TestData.V2Response("v2-response", "response-from-v2");
@@ -522,6 +544,41 @@ namespace Opc.Ua.ISA95.Tests.Integration
                 foundByState |= item.JobResponseID == "v2-response";
             }
             Assert.That(foundByState, Is.True);
+
+            foreach ((V1.ISA95JobOrderStateEnum legacy, Isa95JobCanonicalState expected) in new[]
+            {
+                (V1.ISA95JobOrderStateEnum.Waiting, Isa95JobCanonicalState.NotAllowedToStartWaiting),
+                (V1.ISA95JobOrderStateEnum.Ready, Isa95JobCanonicalState.AllowedToStartWaiting)
+            })
+            {
+                string orderId = $"v1-{legacy}";
+                await AssertV1ResponseCanBeQueriedByNeutralStateAsync(v1, v2, orderId, legacy, expected, ct)
+                    .ConfigureAwait(false);
+            }
+        }
+
+        private static async Task AssertV1ResponseCanBeQueriedByNeutralStateAsync(
+            Isa95JobControlV1Client v1,
+            Isa95JobControlV2Client v2,
+            string orderId,
+            V1.ISA95JobOrderStateEnum state,
+            Isa95JobCanonicalState expected,
+            CancellationToken ct)
+        {
+            string responseId = $"{orderId}-response";
+            V1.ISA95JobResponseDataType response = Isa95TestData.V1Response(responseId, orderId);
+            response.JobState = state;
+            AssertSuccess(await v1.ReceiveJobResponseAsync(response, ct).ConfigureAwait(false));
+
+            (Isa95JobResponse? byId, ulong byIdStatus) =
+                await v2.RequestNeutralJobResponseByIdAsync(orderId, ct).ConfigureAwait(false);
+            AssertSuccess(byIdStatus);
+            Assert.That(byId?.State, Is.EqualTo(expected));
+
+            (ArrayOf<Isa95JobResponse> matches, ulong byStateStatus) =
+                await v2.RequestNeutralJobResponsesByStateAsync(byId!.State, ct).ConfigureAwait(false);
+            AssertSuccess(byStateStatus);
+            Assert.That(matches.ToList().Exists(match => match.Id == responseId), Is.True);
         }
 
         private static Isa95JobControlEndpoint GetEndpoint(
@@ -882,7 +939,9 @@ namespace Opc.Ua.ISA95.Tests.Integration
             NodeId jobOrderListId,
             string jobOrderId,
             ushort namespaceIndex,
-            CancellationToken ct)
+            CancellationToken ct,
+            string expectedBrowseName = V2.BrowseNames.InterruptedSubstates,
+            uint? expectedNumber = null)
         {
             var stopwatch = Stopwatch.StartNew();
             while (stopwatch.Elapsed < TimeSpan.FromSeconds(10))
@@ -906,11 +965,12 @@ namespace Opc.Ua.ISA95.Tests.Integration
                         {
                             QualifiedName targetName =
                                 order.State[1].BrowsePath.Elements[0].TargetName;
-                            return targetName.NamespaceIndex == namespaceIndex &&
-                                string.Equals(
-                                    targetName.Name,
-                                    V2.BrowseNames.InterruptedSubstates,
-                                    StringComparison.Ordinal);
+                            if (targetName.NamespaceIndex == namespaceIndex &&
+                                string.Equals(targetName.Name, expectedBrowseName, StringComparison.Ordinal) &&
+                                (!expectedNumber.HasValue || order.State[1].StateNumber == expectedNumber.Value))
+                            {
+                                return true;
+                            }
                         }
                     }
                 }

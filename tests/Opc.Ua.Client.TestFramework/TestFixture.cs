@@ -39,7 +39,10 @@ namespace Opc.Ua.Client.TestFramework
                 AutoAccept = true,
                 SecurityNone = true,
                 OperationLimits = true,
-                AllNodeManagers = true
+                AllNodeManagers = true,
+                // One server and one client per private PKI folder: no test here
+                // needs key pairs of its own, so reuse the process-wide ones.
+                ReuseCachedCertificates = true
             };
 
             await ServerFixture.LoadConfigurationAsync(m_pkiRoot).ConfigureAwait(false);
@@ -122,7 +125,7 @@ namespace Opc.Ua.Client.TestFramework
             }
 
             // Create client fixture and connect session
-            ClientFixture = new ClientFixture(telemetry: Telemetry);
+            ClientFixture = new ClientFixture(telemetry: Telemetry) { ReuseCachedCertificates = true };
             await ClientFixture.LoadClientConfigurationAsync(m_pkiRoot).ConfigureAwait(false);
             ClientFixture.Config.TransportQuotas!.MaxMessageSize = TransportQuotaMaxMessageSize;
             ClientFixture.Config.TransportQuotas.MaxByteStringLength =
@@ -339,7 +342,6 @@ namespace Opc.Ua.Client.TestFramework
                 {
                     m_logger.LogError(ex, "Error stopping server during teardown.");
                 }
-                await Task.Delay(100).ConfigureAwait(false);
             }
 
             if (ClientFixture != null)

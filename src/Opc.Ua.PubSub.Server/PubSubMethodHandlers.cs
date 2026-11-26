@@ -4,6 +4,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Opc.Ua.PubSub.Application;
@@ -14,7 +15,7 @@ using Opc.Ua.PubSub.Security.Sks;
 namespace Opc.Ua.PubSub.Server
 {
     /// <summary>
-    /// Hosts the synchronous method-handler delegates the
+    /// Hosts the method-handler delegates the
     /// <see cref="PubSubNodeManager"/> attaches to the standard
     /// <c>PublishSubscribe</c> Method nodes (Part 14 §9.1.3,
     /// §9.1.10 and §8.3.1).
@@ -22,10 +23,8 @@ namespace Opc.Ua.PubSub.Server
     /// <remarks>
     /// Implements the configuration-mutation entry-points
     /// via the mutable <see cref="IPubSubApplication"/> surface.
-    /// All entry-points adhere to the legacy synchronous
-    /// <c>GenericMethodCalledEventHandler</c> contract; every async
-    /// call is forwarded via <c>.AsTask().GetAwaiter().GetResult()</c>
-    /// — the single sanctioned sync-over-async bridge.
+    /// GetSecurityKeys uses the asynchronous method hook when available.
+    /// Legacy synchronous method-handler delegates remain available for local calls.
     /// </remarks>
     internal sealed class PubSubMethodHandlers
     {
@@ -1709,7 +1708,54 @@ namespace Opc.Ua.PubSub.Server
             {
                 return new ServiceResult(StatusCodes.BadServiceUnsupported);
             }
-            return m_sks.HandleGetSecurityKeys(context, objectId, inputArguments.ToList(), outputArguments);
+            var outputs = new List<Variant>(5);
+            ServiceResult result = m_sks.HandleGetSecurityKeys(
+                context, objectId, inputArguments.ToList(), outputs);
+            CopyGetSecurityKeysOutput(result, outputs, outputArguments);
+            return result;
+        }
+
+        /// <summary>
+        /// Implements Part 14 §8.3.2 <c>GetSecurityKeys</c> without blocking on the SKS store.
+        /// </summary>
+        /// <param name="context">System context.</param>
+        /// <param name="method">Calling method node.</param>
+        /// <param name="objectId">Object the method is called on.</param>
+        /// <param name="inputArguments">Input arguments.</param>
+        /// <param name="outputArguments">Output arguments.</param>
+        /// <param name="cancellationToken">Cancellation token of the method call.</param>
+        public async ValueTask<ServiceResult> OnGetSecurityKeysAsync(
+            ISystemContext context,
+            MethodState method,
+            NodeId objectId,
+            ArrayOf<Variant> inputArguments,
+            List<Variant> outputArguments,
+            CancellationToken cancellationToken)
+        {
+            _ = method;
+            if (m_sks is null)
+            {
+                return new ServiceResult(StatusCodes.BadServiceUnsupported);
+            }
+
+            var outputs = new List<Variant>(5);
+            ServiceResult result = await m_sks.HandleGetSecurityKeysAsync(
+                context, objectId, inputArguments, outputs, cancellationToken).ConfigureAwait(false);
+            CopyGetSecurityKeysOutput(result, outputs, outputArguments);
+            return result;
+        }
+
+        private static void CopyGetSecurityKeysOutput(
+            ServiceResult result,
+            List<Variant> outputs,
+            List<Variant> outputArguments)
+        {
+            if (ServiceResult.IsGood(result))
+            {
+                // MethodState already initialized its output slots.
+                outputArguments.Clear();
+                outputArguments.AddRange(outputs);
+            }
         }
 
         /// <summary>

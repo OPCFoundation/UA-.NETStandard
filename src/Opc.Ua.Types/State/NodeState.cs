@@ -917,6 +917,9 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="context">The context for the system being accessed.</param>
         /// <param name="istrm">The stream to read.</param>
+        /// <exception cref="ServiceResultException">
+        /// The child hierarchy exceeds the binary decoder's nesting limit.
+        /// </exception>
         public void LoadAsBinary(ISystemContext context, Stream istrm)
         {
             IServiceMessageContext messageContext = context.AsMessageContext();
@@ -1341,6 +1344,7 @@ namespace Opc.Ua
         /// </remarks>
         protected BaseInstanceState? UpdateChild(ISystemContext context, BinaryDecoder decoder)
         {
+            using var childScope = decoder.EnterChildNode();
             var attributesToLoad = (AttributesToSave)decoder.ReadUInt32(null);
             AttributesToSave encodedAttributes = attributesToLoad;
             string? symbolicName = null;
@@ -3295,12 +3299,19 @@ namespace Opc.Ua
         {
             if (includeChildren)
             {
-                var children = new List<BaseInstanceState>();
-                GetChildren(context, children);
-
-                for (int ii = 0; ii < children.Count; ii++)
+                List<BaseInstanceState> children = RentClearChildren();
+                try
                 {
-                    children[ii].ClearChangeMasks(context, true);
+                    GetChildren(context, children);
+
+                    for (int ii = 0; ii < children.Count; ii++)
+                    {
+                        children[ii].ClearChangeMasks(context, true);
+                    }
+                }
+                finally
+                {
+                    ReturnClearChildren(children);
                 }
             }
 
@@ -3442,6 +3453,48 @@ namespace Opc.Ua
         }
 
         /// <summary>
+        /// Largest child list kept for reuse; a node with more children allocates its own,
+        /// so a thread does not hold on to a large array.
+        /// </summary>
+        private const int kMaxCachedClearChildren = 64;
+
+        /// <summary>
+        /// One child list per thread for <see cref="ClearChangeMasks"/> and
+        /// <see cref="ClearChangeMasksAsync"/>, which run for every written node.
+        /// </summary>
+        [ThreadStatic]
+        private static List<BaseInstanceState>? t_clearChildren;
+
+        /// <summary>
+        /// Takes the thread's child list, or a new one when it is in use by an outer
+        /// (nested) clear on this thread. The caller owns the list until it returns it.
+        /// </summary>
+        private static List<BaseInstanceState> RentClearChildren()
+        {
+            List<BaseInstanceState>? children = t_clearChildren;
+            if (children == null)
+            {
+                return new List<BaseInstanceState>();
+            }
+            t_clearChildren = null;
+            return children;
+        }
+
+        /// <summary>
+        /// Clears a list taken by <see cref="RentClearChildren"/> and keeps it for the
+        /// current thread, unless it grew too large.
+        /// </summary>
+        private static void ReturnClearChildren(List<BaseInstanceState> children)
+        {
+            if (children.Capacity > kMaxCachedClearChildren)
+            {
+                return;
+            }
+            children.Clear();
+            t_clearChildren = children;
+        }
+
+        /// <summary>
         /// Clears change masks and awaits state-change sinks without acquiring notification admission.
         /// </summary>
         /// <param name="context">The context that describes how to access the system containing the data.</param>
@@ -3454,14 +3507,23 @@ namespace Opc.Ua
         {
             if (includeChildren)
             {
-                var children = new List<BaseInstanceState>();
-                GetChildren(context, children);
-
-                for (int ii = 0; ii < children.Count; ii++)
+                List<BaseInstanceState> children = RentClearChildren();
+                try
                 {
-                    await children[ii]
-                        .ClearChangeMasksAsync(context, true, cancellationToken)
-                        .ConfigureAwait(false);
+                    GetChildren(context, children);
+
+                    for (int ii = 0; ii < children.Count; ii++)
+                    {
+                        await children[ii]
+                            .ClearChangeMasksAsync(context, true, cancellationToken)
+                            .ConfigureAwait(false);
+                    }
+                }
+                finally
+                {
+                    // may run on another thread than the rent after an await; the list is
+                    // owned by this call until here, so it can go to whichever thread it is on.
+                    ReturnClearChildren(children);
                 }
             }
 
@@ -3930,7 +3992,15 @@ namespace Opc.Ua
             IEnumerable<IReference>? additionalReferences,
             bool internalOnly)
         {
-            NodeBrowser? browser = OnCreateBrowser?.Invoke(
+            bool guarded = context is INodeStateSnapshotBrowserGuard { RequiresSnapshotSafeBrowser: true };
+            NodeStateCreateBrowserEventHandler? createBrowser = OnCreateBrowser;
+            NodeStatePopulateBrowserEventHandler? populateBrowser = guarded ? OnPopulateBrowser : null;
+            if (guarded && (createBrowser is not null || populateBrowser is not null))
+            {
+                throw new ServiceResultException(StatusCodes.BadNotSupported);
+            }
+
+            NodeBrowser? browser = createBrowser?.Invoke(
                 context,
                 this,
                 view,
@@ -3962,7 +4032,7 @@ namespace Opc.Ua
                 {
                     PopulateBrowser(context, browser);
 
-                    OnPopulateBrowser?.Invoke(context, this, browser);
+                    (guarded ? populateBrowser : OnPopulateBrowser)?.Invoke(context, this, browser);
                 }
 
                 newBrowser = null;
@@ -3996,9 +4066,16 @@ namespace Opc.Ua
 
             lock (GetOrCreateBrowseLock())
             {
+                bool guarded = context is INodeStateSnapshotBrowserGuard { RequiresSnapshotSafeBrowser: true };
+                NodeStatePopulateBrowserEventHandler? populateBrowser = guarded ? OnPopulateBrowser : null;
+                if (guarded && populateBrowser is not null)
+                {
+                    throw new ServiceResultException(StatusCodes.BadNotSupported);
+                }
+
                 PopulateBrowser(context, browser);
 
-                OnPopulateBrowser?.Invoke(context, this, browser);
+                (guarded ? populateBrowser : OnPopulateBrowser)?.Invoke(context, this, browser);
             }
         }
 
@@ -4290,7 +4367,22 @@ namespace Opc.Ua
             lock (m_referencesLock)
             {
                 // add any arbitrary references.
-                if (m_references is { } table)
+                if (context is INodeStateReferenceView view &&
+                    view.TryGetReferences(this, out ArrayOf<IReference> capturedReferences))
+                {
+                    foreach (IReference reference in capturedReferences)
+                    {
+                        if (referenceTypeId.IsNull
+                            ? (reference.IsInverse
+                                ? browserBrowseDirection != BrowseDirection.Forward
+                                : browserBrowseDirection != BrowseDirection.Inverse)
+                            : browser.IsRequired(reference.ReferenceTypeId, reference.IsInverse))
+                        {
+                            referencesToAdd.Add(reference);
+                        }
+                    }
+                }
+                else if (m_references is { } table)
                 {
                     if (referenceTypeId.IsNull)
                     {
@@ -6387,6 +6479,19 @@ namespace Opc.Ua
             bool isInverse,
             ExpandedNodeId targetId)
         {
+            return AddReferenceIfMissing(referenceTypeId, isInverse, targetId, out _);
+        }
+
+        /// <summary>
+        /// Reports whether storage changed before invoking the reference observer.
+        /// </summary>
+        internal bool AddReferenceIfMissing(
+            NodeId referenceTypeId,
+            bool isInverse,
+            ExpandedNodeId targetId,
+            out bool added)
+        {
+            added = false;
             if (referenceTypeId.IsNull)
             {
                 throw new ArgumentNullException(nameof(referenceTypeId));
@@ -6409,6 +6514,7 @@ namespace Opc.Ua
                 }
 
                 references.Add(reference, null);
+                added = true;
             }
 
             m_changeMasks |= NodeStateChangeMasks.References;
@@ -6597,7 +6703,15 @@ namespace Opc.Ua
         {
             lock (m_referencesLock)
             {
-                if (m_references is { } table)
+                if (context is INodeStateReferenceView view &&
+                    view.TryGetReferences(this, out ArrayOf<IReference> capturedReferences))
+                {
+                    foreach (IReference reference in capturedReferences)
+                    {
+                        references.Add(reference);
+                    }
+                }
+                else if (m_references is { } table)
                 {
                     foreach (IReference reference in table.Keys)
                     {
@@ -6622,7 +6736,18 @@ namespace Opc.Ua
         {
             lock (m_referencesLock)
             {
-                if (m_references is { } table)
+                if (context is INodeStateReferenceView view &&
+                    view.TryGetReferences(this, out ArrayOf<IReference> capturedReferences))
+                {
+                    foreach (IReference reference in capturedReferences)
+                    {
+                        if (reference.IsInverse == isInverse && reference.ReferenceTypeId == referenceTypeId)
+                        {
+                            references.Add(reference);
+                        }
+                    }
+                }
+                else if (m_references is { } table)
                 {
                     foreach (IReference reference in table.Keys)
                     {

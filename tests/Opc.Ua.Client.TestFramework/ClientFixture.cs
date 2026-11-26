@@ -35,6 +35,16 @@ namespace Opc.Ua.Client.TestFramework
         public uint SessionTimeout { get; set; } = 10000;
         public int OperationTimeout { get; set; } = 10000;
 
+        /// <summary>
+        /// Whether an empty PKI folder is seeded with the application
+        /// certificates an identical client fixture created earlier in this
+        /// process (see <see cref="TestCertificateCache"/>). Off by default:
+        /// fixtures that build several applications of one identity may rely
+        /// on distinct key pairs. Harnesses that own one server and one client
+        /// per private PKI folder (ClientTestFramework, TestFixture) turn it on.
+        /// </summary>
+        public bool ReuseCachedCertificates { get; set; }
+
         public int TraceMasks { get; set; } =
             Utils.TraceMasks.Error |
             Utils.TraceMasks.StackTrace |
@@ -231,8 +241,8 @@ namespace Opc.Ua.Client.TestFramework
                 .ConfigureAwait(false);
 
             // check the application certificate.
-            bool haveAppCertificate = await application
-                .CheckApplicationInstanceCertificatesAsync(true)
+            bool haveAppCertificate = await TestCertificateCache
+                .CheckApplicationInstanceCertificatesAsync(application, null, ReuseCachedCertificates, m_telemetry)
                 .ConfigureAwait(false);
             if (!haveAppCertificate)
             {
@@ -294,7 +304,10 @@ namespace Opc.Ua.Client.TestFramework
                     retryStartServer = true;
                 }
 
-                await Task.Delay(UnsecureRandom.Shared.Next(100, 1000)).ConfigureAwait(false);
+                if (retryStartServer)
+                {
+                    await Task.Delay(UnsecureRandom.Shared.Next(100, 1000)).ConfigureAwait(false);
+                }
             } while (retryStartServer);
         }
 

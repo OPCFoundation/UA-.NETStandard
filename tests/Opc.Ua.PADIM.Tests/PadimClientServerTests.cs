@@ -83,6 +83,8 @@ namespace Opc.Ua.PADIM.Tests
                 options.ProductUri = "urn:OPCFoundation:PadimE2e";
                 options.PkiRoot = Path.Combine(root, "server-pki");
                 options.AutoAcceptUntrustedCertificates = true;
+                // The tests drive the server through anonymous sessions.
+                options.AnonymousAccess = Opc.Ua.Server.Hosting.AnonymousAccess.Unrestricted;
                 options.IncludeUnsecurePolicyNone = true;
                 options.EndpointUrls.Clear();
                 options.EndpointUrls.Add(endpoint);
@@ -323,6 +325,8 @@ namespace Opc.Ua.PADIM.Tests
                 options.ProductUri = "urn:OPCFoundation:PadimFacetRuntime";
                 options.PkiRoot = Path.Combine(root, "server-pki");
                 options.AutoAcceptUntrustedCertificates = true;
+                // The tests drive the server through anonymous sessions.
+                options.AnonymousAccess = Opc.Ua.Server.Hosting.AnonymousAccess.Unrestricted;
                 options.IncludeUnsecurePolicyNone = true;
                 options.EndpointUrls.Clear();
                 options.EndpointUrls.Add(endpoint);
@@ -761,6 +765,8 @@ namespace Opc.Ua.PADIM.Tests
                 options.ProductUri = "urn:OPCFoundation:PadimPublication";
                 options.PkiRoot = Path.Combine(root, "server-pki");
                 options.AutoAcceptUntrustedCertificates = true;
+                // The tests drive the server through anonymous sessions.
+                options.AnonymousAccess = Opc.Ua.Server.Hosting.AnonymousAccess.Unrestricted;
                 options.IncludeUnsecurePolicyNone = true;
                 options.EndpointUrls.Clear();
                 options.EndpointUrls.Add(endpoint);

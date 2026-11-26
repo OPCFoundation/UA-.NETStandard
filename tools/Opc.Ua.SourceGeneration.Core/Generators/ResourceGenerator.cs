@@ -379,7 +379,30 @@ namespace Opc.Ua.SourceGeneration
         {
             Debug.Assert(m_context.Options.UseUtf8StringLiterals);
 
-            context.Out.Write("\"\"\"");
+            // The text comes from the model (schema documentation, default
+            // values) and a raw string literal has no escapes, so it must not
+            // be able to end the literal: the delimiter is made longer than any
+            // run of quotes in the text, and text with a line terminator that
+            // ReadLine does not split on (NEL, LINE SEPARATOR, PARAGRAPH
+            // SEPARATOR, all of which end a line in C#) is embedded as bytes.
+            string text = reader.ReadToEnd();
+            int longestQuoteRun = 0;
+            int quoteRun = 0;
+            for (int ii = 0; ii < text.Length; ii++)
+            {
+                char c = text[ii];
+                if (c is '\u0085' or '\u2028' or '\u2029')
+                {
+                    WriteAsByteArray(context, new MemoryStream(Encoding.UTF8.GetBytes(text)));
+                    return;
+                }
+                quoteRun = c == '"' ? quoteRun + 1 : 0;
+                longestQuoteRun = Math.Max(longestQuoteRun, quoteRun);
+            }
+            string delimiter = new('"', Math.Max(3, longestQuoteRun + 1));
+            reader = new StringReader(text);
+
+            context.Out.Write(delimiter);
             bool firstLine = true;
             for (string? line = reader.ReadLine();
                 line != null;
@@ -401,7 +424,8 @@ namespace Opc.Ua.SourceGeneration
                 }
                 context.Out.WriteLine(line);
             }
-            context.Out.Write("\"\"\"u8");
+            context.Out.Write(delimiter);
+            context.Out.Write("u8");
         }
 
         private static void WriteAsBase64StringLiteral(ILoadContext context, string base64)

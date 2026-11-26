@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: MIT
 
 using NUnit.Framework;
-using Opc.Ua.ISA95.Server.Providers;
+using Opc.Ua.ISA95.JobControl;
 using V2 = Opc.Ua.ISA95.JobControl.V2;
 
 namespace Opc.Ua.ISA95.Tests.Providers

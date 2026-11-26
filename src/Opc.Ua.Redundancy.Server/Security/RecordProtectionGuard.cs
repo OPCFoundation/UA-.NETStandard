@@ -27,6 +27,26 @@ namespace Opc.Ua.Redundancy.Server
     internal static class RecordProtectionGuard
     {
         /// <summary>
+        /// Resolves an independently protected view for a shared keyspace, or its process-local backend.
+        /// </summary>
+        public static ISharedKeyValueStore ResolveFreshStoreOrThrow(IServiceProvider services)
+        {
+            if (services.GetService<FreshnessProtectedKeyValueStore>() is { } protectedStore)
+            {
+                return protectedStore;
+            }
+            ISharedKeyValueStore store = services.GetRequiredService<ISharedKeyValueStore>();
+            if (store is FreshnessProtectedKeyValueStore || HybridSharedKeyValueStore.UsesOnlyInProcessMemory(store))
+            {
+                return store;
+            }
+
+            throw new InvalidOperationException(
+                "Distributed state requires an independent freshness authority. " +
+                "Register it with AddSharedRecordFreshness and enroll the deployment before starting.");
+        }
+
+        /// <summary>
         /// Resolves the registered <see cref="IRecordProtector"/>, throwing when
         /// mirrored state is backed by an external (non in-memory) shared store
         /// but no protector is configured.

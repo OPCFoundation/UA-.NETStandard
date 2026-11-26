@@ -11,20 +11,24 @@ namespace Opc.Ua.Redundancy.Server
     /// <summary>
     /// Shares session context across server replicas keyed by the session
     /// <c>AuthenticationToken</c>, enabling fast active/passive reconnect:
-    /// after a failover a client re-activates against the promoted replica
-    /// using only its token, without a full re-handshake.
+    /// after a failover a client establishes a signed SecureChannel and
+    /// re-activates against the promoted replica with its token and proof.
     /// </summary>
     /// <remarks>
     /// Analogous to <see cref="ISubscriptionStore"/> for subscriptions. The
     /// default implementation
     /// (<see cref="SharedKeyValueSessionStore"/>) persists entries in the
-    /// same shared key/value backend as the distributed address space.
+    /// configured key/value backend. Fast reconnect requires a store whose
+    /// reads and atomic writes represent an authenticated, current committed
+    /// generation, including durable conditional deletion.
     /// </remarks>
     public interface ISharedSessionStore
     {
         /// <summary>
         /// Stores or replaces a session entry (keyed by its
-        /// <see cref="SharedSessionEntry.AuthenticationToken"/>).
+        /// <see cref="SharedSessionEntry.AuthenticationToken"/>). Session managers
+        /// use this only for an initial entry with a newly minted token; subsequent
+        /// transitions and close must be conditional.
         /// </summary>
         /// <param name="entry">The session entry.</param>
         /// <param name="ct">Cancellation token.</param>
@@ -61,6 +65,7 @@ namespace Opc.Ua.Redundancy.Server
         /// <c>true</c> when the entry was replaced; <c>false</c> when it changed or was
         /// removed since <paramref name="current"/> was read.
         /// </returns>
+        /// <exception cref="System.NotSupportedException">The store cannot compare and swap atomically.</exception>
         ValueTask<bool> TryReplaceAsync(
             SharedSessionEntry current,
             SharedSessionEntry replacement,
@@ -76,6 +81,7 @@ namespace Opc.Ua.Redundancy.Server
         /// <c>true</c> when the entry was removed; <c>false</c> when it changed or was
         /// already removed.
         /// </returns>
+        /// <exception cref="System.NotSupportedException">The store cannot compare and swap atomically.</exception>
         ValueTask<bool> TryRemoveAsync(SharedSessionEntry current, CancellationToken ct = default);
 
         /// <summary>

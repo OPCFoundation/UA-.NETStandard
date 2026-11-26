@@ -425,8 +425,7 @@ namespace Opc.Ua.Server.Tests.Redundancy
             await using var network = new InMemoryNetwork();
             await using var crdt = new ReplicatedSharedKeyValueStore(
                 ReplicaId.New(), network.CreateTransport(), TimeProvider.System, CrdtReaderOptions.Default);
-            await using var coordinator = new RaftSharedKeyValueStore(
-                DefaultRaftConsensus.CreateSingleNode(), ownsConsensus: true);
+            using var coordinator = new SimulatedSharedKeyValueStore();
             await using var hybrid = new HybridSharedKeyValueStore(
                 crdt, coordinator, [InMemoryNodeStateStore.SequenceKey]);
             var election = new Mock<ILeaderElection>();
@@ -450,8 +449,7 @@ namespace Opc.Ua.Server.Tests.Redundancy
         [Test]
         public async Task ReplicatedStartupRequiresNodeIdentityConfigurationAsync()
         {
-            await using var coordinator = new RaftSharedKeyValueStore(
-                DefaultRaftConsensus.CreateSingleNode(), ownsConsensus: true);
+            using var coordinator = new SimulatedSharedKeyValueStore();
             var election = new Mock<ILeaderElection>();
             var server = new Mock<IServerInternal>(MockBehavior.Strict);
             await using var startup = new DistributedAddressSpaceStartupTask(coordinator, election.Object);
@@ -468,10 +466,10 @@ namespace Opc.Ua.Server.Tests.Redundancy
         }
 
         /// <summary>
-        /// Wires a hosted registry and a directly constructed store to the same strong coordinator and real CRDT bulk.
+        /// A strong sequence coordinator cannot fence publication into the eventual-address-space keyspaces.
         /// </summary>
         [Test]
-        public async Task HostedRegistryAndDirectStoreShareHybridCoordinationAsync()
+        public async Task HostedPublicationRejectsHybridWithoutAtomicGuardAsync()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
             var context = ServiceMessageContext.CreateEmpty(telemetry);
@@ -488,42 +486,52 @@ namespace Opc.Ua.Server.Tests.Redundancy
             await using var network = new InMemoryNetwork();
             await using var crdt = new ReplicatedSharedKeyValueStore(
                 ReplicaId.New(), network.CreateTransport(), TimeProvider.System, CrdtReaderOptions.Default);
-            await using var coordinator = new RaftSharedKeyValueStore(
-                DefaultRaftConsensus.CreateSingleNode(), ownsConsensus: true);
+            using var coordinator = new SimulatedSharedKeyValueStore();
             using var protector = new AesCbcHmacRecordProtector(new byte[32]);
             await identity.InitializeNewStoreAsync(coordinator, protector).ConfigureAwait(false);
             await using var hybrid = new HybridSharedKeyValueStore(crdt, coordinator);
             await using var startup = new DistributedAddressSpaceStartupTask(
                 hybrid, new StaticLeaderElection(true), protector);
 
-            await startup.OnServerStartedAsync(server.Object).ConfigureAwait(false);
+            await Assert.ThatAsync(
+                async () => await startup.OnServerStartedAsync(server.Object).ConfigureAwait(false),
+                Throws.TypeOf<ServiceResultException>().With.Property(nameof(ServiceResultException.StatusCode))
+                    .EqualTo(StatusCodes.BadConfigurationError)).ConfigureAwait(false);
 
-            var hostedId = new NodeId("hosted", 2);
-            var directId = new NodeId("direct", 2);
-            Assert.That(startup.NodeStateStoreRegistry, Is.Not.Null);
-            INodeStateStore? hosted = startup.NodeStateStoreRegistry!.Resolve(hostedId);
-            Assert.That(hosted, Is.Not.Null);
-            await hosted!.UpsertNodeAsync(new StoredNode(hostedId, new ByteString(new byte[] { 1 })))
-                .ConfigureAwait(false);
-            using var direct = new InMemoryNodeStateStore(hybrid, context, protector);
-            await direct.UpsertNodeAsync(new StoredNode(directId, new ByteString(new byte[] { 2 })))
-                .ConfigureAwait(false);
+            Assert.That(startup.NodeStateStoreRegistry, Is.Null);
+            Assert.That((await coordinator.TryGetAsync(InMemoryNodeStateStore.SequenceKey)
+                .ConfigureAwait(false)).Found, Is.False);
+        }
 
-            var changes = new List<NodeStateChange>();
-            await foreach (NodeStateChange change in direct.ReadDeltaLogAsync(0).ConfigureAwait(false))
-            {
-                changes.Add(change);
-            }
-            Assert.That(changes, Has.Count.EqualTo(2));
-            Assert.That(changes[0].Sequence, Is.EqualTo(1));
-            Assert.That(changes[1].Sequence, Is.EqualTo(2));
-            (bool hostedStored, _) = await crdt.TryGetAsync("n/" + hostedId).ConfigureAwait(false);
-            (bool directStored, _) = await crdt.TryGetAsync("n/" + directId).ConfigureAwait(false);
-            (bool misplacedCounter, _) = await crdt.TryGetAsync(InMemoryNodeStateStore.SequenceKey)
-                .ConfigureAwait(false);
-            Assert.That(hostedStored, Is.True);
-            Assert.That(directStored, Is.True);
-            Assert.That(misplacedCounter, Is.False);
+        /// <summary>
+        /// Atomic comparison without authority-side expiry is not a valid external writer configuration.
+        /// </summary>
+        [Test]
+        public async Task HostedPublicationRejectsAnAuthorityWithoutCommitDeadlineAsync()
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            var identity = new ReplicaNodeIdFactory("deadline-set", ["urn:test:deadline"]);
+            var server = new Mock<IServerInternal>();
+            server.As<INodeIdFactoryProvider>().Setup(s => s.NodeIdFactory).Returns(identity);
+            var backend = new Mock<IGuardedSharedKeyValueStore>(MockBehavior.Strict);
+            Mock<ISharedKeyValueStoreConsistency> consistency = backend.As<ISharedKeyValueStoreConsistency>();
+            consistency.Setup(s => s.IsProcessLocal(It.IsAny<string>())).Returns(false);
+            consistency.Setup(s => s.IsLinearizable(It.IsAny<string>())).Returns(true);
+            using var payload = new InMemorySharedKeyValueStore();
+            using var protector = new AesCbcHmacRecordProtector(new byte[32]);
+            var store = new FreshnessProtectedKeyValueStore(
+                payload, backend.Object, protector, Guid.NewGuid(), Guid.NewGuid());
+            var election = new SharedStoreLeaseElection(
+                store, "election/deadline", "writer", ["writer"], TimeSpan.FromSeconds(30), TimeSpan.FromSeconds(10),
+                logger: telemetry.CreateLogger<SharedStoreLeaseElection>());
+            await using var startup = new DistributedAddressSpaceStartupTask(store, election, protector);
+
+            await Assert.ThatAsync(
+                async () => await startup.OnServerStartingAsync(server.Object).ConfigureAwait(false),
+                Throws.TypeOf<ServiceResultException>()
+                    .With.Property(nameof(ServiceResultException.StatusCode)).EqualTo(StatusCodes.BadConfigurationError)
+                    .And.Message.Contains("deadline in the same commit")).ConfigureAwait(false);
+            Assert.That(startup.NodeStateStoreRegistry, Is.Null);
         }
 
         [Test]

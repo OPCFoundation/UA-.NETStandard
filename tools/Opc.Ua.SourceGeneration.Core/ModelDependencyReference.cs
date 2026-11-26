@@ -3,7 +3,7 @@
 
 using System;
 using System.IO;
-using System.Runtime.CompilerServices;
+using System.Threading;
 using Opc.Ua.SourceGeneration.Dependency;
 
 namespace Opc.Ua.SourceGeneration
@@ -66,8 +66,10 @@ namespace Opc.Ua.SourceGeneration
         /// </summary>
         public string PublicationDate { get; }
 
-        /// <summary>The C# identifier used for the model's name constant inside
-        /// the referenced assembly's <c>Namespaces</c> class (may be empty).</summary>
+        /// <summary>
+        /// The C# identifier used for the model's name constant inside
+        /// the referenced assembly's <c>Namespaces</c> class (may be empty).
+        /// </summary>
         public string Name { get; }
 
         /// <summary>
@@ -97,14 +99,23 @@ namespace Opc.Ua.SourceGeneration
             {
                 return null;
             }
-            return s_decoded.GetValue(Payload, DecodePayload).Value;
+            return s_decoded.GetDependency(Payload);
         }
 
-        private static DecodedDependency DecodePayload(string payload)
+        /// <summary>
+        /// Borrows a shared dependency for read-only generator use. Mutable model
+        /// designs must be materialized separately; this graph must never escape to callers.
+        /// </summary>
+        internal ModelDependencyV1? GetDependencyForGeneration(CancellationToken cancellationToken = default)
+        {
+            return s_generatorDecoded.GetDependency(Payload, cancellationToken);
+        }
+
+        private static ModelDependencyV1? DecodePayload(string payload, CancellationToken cancellationToken)
         {
             try
             {
-                return new DecodedDependency(ModelDependencyV1.FromBase64Payload(payload));
+                return ModelDependencyV1.FromBase64Payload(payload, cancellationToken);
             }
             catch (Exception ex) when (
                 ex is InvalidDataException or
@@ -113,27 +124,9 @@ namespace Opc.Ua.SourceGeneration
                 FormatException or
                 OverflowException)
             {
-                return new DecodedDependency(null);
+                return null;
             }
         }
-
-        private sealed class DecodedDependency
-        {
-            public DecodedDependency(ModelDependencyV1? value)
-            {
-                Value = value;
-            }
-
-            public ModelDependencyV1? Value { get; }
-        }
-
-        private static readonly ConditionalWeakTable<string, DecodedDependency> s_decoded
-            =
-#if NET8_0_OR_GREATER
-                [];
-#else
-                new();
-#endif
 
         /// <inheritdoc/>
         public bool Equals(ModelDependencyReference other)
@@ -181,5 +174,8 @@ namespace Opc.Ua.SourceGeneration
         {
             return !left.Equals(right);
         }
+
+        private static readonly DependencyDecodeCache s_decoded = new(false, DecodePayload);
+        private static readonly DependencyDecodeCache s_generatorDecoded = new(true, DecodePayload);
     }
 }

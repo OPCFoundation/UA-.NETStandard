@@ -48,12 +48,9 @@ namespace Opc.Ua.MachineTool.Server
                     return Refused(Isa95JobReturnStatus.InvalidRequest,
                         "The job and its sole work master must match an explicit program descriptor.");
                 }
-                ChangeKind changes = operation switch
-                {
-                    Isa95JobOrderOperationV2.Cancel or Isa95JobOrderOperationV2.Clear => ChangeKind.Catalog,
-                    Isa95JobOrderOperationV2.Update => ChangeKind.Status | ChangeKind.Catalog,
-                    _ => ChangeKind.Status
-                };
+                ChangeKind changes = operation is Isa95JobOrderOperationV2.Cancel or Isa95JobOrderOperationV2.Clear
+                    ? ChangeKind.Catalog
+                    : ChangeKind.Status | ChangeKind.Catalog;
                 int revisions = operation == Isa95JobOrderOperationV2.Cancel ? 2 : 1;
                 if (!HasCapacity(changes, revisions))
                 {
@@ -113,7 +110,12 @@ namespace Opc.Ua.MachineTool.Server
             try
             {
                 ThrowIfDisposed();
-                if (!HasCapacity(ChangeKind.Status, 1))
+                ChangeKind changes = transition is Isa95JobExecutionTransition.MarkReady or
+                    Isa95JobExecutionTransition.MarkNotReady or Isa95JobExecutionTransition.Load or
+                    Isa95JobExecutionTransition.Unload or Isa95JobExecutionTransition.Close
+                    ? ChangeKind.Catalog
+                    : ChangeKind.Status | ChangeKind.Catalog;
+                if (!HasCapacity(changes, 1))
                 {
                     return Refused(Isa95JobReturnStatus.UnableToAccept, "A delivery backlog is full.");
                 }
@@ -167,7 +169,7 @@ namespace Opc.Ua.MachineTool.Server
                 {
                     m_activeJob = jobOrderId;
                 }
-                AccountChanges(ChangeKind.Status);
+                AccountChanges(changes);
                 await CommitAsync().ConfigureAwait(false);
                 return receipt;
             }

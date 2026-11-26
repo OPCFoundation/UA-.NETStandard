@@ -50,12 +50,72 @@ namespace Opc.Ua.Redundancy.Server
             IServiceMessageContext context,
             IRecordProtector? protector = null,
             TimeSpan pollInterval = default)
+            : this(store, context, protector, pollInterval, requireWriterGeneration: false)
+        {
+        }
+
+        /// <summary>
+        /// Creates a managed reader whose distributed mutations must use a generation-bound view.
+        /// </summary>
+        internal InMemoryNodeStateStore(
+            ISharedKeyValueStore store,
+            IServiceMessageContext context,
+            IRecordProtector? protector,
+            TimeSpan pollInterval,
+            bool requireWriterGeneration,
+            Func<NodeId, DataValue, CancellationToken, ValueTask>? publishManagedValue = null)
         {
             m_store = store ?? throw new ArgumentNullException(nameof(store));
             m_context = context ?? throw new ArgumentNullException(nameof(context));
             m_protector = protector ?? NullRecordProtector.Instance;
             m_pollInterval = pollInterval <= TimeSpan.Zero ? TimeSpan.FromSeconds(2) : pollInterval;
+            m_requiresWriterGeneration = requireWriterGeneration && !HasProcessLocalWrites(store);
+            m_publishManagedValue = publishManagedValue;
         }
+
+        /// <summary>
+        /// Gets the unbound key/value view used by the readers.
+        /// </summary>
+        internal ISharedKeyValueStore Storage => m_store;
+
+        /// <summary>
+        /// Checks whether mutation reservations from an interrupted publication remain unresolved.
+        /// </summary>
+        internal async ValueTask<bool> HasPendingPublicationsAsync(CancellationToken ct)
+        {
+            (_, _, List<ulong> pending) = await ReadSequenceAsync(ct).ConfigureAwait(false);
+            return pending.Count != 0;
+        }
+
+        /// <summary>
+        /// Creates a short-lived writer over a view that atomically guards every persistent mutation.
+        /// </summary>
+        internal InMemoryNodeStateStore CreateWriter(ISharedKeyValueStore fencedView)
+        {
+            var writer = new InMemoryNodeStateStore(fencedView, m_context, m_protector, m_pollInterval);
+            writer.ObserveSequence(CurrentSequence);
+            return writer;
+        }
+
+        /// <summary>
+        /// Requires known in-process backing for the entire store, including all hybrid routes.
+        /// </summary>
+        internal static bool HasProcessLocalWrites(ISharedKeyValueStore store) =>
+            HybridSharedKeyValueStore.UsesOnlyInProcessMemory(store);
+
+        /// <summary>
+        /// Checks that the same strong authority can enforce grant expiry for every managed write.
+        /// </summary>
+        internal static bool HasGuardedWrites(ISharedKeyValueStore store) =>
+            store is IDeadlineGuardedSharedKeyValueStore { SupportsGuardedDeadlines: true } and
+                ISharedKeyValueStoreConsistency consistency &&
+            consistency.IsLinearizable(SequenceKey) &&
+            consistency.IsLinearizable(NodePrefix) &&
+            consistency.IsLinearizable(ValuePrefix) &&
+            consistency.IsLinearizable(DeltaPrefix) &&
+            consistency.IsLinearizable(ManifestKey) &&
+            consistency.IsLinearizable(SnapshotPrefix) &&
+            consistency.IsLinearizable(PartitionPrefix);
 
         /// <summary>
         /// The highest write sequence this store has assigned or observed. A
@@ -122,6 +182,7 @@ namespace Opc.Ua.Redundancy.Server
             }
 
             ct.ThrowIfCancellationRequested();
+            VerifyWriterGeneration();
             ValidateCoordinator(m_store);
             string key = PartitionPrefix + Uri.EscapeDataString(partitionId);
             return m_store.SetAsync(
@@ -297,6 +358,10 @@ namespace Opc.Ua.Redundancy.Server
             {
                 throw new ArgumentException("A node identifier is required.", nameof(nodeId));
             }
+            if (m_requiresWriterGeneration && m_publishManagedValue != null)
+            {
+                return m_publishManagedValue(nodeId, value, ct);
+            }
             // Encode synchronously (in-parameters are not allowed in async
             // methods) and hand off to the async record + delta-log writer.
             ByteString payload = EncodeValue(in value);
@@ -365,6 +430,7 @@ namespace Opc.Ua.Redundancy.Server
         public async ValueTask WriteSnapshotAsync(CancellationToken ct = default)
         {
             ct.ThrowIfCancellationRequested();
+            VerifyWriterGeneration();
             ValidateCoordinator(m_store);
             if (!((INodeStateStoreReadConsistency)this).SupportsSnapshots)
             {
@@ -527,7 +593,9 @@ namespace Opc.Ua.Redundancy.Server
             {
                 // A failed transport/cancellation can leave an indeterminate CAS
                 // that already published the manifest. Never delete its generation.
-                if (!published && !publicationUncertain)
+                bool lostWriter = exception is ServiceResultException serviceError &&
+                    serviceError.StatusCode == StatusCodes.BadNotWritable;
+                if (!published && !publicationUncertain && !lostWriter)
                 {
                     try
                     {
@@ -1203,6 +1271,7 @@ namespace Opc.Ua.Redundancy.Server
         private async ValueTask<ulong> NextSequenceAsync(CancellationToken ct)
         {
             ct.ThrowIfCancellationRequested();
+            VerifyWriterGeneration();
             ValidateCoordinator(m_store);
             while (true)
             {
@@ -1399,6 +1468,15 @@ namespace Opc.Ua.Redundancy.Server
             return true;
         }
 
+        private void VerifyWriterGeneration()
+        {
+            if (m_requiresWriterGeneration)
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadNotWritable, "A distributed address-space mutation requires a fenced writer.");
+            }
+        }
+
         /// <summary>
         /// The linearizable high-water mark followed by the ordered sequences of
         /// unfinished publications, all protected in one atomic coordination record.
@@ -1418,6 +1496,8 @@ namespace Opc.Ua.Redundancy.Server
         private readonly ISharedKeyValueStore m_store;
         private readonly IServiceMessageContext m_context;
         private readonly IRecordProtector m_protector;
+        private readonly bool m_requiresWriterGeneration;
+        private readonly Func<NodeId, DataValue, CancellationToken, ValueTask>? m_publishManagedValue;
         private readonly TimeSpan m_pollInterval;
         private int m_emitInitialStateSubscriptions;
 

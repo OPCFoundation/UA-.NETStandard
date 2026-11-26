@@ -1,4 +1,7 @@
-﻿; Unshipped analyzer release
+; SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+; SPDX-License-Identifier: MIT
+
+; Unshipped analyzer release
 ; https://github.com/dotnet/roslyn-analyzers/blob/main/src/Microsoft.CodeAnalysis.Analyzers/ReleaseTrackingAnalyzers.Help.md
 ### New Rules
 

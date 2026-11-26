@@ -1,3 +1,8 @@
+<!--
+SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+SPDX-License-Identifier: MIT
+-->
+
 # Kubernetes High Availability Deployment
 
 This is the Kubernetes deployment guide for OPC UA high availability. It
@@ -55,43 +60,65 @@ must share the endpoint URL, application URI, certificate, session state,
 and subscription state.
 
 A multi-pod deployment needs a shared store that all replicas can reach for
-distributed address-space, session, and subscription state. Configure a
-networked backend with authentication, encryption, and capacity limits, such
-as the in-package Raft store or a CRDT gossip fabric over the pod network.
-Protect the store connection with authenticated encryption. Provision the
-shared record-protection key through a Kubernetes Secret or a secret store
-backed by the Container Storage Interface (CSI). Set limits and expiration
-for session, nonce, and subscription keys so
-a faulty replica cannot exhaust the backend.
+distributed address-space, session, and subscription state. Use authenticated
+and encrypted connections, and provision record-protection keys through a
+Kubernetes Secret or a secret store backed by the Container Storage Interface
+(CSI). For trust decisions and replicated state that must not roll back,
+configure a separate durable freshness authority. Its credentials, membership
+and storage must be outside the authority of the payload-store writer. Record
+encryption alone does not detect a replay or a removed record. Set limits and
+expiration for session and subscription keys so a faulty replica cannot
+exhaust the backend.
 
-Choose one of two deployment modes:
+Choose whether to use the Kubernetes API:
 
-- **With Kubernetes API integration:** use Kubernetes-native Lease election,
-  EndpointSlice discovery, and readiness.
+- **With Kubernetes API integration:** use EndpointSlice discovery and
+  readiness. The Kubernetes Lease adapter can coordinate workloads that do
+  not need to publish guarded address-space writes.
 - **Without Kubernetes API integration:** the in-package Raft/CRDT layers
-  manage membership and leadership.
+  manage membership and replicated storage.
 
 The following sections describe both options.
 
 ## Running with Kubernetes API integration
 
-Use the `Opc.Ua.Redundancy.Kubernetes` extension (`UseKubernetesLeaderElection`, `UseKubernetesPeerDiscovery`, `UseKubernetesReadiness`) when you want Kubernetes-native Lease leader election, EndpointSlice peer discovery, and `ServiceLevel`-driven HTTP readiness. This option calls the Kubernetes API, so it needs a `ServiceAccount` and the [RBAC](#rbac) shown below.
+Use `UseKubernetesPeerDiscovery` and `UseKubernetesReadiness` for
+EndpointSlice discovery and `ServiceLevel`-driven readiness. Discovery
+requires a `ServiceAccount` with the [RBAC](#rbac) shown below. For
+distributed address-space writes, use the freshness store's guarded writer
+lease. The authority must implement `IDeadlineGuardedSharedKeyValueStore`
+so it can verify ownership and expiry when the write commits.
 
 ### Application setup with "full" K8s integration
 
+Register a production payload backend and record protector before adding the
+server. The application-specific factories below must use separately scoped
+credentials and validate the peers of both backends. Enroll the deployment
+as an administrative step with `FreshnessProtectedKeyValueStore.EnrollAsync`
+before starting replicas, not when a replica sees an empty store.
+
 ```csharp
+services.AddSingleton<ISharedKeyValueStore>(CreatePayloadStore);
+services.AddSingleton<IRecordProtector>(CreateRecordProtector);
+services.AddSharedRecordFreshness(CreateFreshnessAuthority, deploymentId, epoch);
+
 services.AddOpcUa()
     .AddServer(server =>
     {
         // endpoint, certificate, and application configuration
     })
     .AddNodeManager<MyNodeManagerFactory>()
+    .UseReplicaNodeIdentity(
+        "opcua-ha",
+        ["urn:example:opcua:machine"],
+        writerAssignedIds: true)
     .UseDistributedAddressSpace(options =>
     {
         options.UseLeaderElection = true;
         options.LeaseDuration = TimeSpan.FromSeconds(30);
         options.RenewInterval = TimeSpan.FromSeconds(10);
         options.NodeId = Environment.GetEnvironmentVariable("HOSTNAME") ?? Environment.MachineName;
+        options.LeaseMemberIds = ["opcua-ha-0", "opcua-ha-1", "opcua-ha-2"];
         // This wires the leader-aware IServiceLevelProvider that UseKubernetesReadiness() consumes.
     })
     .UseDistributedSessions(options =>
@@ -103,11 +130,9 @@ services.AddOpcUa()
     {
         options.Mode = RedundancySupport.Transparent;
         options.CurrentServerId = Environment.GetEnvironmentVariable("HOSTNAME") ?? Environment.MachineName;
-    })
-    .UseKubernetesLeaderElection(options =>
-    {
-        options.LeaseName = "opcua-ha-leader";
-        options.Kubernetes.NodeId = Environment.GetEnvironmentVariable("HOSTNAME") ?? Environment.MachineName;
+        options.TransparentPeerServerIds.Add("opcua-ha-0");
+        options.TransparentPeerServerIds.Add("opcua-ha-1");
+        options.TransparentPeerServerIds.Add("opcua-ha-2");
     })
     .UseKubernetesPeerDiscovery(options =>
     {
@@ -116,6 +141,7 @@ services.AddOpcUa()
     })
     .UseKubernetesReadiness(options =>
     {
+        options.Host = Environment.GetEnvironmentVariable("POD_IP") ?? "localhost";
         options.Port = KubernetesReadinessOptions.DefaultPort; // 4852
         options.ReadinessPath = "/readyz";
         options.LivenessPath = "/livez";
@@ -123,9 +149,9 @@ services.AddOpcUa()
     });
 ```
 
-The example is safe because
-`UseDistributedAddressSpace(... options.UseLeaderElection = true ...)`
-registers a leader-aware `IServiceLevelProvider`.
+`UseDistributedAddressSpace` registers a leader-aware `IServiceLevelProvider`.
+Its writer lease and the replicated state use the same enrolled freshness
+view so a superseded grant cannot publish new data.
 
 If you combine `UseKubernetesLeaderElection()` and
 `UseKubernetesReadiness()` without `UseDistributedAddressSpace()`, register
@@ -133,15 +159,31 @@ your own `IServiceLevelProvider`, for example through
 `AddServerServiceLevel(...)`, before `UseKubernetesReadiness()`. This keeps
 followers from remaining ready.
 
-`UseKubernetesLeaderElection` uses the in-cluster service account token, namespace, and CA mounted at `/var/run/secrets/kubernetes.io/serviceaccount`. Outside Kubernetes it falls back to `SharedStoreLeaseElection` by default (`UseSharedStoreFallback = true`) so local development can still exercise the distributed path. (`UseKubernetes()` registers the shared in-cluster Kubernetes API client that these extensions consume; the leader-election, peer-discovery, and readiness helpers add it automatically, but you can call it directly when adding your own Kubernetes-backed component.)
+`UseKubernetesLeaderElection` uses the in-cluster service account token,
+namespace, and CA mounted at `/var/run/secrets/kubernetes.io/serviceaccount`.
+Do not use a process-local store as a fallback if those files are absent.
+If you explicitly enable a fallback for a separate installation, assign it
+a protected shared lease backend and a common membership list.
 
 ## Running without Kubernetes API integration
 
-The `Opc.Ua.Redundancy.Kubernetes` extension is **optional**. Because the in-package consensus layers self-manage membership and leadership, you can run a fully working HA replica set on Kubernetes with **no Kubernetes API access, RBAC, or ServiceAccount** at all.
+Raft and CRDT replication do not need Kubernetes API access. If the pods
+do not use EndpointSlice discovery or Kubernetes Lease election, they do
+not need the RBAC below and can disable service account token mounting.
+
+The storage choices below do not replace the independently administered
+freshness authority. For distributed address-space writes and the hosted
+replicated event feed, supply a networked authority that implements
+`IDeadlineGuardedSharedKeyValueStore`. The included Raft store can
+replicate payloads but cannot check lease expiry in the same commit.
 
 ### Simple setup option
 
-- **Strong** consistency (via Raft) — `UseRedundancyConsistency(RedundancyConsistencyMode.Strong)` elects a single leader through the Raft protocol itself and provides a linearizable shared store, so no Kubernetes Lease is needed. Deploy the members as a `StatefulSet` with a headless `Service`; each pod derives its Raft node id from the StatefulSet ordinal and reaches its peers by stable pod DNS (`pod-0.svc`, `pod-1.svc`, …). A `RaftCs.Storage.File` WAL on a `PersistentVolumeClaim` lets a restarted pod rejoin without a full snapshot.
+- **Strong** consistency (via Raft) — compose `UseKubernetesRaftConsensus`
+  with `UseRedundancyConsistency(RedundancyConsistencyMode.Strong)`. The
+  consistency builder alone creates private, process-local consensus when no
+  network consensus factory is registered. Give each member its own certificate,
+  a stable transport address, and a `PersistentVolumeClaim` for its Raft WAL.
 - **Eventual** consistency (via CRDT and Raft) — `UseReplicatedAddressSpace`/`UseReplicatedSessions` converge leaderlessly over gossip, so there is no election to coordinate. Point each pod's gossip peer list at the other pods' DNS names (again a headless `Service` over a `StatefulSet`). Exactly-once primitives such as the single-use nonce and the leader lease still ride the in-package Raft keyspace, so "eventual" here is the hybrid CRDT-plus-Raft store rather than pure gossip.
 
 In both cases readiness/liveness can be a plain HTTP probe your app exposes from `Server.ServiceLevel` without `UseKubernetesReadiness`.
@@ -162,6 +204,13 @@ metadata:
   name: opcua-ha
   namespace: opcua
 ---
+apiVersion: coordination.k8s.io/v1
+kind: Lease
+metadata:
+  name: opcua-ha-leader
+  namespace: opcua
+spec: {}
+---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
 metadata:
@@ -170,10 +219,11 @@ metadata:
 rules:
   - apiGroups: ["coordination.k8s.io"]
     resources: ["leases"]
-    verbs: ["get", "create", "update", "patch", "delete"]
+    resourceNames: ["opcua-ha-leader"]
+    verbs: ["get", "update"]
   - apiGroups: ["discovery.k8s.io"]
     resources: ["endpointslices"]
-    verbs: ["get", "list", "watch"]
+    verbs: ["list"]
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
@@ -227,6 +277,29 @@ spec:
 
 For clusters without external load balancers, use `ClusterIP` and place an ingress, gateway, node-level load balancer, or OT/DMZ routing appliance in front. For transparent redundancy, align the OPC UA `ApplicationUri`, endpoint URL, certificate subject alternative names, and trust configuration with the externally visible virtual address.
 
+For Raft, a headless pod address can change on rescheduling. Create one
+ClusterIP Service per Raft member and resolve it through the member endpoint
+callback. Repeat this template for each StatefulSet ordinal:
+
+```yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: opcua-ha-0-raft
+  namespace: opcua
+spec:
+  publishNotReadyAddresses: true
+  selector:
+    statefulset.kubernetes.io/pod-name: opcua-ha-0
+  ports:
+    - name: raft
+      port: 5560
+      targetPort: raft
+```
+
+`publishNotReadyAddresses` prevents a readiness dependency cycle: Raft must
+be able to contact its peers before the replicas can report readiness.
+
 ## StatefulSet or Deployment
 
 A StatefulSet gives stable ordinal names for per-replica endpoints and audit identity. A Deployment is suitable when clients and certificates only use the virtual Service address and no peer URI depends on pod names.
@@ -269,16 +342,21 @@ spec:
                   fieldPath: metadata.name
             - name: HA_FAST_RECONNECT
               value: "true"
-            - name: HA_RECORD_KEY
-              valueFrom:
-                secretKeyRef:
-                  name: opcua-ha-kek
-                  key: record-key
+            - name: HA_RECORD_KEY_FILE
+              value: /var/run/opcua/record-protection/record-key
           ports:
             - name: opcua-tcp
               containerPort: 4840
             - name: health
               containerPort: 4852
+            - name: raft
+              containerPort: 5560
+          volumeMounts:
+            - name: raft-data
+              mountPath: /var/lib/opcua/raft
+            - name: record-protection
+              mountPath: /var/run/opcua/record-protection
+              readOnly: true
           readinessProbe:
             httpGet:
               path: /readyz
@@ -291,9 +369,67 @@ spec:
               port: health
             periodSeconds: 10
             failureThreshold: 3
+      volumes:
+        - name: record-protection
+          secret:
+            secretName: opcua-ha-kek
+            items:
+              - key: record-key
+                path: record-key
+  volumeClaimTemplates:
+    - metadata:
+        name: raft-data
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        resources:
+          requests:
+            storage: 1Gi
 ```
 
-A Deployment variant is nearly identical: replace `kind: StatefulSet` with `kind: Deployment`, remove `serviceName`, and keep the same labels, probes, service account, and ports.
+A Deployment with replaceable pods is only suitable when its backends provide
+the durable state externally. In that case omit the Raft port, volume mount,
+claim template, and `serviceName`.
+
+The StatefulSet shows the pod wiring, not a complete deployment. Configure
+the application certificates, peer trust, and separate freshness authority
+before starting the replicas; the mounted record key does not configure or
+enroll that authority.
+
+### Replica transport NetworkPolicy
+
+The policy below allows traffic between replica pods on the example's Raft
+port and two separately configured TCP gossip ports. Configure address-space
+gossip on 5561 and session gossip on 5562 when deploying both transports.
+Add rules for the OPC UA client endpoint and for kubelet probes according to
+your network plugin and cluster routing. Apply an equivalent peer-only rule
+to the freshness authority with its own selector and credentials.
+
+```yaml
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: opcua-ha-replica-ingress
+  namespace: opcua
+spec:
+  podSelector:
+    matchLabels:
+      app: opcua-ha
+  policyTypes: [Ingress]
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app: opcua-ha
+      ports:
+        - { protocol: TCP, port: 5560 }
+        - { protocol: TCP, port: 5561 }
+        - { protocol: TCP, port: 5562 }
+```
+
+Do not expose these ports from a client-facing Service. Keep necessary egress
+to cluster DNS, the Kubernetes API and each required backend, using rules
+appropriate for the cluster. NetworkPolicy limits reachability; it does not
+authenticate replicas.
 
 ## Readiness and ServiceLevel
 
@@ -303,11 +439,28 @@ For Warm active/passive deployments, `LeaderServiceLevelProvider` normally makes
 
 ## Kubernetes Lease leader election
 
-`UseKubernetesLeaderElection` replaces the registered `ILeaderElection` with `KubernetesLeaseLeaderElection` when running in cluster. The Lease name defaults to `opcua-server-leader`; tune `LeaseDuration` and `RenewInterval` above worst-case scheduling, API-server, and network jitter. Outside Kubernetes, the extension can fall back to the base `SharedStoreLeaseElection` for local testing.
+`UseKubernetesLeaderElection` replaces the registered `ILeaderElection` with
+`KubernetesLeaseLeaderElection` when running in cluster. The Lease name
+defaults to `opcua-server-leader`; make the configured and pre-created names
+match. Tune `LeaseDuration` and `RenewInterval` above worst-case scheduling,
+API-server, and network jitter.
 
-Leader election controls the writer role in `UseDistributedAddressSpace` and can drive `ServiceLevel` through `LeaderServiceLevelProvider`. A graceful shutdown should release the lease and give Kubernetes enough `terminationGracePeriodSeconds` to remove readiness before the pod exits.
+Kubernetes Lease election can drive `ServiceLevel` through a leader-aware
+provider, but it does not guard writes from `UseDistributedAddressSpace`.
+Use the protected writer lease described above for that purpose. Set
+`terminationGracePeriodSeconds` long enough to withdraw readiness and
+release the lease before the pod exits.
 
-For a strongly consistent alternative, `UseRedundancyConsistency` registers a native Raft `ILeaderElection` whose leadership is decided by the Raft consensus protocol itself (one leader per term, no split-brain) instead of a Kubernetes Lease or a lease-CAS. Wire the cluster with `UseKubernetesRaftConsensus` (in `Opc.Ua.Redundancy.Kubernetes`): run the replicas as a StatefulSet with stable network identities and an odd member count (3 or 5) for a fault-tolerant quorum. It maps each pod's StatefulSet ordinal to a Raft node id, resolves peers through the headless Service DNS (`{statefulset}-{i}.{headless}`) over a `NanoMsgBusTransport`, and (by default) places a crash-safe `RaftCs.Storage.File` WAL on a per-pod PersistentVolume so a restarted pod rejoins from its log rather than a full snapshot. Compose it with `UseRedundancyConsistency` so the shared store and election use the cluster:
+Use `UseKubernetesRaftConsensus` with an odd number of authenticated members
+for a Raft-backed shared store. The StatefulSet ordinal plus
+one becomes the Raft member ID. Bind to the pod IP (`POD_IP`), store the file
+WAL on a per-pod volume, and supply pinned member certificates. If pod
+addresses can change, supply `ResolvePeerEndPointAsync` that returns a
+stable address for each member (for example one Service per replica).
+Do not use a Service that can route a peer connection to different members.
+
+The following assumes record protection and the independent freshness
+authority have already been registered as shown above:
 
 ```csharp
 services.AddOpcUa()
@@ -317,9 +470,21 @@ services.AddOpcUa()
         o.HeadlessServiceName = "opcua-ha-headless";
         o.ReplicaCount = 3;                 // static membership; odd for quorum
         o.StoragePath = "/var/lib/opcua/raft"; // PersistentVolume mount
+        o.ResolveMemberCertificateAsync = ResolveRaftMemberCertificateAsync;
+        o.ResolvePeerEndPointAsync = ResolveStableRaftPeerEndpointAsync;
     })
-    .UseRedundancyConsistency(RedundancyConsistencyMode.Strong)
-    .UseDistributedAddressSpace()
+    .UseRedundancyConsistency(options =>
+    {
+        options.Mode = RedundancyConsistencyMode.Strong;
+        options.UseRaftLeaderElection = false; // Guarded writer lease below.
+    })
+    .UseReplicaNodeIdentity("opcua-ha", ["urn:example:opcua:machine"], writerAssignedIds: true)
+    .UseDistributedAddressSpace(options =>
+    {
+        options.UseLeaderElection = true;
+        options.NodeId = Environment.GetEnvironmentVariable("POD_NAME") ?? Environment.MachineName;
+        options.LeaseMemberIds = ["opcua-ha-0", "opcua-ha-1", "opcua-ha-2"];
+    })
     .UseDistributedSessions(s => s.EnableFastReconnect = true);
 ```
 
@@ -341,8 +506,14 @@ metadata:
   namespace: opcua
 type: Opaque
 data:
-  record-key: <base64-of-32-or-more-random-bytes>
+  record-key: "<base64-of-32-random-bytes>"
 ```
+
+Kubernetes decodes `data` when it mounts the Secret. The redundancy server
+sample reads exactly 32 raw bytes from the file at `HA_RECORD_KEY_FILE`.
+Do not use `stringData` with Base64 text: that mounts the text itself rather
+than the key bytes. Set file access for the server identity, or use the
+sample's secret registry integration with your deployment provider.
 
 For transparent redundancy or session fast reconnect, mount the same `ApplicationInstanceCertificate` and private key into every replica because the client signs an `ActivateSession` challenge against one logical application. For non-transparent redundancy, each server may have its own ApplicationUri and certificate and is managed independently by the certificate manager. Never bake private keys, trust lists, or shared store credentials into images.
 
@@ -361,8 +532,11 @@ For non-transparent redundancy, register each server with GDS and include the `N
 ## Security checklist
 
 - Restrict RBAC to the namespace and resources above; add NetworkPolicy so only the OPC UA pods that need it can reach the Kubernetes API and shared store.
-- Protect shared-store traffic with mutual TLS or an equivalent authenticated channel and fail closed if the store is unavailable for state that is required by the selected redundancy mode.
+- Protect shared-store traffic with mutual TLS or an equivalent authenticated
+  channel. If required records cannot be verified against the independent
+  authority, the affected replica must not serve that state.
 - Use `IRecordProtector` with a key ring for shared records; rotate keys without writing plaintext records to the backend.
-- Keep `UseDistributedSessions(... EnableFastReconnect = true)` opt-in and validate that single-use nonce storage is strongly consistent across replicas.
+- Keep `UseDistributedSessions(... EnableFastReconnect = true)` opt-in. Use
+  signed SecureChannels and a shared, freshness-protected session store.
 - Apply TTLs, eviction, and keyspace quotas for session, nonce, subscription, and retransmission keys.
 - Run readiness from `ServiceLevel` rather than a raw TCP probe when clients should only reach the active or healthy server.

@@ -1316,7 +1316,7 @@ namespace Opc.Ua.Server.Tests
             foreignManager.Setup(value => value.NamespaceUris).Returns([ForeignNamespaceUri]);
             foreignManager.Setup(value => value.GetManagerHandleAsync(
                     foreignTarget.NodeId, It.IsAny<CancellationToken>()))
-                .Returns(new ValueTask<object>(foreignTarget));
+                .Returns(new ValueTask<object?>(foreignTarget));
             foreignManager.Setup(value => value.DeleteReferenceAsync(
                     foreignTarget, ReferenceTypeIds.HasCause, true, id, false, It.IsAny<CancellationToken>()))
                 .Returns(() =>
@@ -1334,7 +1334,7 @@ namespace Opc.Ua.Server.Tests
                 .Returns(new Mock<ICoreNodeManager>().Object);
             m_mockServer.Setup(value => value.MainNodeManagerFactory).Returns(factory.Object);
             using var master = new MasterNodeManager(
-                m_mockServer.Object, m_configuration, null, [foreignManager.Object]);
+                m_mockServer.Object, m_configuration, null, [manager, foreignManager.Object]);
             m_mockServer.Setup(value => value.NodeManager).Returns(master);
             m_mockServer.Invocations.Clear();
 
@@ -2155,7 +2155,7 @@ namespace Opc.Ua.Server.Tests
             NodeId nodeID = await manager.AddNodeAsync(context, default, baseObject).ConfigureAwait(false);
 
             // Act
-            object handle = await manager.GetManagerHandleAsync(baseObject.NodeId).ConfigureAwait(false);
+            object handle = (await manager.GetManagerHandleAsync(baseObject.NodeId).ConfigureAwait(false))!;
 
             // Assert
             Assert.That(nodeID, Is.Not.EqualTo(NodeId.Null));
@@ -2164,7 +2164,7 @@ namespace Opc.Ua.Server.Tests
             Assert.That(nodeHandle!.NodeId, Is.EqualTo(baseObject.NodeId));
             Assert.That(nodeHandle.Node, Is.SameAs(baseObject));
             Assert.That(nodeHandle.Validated, Is.True);
-            object invalidHandle = await manager.GetManagerHandleAsync(ObjectIds.Server).ConfigureAwait(false);
+            object? invalidHandle = await manager.GetManagerHandleAsync(ObjectIds.Server).ConfigureAwait(false);
             Assert.That(invalidHandle, Is.Null);
         }
 
@@ -2192,12 +2192,12 @@ namespace Opc.Ua.Server.Tests
 
             await manager.AddNodeAsync(context, default, variable).ConfigureAwait(false);
 
-            object handle = await manager.GetManagerHandleAsync(variable.NodeId).ConfigureAwait(false);
+            object handle = (await manager.GetManagerHandleAsync(variable.NodeId).ConfigureAwait(false))!;
 
-            NodeMetadata metadata = await manager.GetNodeMetadataAsync(
+            NodeMetadata metadata = (await manager.GetNodeMetadataAsync(
                 new OperationContext(new RequestHeader(), null, RequestType.Read, RequestLifetime.None),
                 handle,
-                BrowseResultMask.All).ConfigureAwait(false);
+                BrowseResultMask.All).ConfigureAwait(false))!;
 
             Assert.That(metadata, Is.Not.Null);
             Assert.That(metadata.NodeClass, Is.EqualTo(NodeClass.Variable));
@@ -2388,7 +2388,7 @@ namespace Opc.Ua.Server.Tests
             child.BrowseName = new QualifiedName("TranslateChild", nsIdx);
             await manager.AddNodeAsync(context, parent.NodeId, child).ConfigureAwait(false);
 
-            object handle = await manager.GetManagerHandleAsync(parent.NodeId).ConfigureAwait(false);
+            object handle = (await manager.GetManagerHandleAsync(parent.NodeId).ConfigureAwait(false))!;
             var targetIds = new List<ExpandedNodeId>();
             var unresolved = new List<NodeId>();
 
@@ -2432,7 +2432,7 @@ namespace Opc.Ua.Server.Tests
             child.BrowseName = new QualifiedName("Child", nsIdx);
             await manager.AddNodeAsync(context, parent.NodeId, child).ConfigureAwait(false);
 
-            object handle = await manager.GetManagerHandleAsync(parent.NodeId).ConfigureAwait(false);
+            object handle = (await manager.GetManagerHandleAsync(parent.NodeId).ConfigureAwait(false))!;
             var continuationPoint = new ContinuationPoint
             {
                 NodeToBrowse = handle,
@@ -2478,7 +2478,7 @@ namespace Opc.Ua.Server.Tests
             parent.BrowseName = new QualifiedName("ViewParamParent", nsIdx);
             await manager.AddNodeAsync(context, default, parent).ConfigureAwait(false);
 
-            object handle = await manager.GetManagerHandleAsync(parent.NodeId).ConfigureAwait(false);
+            object handle = (await manager.GetManagerHandleAsync(parent.NodeId).ConfigureAwait(false))!;
             var continuationPoint = new ContinuationPoint
             {
                 NodeToBrowse = handle,
@@ -2533,7 +2533,7 @@ namespace Opc.Ua.Server.Tests
                 children,
                 created => browser = created).ConfigureAwait(false);
 
-            object handle = await manager.GetManagerHandleAsync(parent.NodeId).ConfigureAwait(false);
+            object handle = (await manager.GetManagerHandleAsync(parent.NodeId).ConfigureAwait(false))!;
             var continuationPoint = new ContinuationPoint
             {
                 NodeToBrowse = handle,
@@ -2599,7 +2599,7 @@ namespace Opc.Ua.Server.Tests
                 children,
                 created => browser = created).ConfigureAwait(false);
 
-            object handle = await manager.GetManagerHandleAsync(parent.NodeId).ConfigureAwait(false);
+            object handle = (await manager.GetManagerHandleAsync(parent.NodeId).ConfigureAwait(false))!;
             var targetIds = new List<ExpandedNodeId>();
             var unresolved = new List<NodeId>();
             var relativePath = new RelativePathElement
@@ -2853,7 +2853,7 @@ namespace Opc.Ua.Server.Tests
                 new QualifiedName("RuntimeChild", ns),
                 child).ConfigureAwait(false);
 
-            object handle = await manager.GetManagerHandleAsync(parent.NodeId).ConfigureAwait(false);
+            object handle = (await manager.GetManagerHandleAsync(parent.NodeId).ConfigureAwait(false))!;
             var continuationPoint = new ContinuationPoint
             {
                 NodeToBrowse = handle,
@@ -4146,7 +4146,7 @@ namespace Opc.Ua.Server.Tests
             source.AddReference(ReferenceTypeIds.Organizes, false, target.NodeId);
             target.AddReference(ReferenceTypeIds.Organizes, true, source.NodeId);
 
-            object handle = await manager.GetManagerHandleAsync(source.NodeId).ConfigureAwait(false);
+            object handle = (await manager.GetManagerHandleAsync(source.NodeId).ConfigureAwait(false))!;
 
             ServiceResult result = await manager.DeleteReferenceAsync(
                 handle,
@@ -6882,7 +6882,7 @@ namespace Opc.Ua.Server.Tests
 
             await manager.AddNodeAsync(context, default, node).ConfigureAwait(false);
 
-            object handle = await manager.GetManagerHandleAsync(node.NodeId).ConfigureAwait(false);
+            object handle = (await manager.GetManagerHandleAsync(node.NodeId).ConfigureAwait(false))!;
             var cache = new Dictionary<NodeId, Variant[]>
             {
                 [node.NodeId] = []
@@ -7278,7 +7278,7 @@ namespace Opc.Ua.Server.Tests
             eventSource.EventNotifier = EventNotifiers.SubscribeToEvents;
             await manager.AddNodeAsync(context, default, eventSource).ConfigureAwait(false);
 
-            object handle = await manager.GetManagerHandleAsync(eventSource.NodeId).ConfigureAwait(false);
+            object handle = (await manager.GetManagerHandleAsync(eventSource.NodeId).ConfigureAwait(false))!;
             var monitoredItem = new TestEventMonitoredItem
             {
                 NodeId = eventSource.NodeId,
@@ -7319,7 +7319,7 @@ namespace Opc.Ua.Server.Tests
             eventSource.EventNotifier = EventNotifiers.SubscribeToEvents;
             await manager.AddNodeAsync(context, default, eventSource).ConfigureAwait(false);
 
-            object handle = await manager.GetManagerHandleAsync(eventSource.NodeId).ConfigureAwait(false);
+            object handle = (await manager.GetManagerHandleAsync(eventSource.NodeId).ConfigureAwait(false))!;
             var monitoredItem = new TestEventMonitoredItem
             {
                 NodeId = eventSource.NodeId,
@@ -7359,7 +7359,7 @@ namespace Opc.Ua.Server.Tests
             nonEventSource.EventNotifier = EventNotifiers.None; // no subscribe flag
             await manager.AddNodeAsync(context, default, nonEventSource).ConfigureAwait(false);
 
-            object handle = await manager.GetManagerHandleAsync(nonEventSource.NodeId).ConfigureAwait(false);
+            object handle = (await manager.GetManagerHandleAsync(nonEventSource.NodeId).ConfigureAwait(false))!;
             var monitoredItem = new TestEventMonitoredItem { NodeId = nonEventSource.NodeId, Id = 77 };
 
             ServiceResult result = await manager.SubscribeToEventsAsync(
@@ -7390,7 +7390,7 @@ namespace Opc.Ua.Server.Tests
             await manager.AddNodeAsync(context, default, notifier).ConfigureAwait(false);
             await manager.AddRootNotifierPublicAsync(notifier).ConfigureAwait(false);
 
-            object handle = await manager.GetManagerHandleAsync(notifier.NodeId).ConfigureAwait(false);
+            object handle = (await manager.GetManagerHandleAsync(notifier.NodeId).ConfigureAwait(false))!;
             var monitoredItem = new TestEventMonitoredItem
             {
                 NodeId = notifier.NodeId,
@@ -7427,7 +7427,7 @@ namespace Opc.Ua.Server.Tests
             eventSource.EventNotifier = EventNotifiers.SubscribeToEvents;
             await manager.AddNodeAsync(context, default, eventSource).ConfigureAwait(false);
 
-            object handle = await manager.GetManagerHandleAsync(eventSource.NodeId).ConfigureAwait(false);
+            object handle = (await manager.GetManagerHandleAsync(eventSource.NodeId).ConfigureAwait(false))!;
             var monitoredItem = new TestEventMonitoredItem
             {
                 NodeId = eventSource.NodeId,
@@ -10534,7 +10534,7 @@ namespace Opc.Ua.Server.Tests
                                 break;
                             }
                             case 2: // Browse folder for children
-                                object browseHandle = await manager.GetManagerHandleAsync(folder.NodeId).ConfigureAwait(false);
+                                object browseHandle = (await manager.GetManagerHandleAsync(folder.NodeId).ConfigureAwait(false))!;
                                 if (browseHandle != null)
                                 {
                                     var cp = new ContinuationPoint
@@ -11266,9 +11266,49 @@ namespace Opc.Ua.Server.Tests
         }
 
         /// <summary>
+        /// Creates a testable asynchronous node manager that lets the base class choose its logger.
+        /// </summary>
+        public TestableAsyncCustomNodeManager(
+           IServerInternal server,
+           ApplicationConfiguration configuration,
+           bool useSamplingGroups,
+           params string[] namespaceUris)
+           : base(server, configuration, useSamplingGroups, namespaceUris)
+        {
+            m_testServer = server;
+        }
+
+        /// <summary>
         /// Gets the logger used by the node manager.
         /// </summary>
         public ILogger Logger => m_logger;
+
+        /// <summary>
+        /// Returns the nodes reported to <see cref="OnPredefinedNodeAdded"/> since
+        /// the last call, in call order, and clears them.
+        /// </summary>
+        public NodeState[] TakePredefinedNodeAddedNotifications()
+        {
+            lock (m_predefinedNodeAddedLock)
+            {
+                NodeState[] nodes = [.. m_predefinedNodeAddedNotifications];
+                m_predefinedNodeAddedNotifications.Clear();
+                return nodes;
+            }
+        }
+
+        /// <inheritdoc/>
+        protected override void OnPredefinedNodeAdded(ISystemContext context, NodeState node)
+        {
+            base.OnPredefinedNodeAdded(context, node);
+            lock (m_predefinedNodeAddedLock)
+            {
+                m_predefinedNodeAddedNotifications.Add(node);
+            }
+        }
+
+        private readonly Lock m_predefinedNodeAddedLock = new();
+        private readonly List<NodeState> m_predefinedNodeAddedNotifications = [];
 
         /// <summary>
         /// Gets the registered predefined nodes for fixture inspection.
@@ -12869,7 +12909,7 @@ namespace Opc.Ua.Server.Tests
         /// <summary>
         /// Resolves a manager handle through the asynchronous adapter.
         /// </summary>
-        public ValueTask<object> GetManagerHandleAsync(NodeId nodeId, CancellationToken cancellationToken = default)
+        public ValueTask<object?> GetManagerHandleAsync(NodeId nodeId, CancellationToken cancellationToken = default)
         {
             return m_adapter.GetManagerHandleAsync(nodeId, cancellationToken);
         }
@@ -12902,7 +12942,7 @@ namespace Opc.Ua.Server.Tests
         /// <summary>
         /// Retrieves node metadata through the asynchronous adapter.
         /// </summary>
-        public ValueTask<NodeMetadata> GetNodeMetadataAsync(
+        public ValueTask<NodeMetadata?> GetNodeMetadataAsync(
             OperationContext context,
             object targetHandle,
             BrowseResultMask resultMask,

@@ -134,6 +134,26 @@ namespace Opc.Ua.Server.Hosting
             = [];
 
         /// <summary>
+        /// What an anonymous session may do with nodes that carry no
+        /// <c>RolePermissions</c>, in namespaces other than namespace 0 that
+        /// configure no <c>DefaultRolePermissions</c>. Defaults to
+        /// <see cref="AnonymousAccess.ReadOnly"/>: anonymous sessions browse,
+        /// read and receive events, while writes, method calls, history
+        /// updates and node management need an authenticated user.
+        /// </summary>
+        /// <remarks>
+        /// The hosted server applies
+        /// <see cref="ServerDefaultRolePermissions.AnonymousReadOnly"/> as the
+        /// server-wide namespace default. To grant an anonymous session more
+        /// on selected nodes, set <c>RolePermissions</c> on those nodes or
+        /// <c>DefaultRolePermissions</c> on the namespace metadata; both
+        /// override this default. <see cref="AnonymousAccess.Unrestricted"/>
+        /// restores the behavior of earlier versions and is applied even when
+        /// loading an XML configuration.
+        /// </remarks>
+        public AnonymousAccess AnonymousAccess { get; set; } = AnonymousAccess.ReadOnly;
+
+        /// <summary>
         /// Server-side identity authenticators and trusted JWT issuers.
         /// </summary>
         public OpcUaServerIdentityOptions Identity { get; set; } = new();

@@ -3,14 +3,15 @@
 
 using System;
 using System.Collections.Generic;
+using System.Threading;
+using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 
 namespace Opc.Ua.PubSub.Security.Sks
 {
     /// <summary>
     /// Adapts an <see cref="IPubSubKeyServiceServer"/> to the
-    /// classic synchronous OPC UA NodeManager method-handler
-    /// signature so it can be mounted on the
+    /// OPC UA NodeManager method-handler signatures so it can be mounted on the
     /// <c>PubSubKeyServiceType.GetSecurityKeys</c> method node.
     /// </summary>
     /// <remarks>
@@ -54,11 +55,8 @@ namespace Opc.Ua.PubSub.Security.Sks
         /// <c>[SecurityPolicyUri, FirstTokenId, Keys, TimeToNextKey, KeyLifetime]</c>.
         /// </summary>
         /// <remarks>
-        /// This is the single sanctioned sync-over-async bridge in
-        /// the SKS surface: the legacy OPC UA NodeManager
-        /// method-handler contract is synchronous. A future async
-        /// node-manager API will replace this with a fully
-        /// asynchronous handler.
+        /// Retained for process-local SKS bindings using the legacy synchronous contract.
+        /// Bind <see cref="HandleGetSecurityKeysAsync"/> when using a coordinated store.
         /// </remarks>
         /// <param name="context">System context.</param>
         /// <param name="objectId">
@@ -74,13 +72,37 @@ namespace Opc.Ua.PubSub.Security.Sks
             IList<Variant> inputArguments,
             IList<Variant> outputArguments)
         {
-            if (context is null)
-            {
-                throw new ArgumentNullException(nameof(context));
-            }
             if (inputArguments is null)
             {
                 throw new ArgumentNullException(nameof(inputArguments));
+            }
+            if (m_keyService is InMemoryPubSubKeyServiceServer { UsesRemoteStore: true })
+            {
+                return new ServiceResult(StatusCodes.BadNotSupported);
+            }
+            return HandleGetSecurityKeysAsync(context, objectId, [.. inputArguments], outputArguments)
+                .AsTask().GetAwaiter().GetResult();
+        }
+
+        /// <summary>
+        /// Asynchronously invokes the SKS and projects its reply onto the GetSecurityKeys output arguments.
+        /// </summary>
+        /// <param name="context">System context.</param>
+        /// <param name="objectId">NodeId of the object the method is called on.</param>
+        /// <param name="inputArguments">Input arguments.</param>
+        /// <param name="outputArguments">Output argument list.</param>
+        /// <param name="cancellationToken">Cancellation token of the method call.</param>
+        /// <returns>Service result.</returns>
+        public async ValueTask<ServiceResult> HandleGetSecurityKeysAsync(
+            ISystemContext context,
+            NodeId objectId,
+            ArrayOf<Variant> inputArguments,
+            IList<Variant> outputArguments,
+            CancellationToken cancellationToken = default)
+        {
+            if (context is null)
+            {
+                throw new ArgumentNullException(nameof(context));
             }
             if (outputArguments is null)
             {
@@ -121,16 +143,23 @@ namespace Opc.Ua.PubSub.Security.Sks
             SksKeyResponse response;
             try
             {
-                response = m_keyService
-                    .GetSecurityKeysAsync(callerIdentity ?? string.Empty, request, callerRoleIds)
-                    .AsTask()
-                    .GetAwaiter()
-                    .GetResult();
+                response = await m_keyService
+                    .GetSecurityKeysAsync(callerIdentity ?? string.Empty, request, callerRoleIds, cancellationToken)
+                    .ConfigureAwait(false);
             }
             catch (OpcUaSksException ex)
             {
                 m_logger.GetSecurityKeysReturned(ex, securityGroupId, ex.Status);
                 return new ServiceResult(ex.Status, new LocalizedText(ex.Message));
+            }
+            catch (ServiceResultException ex)
+            {
+                m_logger.GetSecurityKeysReturned(ex, securityGroupId, ex.StatusCode);
+                return new ServiceResult(ex.StatusCode);
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                throw;
             }
             catch (Exception ex)
             {

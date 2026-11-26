@@ -68,6 +68,26 @@ namespace Opc.Ua.Types.Tests.State
             };
         }
 
+        private static BaseObjectState CreateBinaryNestingTree(bool setValues)
+        {
+            BaseObjectState root = CreateObjectNode();
+            BaseObjectState branch = CreateObjectNode(root, "Branch");
+            branch.NodeId = new NodeId(1001);
+            root.AddChild(branch);
+
+            PropertyState first = CreatePropertyChild(branch, "First");
+            PropertyState second = CreatePropertyChild(branch, "Second");
+            second.NodeId = new NodeId(2001);
+            if (setValues)
+            {
+                first.Value = new Variant(42);
+                second.Value = new Variant(43);
+            }
+            branch.AddChild(first);
+            branch.AddChild(second);
+            return root;
+        }
+
         [TestCase(false)]
         [TestCase(true)]
         public void CopyOwnsMethodArgumentsAndNestedChildren(bool useClone)
@@ -1076,17 +1096,18 @@ namespace Opc.Ua.Types.Tests.State
         /// compiler allocates a closure at the entry of the method whose parameters it captures,
         /// so the executor call lives in a helper that only bound nodes reach.
         /// </summary>
-        [Test]
-        public async Task UnboundClearChangeMasksAsyncDoesNotAllocateAsync()
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task UnboundClearChangeMasksAsyncDoesNotAllocateAsync(bool includeChildren)
         {
 #if DEBUG
             Assert.Ignore("Debug builds compile async state machines as classes, which allocate.");
 #endif
             BaseObjectState node = CreateObjectNode();
-            await node.ClearChangeMasksAsync(m_context, false).ConfigureAwait(false);
+            await node.ClearChangeMasksAsync(m_context, includeChildren).ConfigureAwait(false);
 
             long before = GC.GetAllocatedBytesForCurrentThread();
-            ValueTask clear = node.ClearChangeMasksAsync(m_context, false);
+            ValueTask clear = node.ClearChangeMasksAsync(m_context, includeChildren);
             long allocated = GC.GetAllocatedBytesForCurrentThread() - before;
 
             Assert.That(clear.IsCompleted, Is.True);
@@ -2684,6 +2705,105 @@ namespace Opc.Ua.Types.Tests.State
             var loadedChildren = new List<BaseInstanceState>();
             loaded.GetChildren(m_context, loadedChildren);
             Assert.That(loadedChildren, Has.Count.EqualTo(1));
+        }
+
+        [TestCase(false)]
+        [TestCase(true)]
+        public void UpdateChildrenAtBinaryNestingLimitPreservesSiblingValues(bool reuseChildren)
+        {
+            BaseObjectState original = CreateBinaryNestingTree(setValues: true);
+            using var encoder = new BinaryEncoder(m_messageContext);
+            original.SaveChildren(m_context, encoder);
+
+            var messageContext = new ServiceMessageContext(m_messageContext, m_telemetry)
+            {
+                MaxEncodingNestingLevels = 2
+            };
+            using var decoder = new BinaryDecoder(encoder.CloseAndReturnBuffer()!, messageContext);
+            BaseObjectState loaded = reuseChildren
+                ? CreateBinaryNestingTree(setValues: false)
+                : new BaseObjectState(null);
+            QualifiedName branchName = QualifiedName.From("Branch");
+            QualifiedName firstName = QualifiedName.From("First");
+            BaseInstanceState? existingBranch = loaded.FindChild(m_context, branchName);
+            BaseInstanceState? existingFirst = existingBranch?.FindChild(m_context, firstName);
+
+            loaded.UpdateChildren(m_context, decoder);
+
+            BaseInstanceState? branch = loaded.FindChild(m_context, branchName);
+            var first = branch?.FindChild(m_context, firstName) as BaseVariableState;
+            var second = branch?.FindChild(m_context, QualifiedName.From("Second")) as BaseVariableState;
+            Assert.That(first, Is.Not.Null);
+            Assert.That(second, Is.Not.Null);
+            Assert.That(first!.Value, Is.EqualTo(new Variant(42)));
+            Assert.That(second!.Value, Is.EqualTo(new Variant(43)));
+            if (reuseChildren)
+            {
+                Assert.That(branch, Is.SameAs(existingBranch));
+                Assert.That(first, Is.SameAs(existingFirst));
+            }
+        }
+
+        [TestCase(false)]
+        [TestCase(true)]
+        public void UpdateChildrenPastBinaryNestingLimitRestoresDepth(bool reuseChildren)
+        {
+            BaseObjectState original = CreateBinaryNestingTree(setValues: true);
+            BaseObjectState shallow = CreateObjectNode();
+            PropertyState child = CreatePropertyChild(shallow, "Shallow");
+            child.Value = new Variant(42);
+            shallow.AddChild(child);
+
+            using var stream = new MemoryStream();
+            using var encoder = new BinaryEncoder(stream, m_messageContext, true);
+            original.SaveChildren(m_context, encoder);
+            long shallowPosition = stream.Position;
+            shallow.SaveAsBinary(m_context, encoder);
+            encoder.Close();
+            stream.Position = 0;
+
+            var messageContext = new ServiceMessageContext(m_messageContext, m_telemetry)
+            {
+                MaxEncodingNestingLevels = 1
+            };
+            using var decoder = new BinaryDecoder(stream, messageContext, true);
+            BaseObjectState loaded = reuseChildren
+                ? CreateBinaryNestingTree(setValues: false)
+                : new BaseObjectState(null);
+
+            ServiceResultException ex = Assert.Throws<ServiceResultException>(
+                () => loaded.UpdateChildren(m_context, decoder));
+            Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadEncodingLimitsExceeded));
+
+            stream.Position = shallowPosition;
+            NodeState recovered = NodeState.LoadNode(m_context, decoder);
+            var recoveredChild = recovered.FindChild(m_context, child.BrowseName) as BaseVariableState;
+            Assert.That(recoveredChild, Is.Not.Null);
+            Assert.That(recoveredChild!.Value, Is.EqualTo(child.Value));
+        }
+
+        [Test]
+        public void LoadNodeAtZeroBinaryNestingLimitOnlyAcceptsRoot()
+        {
+            PropertyState root = CreatePropertyChild(CreateObjectNode(), "Root");
+            root.Value = new Variant(42);
+            BaseObjectState parent = CreateObjectNode();
+            parent.AddChild(CreatePropertyChild(parent));
+            using var encoder = new BinaryEncoder(m_messageContext);
+            root.SaveAsBinary(m_context, encoder);
+            parent.SaveAsBinary(m_context, encoder);
+
+            var messageContext = new ServiceMessageContext(m_messageContext, m_telemetry)
+            {
+                MaxEncodingNestingLevels = 0
+            };
+            using var decoder = new BinaryDecoder(encoder.CloseAndReturnBuffer()!, messageContext);
+
+            var loaded = (BaseVariableState)NodeState.LoadNode(m_context, decoder);
+            Assert.That(loaded.Value, Is.EqualTo(root.Value));
+            ServiceResultException ex = Assert.Throws<ServiceResultException>(
+                () => NodeState.LoadNode(m_context, decoder));
+            Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadEncodingLimitsExceeded));
         }
 
         [Test]

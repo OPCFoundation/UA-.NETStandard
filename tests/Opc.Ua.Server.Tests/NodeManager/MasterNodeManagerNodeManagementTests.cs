@@ -2564,7 +2564,7 @@ namespace Opc.Ua.Server.Tests
                     It.IsAny<object>(),
                     It.IsAny<BrowseResultMask>(),
                     It.IsAny<CancellationToken>()))
-                .Returns(new ValueTask<NodeMetadata>((NodeMetadata)null!));
+                .Returns(new ValueTask<NodeMetadata?>((NodeMetadata)null!));
         }
 
         /// <summary>
@@ -3266,7 +3266,7 @@ namespace Opc.Ua.Server.Tests
                         It.IsAny<NodeId>(),
                         It.IsAny<CancellationToken>()))
                     .Returns((NodeId requestedNodeId, CancellationToken _) =>
-                        new ValueTask<object>(
+                        new ValueTask<object?>(
                             requestedNodeId == nodeId ? nodeId : null!));
                 manager
                     .Setup(nodeManager => nodeManager.GetPermissionMetadataAsync(
@@ -3290,7 +3290,7 @@ namespace Opc.Ua.Server.Tests
                         It.IsAny<object>(),
                         It.IsAny<BrowseResultMask>(),
                         It.IsAny<CancellationToken>()))
-                    .Returns(new ValueTask<NodeMetadata>(metadata));
+                    .Returns(new ValueTask<NodeMetadata?>(metadata));
                 return manager;
             }
         }

@@ -832,7 +832,7 @@ namespace Opc.Ua.Server.Tests
             nodeManager.SetupGet(value => value.NamespaceUris).Returns([namespaceUri]);
             nodeManager.Setup(value => value.GetManagerHandleAsync(
                     It.Is<NodeId>(id => id == notifier.NodeId), It.IsAny<CancellationToken>()))
-                .Returns<NodeId, CancellationToken>((id, _) => new ValueTask<object>(new NodeHandle(id, notifier)));
+                .Returns<NodeId, CancellationToken>((id, _) => new ValueTask<object?>(new NodeHandle(id, notifier)));
             nodeManager.Setup(value => value.ValidateEventRolePermissionsAsync(
                     It.IsAny<IEventMonitoredItem>(), It.IsAny<IFilterTarget>(), It.IsAny<CancellationToken>()))
                 .Returns(() =>

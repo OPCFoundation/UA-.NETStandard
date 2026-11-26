@@ -9,9 +9,10 @@ namespace Opc.Ua.Redundancy.Kubernetes
     public sealed class KubernetesReadinessOptions
     {
         /// <summary>
-        /// Gets or sets the listener host. Use <c>+</c> to bind all interfaces.
+        /// Gets or sets the listener host. Defaults to loopback. For kubelet probes, set the pod IP.
+        /// Use <c>+</c> only when the probe port is isolated from other traffic.
         /// </summary>
-        public string Host { get; set; } = "+";
+        public string Host { get; set; } = "localhost";
 
         /// <summary>
         /// Gets or sets the listener port. The default is <see cref="DefaultPort"/>.

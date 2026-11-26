@@ -79,10 +79,8 @@ namespace Vision.VisualInspectionCell
             if (operation == Isa95JobOrderOperationV2.StoreAndStart &&
                 (receipt.ReturnStatus & Isa95JobReturnStatus.Success) != 0)
             {
-                Isa95JobOrderReceiptV2 transition = await m_provider.TransitionAsync(
-                    jobOrderId,
-                    Isa95JobExecutionTransition.BeginExecution,
-                    cancellationToken).ConfigureAwait(false);
+                Isa95JobOrderReceiptV2 transition = await StartInspectionAsync(jobOrderId, cancellationToken)
+                    .ConfigureAwait(false);
                 if ((transition.ReturnStatus & Isa95JobReturnStatus.Success) == 0)
                 {
                     return transition;
@@ -138,20 +136,34 @@ namespace Vision.VisualInspectionCell
             {
                 string jobOrderId = order.JobOrderID ??
                     throw new InvalidOperationException("A seeded job order must have an identifier.");
-                _ = await m_provider.ReceiveJobOrderAsync(
+                Isa95JobOrderReceiptV2 stored = await m_provider.ReceiveJobOrderAsync(
                     Isa95JobOrderOperationV2.StoreAndStart,
                     order,
                     cancellationToken: cancellationToken).ConfigureAwait(false);
-                _ = await m_provider.TransitionAsync(
-                    jobOrderId,
-                    Isa95JobExecutionTransition.BeginExecution,
-                    cancellationToken).ConfigureAwait(false);
+                Isa95JobOrderReceiptV2 result = stored.ReturnStatus == Isa95JobReturnStatus.Success
+                    ? await StartInspectionAsync(jobOrderId, cancellationToken).ConfigureAwait(false)
+                    : stored;
+                if (result.ReturnStatus != Isa95JobReturnStatus.Success)
+                {
+                    throw new ServiceResultException(result.Result);
+                }
             }
         }
 
         public void Dispose()
         {
             m_provider.Dispose();
+        }
+
+        private async ValueTask<Isa95JobOrderReceiptV2> StartInspectionAsync(
+            string jobOrderId, CancellationToken cancellationToken)
+        {
+            Isa95JobOrderReceiptV2 ready = await m_provider.TransitionAsync(
+                jobOrderId, Isa95JobExecutionTransition.MarkReady, cancellationToken).ConfigureAwait(false);
+            return ready.ReturnStatus == Isa95JobReturnStatus.Success
+                ? await m_provider.TransitionAsync(jobOrderId, Isa95JobExecutionTransition.BeginExecution,
+                    cancellationToken).ConfigureAwait(false)
+                : ready;
         }
 
         private static IEnumerable<V2.ISA95JobOrderDataType> SeedOrders()

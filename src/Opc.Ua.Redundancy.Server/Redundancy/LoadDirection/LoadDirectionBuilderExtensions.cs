@@ -20,8 +20,10 @@ namespace Opc.Ua.Redundancy.Server
         /// Registers <c>GetEndpoints</c> load direction: peers publish their health <c>ServiceLevel</c>, load weight,
         /// and endpoints to the shared store, and a request on the configured balancing discovery URL is answered with
         /// the best peer's endpoints. Requires a shared store (register <c>UseReplicatedAddressSpace</c> /
-        /// <c>UseRedundancyConsistency</c>); pair with <c>AddServerServiceLevel(...)</c> for a real health signal and
-        /// register an <see cref="ILoadWeightProvider"/> for load-aware balancing. It complements — and never
+        /// <c>UseRedundancyConsistency</c>) and an authenticated <see cref="IRecordProtector"/> for nonlocal stores.
+        /// Only statically configured application URIs are eligible; without them discovery stays local.
+        /// Pair with <c>AddServerServiceLevel(...)</c> for a real health signal and register an
+        /// <see cref="ILoadWeightProvider"/> for load-aware balancing. It complements — and never
         /// replaces — the standard client-driven <c>RedundantServerArray</c> / <c>ServiceLevel</c> Failover.
         /// </summary>
         /// <param name="builder">The server builder.</param>
@@ -51,7 +53,8 @@ namespace Opc.Ua.Redundancy.Server
                 ResolveServiceLevelProvider(sp),
                 sp.GetRequiredService<ILoadWeightProvider>(),
                 options,
-                sp.GetService<ILogger<ServerLoadDirector>>()));
+                sp.GetService<ILogger<ServerLoadDirector>>(),
+                ResolveTimeProvider(sp)));
             builder.Services.AddSingleton<IGetEndpointsDirector>(
                 sp => sp.GetRequiredService<ServerLoadDirector>());
 
@@ -60,7 +63,9 @@ namespace Opc.Ua.Redundancy.Server
                 ResolveProtector(sp),
                 options,
                 sp.GetRequiredService<ServerLoadDirector>(),
-                ResolveTimeProvider(sp)));
+                ResolveTimeProvider(sp),
+                ResolvePeerApplicationUris(sp, options),
+                useHostedPublishing: true));
             builder.Services.AddSingleton<IServerStartupTask>(sp => new PeerDirectionPublishStartupTask(
                 sp.GetRequiredService<ISharedKeyValueStore>(),
                 ResolveProtector(sp),
@@ -85,6 +90,19 @@ namespace Opc.Ua.Redundancy.Server
         private static TimeProvider ResolveTimeProvider(IServiceProvider serviceProvider)
         {
             return serviceProvider.GetService<TimeProvider>() ?? TimeProvider.System;
+        }
+
+        private static ArrayOf<string> ResolvePeerApplicationUris(
+            IServiceProvider serviceProvider,
+            LoadDirectionOptions options)
+        {
+            if (!options.PeerApplicationUris.IsNull)
+            {
+                return options.PeerApplicationUris;
+            }
+
+            ServerRedundancyOptions? configured = serviceProvider.GetService<ServerRedundancyOptions>();
+            return configured == null ? [] : configured.GetPeerApplicationUris();
         }
     }
 }

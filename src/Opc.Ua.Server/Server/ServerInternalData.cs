@@ -43,6 +43,7 @@ namespace Opc.Ua.Server
         IHistoryContinuationPointStoreProvider,
         ITransportListenerRegistryProvider,
         IServerEndpointRegistryProvider,
+        IServerNamespaceDefaultPermissionsProvider,
         IConformanceUnitsManagerProvider,
         IAsyncDisposable,
         ITimeProviderProvider,
@@ -413,6 +414,14 @@ namespace Opc.Ua.Server
         {
             m_serverEndpoints = endpoints;
         }
+
+        /// <summary>
+        /// The role permissions of the nodes without <c>RolePermissions</c> in
+        /// a namespace without <c>DefaultRolePermissions</c>, set by
+        /// <see cref="StandardServer"/> before the node managers start. Empty
+        /// when the server applies no default.
+        /// </summary>
+        public ArrayOf<RolePermissionType> NamespaceDefaultRolePermissions { get; init; }
 
         /// <summary>
         /// The server-wide registry of Part 11 historian providers.
@@ -1306,6 +1315,18 @@ namespace Opc.Ua.Server
             ReportEvent(context, e);
         }
 
+        /// <summary>
+        /// Sets the startup level before the Server object is created and listeners are opened.
+        /// </summary>
+        internal void SetInitialServiceLevel(byte level)
+        {
+            if (ServerObject != null)
+            {
+                throw new InvalidOperationException("Set the initial level before creating the Server object.");
+            }
+            m_initialServiceLevel = level;
+        }
+
         /// <inheritdoc/>
         public Action<byte> ClaimServiceLevelControl()
         {
@@ -1422,7 +1443,7 @@ namespace Opc.Ua.Server
 
             // update server capabilities.
             ServerCapabilitiesState serverCapabilities = serverObject.ServerCapabilities!;
-            serverObject.ServiceLevel!.Value = 255;
+            serverObject.ServiceLevel!.Value = m_initialServiceLevel;
             serverCapabilities.LocaleIdArray!.Value = ResourceManager
                 .GetAvailableLocales();
             serverCapabilities.ServerProfileArray!.Value =
@@ -1905,6 +1926,7 @@ namespace Opc.Ua.Server
         private readonly List<Historian.HistorianBuilder> m_historianBuilders = [];
         private readonly Lock m_historianBuildersLock = new();
         private readonly Lock m_serviceLevelLock = new();
+        private byte m_initialServiceLevel = ServiceLevels.Maximum;
         private ServiceLevelWriter? m_serviceLevelOwner;
 
         /// <summary>

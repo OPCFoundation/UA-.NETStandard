@@ -8,6 +8,7 @@ using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Text;
+using System.Threading;
 using System.Xml;
 using Microsoft.Extensions.Logging;
 using Opc.Ua.Export;
@@ -103,6 +104,16 @@ namespace Opc.Ua.Schema.Model
         /// ModelPublicationDate
         /// </summary>
         public string? ModelPublicationDate { get; set; }
+
+        /// <summary>
+        /// Cancellation for dependency materialization in this validator, never shared cache state.
+        /// </summary>
+        internal CancellationToken DependencyCancellation { get; set; }
+
+        /// <summary>
+        /// Selects assembly payloads after local namespace and explicit-file resolution.
+        /// </summary>
+        internal ModelDependencyResolver? DependencyResolver { get; set; }
 
         /// <summary>
         /// Returns a list of services filter by their service category.
@@ -349,6 +360,14 @@ namespace Opc.Ua.Schema.Model
             // load the design files.
             List<Namespace> namespaces = GetNamespaceList(designFilePaths);
 
+            if (DependencyResolver != null)
+            {
+                foreach (ModelDependencyV1 dependency in DependencyResolver.Resolve(namespaces, DependencyCancellation))
+                {
+                    ImportDependency(dependency, prefix: null, name: null);
+                }
+            }
+
             // Apply any dependency payloads that were registered via ImportDependency()
             // before validation began. Their type entries become visible
             // to the dependency-loading pass below, so downstream
@@ -529,6 +548,10 @@ namespace Opc.Ua.Schema.Model
             // build table of namespaces.
             UpdateNamespaceTables(m_dictionary);
             m_dictionary.TargetXmlNamespace = GetXmlNamespace(m_dictionary.TargetNamespace);
+
+            // Every node name below ends up verbatim in generated code.
+            EnsureNamesAreCodeSafe(m_nodes.Values);
+            EnsureNamespacesAreCodeSafe(m_dictionary.Namespaces);
 
             if (m_dictionary.Items == null || m_dictionary.Items.Length == 0)
             {
@@ -880,6 +903,15 @@ namespace Opc.Ua.Schema.Model
 
             {
                 parameter.ValueRank = ValueRank.Array;
+            }
+            else if (field.ValueRank > NodeSetToModelDesign.MaxValueRank)
+            {
+                // The rank sizes the dimension list below.
+                throw new InvalidDataException(CoreUtils.Format(
+                    "ValueRank {0} of field '{1}' exceeds the maximum of {2} dimensions.",
+                    field.ValueRank,
+                    field.Name,
+                    NodeSetToModelDesign.MaxValueRank));
             }
             else if (field.ValueRank >= 2)
             {
@@ -4514,6 +4546,7 @@ namespace Opc.Ua.Schema.Model
                     s_enumerationQn) ||
                     dataType.IsOptionSet;
                 dataType.BasicDataType = dataType.DetermineBasicDataType();
+                ValidateEnumFieldNamesAreIdentifiers(dataType);
 
                 if (!dataType.IsStructure)
                 {
@@ -4805,6 +4838,137 @@ namespace Opc.Ua.Schema.Model
         /// XML encoder would emit an element nothing can read. Report it against
         /// the design rather than emitting a schema that fails validation.
         /// </summary>
+        /// <summary>
+        /// Rejects node names that are not plain C# identifiers.
+        /// </summary>
+        /// <remarks>
+        /// SymbolicName, SymbolicId and ClassName come verbatim from the
+        /// model (NodeSet2 SymbolicName attribute, ModelDesign attributes,
+        /// referenced model dependency payloads) and are emitted as class,
+        /// member and constant names, inside comments and inside string
+        /// literals without escaping. A name with any other character would at
+        /// best break the build and at worst inject code into the consumer's
+        /// assembly, so the model is rejected instead.
+        /// </remarks>
+        internal static void EnsureNamesAreCodeSafe(IEnumerable<NodeDesign> nodes)
+        {
+            var visited = new HashSet<NodeDesign>();
+            var pending = new Stack<NodeDesign>(nodes);
+            while (pending.Count > 0)
+            {
+                NodeDesign node = pending.Pop();
+                if (node == null || !visited.Add(node))
+                {
+                    continue;
+                }
+
+                EnsureNameIsCodeSafe(node, node.SymbolicName?.Name, "SymbolicName");
+                EnsureNameIsCodeSafe(node, node.SymbolicId?.Name, "SymbolicId");
+                // Only a DataType's ClassName may name a CLR type
+                // (global::Opc.Ua.IEncodeable); every other type's ClassName
+                // is part of a generated class name ("{ClassName}State").
+                EnsureNameIsCodeSafe(
+                    node,
+                    (node as TypeDesign)?.ClassName,
+                    "ClassName",
+                    allowTypeName: node is DataTypeDesign);
+
+                // HasChildren is only set once a node is validated.
+                if (node.Children?.Items != null)
+                {
+                    foreach (NodeDesign child in node.Children.Items)
+                    {
+                        pending.Push(child);
+                    }
+                }
+            }
+        }
+
+        /// <summary>
+        /// Rejects namespace prefixes and names that are not plain C#
+        /// namespace names and identifiers; both are emitted verbatim as
+        /// <c>namespace {Prefix}</c> and <c>Namespaces.{Name}</c>.
+        /// </summary>
+        internal static void EnsureNamespacesAreCodeSafe(IEnumerable<Namespace>? namespaces)
+        {
+            if (namespaces == null)
+            {
+                return;
+            }
+            foreach (Namespace ns in namespaces)
+            {
+                if (ns == null)
+                {
+                    continue;
+                }
+                if (!string.IsNullOrEmpty(ns.Prefix) && !ns.Prefix.IsCodeSafeNamespace())
+                {
+                    throw new InvalidOperationException(CoreUtils.Format(
+                        "The Prefix '{0}' of namespace '{1}' is not a valid C# namespace name. " +
+                        "Use letters, digits and underscores separated by dots.",
+                        ns.Prefix.AsSingleLineCommentText(),
+                        ns.Value.AsSingleLineCommentText()));
+                }
+                if (!string.IsNullOrEmpty(ns.Name) && !ns.Name.IsCodeSafeIdentifier())
+                {
+                    throw new InvalidOperationException(CoreUtils.Format(
+                        "The Name '{0}' of namespace '{1}' is not a valid C# identifier. " +
+                        "Use letters, digits and underscores.",
+                        ns.Name.AsSingleLineCommentText(),
+                        ns.Value.AsSingleLineCommentText()));
+                }
+            }
+        }
+
+        private static void EnsureNameIsCodeSafe(
+            NodeDesign node,
+            string? name,
+            string kind,
+            bool allowTypeName = false)
+        {
+            if (string.IsNullOrEmpty(name) ||
+                name.IsCodeSafeIdentifier() ||
+                (allowTypeName && name.IsCodeSafeTypeName()))
+            {
+                return;
+            }
+            throw new InvalidOperationException(CoreUtils.Format(
+                "The {0} '{1}' of node '{2}' is not a valid C# identifier and cannot be " +
+                "used in generated code. Use letters, digits and underscores.",
+                kind,
+                name.AsSingleLineCommentText(),
+                (node.BrowseName ?? node.SymbolicId?.ToString()).AsSingleLineCommentText()));
+        }
+
+        /// <summary>
+        /// The fields of an enumeration become the members of a generated C#
+        /// enum, named verbatim. A legal XML name can still hold '-', '.' or
+        /// ':' or be a C# keyword, which would make the enum declaration
+        /// invalid, so such a name is rejected.
+        /// </summary>
+        private void ValidateEnumFieldNamesAreIdentifiers(DataTypeDesign dataType)
+        {
+            if (!dataType.IsEnumeration || dataType.Fields == null)
+            {
+                return;
+            }
+
+            foreach (Parameter field in dataType.Fields)
+            {
+                if (field == null || field.Name.IsCodeSafeIdentifier())
+                {
+                    continue;
+                }
+
+                throw Exception(
+                    "The field '{0}' of enumeration '{1}' is not a valid C# identifier " +
+                    "and cannot be used as an enum member. Use letters, digits and " +
+                    "underscores, and no C# keyword.",
+                    field.Name.AsSingleLineCommentText(),
+                    dataType.SymbolicId.Name);
+            }
+        }
+
         private void ValidateFieldNamesAreUsableAsXmlNames(DataTypeDesign dataType)
         {
             if (dataType.Fields == null)
@@ -7153,7 +7317,8 @@ namespace Opc.Ua.Schema.Model
 
             foreach (DependencyNode entry in dependency.Nodes)
             {
-                TypeDesign? design = MaterialiseDependencyNode(entry);
+                DependencyCancellation.ThrowIfCancellationRequested();
+                TypeDesign? design = MaterialiseDependencyNode(entry, DependencyCancellation);
                 if (design == null)
                 {
                     continue;
@@ -7207,7 +7372,7 @@ namespace Opc.Ua.Schema.Model
             m_designFilePaths ??= [];
         }
 
-        private static TypeDesign? MaterialiseDependencyNode(DependencyNode entry)
+        private static TypeDesign? MaterialiseDependencyNode(DependencyNode entry, CancellationToken cancellationToken)
         {
             var symbolicId = new XmlQualifiedName(
                 entry.SymbolicName ?? string.Empty,
@@ -7291,6 +7456,7 @@ namespace Opc.Ua.Schema.Model
                 var parameters = new Parameter[entry.Fields.Count];
                 for (int i = 0; i < entry.Fields.Count; i++)
                 {
+                    cancellationToken.ThrowIfCancellationRequested();
                     DependencyDataField f = entry.Fields[i];
                     parameters[i] = new Parameter
                     {
@@ -7320,7 +7486,7 @@ namespace Opc.Ua.Schema.Model
                 var instanceItems = new InstanceDesign[entry.Children.Count];
                 for (int i = 0; i < entry.Children.Count; i++)
                 {
-                    instanceItems[i] = MaterialiseDependencyChild(symbolicId, entry.Children[i]);
+                    instanceItems[i] = MaterialiseDependencyChild(symbolicId, entry.Children[i], cancellationToken);
                 }
                 design.Children = new ListOfChildren { Items = instanceItems };
                 design.HasChildren = true;
@@ -7335,8 +7501,10 @@ namespace Opc.Ua.Schema.Model
 
         private static InstanceDesign MaterialiseDependencyChild(
             XmlQualifiedName parentSymbolicId,
-            DependencyChild c)
+            DependencyChild c,
+            CancellationToken cancellationToken)
         {
+            cancellationToken.ThrowIfCancellationRequested();
             InstanceDesign instance = c.InstanceKind switch
             {
                 3 => new PropertyDesign(),
@@ -7526,7 +7694,8 @@ namespace Opc.Ua.Schema.Model
                 var descendants = new InstanceDesign[c.Children.Count];
                 for (int index = 0; index < descendants.Length; index++)
                 {
-                    descendants[index] = MaterialiseDependencyChild(instance.SymbolicId, c.Children[index]);
+                    descendants[index] = MaterialiseDependencyChild(
+                        instance.SymbolicId, c.Children[index], cancellationToken);
                     descendants[index].Parent = instance;
                 }
                 instance.Children = new ListOfChildren { Items = descendants };

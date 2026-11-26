@@ -266,7 +266,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                     object handle,
                     BrowseResultMask __,
                     CancellationToken ___) =>
-                    new ValueTask<NodeMetadata>(
+                    new ValueTask<NodeMetadata?>(
                         new NodeMetadata(handle, (NodeId)handle)
                         {
                             NodeClass = nodeClass,

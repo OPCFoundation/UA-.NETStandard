@@ -1,3 +1,8 @@
+<!--
+SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+SPDX-License-Identifier: MIT
+-->
+
 # OPC UA .NET Standard Stack
 
 [![Release](https://img.shields.io/github/v/release/OPCFoundation/UA-.NETStandard?style=flat)](https://github.com/OPCFoundation/UA-.NETStandard/releases)
@@ -63,7 +68,8 @@ across industrial control, manufacturing, energy, and IoT systems.
   OPC 40223 (Pumps and Vacuum Pumps),
   OPC 30010 ([AutoID Devices](docs/AutoID.md)),
   OPC 30500-1 ([Laboratory and Analytical Devices](docs/LADS.md)),
-  OPC 40200 (Weighing Technology) with OPC 30050 (PackML).
+  OPC 40200 (Weighing Technology) with OPC 30050
+  ([PackML](docs/PackML.md), also available as standalone provider-backed units).
 - **Hosting and code generation** — `Microsoft.Extensions.DependencyInjection`
   hosting (`services.AddOpcUa()`), fluent server + client builders,
   source-generated NodeManagers and DataTypes, and an MCP server so
@@ -136,6 +142,9 @@ the companion
 
 - [NodeSet2 to WoT export tool](docs/WotExportTool.md) - a .NET 10 global tool.
   Read local NodeSet2 files and write W3C WoT Thing Models with progress and diagnostic messages.
+  Export ordinary payload schemas, native type names, and separate engineering metadata.
+  Use publisher metadata for explicit names, standalone intent, and assigned CloudEvents contracts.
+  An optional mode produces identifier-safe interaction keys.
 - [UaLens](docs/UaLens.md) — NativeAOT-capable desktop engineering workspace for secure connections,
   monitoring, alarms, structured values, history, administration, PubSub, continuity diagnostics, and guided
   companion-model tasks. See [build and artifact qualification](tools/Opc.Ua.Lens/README.md#publish-and-package).
@@ -195,7 +204,7 @@ Contributors must sign the OPC Foundation
 The CLA "I AGREE" gate is presented automatically on your first PR.
 
 The project is licensed under the
-[MIT License](LICENSE.txt). Report security
+[MIT License](LICENSE). Report security
 vulnerabilities via the process documented in
 [SECURITY.md](SECURITY.md).
 
@@ -203,6 +212,8 @@ vulnerabilities via the process documented in
 
 - [Documentation index](docs/README.md) — every per-feature doc with a
   one-line description.
+- [ISA-95 Job Control](docs/ISA95.md#server-independent-job-control) — reuse orders, responses,
+  conversions, and lifecycle rules without hosting an OPC UA server.
 - [What's New in 2.0](docs/WhatsNewIn2.0.md) — narrative tour of the
   1.5.378 → 2.0 changes grouped by theme and layer.
 - [OPC UA Profiles and Facets](docs/Profiles.md) — facets / transports /

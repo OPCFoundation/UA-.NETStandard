@@ -70,6 +70,7 @@ namespace Opc.Ua.WotCon.Tests.Samples
         /// </remarks>
         [Test]
         [Explicit("Rewrites the checked-in sample documents.")]
+        [NonParallelizable]
         public void WriteThingModels()
         {
             foreach (ModelDocument document in s_modelDocuments)
@@ -78,6 +79,7 @@ namespace Opc.Ua.WotCon.Tests.Samples
                     RepositoryPath(document.SourcePath),
                     document.Title);
                 File.WriteAllBytes(DocumentPath(document.FileName), regenerated);
+                SampleInputCache.Invalidate();
                 TestContext.Out.WriteLine(
                     $"{document.FileName}: {regenerated.Length} bytes");
             }
@@ -109,11 +111,13 @@ namespace Opc.Ua.WotCon.Tests.Samples
         /// </remarks>
         [Test]
         [Explicit("Rewrites the checked-in sample documents.")]
+        [NonParallelizable]
         public void WritePumpThingDescription()
         {
             byte[] regenerated = WotAggregationDocumentGenerator.GeneratePumpThingDescription(
                 DocumentPath("SamplePump.NodeSet2.xml"));
             File.WriteAllBytes(DocumentPath("SamplePump.td.json"), regenerated);
+            SampleInputCache.Invalidate();
             TestContext.Out.WriteLine($"SamplePump.td.json: {regenerated.Length} bytes");
         }
 
@@ -169,6 +173,7 @@ namespace Opc.Ua.WotCon.Tests.Samples
         /// </summary>
         [Test]
         [Explicit("Rewrites only the checked-in projection plans from the retained source documents.")]
+        [NonParallelizable]
         public async Task WriteAssetProjectionDocuments()
         {
             ArrayOf<SampleDocument> projections =
@@ -215,6 +220,7 @@ namespace Opc.Ua.WotCon.Tests.Samples
         /// </summary>
         [Test]
         [Explicit("Rewrites the complete sample manifest and its generated documents.")]
+        [NonParallelizable]
         public async Task WriteCompleteAggregationDocumentsAsync()
         {
             ArrayOf<SampleDocument> documents = await WotAggregationDocumentGenerator
@@ -258,6 +264,7 @@ namespace Opc.Ua.WotCon.Tests.Samples
         /// </remarks>
         [Test]
         [Explicit("Rewrites the checked-in sample documents.")]
+        [NonParallelizable]
         public void RewriteCheckedInJsonDocuments()
         {
             foreach (string path in SampleJsonDocuments())
@@ -272,6 +279,7 @@ namespace Opc.Ua.WotCon.Tests.Samples
                     continue;
                 }
                 File.WriteAllBytes(path, formatted);
+                SampleInputCache.Invalidate();
                 TestContext.Out.WriteLine($"{path}: {formatted.Length} bytes");
             }
         }
@@ -1031,12 +1039,11 @@ namespace Opc.Ua.WotCon.Tests.Samples
             string root = RepositoryPath(string.Empty);
             UANodeSet source = WotAggregationDocumentGenerator.ReadNodeSet(RepositoryPath(
                 Path.Combine("samples", "Di", "PumpDeviceIntegrationServer", "Model", "Opc.Ua.Pumps.NodeSet2.xml")));
-            SampleDocument[] partitions = [.. WotAggregationDocumentGenerator
-                .ReadManifestDocuments(DocumentPath(string.Empty).TrimEnd('\\', '/'))
+            SampleDocument[] partitions = [.. ReadManifestDocuments()
                 .ToList()
                 .Where(document => document.Path.StartsWith("opc-ua-pumps/", StringComparison.Ordinal))];
             WotNodeSetConverterOptions options = WotAggregationDocumentGenerator.CreateLargeDocumentOptions();
-            IWotNodeResolver resolver = WotAggregationDocumentGenerator.CreateCompanionNodeResolver(root);
+            IWotNodeResolver resolver = SampleInputCache.CompanionNodeResolver(root);
             var entries = new List<WotDocumentSetEntry>();
             try
             {
@@ -1860,7 +1867,7 @@ namespace Opc.Ua.WotCon.Tests.Samples
 
         private static ArrayOf<SampleDocument> ReadManifestDocuments()
         {
-            return WotAggregationDocumentGenerator.ReadManifestDocuments(DocumentPath(string.Empty));
+            return SampleInputCache.ManifestDocuments(DocumentPath(string.Empty));
         }
 
         private static ArrayOf<SampleDocument> ReadSubstitutedManifestDocuments()

@@ -19,6 +19,8 @@ nothing else above it (except a `#!` line):
 // SPDX-License-Identifier: MIT
 ```
 
+- The root `LICENSE` is exempt. It starts with `MIT License` so GitHub can
+  recognize the standard license text.
 - Use the file type's own comment syntax: `//` for C#, C, JavaScript, Java,
   Go, Rust; `#` for PowerShell, shell, YAML, Python; `@REM` for `.cmd`;
   `/* */` for CSS and USDA; `<!-- -->` for XML, XSD, AXAML, HTML, SVG and
@@ -32,4 +34,4 @@ nothing else above it (except a `#!` line):
   SHA-256 / git-blob pin that hashes it (provenance.json,
   companion-models.json, model classes, READMEs, tests).
 - NuGet packages declare `PackageLicenseExpression` `MIT` (set once in
-  `common.props`). Never add `PackageLicenseFile` or pack `LICENSE.txt`.
+  `common.props`). Never add `PackageLicenseFile` or pack the root `LICENSE`.

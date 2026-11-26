@@ -248,11 +248,12 @@ QualifiedName dataEncoding,
         }
 
         /// <summary>
-        /// A rejected live policy withdraws previously open nodes and value-only updates cannot reopen them.
+        /// A rejected policy from a watch or its checkpoint withdraws previously open nodes.
         /// </summary>
-        [Test]
+        [TestCase(false)]
+        [TestCase(true)]
         [Category("SecurityRegression")]
-        public async Task SecurityF07InvalidLivePolicyWithdrawsExistingTreeUntilRepairedAsync()
+        public async Task SecurityF07InvalidLivePolicyWithdrawsExistingTreeUntilRepairedAsync(bool liveWatch)
         {
             await using var serverA = new AuthorizationServer();
             await using var serverB = new AuthorizationServer();
@@ -264,7 +265,12 @@ QualifiedName dataEncoding,
             await using var reader = new AddressSpaceSynchronizer(store, serverB.Space, () => false);
             await writer.SeedOrHydrateAsync().ConfigureAwait(false);
             await reader.SeedOrHydrateAsync().ConfigureAwait(false);
-            reader.Start();
+            if (liveWatch)
+            {
+                reader.Start();
+                await AssertEventuallyAsync(
+                    () => reader.IsReady, "the reader should verify its initial state").ConfigureAwait(false);
+            }
             var childId = new NodeId("secure-child", NamespaceIndex);
             DataValue before = await serverB.ReadAsync(
                 childId, ObjectIds.WellKnownRole_AuthenticatedUser).ConfigureAwait(false);
@@ -275,9 +281,20 @@ QualifiedName dataEncoding,
             ByteString complete = NodeStateSerializer.Serialize(serverA.Space.Context, protectedSource);
             byte[] bytes = complete.ToArray();
             Array.Resize(ref bytes, bytes.Length - 1);
-            Task<bool> rejected = WaitForStoreApplyAsync(reader, NodeStateChangeKind.Upsert, source.NodeId);
-            await store.UpsertNodeAsync(new StoredNode(source.NodeId, new ByteString(bytes))).ConfigureAwait(false);
-            await AwaitWithTimeoutAsync(rejected).ConfigureAwait(false);
+            var invalid = new ByteString(bytes);
+            Task<bool> rejected = WaitForStoreApplyAsync(reader, source.NodeId, invalid);
+            await store.UpsertNodeAsync(new StoredNode(source.NodeId, invalid)).ConfigureAwait(false);
+            if (!liveWatch)
+            {
+                reader.Start();
+            }
+            var grandchildId = new NodeId("secure-grandchild", NamespaceIndex);
+            await AssertEventuallyAsync(
+                () => !serverB.Space.TryGetNode(source.NodeId, out _) &&
+                    !serverB.Space.TryGetNode(childId, out _) &&
+                    !serverB.Space.TryGetNode(grandchildId, out _),
+                "the rejected policy should withdraw the live tree").ConfigureAwait(false);
+            Assert.That(reader.IsReady, Is.False);
 
             foreach (string id in new[] { "secure-root", "secure-child", "secure-grandchild" })
             {
@@ -288,16 +305,17 @@ QualifiedName dataEncoding,
                 Assert.That(denied.StatusCode, Is.EqualTo(StatusCodes.BadNodeIdUnknown), id);
             }
 
-            Task<bool> valueApplied = WaitForStoreApplyAsync(reader, NodeStateChangeKind.Value, childId);
             await store.WriteValueAsync(childId, new DataValue(new Variant(99.0))).ConfigureAwait(false);
-            await AwaitWithTimeoutAsync(valueApplied).ConfigureAwait(false);
             DataValue stillDenied = await serverB.ReadAsync(
                 childId, ObjectIds.WellKnownRole_AuthenticatedUser).ConfigureAwait(false);
             Assert.That(stillDenied.StatusCode, Is.EqualTo(StatusCodes.BadNodeIdUnknown));
 
-            Task<bool> repaired = WaitForStoreApplyAsync(reader, NodeStateChangeKind.Upsert, source.NodeId);
             await store.UpsertNodeAsync(new StoredNode(source.NodeId, complete)).ConfigureAwait(false);
-            await AwaitWithTimeoutAsync(repaired).ConfigureAwait(false);
+            await AssertEventuallyAsync(
+                () => reader.IsReady && serverB.Space.TryGetNode(childId, out _),
+                "a verified checkpoint should restore the repaired tree and its latest stored value")
+                .ConfigureAwait(false);
+            Assert.That(rejected.IsCompleted, Is.False, "rejected topology must not be reported as applied");
 
             DataValue restricted = await serverB.ReadAsync(
                 childId, ObjectIds.WellKnownRole_AuthenticatedUser).ConfigureAwait(false);
@@ -791,13 +809,14 @@ QualifiedName dataEncoding,
         /// </summary>
         private static Task<bool> WaitForStoreApplyAsync(
             AddressSpaceSynchronizer synchronizer,
-            NodeStateChangeKind kind,
-            NodeId nodeId)
+            NodeId nodeId,
+            ByteString payload)
         {
             var completion = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
             void OnApplied(NodeStateChange change)
             {
-                if (change.Kind == kind && change.NodeId == nodeId)
+                if (change.Kind == NodeStateChangeKind.Upsert && change.NodeId == nodeId &&
+                    change.Node is { } stored && stored.Payload == payload)
                 {
                     synchronizer.InboundApplied -= OnApplied;
                     completion.TrySetResult(true);

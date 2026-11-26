@@ -139,8 +139,9 @@ namespace Opc.Ua.Security.Pkcs11
         {
             lock (m_lock)
             {
-                m_token?.Dispose();
+                Pkcs11Token? token = m_token;
                 m_token = null;
+                token?.Dispose();
             }
         }
 
@@ -757,13 +758,22 @@ namespace Opc.Ua.Security.Pkcs11
                     foreach (IObjectHandle handle in CandidateKeys(token, CKK.CKK_RSA, ckaId, provePossession))
                     {
                         var rsa = new Pkcs11Rsa(token, handle, parameters);
-
-                        if (!provePossession || SignsFor(rsa))
+                        Certificate? attached = null;
+                        try
                         {
-                            return certificate.CopyWithDetachedPrivateKey(rsa);
+                            if (!provePossession || SignsFor(rsa))
+                            {
+                                attached = certificate.CopyWithDetachedPrivateKey(rsa);
+                                return attached;
+                            }
                         }
-
-                        rsa.Dispose();
+                        finally
+                        {
+                            if (attached == null)
+                            {
+                                rsa.Dispose();
+                            }
+                        }
                     }
 
                     return null;
@@ -779,13 +789,22 @@ namespace Opc.Ua.Security.Pkcs11
                 foreach (IObjectHandle handle in CandidateKeys(token, CKK.CKK_EC, ckaId, provePossession))
                 {
                     var ecdsa = new Pkcs11ECDsa(token, handle, parameters);
-
-                    if (!provePossession || SignsFor(ecdsa))
+                    Certificate? attached = null;
+                    try
                     {
-                        return certificate.CopyWithDetachedPrivateKey(ecdsa);
+                        if (!provePossession || SignsFor(ecdsa))
+                        {
+                            attached = certificate.CopyWithDetachedPrivateKey(ecdsa);
+                            return attached;
+                        }
                     }
-
-                    ecdsa.Dispose();
+                    finally
+                    {
+                        if (attached == null)
+                        {
+                            ecdsa.Dispose();
+                        }
+                    }
                 }
             }
 #pragma warning restore CA2000

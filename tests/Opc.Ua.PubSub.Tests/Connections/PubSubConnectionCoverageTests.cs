@@ -562,6 +562,115 @@ namespace Opc.Ua.PubSub.Tests.Connections
         }
 
         [Test]
+        [Category("SecurityRegression")]
+        public async Task ReceiveLoopAnswersActionWhoseHandlerCanceledItselfAsync()
+        {
+            var transport = new DatagramHarnessTransport(UadpProfile);
+            var encoder = new CapturingEncoder(UadpProfile);
+            var decoder = new QueueDecoder(UadpProfile);
+            await using PubSubConnection connection = CreateConnection(
+                Config(UadpProfile), new SingleTransportFactory(transport, UadpProfile),
+                EncMap(UadpProfile, encoder), DecMap(UadpProfile, decoder),
+                new PubSubDiagnostics(PubSubDiagnosticsLevel.Low));
+
+            connection.RegisterActionHandler(
+                new PubSubActionTarget { DataSetWriterId = 5, ActionTargetId = 3 },
+                new DelegatePubSubActionHandler((invocation, _) =>
+                {
+                    // A handler that gives up on its own work (for example a
+                    // timeout of its own) reports a cancellation although the
+                    // connection was not canceled.
+                    if (invocation.RequestId == 1)
+                    {
+                        throw new OperationCanceledException("The handler timed out.");
+                    }
+                    return new ValueTask<PubSubActionHandlerResult>(
+                        new PubSubActionHandlerResult { StatusCode = StatusCodes.Good });
+                }),
+                allowUnsecured: true);
+
+            await connection.EnableAsync().ConfigureAwait(false);
+            Deliver(transport, decoder, new UadpActionRequestMessage
+            {
+                DataSetWriterId = 5,
+                ActionTargetId = 3,
+                RequestId = 1,
+                ResponseAddress = string.Empty
+            });
+            Deliver(transport, decoder, new UadpActionRequestMessage
+            {
+                DataSetWriterId = 5,
+                ActionTargetId = 3,
+                RequestId = 2,
+                ResponseAddress = string.Empty
+            });
+
+            // Both requests are answered: the first one with an error status.
+            await AwaitBoundedAsync(transport.WaitUntilSentAsync(2), "both action responses")
+                .ConfigureAwait(false);
+            Assert.That(transport.SentPayloads, Has.Count.EqualTo(2));
+        }
+
+        [Test]
+        [Category("SecurityRegression")]
+        public async Task ReceiveLoopSurvivesReceivedMessageSinkThatThrowsAsync()
+        {
+            var transport = new DatagramHarnessTransport(UadpProfile);
+            var encoder = new CapturingEncoder(UadpProfile);
+            var decoder = new QueueDecoder(UadpProfile);
+            await using PubSubConnection connection = CreateConnection(
+                Config(UadpProfile), new SingleTransportFactory(transport, UadpProfile),
+                EncMap(UadpProfile, encoder), DecMap(UadpProfile, decoder),
+                new PubSubDiagnostics(PubSubDiagnosticsLevel.Low));
+            var sink = new CancelingReceivedSink();
+            using IDisposable registration = connection.RegisterReceivedNetworkMessageSink(sink);
+
+            await connection.EnableAsync().ConfigureAwait(false);
+            // Every frame makes the sink throw a cancellation that does not
+            // come from the receive loop; the loop has to keep going.
+            for (int i = 0; i < 3; i++)
+            {
+                Deliver(transport, decoder, new UadpNetworkMessage
+                {
+                    PublisherId = PubSubEncodingPublisherId.FromUInt16(7)
+                });
+            }
+
+            await AwaitBoundedAsync(sink.WaitForCallsAsync(3), "three sink calls")
+                .ConfigureAwait(false);
+            Assert.That(connection.State.State, Is.Not.EqualTo(PubSubState.Error));
+        }
+
+        private sealed class CancelingReceivedSink : Opc.Ua.PubSub.Transcoding.IReceivedNetworkMessageSink
+        {
+            private readonly TaskCompletionSource<bool> m_done =
+                new(TaskCreationOptions.RunContinuationsAsynchronously);
+            private int m_calls;
+            private int m_expected = int.MaxValue;
+
+            public Task<bool> WaitForCallsAsync(int count)
+            {
+                Volatile.Write(ref m_expected, count);
+                if (Volatile.Read(ref m_calls) >= count)
+                {
+                    m_done.TrySetResult(true);
+                }
+                return m_done.Task;
+            }
+
+            public ValueTask OnReceivedAsync(
+                Opc.Ua.PubSub.Transcoding.ReceivedNetworkMessage received,
+                CancellationToken cancellationToken = default)
+            {
+                if (Interlocked.Increment(ref m_calls) >= Volatile.Read(ref m_expected))
+                {
+                    m_done.TrySetResult(true);
+                }
+                throw new OperationCanceledException("The sink gave up on its own operation.");
+            }
+        }
+
+        [Test]
         public async Task ReceiveLoopUadpActionRequestWithoutResponderDropsAsync()
         {
             var transport = new DatagramHarnessTransport(UadpProfile);

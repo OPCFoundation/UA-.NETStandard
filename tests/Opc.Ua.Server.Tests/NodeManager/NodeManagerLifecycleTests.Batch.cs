@@ -100,23 +100,46 @@ namespace Opc.Ua.Server.Tests.NodeManager
         }
 
         /// <summary>
-        /// Retries conformance publication after the lifecycle decision without repeating that decision.
+        /// A failed catalog snapshot must prevent publication and allow a fresh attempt.
         /// </summary>
         [Test]
-        public async Task FailedConformanceGetterRemainsRetryableAfterCommittedAdditionAsync()
+        public async Task FailedConformanceGetterPreventsAdditionUntilRetriedAsync()
         {
             using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(30));
             var failure = new InvalidOperationException("Conformance snapshot unavailable.");
-            bool failing = true;
             int decisions = 0;
-            ArrayOf<QualifiedName> recoveredUnits = [new("Recovered Unit")];
-            Mock<IAsyncNodeManager> manager = CreateLifecycleNodeManager(kModelNamespaceUri + ":ConformanceRetry");
-            manager.As<IConformanceContributor>().SetupGet(value => value.ConformanceUnits)
-                .Returns(() => failing ? throw failure : recoveredUnits);
-            manager.As<IConformanceContributor>().SetupGet(value => value.ServerProfiles)
+            const string modelNamespace = kModelNamespaceUri + ":ConformanceRetry";
+            var unit = new QualifiedName("Recovered Unit");
+            Mock<IAsyncNodeManager> failingManager = CreateLifecycleNodeManager(modelNamespace);
+            failingManager.As<IConformanceContributor>().SetupGet(value => value.ConformanceUnits)
+                .Throws(failure);
+            INodeManagerLifecycle lifecycle = m_server.NodeManagerLifecycle;
+            long originalRevision = lifecycle.Revision;
+            ConformanceUnitsManager conformance =
+                ((IConformanceUnitsManagerProvider)m_server.CurrentInstance).ConformanceUnitsManager!;
+            await using (IPreparedChanges failed = await lifecycle.PrepareAsync(
+                [LifecycleChange.Add(CreateConformanceFactory(failingManager))], timeout.Token).ConfigureAwait(false))
+            {
+                InvalidOperationException? thrown = await Assert.ThrowsAsync<InvalidOperationException>(async () =>
+                    await failed.CommitAsync(
+                        _ =>
+                        {
+                            decisions++;
+                            return default;
+                        },
+                        cancellationToken: timeout.Token).ConfigureAwait(false)).ConfigureAwait(false);
+                Assert.That(thrown, Is.SameAs(failure));
+                Assert.That(decisions, Is.Zero);
+                Assert.That(lifecycle.Revision, Is.EqualTo(originalRevision));
+                Assert.That(conformance.IsSupported(unit), Is.False);
+            }
+
+            Mock<IAsyncNodeManager> recovered = CreateLifecycleNodeManager(modelNamespace);
+            recovered.As<IConformanceContributor>().SetupGet(value => value.ConformanceUnits).Returns([unit]);
+            recovered.As<IConformanceContributor>().SetupGet(value => value.ServerProfiles)
                 .Returns(["urn:test:conformance:recovered"]);
-            await using IPreparedChanges prepared = await m_server.NodeManagerLifecycle.PrepareAsync(
-                [LifecycleChange.Add(CreateConformanceFactory(manager))], timeout.Token).ConfigureAwait(false);
+            await using IPreparedChanges prepared = await lifecycle.PrepareAsync(
+                [LifecycleChange.Add(CreateConformanceFactory(recovered))], timeout.Token).ConfigureAwait(false);
             LifecycleResult result = await prepared.CommitAsync(
                 _ =>
                 {
@@ -125,19 +148,11 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 },
                 cancellationToken: timeout.Token).ConfigureAwait(false);
             Assert.That(result.Registrations.Count, Is.EqualTo(1));
-            Assert.That(result.Issues.Count, Is.EqualTo(1));
-            Assert.That(result.Issues[0].InitialFailure, Is.SameAs(failure));
-            Assert.That(result.Issues[0].IsRetryable, Is.True);
-            long revision = result.Revision;
-            failing = false;
-            await result.RetryReconciliationAsync(timeout.Token).ConfigureAwait(false);
-            ConformanceUnitsManager conformance =
-                ((IConformanceUnitsManagerProvider)m_server.CurrentInstance).ConformanceUnitsManager!;
-            Assert.That(conformance.IsSupported(new QualifiedName("Recovered Unit")), Is.True);
+            Assert.That(conformance.IsSupported(unit), Is.True);
             Assert.That(result.Issues.Count, Is.Zero);
             Assert.That(decisions, Is.EqualTo(1));
-            Assert.That(result.Revision, Is.EqualTo(revision));
-            Assert.That(m_server.NodeManagerLifecycle.Revision, Is.EqualTo(revision));
+            Assert.That(result.Revision, Is.EqualTo(originalRevision + 1));
+            Assert.That(lifecycle.Revision, Is.EqualTo(result.Revision));
         }
 
         [Test]

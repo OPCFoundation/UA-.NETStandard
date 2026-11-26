@@ -51,6 +51,11 @@ namespace Opc.Ua.Wot
         internal const string InstrumentRangeTerm = "uav:instrumentRange";
 
         /// <summary>
+        /// The engineering range, separate from ordinary payload bounds.
+        /// </summary>
+        internal const string EuRangeTerm = "uav:euRange";
+
+        /// <summary>
         /// The <c>uav</c> pointer naming the sibling property affordance that
         /// carries the engineering unit (WoT Binding Section 6.4).
         /// </summary>
@@ -638,7 +643,16 @@ namespace Opc.Ua.Wot
         /// </summary>
         internal static bool MapsEuRange(JsonElement affordance)
         {
-            return TryReadRangeMembers(affordance, out _);
+            return !UsesSeparateEngineeringRange(affordance) && TryReadRangeMembers(affordance, out _);
+        }
+
+        /// <summary>
+        /// Distinguishes named value schemas and explicit engineering ranges from legacy range projections.
+        /// </summary>
+        private static bool UsesSeparateEngineeringRange(JsonElement affordance)
+        {
+            return affordance.TryGetProperty(EuRangeTerm, out _) ||
+                affordance.TryGetProperty("uav:typeName", out _);
         }
 
         /// <summary>
@@ -949,7 +963,8 @@ namespace Opc.Ua.Wot
                 AttachUnitProperty(
                     document, affordance.Value, owner, propertyNodeIds, index,
                     rootNodeId, rootReferences, diagnostics);
-                if (TryReadRangeMembers(affordance.Value, out WotRange euRange))
+                if (!UsesSeparateEngineeringRange(affordance.Value) &&
+                    TryReadRangeMembers(affordance.Value, out WotRange euRange))
                 {
                     MaterializeRange(
                         document, affordance.Value, nodeSet, owner, EuRangeBrowseName, euRange, rootLocal, local,

@@ -290,7 +290,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             harness.Manager.Setup(value => value.GetManagerHandleAsync(
                     It.IsAny<NodeId>(), It.IsAny<CancellationToken>()))
                 .Returns((NodeId id, CancellationToken _) =>
-                    new ValueTask<object>(new NodeHandle { NodeId = id }));
+                    new ValueTask<object?>(new NodeHandle { NodeId = id }));
             harness.Manager.Setup(value => value.TranslateBrowsePathAsync(
                     It.IsAny<OperationContext>(), It.IsAny<object>(), It.IsAny<RelativePathElement>(),
                     It.IsAny<IList<ExpandedNodeId>>(), It.IsAny<IList<NodeId>>(), It.IsAny<CancellationToken>()))
