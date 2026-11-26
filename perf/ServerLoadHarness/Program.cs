@@ -600,7 +600,8 @@ namespace Opc.Ua.Perf.ServerLoadHarness
             // shared: classic Sessions whose secure channels come from one ClientChannelManager.
             string clientKind = Arg("client", "managed");
             bool connectScenario = scenario is "connect" or "channel";
-            ConfiguredEndpoint? endpointForBuilder = clientKind is "managed" or "shared" || connectScenario
+            ConfiguredEndpoint? endpointForBuilder = clientKind is "managed" or "shared" || connectScenario ||
+                (lifecycleScenario && ArgInt("probe", 0) > 0)
                 ? await client.GetEndpointAsync(new Uri(url), policy, selected).ConfigureAwait(false)
                 : null;
             var channelManager = new ClientChannelManager(client.Config, telemetry);
@@ -693,7 +694,10 @@ namespace Opc.Ua.Perf.ServerLoadHarness
                     ArgInt("read-nodes", 16),
                     ArgInt("lc-sampling", 100),
                     ArgInt("probe", 0),
-                    ArgInt("probe", 0) > 0 ? _ => client.ConnectAsync(new Uri(url), policy, selected) : null,
+                    ArgInt("probe", 0) > 0
+                        ? ct => client.SessionFactory.CreateAsync(
+                            client.Config, endpointForBuilder!, false, false, "PerfProbe", 60000, null, default, ct)
+                        : null,
                     FormattableString.Invariant(
                         $"lifecycle start {ArgInt("lc-interval", 2000)} {Arg("lc-mode", "alternate")} {ArgInt("lc-remove-every", 5)} ") +
                     FormattableString.Invariant($"{ArgInt("lc-abort-every", 0)} {ArgInt("lc-workers", 1)}"))

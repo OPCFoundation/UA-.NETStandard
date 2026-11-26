@@ -71,6 +71,16 @@ namespace Opc.Ua.Perf.ServerLoadHarness
             {
                 await m_load.SetupAsync().ConfigureAwait(false);
             }
+            if (m_monitor != null && m_monitor is not ManagedSession)
+            {
+                throw new InvalidOperationException(
+                    "--lc-monitor needs --client managed; pass --lc-monitor 0 with classic or shared sessions.");
+            }
+            if (m_nodeManagementInterval > 0 && m_monitor == null && m_readers.Length == 0)
+            {
+                throw new InvalidOperationException(
+                    "--addnodes runs on the monitor or the first reader session; use --lc-monitor 1 or --readers 1 or more.");
+            }
             ISession? first = m_readers.FirstOrDefault() ?? m_monitor;
             if (first == null)
             {

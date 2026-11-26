@@ -183,7 +183,12 @@ namespace Opc.Ua.Perf.ServerLoadHarness
                     operation++;
                     try
                     {
-                        if (abortEvery > 0 && operation % abortEvery == 0)
+                        if (m_slots[index] == null)
+                        {
+                            // an earlier re-add failed: retry it before churning this index again
+                            await AddAsync(index).ConfigureAwait(false);
+                        }
+                        else if (abortEvery > 0 && operation % abortEvery == 0)
                         {
                             await AbortAsync(index, ct).ConfigureAwait(false);
                         }
@@ -197,7 +202,7 @@ namespace Opc.Ua.Perf.ServerLoadHarness
                             {
                                 "migrate" => NodeManagerMonitoredItemTransitionMode.Migrate,
                                 "invalidate" => NodeManagerMonitoredItemTransitionMode.Invalidate,
-                                _ => operation / Math.Max(1, workers) % 2 == 0
+                                _ => operation % 2 == 0
                                     ? NodeManagerMonitoredItemTransitionMode.Migrate
                                     : NodeManagerMonitoredItemTransitionMode.Invalidate
                             };
@@ -236,10 +241,17 @@ namespace Opc.Ua.Perf.ServerLoadHarness
         private async Task RemoveAndAddAsync(int index, CancellationToken ct)
         {
             NodeManagerSlot slot = m_slots[index] ?? throw new InvalidOperationException("Slot not added.");
-            m_slots[index] = null;
+            // the slot stays live until the removal commits; a failed removal leaves it in place
             await ApplyAsync([LifecycleChange.Remove(slot)], ct).ConfigureAwait(false);
+            m_slots[index] = null;
             Interlocked.Increment(ref m_removes);
-            // the namespace stays registered; the next generation reuses its index
+            await AddAsync(index).ConfigureAwait(false);
+        }
+
+        private async Task AddAsync(int index)
+        {
+            // the namespace stays registered; the next generation reuses its index. A failed add
+            // leaves the slot null, and the worker retries the add on its next turn at this index.
             LifecycleResult added = await ApplyAsync([LifecycleChange.Add(CreateFactory(index))], CancellationToken.None)
                 .ConfigureAwait(false);
             m_slots[index] = added.Registrations[0].Slot;
