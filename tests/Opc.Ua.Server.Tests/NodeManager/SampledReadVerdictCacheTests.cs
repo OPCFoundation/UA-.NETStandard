@@ -149,6 +149,33 @@ namespace Opc.Ua.Server.Tests.NodeManager
         }
 
         /// <summary>
+        /// N6: a sampled node removed while its role check runs leaves nothing of that cycle: the
+        /// value read from the removed instance is not queued and the next cycle reads and
+        /// validates again.
+        /// </summary>
+        [Test]
+        public async Task NodeDeletedDuringRoleCheckDiscardsTheCycleAsync()
+        {
+            await using var harness = new Harness();
+            harness.AfterSample(2, () =>
+            {
+                // forces the next cycle to run the role check, during which the node is removed.
+                harness.Change("IdentityGeneration");
+                harness.Owner.OnNextRoleCheck(() =>
+                {
+                    harness.Node.UpdateChangeMasks(NodeStateChangeMasks.Deleted);
+                    harness.Node.Value = 43;
+                });
+            });
+            await harness.StartAsync().ConfigureAwait(false);
+            await harness.WaitForSampleAsync(3).ConfigureAwait(false);
+
+            Assert.That(harness.Value(2), Is.EqualTo(new Variant(42)));
+            Assert.That(harness.Status(3), Is.EqualTo(StatusCodes.Good));
+            Assert.That(harness.Value(3), Is.EqualTo(new Variant(43)), "the stale cycle's value was queued");
+        }
+
+        /// <summary>
         /// A bad verdict is never reused: every denied sample runs the full check, so the first
         /// sample after the channel is upgraded again is delivered.
         /// </summary>
@@ -745,8 +772,32 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 return base.IsHandleInNamespace(managerHandle);
             }
 
+            /// <inheritdoc/>
+            public override async ValueTask<ServiceResult> ValidateRolePermissionsAsync(
+                OperationContext operationContext,
+                NodeId nodeId,
+                PermissionType requestedPermission,
+                CancellationToken cancellationToken = default)
+            {
+                ServiceResult result = await base.ValidateRolePermissionsAsync(
+                    operationContext, nodeId, requestedPermission, cancellationToken).ConfigureAwait(false);
+                Interlocked.Exchange(ref m_onNextRoleCheck, null)?.Invoke();
+                return result;
+            }
+
+            /// <summary>
+            /// Runs an action once, at the end of the next role permission check.
+            /// </summary>
+            public void OnNextRoleCheck(Action action)
+            {
+                Volatile.Write(ref m_onNextRoleCheck, action);
+            }
+
             /// <summary>Exact-source authorization count.</summary>
             private int m_checks;
+
+            /// <summary>One-shot action run at the end of the next role permission check.</summary>
+            private Action? m_onNextRoleCheck;
         }
     }
 }

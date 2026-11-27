@@ -829,6 +829,82 @@ namespace Opc.Ua.Server.Tests
         }
 
         /// <summary>
+        /// N6: the items of one delivery share the source lookup. When the source resolved for an
+        /// earlier item is removed before a later item validates, the later item must not keep the
+        /// removed instance: it would capture its settled version and miss the removal of the
+        /// replacement that its role check resolves.
+        /// </summary>
+        [Test]
+        public async Task EventSourceRemovedBetweenItemsIsLookedUpAgainAsync()
+        {
+            Mock<IServerInternal> server = DeterministicServerMock.Create(out MonitoredItemQueueFactory queues);
+            using (queues)
+            {
+                NodeId sourceNodeId = new("event-source", 1);
+                BaseObjectState[] instances =
+                [
+                    new BaseObjectState(null) { NodeId = sourceNodeId },
+                    new BaseObjectState(null) { NodeId = sourceNodeId },
+                    new BaseObjectState(null) { NodeId = sourceNodeId }
+                ];
+                int lookups = 0;
+                Mock.Get(server.Object.NodeManager)
+                    .Setup(value => value.FindNodeInAddressSpaceAsync(sourceNodeId, It.IsAny<CancellationToken>()))
+                    .Returns(() => new ValueTask<NodeState?>(
+                        instances[Math.Min(Interlocked.Increment(ref lookups), instances.Length) - 1]));
+
+                Mock<IEventMonitoredItem> first = CreateEventMonitoredItemMock(1);
+                Mock<IEventMonitoredItem> second = CreateEventMonitoredItemMock(2);
+                // the source the first item was delivered for is removed before the second validates.
+                first.Setup(value => value.QueueEvent(It.IsAny<IFilterTarget>()))
+                    .Callback(() => instances[0].UpdateChangeMasks(NodeStateChangeMasks.Deleted));
+                int secondValidations = 0;
+                var nodeManager = new Mock<IAsyncNodeManager>();
+                nodeManager.Setup(value => value.ValidateEventRolePermissionsAsync(
+                        It.IsAny<IEventMonitoredItem>(), It.IsAny<IFilterTarget>(), It.IsAny<CancellationToken>()))
+                    .Returns((IEventMonitoredItem item, IFilterTarget _, CancellationToken _) =>
+                    {
+                        if (item.Id == 1)
+                        {
+                            return new ValueTask<ServiceResult>(ServiceResult.Good);
+                        }
+                        if (Interlocked.Increment(ref secondValidations) == 1)
+                        {
+                            // the replacement is removed while the role check runs; the instance
+                            // after it denies ReceiveEvents.
+                            instances[1].UpdateChangeMasks(NodeStateChangeMasks.Deleted);
+                            return new ValueTask<ServiceResult>(ServiceResult.Good);
+                        }
+                        return new ValueTask<ServiceResult>(new ServiceResult(StatusCodes.BadUserAccessDenied));
+                    });
+
+                var notifier = new BaseObjectState(null) { NodeId = ObjectIds.Server };
+                await using var monitored = new MonitoredNode2(nodeManager.Object, server.Object, notifier);
+                monitored.Add(first.Object);
+                monitored.Add(second.Object);
+
+                var notification = new BaseEventState(null);
+                notification.EventType = new PropertyState<NodeId>.Implementation<VariantBuilder>(notification)
+                {
+                    Value = ObjectTypeIds.BaseEventType
+                };
+                notification.SourceNode = new PropertyState<NodeId>.Implementation<VariantBuilder>(notification)
+                {
+                    Value = sourceNodeId
+                };
+
+                await monitored.OnReportEventAsync(
+                    server.Object.DefaultSystemContext, notifier, notification).ConfigureAwait(false);
+                await monitored.WaitForPendingNotificationsAsync(CancellationToken.None).ConfigureAwait(false);
+
+                first.Verify(value => value.QueueEvent(It.IsAny<IFilterTarget>()), Times.Once);
+                second.Verify(value => value.QueueEvent(It.IsAny<IFilterTarget>()), Times.Never);
+                Assert.That(secondValidations, Is.EqualTo(2));
+                Assert.That(lookups, Is.EqualTo(3));
+            }
+        }
+
+        /// <summary>
         /// A notifier restriction tightened during permission validation must be applied before event delivery.
         /// </summary>
         [Test]

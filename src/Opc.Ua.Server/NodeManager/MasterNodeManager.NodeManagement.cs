@@ -264,6 +264,13 @@ namespace Opc.Ua.Server
                         invalidatePermissionCache = true;
                     }
 
+                    // retire them before the next item can suspend the request.
+                    if (invalidatePermissionCache)
+                    {
+                        NodeState.InvalidateRolePermissionsCache();
+                        invalidatePermissionCache = false;
+                    }
+
                     results[ii] = new AddNodesResult
                     {
                         StatusCode = result.StatusCode,
@@ -339,6 +346,13 @@ namespace Opc.Ua.Server
                     {
                         invalidatePermissionCache = true;
                         result = CreateNodeManagementError(exception);
+                    }
+
+                    // retire them before the next item can suspend the request.
+                    if (invalidatePermissionCache)
+                    {
+                        NodeState.InvalidateRolePermissionsCache();
+                        invalidatePermissionCache = false;
                     }
 
                     results[ii] = result.StatusCode;
@@ -727,6 +741,11 @@ namespace Opc.Ua.Server
             }
             catch (ServiceResultException ex)
             {
+                // the owner may have added part of the node, such as a type, before it threw.
+                if (RequiresServerWideInvalidation(item))
+                {
+                    NodeState.InvalidateRolePermissionsCache();
+                }
                 return (new ServiceResult(ex), NodeId.Null);
             }
         }

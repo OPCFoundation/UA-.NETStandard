@@ -1487,9 +1487,22 @@ namespace Opc.Ua.Server
                 m_sourceNodeId = sourceNodeId;
             }
 
-            public Task<NodeState?> GetAsync(CancellationToken cancellationToken)
+            /// <summary>
+            /// The source instance and its <see cref="NodeState.PermissionVersion"/>, both taken
+            /// when the lookup resolved it.
+            /// </summary>
+            public readonly record struct Snapshot(NodeState? Node, long Version)
             {
-                Task<NodeState?>? lookup = Volatile.Read(ref m_lookup);
+                /// <summary>
+                /// Whether the instance was removed after the lookup resolved it, so that a newer
+                /// instance may now own the NodeId.
+                /// </summary>
+                public bool IsStale => Node != null && Node.PermissionVersion != Version;
+            }
+
+            public Task<Snapshot> GetAsync(CancellationToken cancellationToken)
+            {
+                Task<Snapshot>? lookup = Volatile.Read(ref m_lookup);
                 if (lookup != null)
                 {
                     return lookup;
@@ -1499,9 +1512,7 @@ namespace Opc.Ua.Server
                     lookup = m_lookup;
                     if (lookup == null)
                     {
-                        lookup = m_masterNodeManager
-                            .FindNodeInAddressSpaceAsync(m_sourceNodeId, cancellationToken)
-                            .AsTask();
+                        lookup = ResolveAsync(m_masterNodeManager, m_sourceNodeId, cancellationToken);
                         Volatile.Write(ref m_lookup, lookup);
                     }
                     return lookup;
@@ -1509,31 +1520,42 @@ namespace Opc.Ua.Server
             }
 
             /// <summary>
-            /// Forgets a lookup whose source instance was removed while a verdict was validated
-            /// for it, so that the next <see cref="GetAsync"/> resolves the current instance.
+            /// Forgets a lookup whose source instance was removed after it resolved, so that
+            /// the next <see cref="GetAsync"/> resolves the current instance.
             /// </summary>
             /// <param name="stale">The lookup that returned the removed instance.</param>
-            public void Refresh(Task<NodeState?> stale)
+            public void Refresh(Task<Snapshot> stale)
             {
                 Interlocked.CompareExchange(ref m_lookup, null, stale);
             }
 
-            public bool TryGetCompleted(out NodeState? sourceNode)
+            public bool TryGetCompleted(out Snapshot source)
             {
-                Task<NodeState?>? lookup = Volatile.Read(ref m_lookup);
+                Task<Snapshot>? lookup = Volatile.Read(ref m_lookup);
                 if (lookup?.Status == TaskStatus.RanToCompletion)
                 {
-                    sourceNode = lookup.Result;
+                    source = lookup.Result;
                     return true;
                 }
-                sourceNode = null;
+                source = default;
                 return false;
+            }
+
+            private static async Task<Snapshot> ResolveAsync(
+                IMasterNodeManager masterNodeManager,
+                NodeId sourceNodeId,
+                CancellationToken cancellationToken)
+            {
+                NodeState? node = await masterNodeManager
+                    .FindNodeInAddressSpaceAsync(sourceNodeId, cancellationToken)
+                    .ConfigureAwait(false);
+                return new Snapshot(node, node?.PermissionVersion ?? 0);
             }
 
             private readonly Lock m_lock = new();
             private readonly IMasterNodeManager m_masterNodeManager;
             private readonly NodeId m_sourceNodeId;
-            private Task<NodeState?>? m_lookup;
+            private Task<Snapshot>? m_lookup;
         }
 
         /// <summary>
@@ -1786,15 +1808,16 @@ namespace Opc.Ua.Server
                 return false;
             }
             authorization = NotificationAuthorization.Capture(context.Session);
-            if (!sourceLookup.TryGetCompleted(out NodeState? sourceNode) ||
-                sourceNode == null ||
+            if (!sourceLookup.TryGetCompleted(out EventSourceLookup.Snapshot source) ||
+                source.Node is not { } sourceNode ||
+                source.IsStale ||
                 !m_eventPermissionCache.TryGetValue(
                     new EventPermissionCacheKey(monitoredItem.Id, eventTypeId, sourceNodeId),
                     out CachedEventPermission? cached) ||
                 !cached.Context.Matches(context) ||
                 !cached.SourceNode.TryGetTarget(out NodeState? cachedSourceNode) ||
                 !ReferenceEquals(cachedSourceNode, sourceNode) ||
-                cached.SourceVersion != sourceNode.PermissionVersion)
+                cached.SourceVersion != source.Version)
             {
                 return false;
             }
@@ -1853,14 +1876,22 @@ namespace Opc.Ua.Server
                     return (restrictions, authorization.Session, notificationAuthorization);
                 }
                 NodeState? sourceNode = null;
-                Task<NodeState?>? sourceTask = null;
+                Task<EventSourceLookup.Snapshot>? sourceTask = null;
                 long sourceVersion = 0;
                 if (cacheable)
                 {
                     sourceTask = sourceLookup!.GetAsync(cancellationToken);
-                    sourceNode = await sourceTask.ConfigureAwait(false);
-                    sourceVersion = sourceNode?.PermissionVersion ?? 0;
+                    EventSourceLookup.Snapshot source = await sourceTask.ConfigureAwait(false);
                     cancellationToken.ThrowIfCancellationRequested();
+                    // the shared lookup may hold an instance removed after it resolved; a verdict
+                    // validated for it would not see the removal of the instance that replaced it.
+                    if (source.IsStale)
+                    {
+                        sourceLookup.Refresh(sourceTask);
+                        continue;
+                    }
+                    sourceNode = source.Node;
+                    sourceVersion = source.Version;
                     if (!authorization.Matches(CapturePermissionContext(monitoredItem)))
                     {
                         continue;

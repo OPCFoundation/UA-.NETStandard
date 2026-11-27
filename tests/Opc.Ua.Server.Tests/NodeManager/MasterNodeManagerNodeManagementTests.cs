@@ -2735,6 +2735,104 @@ namespace Opc.Ua.Server.Tests
         }
 
         /// <summary>
+        /// N6: an owner can add a type before it throws. The dispatcher turns the exception into
+        /// a Bad result, so it must retire the cached verdicts itself.
+        /// </summary>
+        [Test]
+        public async Task AddNodesOfTypeWhoseOwnerThrowsRetiresCachedVerdictsAsync()
+        {
+            using var harness = new AuthorizationHarness();
+            harness.SetAddNodePermissions(PermissionType.AddNode);
+            AddNodesItem item = harness.CreateAddNodesItem();
+            item.NodeClass = NodeClass.ObjectType;
+            item.TypeDefinition = ExpandedNodeId.Null;
+            harness.SourceManager
+                .Setup(manager => manager.AddNodeAsync(
+                    It.IsAny<OperationContext>(), It.IsAny<AddNodesItem>(), It.IsAny<CancellationToken>()))
+                .ThrowsAsync(new ServiceResultException(StatusCodes.BadInternalError));
+            long version = NodeState.RolePermissionsVersion;
+
+            (ArrayOf<AddNodesResult> results, _) = await harness.Sut.AddNodesAsync(
+                harness.AddNodesContext, [item]).ConfigureAwait(false);
+
+            Assert.That(results[0].StatusCode, Is.EqualTo(StatusCodes.BadInternalError));
+            Assert.That(NodeState.RolePermissionsVersion, Is.GreaterThan(version));
+        }
+
+        /// <summary>
+        /// N6: an item that retires every cached verdict does so before the next item is
+        /// dispatched, which can suspend the request while events are delivered.
+        /// </summary>
+        [Test]
+        public async Task AddNodesRetiresVerdictsBeforeTheNextItemAsync()
+        {
+            using var harness = new AuthorizationHarness();
+            harness.SetAddNodePermissions(PermissionType.AddNode);
+            AddNodesItem type = harness.CreateAddNodesItem();
+            type.NodeClass = NodeClass.ObjectType;
+            type.TypeDefinition = ExpandedNodeId.Null;
+            AddNodesItem next = harness.CreateAddNodesItem();
+            next.BrowseName = new QualifiedName("Next", harness.SourceNamespaceIndex);
+            next.RequestedNewNodeId = new NodeId("Next", harness.SourceNamespaceIndex);
+            long versionAtNext = -1;
+            harness.SourceManager
+                .Setup(manager => manager.AddNodeAsync(
+                    It.IsAny<OperationContext>(), It.IsAny<AddNodesItem>(), It.IsAny<CancellationToken>()))
+                .Returns((OperationContext _, AddNodesItem item, CancellationToken _) =>
+                {
+                    if (ReferenceEquals(item, next))
+                    {
+                        versionAtNext = NodeState.RolePermissionsVersion;
+                    }
+                    return new ValueTask<(ServiceResult, NodeId)>(
+                        (ServiceResult.Good, new NodeId(item.BrowseName.Name!, item.BrowseName.NamespaceIndex)));
+                });
+            long version = NodeState.RolePermissionsVersion;
+
+            (ArrayOf<AddNodesResult> results, _) = await harness.Sut.AddNodesAsync(
+                harness.AddNodesContext, [type, next]).ConfigureAwait(false);
+
+            Assert.That(results[0].StatusCode, Is.EqualTo(StatusCodes.Good));
+            Assert.That(results[1].StatusCode, Is.EqualTo(StatusCodes.Good));
+            Assert.That(versionAtNext, Is.GreaterThan(version));
+        }
+
+        /// <summary>
+        /// N6: a DeleteNodes item that retires every cached verdict does so before the next item
+        /// is dispatched.
+        /// </summary>
+        [Test]
+        public async Task DeleteNodesRetiresVerdictsBeforeTheNextItemAsync()
+        {
+            using var harness = new AuthorizationHarness();
+            int calls = 0;
+            long versionAtSecond = -1;
+            harness.SourceManager
+                .Setup(manager => manager.DeleteNodeAsync(
+                    It.IsAny<OperationContext>(), It.IsAny<DeleteNodesItem>(), It.IsAny<CancellationToken>()))
+                .Returns(() =>
+                {
+                    if (Interlocked.Increment(ref calls) == 2)
+                    {
+                        versionAtSecond = NodeState.RolePermissionsVersion;
+                    }
+                    return new ValueTask<ServiceResult>(ServiceResult.Good);
+                });
+            long version = NodeState.RolePermissionsVersion;
+
+            (ArrayOf<StatusCode> results, _) = await harness.Sut.DeleteNodesAsync(
+                harness.DeleteNodesContext,
+                [
+                    new DeleteNodesItem { NodeId = harness.SourceNodeId },
+                    new DeleteNodesItem { NodeId = harness.SourceNodeId }
+                ]).ConfigureAwait(false);
+
+            Assert.That(results[0], Is.EqualTo(StatusCodes.Good));
+            Assert.That(calls, Is.EqualTo(2));
+            Assert.That(versionAtSecond, Is.GreaterThan(version));
+        }
+
+        /// <summary>
         /// N6: a DeleteNodes request whose items are all rejected leaves every cached verdict
         /// intact.
         /// </summary>

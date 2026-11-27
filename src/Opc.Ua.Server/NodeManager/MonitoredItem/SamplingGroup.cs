@@ -1144,6 +1144,15 @@ namespace Opc.Ua.Server
                             return;
                         }
 
+                        // the sampled instance may have been removed while the check was
+                        // suspended: the verdict and this cycle's value describe a node that is
+                        // gone, so neither is used and the next cycle validates again.
+                        if (node != null && node.PermissionVersion != nodeVersion)
+                        {
+                            m_verdicts[ii] = default;
+                            continue;
+                        }
+
                         verdict = new PermissionVerdict(
                             permissionResult, epoch, context.Session, context.UserIdentity, readValueId.Handle,
                             identityGeneration, context, nodeVersion);
