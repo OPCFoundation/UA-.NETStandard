@@ -90,8 +90,25 @@ namespace Opc.Ua.Types.Tests.Wot
                 Assert.That(NodeSetComparer.Compare(source, asyncResult.Value!).AreEquivalent, Is.True);
             });
 
+            string originalId = json["uav:id"]!.GetValue<string>();
+            json["uav:id"] = "nsu=http://example.org/Repro/;i=3002";
+            using (WotDocument tampered = WotDocument.Parse(Encoding.UTF8.GetBytes(json.ToJsonString())))
+            {
+                WotConversionResult<UANodeSet> conflict = WotNodeSetConverter.ToNodeSetResult(tampered, options);
+                Assert.That(conflict.HasErrors, Is.True);
+                Assert.That(conflict.Diagnostics.Any(d => d.Code == WotDiagnosticCode.NativeProjectionConflict),
+                    Is.True);
+            }
+            json["uav:id"] = originalId;
+
             if (legacyProjection)
             {
+                WotConversionResult<UANodeSet> depthLimited = WotNodeSetConverter.ToNodeSetResult(
+                    document, new WotNodeSetConverterOptions { MaxXmlDepth = 1 });
+                Assert.That(depthLimited.HasErrors, Is.True);
+                Assert.That(depthLimited.Diagnostics.Any(d => d.Code == WotDiagnosticCode.NativeProjectionConflict),
+                    Is.True);
+
                 json["uav:nodes"]!["nodes"]![0]!["browseName"] = "1:Tampered";
                 using WotDocument tampered = WotDocument.Parse(Encoding.UTF8.GetBytes(json.ToJsonString()));
                 WotConversionResult<UANodeSet> conflict = WotNodeSetConverter.ToNodeSetResult(tampered, options);
@@ -99,10 +116,19 @@ namespace Opc.Ua.Types.Tests.Wot
                 Assert.That(conflict.Diagnostics.Any(d => d.Code == WotDiagnosticCode.NativeProjectionConflict),
                     Is.True);
             }
+
+            ((UADataType)source.Items![0]).Definition!.Field![1].Name = "none";
+            WotConversionResult<WotDocument> complete = WotNodeSetConverter.FromNodeSetResult(source);
+            Assert.That(complete.HasErrors, Is.False);
+            using WotDocument completeDocument = complete.Value!;
+            Assert.That(completeDocument.TryGetEnvelope(out _), Is.False);
+            WotConversionResult<UANodeSet> completeReverse = WotNodeSetConverter.ToNodeSetResult(completeDocument);
+            Assert.That(completeReverse.HasErrors, Is.False, string.Join("; ", completeReverse.Diagnostics));
+            Assert.That(NodeSetComparer.Compare(source, completeReverse.Value!).AreEquivalent, Is.True);
         }
 
         [Test]
-        public void LegacyTruncatedProjectionRestoresEnvelopeButRejectsChangedFacts()
+        public void TruncatedProjectionIsRejectedWhileNewFallbackRestoresEnvelope()
         {
             UANodeSet source = WotTestData.CreateRichNodeSet();
             var limited = new WotNodeSetConverterOptions { MaxNodeCount = 2 };
@@ -110,6 +136,12 @@ namespace Opc.Ua.Types.Tests.Wot
                 source, options: limited);
             Assert.That(forward.HasErrors, Is.False);
             using WotDocument generated = forward.Value!;
+            Assert.That(generated.TryGetNativeProjection(out _), Is.False);
+            WotConversionResult<UANodeSet> result = WotNodeSetConverter.ToNodeSetResult(generated);
+            Assert.That(result.HasErrors, Is.False, string.Join("; ", result.Diagnostics));
+            Assert.That(result.Value, Is.Not.Null);
+            Assert.That(NodeSetComparer.Compare(source, result.Value!).AreEquivalent, Is.True);
+
             var diagnostics = new List<WotDiagnostic>();
             byte[] projection = WotNativeProjection.Write(source, limited, diagnostics);
             Assert.That(diagnostics.Any(d => d.Code == WotDiagnosticCode.NodeCountExceeded), Is.True);
@@ -117,12 +149,14 @@ namespace Opc.Ua.Types.Tests.Wot
             json["uav:nodes"] = JsonNode.Parse(projection);
             using WotDocument document = WotDocument.Parse(Encoding.UTF8.GetBytes(json.ToJsonString()));
 
-            WotConversionResult<UANodeSet> result = WotNodeSetConverter.ToNodeSetResult(document);
-            Assert.That(result.HasErrors, Is.False, string.Join("; ", result.Diagnostics));
-            Assert.That(result.Value, Is.Not.Null);
-            Assert.That(NodeSetComparer.Compare(source, result.Value!).AreEquivalent, Is.True);
-            Assert.That(result.Diagnostics.Any(d => d.Code == WotDiagnosticCode.NativeProjectionIncomplete),
-                Is.True);
+            WotConversionResult<UANodeSet> truncated = WotNodeSetConverter.ToNodeSetResult(document);
+            Assert.That(truncated.HasErrors, Is.True);
+            Assert.That(truncated.Diagnostics.Any(d => d.Code == WotDiagnosticCode.NativeProjectionConflict), Is.True);
+
+            WotConversionResult<UANodeSet> overLimit = WotNodeSetConverter.ToNodeSetResult(
+                document, new WotNodeSetConverterOptions { MaxNodeCount = 1 });
+            Assert.That(overLimit.HasErrors, Is.True);
+            Assert.That(overLimit.Diagnostics.Any(d => d.Code == WotDiagnosticCode.NativeProjectionConflict), Is.True);
 
             json["uav:nodes"]!["nodes"]![0]!["browseName"] = "1:Tampered";
             using WotDocument tampered = WotDocument.Parse(Encoding.UTF8.GetBytes(json.ToJsonString()));
@@ -145,10 +179,14 @@ namespace Opc.Ua.Types.Tests.Wot
             }
             source.Models = [model];
             byte[] payload = WotTestData.Serialize(source);
+#if NETFRAMEWORK
             using var sha = SHA256.Create();
-            string digest = BitConverter.ToString(sha.ComputeHash(payload))
-                .Replace("-", string.Empty)
-                .ToLowerInvariant();
+            byte[] hash = sha.ComputeHash(payload);
+#else
+            byte[] hash = SHA256.HashData(payload);
+#endif
+            string digest = string.Concat(Array.ConvertAll(
+                hash, b => b.ToString("x2", System.Globalization.CultureInfo.InvariantCulture)));
             JsonNode json = JsonNode.Parse(generated.Utf8Json.Span)!;
             json["uav:nodeSet"]!["data"] = Convert.ToBase64String(payload);
             json["uav:nodeSet"]!["sha256"] = digest;

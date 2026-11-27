@@ -322,7 +322,9 @@ Routing-only enrichment does not grant permission to add or replace archived
 model facts. If the structured projection cannot reproduce the source, the
 converter emits the envelope without `uav:nodes`. Older fallback documents may
 contain an incomplete `uav:nodes`; the converter accepts it with a warning only
-when it matches the projection regenerated from the validated envelope.
+when it matches the complete projection regenerated from the validated envelope.
+A truncated legacy projection remains a conflict because it cannot be
+distinguished from a projection with deleted records.
 
 ### Generated document-set limits
 

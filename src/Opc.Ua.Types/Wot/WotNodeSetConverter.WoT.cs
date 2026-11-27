@@ -1575,19 +1575,13 @@ namespace Opc.Ua.Wot
             {
                 // Older fallback documents included the incomplete projection alongside
                 // the envelope. Accept it only if it matches the envelope's projection.
-                if (projection.ValueKind == JsonValueKind.Object &&
-                    projection.TryGetProperty("nodes", out JsonElement nodes) &&
-                    nodes.ValueKind == JsonValueKind.Array &&
-                    nodes.GetArrayLength() <= options.MaxNodeCount)
+                if (NodeSetComparer.Compare(baseline, baseline, options.ToComparisonOptions()).AreEquivalent)
                 {
                     try
                     {
                         var writeDiagnostics = new List<WotDiagnostic>();
-                        byte[] regenerated = WotNativeProjection.Write(
-                            baseline,
-                            new WotNodeSetConverterOptions { MaxNodeCount = nodes.GetArrayLength() },
-                            writeDiagnostics);
-                        if (writeDiagnostics.TrueForAll(d => d.Code == WotDiagnosticCode.NodeCountExceeded))
+                        byte[] regenerated = WotNativeProjection.Write(baseline, options, writeDiagnostics);
+                        if (!HasErrors(writeDiagnostics))
                         {
                             using var expected = JsonDocument.Parse(
                                 regenerated, new JsonDocumentOptions { MaxDepth = options.MaxJsonDepth });
