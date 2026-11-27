@@ -37,7 +37,7 @@ namespace Opc.Ua.Gds.Tests
     [TestFixture]
     [Category("ManagedApplications")]
     [NonParallelizable]
-    public sealed class ManagedApplicationPushTests : GdsTestFixture
+    public sealed partial class ManagedApplicationPushTests : GdsTestFixture
     {
         /// <summary>
         /// Fluent hosting isolates certificate rotation and trust changes over a real encrypted management channel.

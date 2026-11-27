@@ -114,7 +114,13 @@ namespace Opc.Ua.Gds.Tests.Onboarding
                 It.IsAny<ByteString>(), It.IsAny<CancellationToken>()))
                 .ReturnsAsync((DeviceRegistrarExternalAuthenticationResult?)null);
             services.AddDeviceRegistrarExternalAuthenticationProvider(_ => m_externalAuthentication.Object);
-            services.AddSingleton<IDeviceRegistrarApplicationAuthorization>(policy);
+            m_applicationAuthorization = new Mock<IDeviceRegistrarApplicationAuthorization>(MockBehavior.Strict);
+            m_applicationAuthorization.Setup(value => value.CanManageAsync(
+                    It.IsAny<string>(), It.IsAny<ApplicationRecordDataType>(),
+                    It.IsAny<string>(), It.IsAny<CancellationToken>()))
+                .Returns((string product, ApplicationRecordDataType application, string protocol, CancellationToken ct) =>
+                    policy.CanManageAsync(product, application, protocol, ct));
+            services.AddSingleton(m_applicationAuthorization.Object);
             services.AddSingleton<IDeviceRegistrarPushScheduler>(policy);
             services.AddSingleton<IDeviceRegistrarManagerProvider>(policy);
             services.AddHostedDeviceRegistrarAuditing();
