@@ -247,21 +247,25 @@ namespace Opc.Ua.Server
                     catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
                     {
                         // the owner may have added part of the node before it was cancelled.
+                        NodeState.InvalidateAddressSpaceVersion();
                         invalidatePermissionCache |= RequiresServerWideInvalidation(item);
                         throw;
                     }
                     catch (Exception exception)
                     {
+                        NodeState.InvalidateAddressSpaceVersion();
                         invalidatePermissionCache |= RequiresServerWideInvalidation(item);
                         result = CreateNodeManagementError(exception);
                     }
 
                     // a type or a node that may define namespace defaults changes cached verdicts
                     // (see RequiresServerWideInvalidation); any other added node is a new instance,
-                    // and a rejected item changed nothing.
-                    if (ServiceResult.IsGood(result) && RequiresServerWideInvalidation(item))
+                    // which only event verdicts may have checked while its NodeId was unknown, and
+                    // a rejected item changed nothing.
+                    if (ServiceResult.IsGood(result))
                     {
-                        invalidatePermissionCache = true;
+                        NodeState.InvalidateAddressSpaceVersion();
+                        invalidatePermissionCache |= RequiresServerWideInvalidation(item);
                     }
 
                     // retire them before the next item can suspend the request.
@@ -335,6 +339,11 @@ namespace Opc.Ua.Server
                         (result, invalidateAll) = await DispatchDeleteNodeAsync(
                             context, item, mutationAdmission, cancellationToken).ConfigureAwait(false);
                         invalidatePermissionCache |= invalidateAll;
+                        if (ServiceResult.IsGood(result))
+                        {
+                            // an event type NodeId may have resolved to the removed node.
+                            NodeState.InvalidateAddressSpaceVersion();
+                        }
                     }
                     catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
                     {
@@ -742,6 +751,7 @@ namespace Opc.Ua.Server
             catch (ServiceResultException ex)
             {
                 // the owner may have added part of the node, such as a type, before it threw.
+                NodeState.InvalidateAddressSpaceVersion();
                 if (RequiresServerWideInvalidation(item))
                 {
                     NodeState.InvalidateRolePermissionsCache();

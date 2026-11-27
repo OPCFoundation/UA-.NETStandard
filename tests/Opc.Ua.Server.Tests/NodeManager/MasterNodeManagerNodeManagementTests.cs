@@ -2643,6 +2643,7 @@ namespace Opc.Ua.Server.Tests
             using var harness = new AuthorizationHarness();
             harness.SetAddNodePermissions(PermissionType.Browse);
             long version = NodeState.RolePermissionsVersion;
+            long addressSpaceVersion = NodeState.AddressSpaceVersion;
 
             (ArrayOf<AddNodesResult> results, _) = await harness.Sut.AddNodesAsync(
                 harness.AddNodesContext,
@@ -2651,6 +2652,7 @@ namespace Opc.Ua.Server.Tests
             Assert.That(results[0].StatusCode, Is.EqualTo(StatusCodes.BadUserAccessDenied));
             Assert.That(results[1].StatusCode, Is.EqualTo(StatusCodes.BadNothingToDo));
             Assert.That(NodeState.RolePermissionsVersion, Is.EqualTo(version));
+            Assert.That(NodeState.AddressSpaceVersion, Is.EqualTo(addressSpaceVersion));
         }
 
         /// <summary>
@@ -2663,12 +2665,15 @@ namespace Opc.Ua.Server.Tests
             using var harness = new AuthorizationHarness();
             harness.SetAddNodePermissions(PermissionType.AddNode);
             long version = NodeState.RolePermissionsVersion;
+            long addressSpaceVersion = NodeState.AddressSpaceVersion;
 
             (ArrayOf<AddNodesResult> results, _) = await harness.Sut.AddNodesAsync(
                 harness.AddNodesContext, [harness.CreateAddNodesItem()]).ConfigureAwait(false);
 
             Assert.That(results[0].StatusCode, Is.EqualTo(StatusCodes.Good));
             Assert.That(NodeState.RolePermissionsVersion, Is.EqualTo(version));
+            // only event verdicts, which keep no instance of the event type, are retired.
+            Assert.That(NodeState.AddressSpaceVersion, Is.GreaterThan(addressSpaceVersion));
         }
 
         /// <summary>
@@ -2845,6 +2850,7 @@ namespace Opc.Ua.Server.Tests
                     It.IsAny<OperationContext>(), It.IsAny<DeleteNodesItem>(), It.IsAny<CancellationToken>()))
                 .Returns(new ValueTask<ServiceResult>(new ServiceResult(StatusCodes.BadUserAccessDenied)));
             long version = NodeState.RolePermissionsVersion;
+            long addressSpaceVersion = NodeState.AddressSpaceVersion;
 
             (ArrayOf<StatusCode> results, _) = await harness.Sut.DeleteNodesAsync(
                 harness.DeleteNodesContext,
@@ -2858,6 +2864,7 @@ namespace Opc.Ua.Server.Tests
             Assert.That(results[1], Is.EqualTo(StatusCodes.BadNodeIdUnknown));
             Assert.That(results[2], Is.EqualTo(StatusCodes.BadNothingToDo));
             Assert.That(NodeState.RolePermissionsVersion, Is.EqualTo(version));
+            Assert.That(NodeState.AddressSpaceVersion, Is.EqualTo(addressSpaceVersion));
         }
 
         /// <summary>

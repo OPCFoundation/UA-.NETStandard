@@ -905,6 +905,131 @@ namespace Opc.Ua.Server.Tests
         }
 
         /// <summary>
+        /// N6: an event verdict checks the event type's NodeId, which can resolve to a node of
+        /// any class and passes while it is unknown. Adding or removing any node therefore
+        /// retires cached event verdicts, while an unchanged address space keeps them.
+        /// </summary>
+        [Test]
+        public async Task AddressSpaceChangeRetiresCachedEventVerdictsAsync()
+        {
+            Mock<IServerInternal> server = DeterministicServerMock.Create(out MonitoredItemQueueFactory queues);
+            using (queues)
+            {
+                NodeId sourceNodeId = new("event-source", 1);
+                var source = new BaseObjectState(null) { NodeId = sourceNodeId };
+                Mock.Get(server.Object.NodeManager)
+                    .Setup(value => value.FindNodeInAddressSpaceAsync(sourceNodeId, It.IsAny<CancellationToken>()))
+                    .Returns(() => new ValueTask<NodeState?>(source));
+                int validations = 0;
+                var nodeManager = new Mock<IAsyncNodeManager>();
+                nodeManager.Setup(value => value.ValidateEventRolePermissionsAsync(
+                        It.IsAny<IEventMonitoredItem>(), It.IsAny<IFilterTarget>(), It.IsAny<CancellationToken>()))
+                    .Returns(() =>
+                    {
+                        Interlocked.Increment(ref validations);
+                        return new ValueTask<ServiceResult>(ServiceResult.Good);
+                    });
+
+                var notifier = new BaseObjectState(null) { NodeId = ObjectIds.Server };
+                Mock<IEventMonitoredItem> item = CreateEventMonitoredItemMock(1);
+                await using var monitored = new MonitoredNode2(nodeManager.Object, server.Object, notifier);
+                monitored.Add(item.Object);
+
+                async Task ReportAsync()
+                {
+                    var notification = new BaseEventState(null);
+                    notification.EventType = new PropertyState<NodeId>.Implementation<VariantBuilder>(notification)
+                    {
+                        Value = new NodeId("not-yet-defined-event-type", 1)
+                    };
+                    notification.SourceNode = new PropertyState<NodeId>.Implementation<VariantBuilder>(notification)
+                    {
+                        Value = sourceNodeId
+                    };
+                    await monitored.OnReportEventAsync(
+                        server.Object.DefaultSystemContext, notifier, notification).ConfigureAwait(false);
+                    await monitored.WaitForPendingNotificationsAsync(CancellationToken.None).ConfigureAwait(false);
+                }
+
+                await ReportAsync().ConfigureAwait(false);
+                await ReportAsync().ConfigureAwait(false);
+                int cachedValidations = validations;
+                NodeState.InvalidateAddressSpaceVersion();
+                await ReportAsync().ConfigureAwait(false);
+
+                Assert.That(cachedValidations, Is.EqualTo(1), "an unchanged address space keeps the verdict");
+                Assert.That(validations, Is.EqualTo(2), "an address space change retires the verdict");
+                item.Verify(value => value.QueueEvent(It.IsAny<IFilterTarget>()), Times.Exactly(3));
+            }
+        }
+
+        /// <summary>
+        /// N6: a source removed between its lookup and the snapshot of its version would leave a
+        /// settled version that looks current. The lookup sees the address space change, resolves
+        /// again, and binds the verdict to the instance that owns the NodeId.
+        /// </summary>
+        [Test]
+        public async Task EventSourceRemovedDuringLookupIsResolvedAgainAsync()
+        {
+            Mock<IServerInternal> server = DeterministicServerMock.Create(out MonitoredItemQueueFactory queues);
+            using (queues)
+            {
+                NodeId sourceNodeId = new("event-source", 1);
+                var source = new BaseObjectState(null) { NodeId = sourceNodeId };
+                var replacement = new BaseObjectState(null) { NodeId = sourceNodeId };
+                int lookups = 0;
+                Mock.Get(server.Object.NodeManager)
+                    .Setup(value => value.FindNodeInAddressSpaceAsync(sourceNodeId, It.IsAny<CancellationToken>()))
+                    .Returns(() =>
+                    {
+                        if (Interlocked.Increment(ref lookups) == 1)
+                        {
+                            // the instance found first is removed before the lookup completes.
+                            source.UpdateChangeMasks(NodeStateChangeMasks.Deleted);
+                            return new ValueTask<NodeState?>(source);
+                        }
+                        return new ValueTask<NodeState?>(replacement);
+                    });
+                int validations = 0;
+                var nodeManager = new Mock<IAsyncNodeManager>();
+                nodeManager.Setup(value => value.ValidateEventRolePermissionsAsync(
+                        It.IsAny<IEventMonitoredItem>(), It.IsAny<IFilterTarget>(), It.IsAny<CancellationToken>()))
+                    .Returns(() =>
+                    {
+                        Interlocked.Increment(ref validations);
+                        return new ValueTask<ServiceResult>(ServiceResult.Good);
+                    });
+
+                var notifier = new BaseObjectState(null) { NodeId = ObjectIds.Server };
+                Mock<IEventMonitoredItem> item = CreateEventMonitoredItemMock(1);
+                await using var monitored = new MonitoredNode2(nodeManager.Object, server.Object, notifier);
+                monitored.Add(item.Object);
+
+                for (int ii = 0; ii < 2; ii++)
+                {
+                    var notification = new BaseEventState(null);
+                    notification.EventType = new PropertyState<NodeId>.Implementation<VariantBuilder>(notification)
+                    {
+                        Value = ObjectTypeIds.BaseEventType
+                    };
+                    notification.SourceNode = new PropertyState<NodeId>.Implementation<VariantBuilder>(notification)
+                    {
+                        Value = sourceNodeId
+                    };
+                    await monitored.OnReportEventAsync(
+                        server.Object.DefaultSystemContext, notifier, notification).ConfigureAwait(false);
+                    await monitored.WaitForPendingNotificationsAsync(CancellationToken.None).ConfigureAwait(false);
+                }
+
+                // the first event resolved twice and cached its verdict for the replacement, so
+                // the second event, which resolves the replacement once, reuses it.
+                Assert.That(lookups, Is.EqualTo(3));
+                Assert.That(validations, Is.EqualTo(1));
+                item.Verify(value => value.QueueEvent(It.IsAny<IFilterTarget>()), Times.Exactly(2));
+            }
+        }
+
+        /// <summary>
         /// A notifier restriction tightened during permission validation must be applied before event delivery.
         /// </summary>
         [Test]

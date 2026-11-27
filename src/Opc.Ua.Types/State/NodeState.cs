@@ -7294,6 +7294,29 @@ namespace Opc.Ua
         private static long s_rolePermissionsVersion;
 
         /// <summary>
+        /// Changes whenever node management adds or removes a node of the address space, and
+        /// whenever a node is marked deleted.
+        /// </summary>
+        /// <remarks>
+        /// Event permission verdicts check the event type's NodeId, which can resolve to a
+        /// node of any class and passes the role check while it is unknown. They keep no
+        /// instance of it, so they use this version: adding or removing any node retires them.
+        /// Verdicts of data-change and sampled items are kept per instance and ignore it.
+        /// </remarks>
+        internal static long AddressSpaceVersion => Interlocked.Read(ref s_addressSpaceVersion);
+
+        /// <summary>
+        /// Advances <see cref="AddressSpaceVersion"/> after node management changed which
+        /// node a NodeId resolves to.
+        /// </summary>
+        internal static void InvalidateAddressSpaceVersion()
+        {
+            Interlocked.Increment(ref s_addressSpaceVersion);
+        }
+
+        private static long s_addressSpaceVersion;
+
+        /// <summary>
         /// Changes when this node instance leaves the address space, so that a permission
         /// verdict cached for it is computed again although no role-permission attribute changed.
         /// </summary>
@@ -7317,8 +7340,14 @@ namespace Opc.Ua
         /// Retires every permission verdict cached for this node instance (see
         /// <see cref="PermissionVersion"/>). Marking the node deleted calls it.
         /// </summary>
+        /// <remarks>
+        /// <see cref="AddressSpaceVersion"/> moves first: a reader that sees the moved
+        /// <see cref="PermissionVersion"/> then also sees the moved address space version, so
+        /// it can tell that the instance it looked up may have been removed meanwhile.
+        /// </remarks>
         internal void InvalidatePermissionVerdicts()
         {
+            InvalidateAddressSpaceVersion();
             Interlocked.Increment(ref GetOrCreateSecurityData().PermissionVersion);
         }
 

@@ -176,6 +176,32 @@ namespace Opc.Ua.Server.Tests.NodeManager
         }
 
         /// <summary>
+        /// N6: a sampled node removed while its exact-source check runs leaves nothing of that
+        /// cycle either, although the check validates the removed instance again and grants.
+        /// </summary>
+        [Test]
+        public async Task NodeDeletedDuringExactSourceCheckDiscardsTheCycleAsync()
+        {
+            await using var harness = new Harness();
+            harness.AfterSample(2, () =>
+            {
+                // forces the next cycle to run the exact-source check, during which the node is removed.
+                harness.Change("IdentityGeneration");
+                harness.Owner.OnNextExactCheck(() =>
+                {
+                    harness.Node.UpdateChangeMasks(NodeStateChangeMasks.Deleted);
+                    harness.Node.Value = 43;
+                });
+            });
+            await harness.StartAsync().ConfigureAwait(false);
+            await harness.WaitForSampleAsync(3).ConfigureAwait(false);
+
+            Assert.That(harness.Value(2), Is.EqualTo(new Variant(42)));
+            Assert.That(harness.Status(3), Is.EqualTo(StatusCodes.Good));
+            Assert.That(harness.Value(3), Is.EqualTo(new Variant(43)), "the stale cycle's value was queued");
+        }
+
+        /// <summary>
         /// A bad verdict is never reused: every denied sample runs the full check, so the first
         /// sample after the channel is upgraded again is delivered.
         /// </summary>
@@ -768,6 +794,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 if (managerHandle is NodeHandle && !ReferenceEquals(managerHandle, ItemHandle))
                 {
                     Interlocked.Increment(ref m_checks);
+                    Interlocked.Exchange(ref m_onNextExactCheck, null)?.Invoke();
                 }
                 return base.IsHandleInNamespace(managerHandle);
             }
@@ -793,8 +820,19 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 Volatile.Write(ref m_onNextRoleCheck, action);
             }
 
+            /// <summary>
+            /// Runs an action once, inside the next exact-source permission check.
+            /// </summary>
+            public void OnNextExactCheck(Action action)
+            {
+                Volatile.Write(ref m_onNextExactCheck, action);
+            }
+
             /// <summary>Exact-source authorization count.</summary>
             private int m_checks;
+
+            /// <summary>One-shot action run inside the next exact-source permission check.</summary>
+            private Action? m_onNextExactCheck;
 
             /// <summary>One-shot action run at the end of the next role permission check.</summary>
             private Action? m_onNextRoleCheck;

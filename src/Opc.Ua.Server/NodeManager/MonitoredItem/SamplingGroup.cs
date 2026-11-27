@@ -1173,6 +1173,14 @@ namespace Opc.Ua.Server
                             await m_group.ValidateSampleReadAccessAsync(
                                 items[ii], node, context, systemContext, permissionResult, cancellationToken)
                                 .ConfigureAwait(false);
+                        // the exact-source check validates the instance it was given again when
+                        // that instance is removed meanwhile, at its settled version, so the
+                        // removal is only seen against the version this cycle started with.
+                        if (node != null && node.PermissionVersion != nodeVersion)
+                        {
+                            m_verdicts[ii] = default;
+                            continue;
+                        }
                         if (read != null && readEpoch == verdict.Epoch)
                         {
                             m_verdicts[ii] = verdict with { Read = read, ReadNode = node };

@@ -1546,10 +1546,23 @@ namespace Opc.Ua.Server
                 NodeId sourceNodeId,
                 CancellationToken cancellationToken)
             {
-                NodeState? node = await masterNodeManager
-                    .FindNodeInAddressSpaceAsync(sourceNodeId, cancellationToken)
-                    .ConfigureAwait(false);
-                return new Snapshot(node, node?.PermissionVersion ?? 0);
+                while (true)
+                {
+                    // the instance may be removed between the lookup and reading its version,
+                    // which would leave its settled version looking current. A removal moves
+                    // AddressSpaceVersion before the instance's own version, so a version read
+                    // after the removal is always followed by a changed AddressSpaceVersion.
+                    long addressSpaceVersion = NodeState.AddressSpaceVersion;
+                    NodeState? node = await masterNodeManager
+                        .FindNodeInAddressSpaceAsync(sourceNodeId, cancellationToken)
+                        .ConfigureAwait(false);
+                    long version = node?.PermissionVersion ?? 0;
+                    if (NodeState.AddressSpaceVersion == addressSpaceVersion)
+                    {
+                        return new Snapshot(node, version);
+                    }
+                    cancellationToken.ThrowIfCancellationRequested();
+                }
             }
 
             private readonly Lock m_lock = new();
@@ -1817,7 +1830,8 @@ namespace Opc.Ua.Server
                 !cached.Context.Matches(context) ||
                 !cached.SourceNode.TryGetTarget(out NodeState? cachedSourceNode) ||
                 !ReferenceEquals(cachedSourceNode, sourceNode) ||
-                cached.SourceVersion != source.Version)
+                cached.SourceVersion != source.Version ||
+                cached.AddressSpaceVersion != NodeState.AddressSpaceVersion)
             {
                 return false;
             }
@@ -1902,6 +1916,9 @@ namespace Opc.Ua.Server
                 {
                     cacheable = false;
                 }
+                // the verdict also depends on what the event type NodeId resolves to; taken
+                // after the source lookup, whose own retries move it, and before the role check.
+                long addressSpaceVersion = NodeState.AddressSpaceVersion;
                 if (cacheable &&
                     m_eventPermissionCache.TryGetValue(
                         key,
@@ -1909,7 +1926,8 @@ namespace Opc.Ua.Server
                     cached.Context.Matches(authorization) &&
                     cached.SourceNode.TryGetTarget(out NodeState? cachedSourceNode) &&
                     ReferenceEquals(cachedSourceNode, sourceNode) &&
-                    cached.SourceVersion == sourceVersion)
+                    cached.SourceVersion == sourceVersion &&
+                    cached.AddressSpaceVersion == addressSpaceVersion)
                 {
                     result = cached.Result;
                 }
@@ -1921,7 +1939,7 @@ namespace Opc.Ua.Server
                     if (cacheable)
                     {
                         m_eventPermissionCache[key] = new CachedEventPermission(
-                            authorization, sourceNode!, sourceVersion, result);
+                            authorization, sourceNode!, sourceVersion, addressSpaceVersion, result);
                     }
                 }
                 if (!ServiceResult.IsBad(result))
@@ -1940,6 +1958,11 @@ namespace Opc.Ua.Server
                 if (sourceNode != null && sourceNode.PermissionVersion != sourceVersion)
                 {
                     sourceLookup!.Refresh(sourceTask!);
+                    continue;
+                }
+                // node management may have added or removed the event type meanwhile.
+                if (NodeState.AddressSpaceVersion != addressSpaceVersion)
+                {
                     continue;
                 }
                 if (authorization.Matches(CapturePermissionContext(monitoredItem)))
@@ -3252,17 +3275,20 @@ namespace Opc.Ua.Server
                 in MonitoredItemPermissionContext context,
                 NodeState sourceNode,
                 long sourceVersion,
+                long addressSpaceVersion,
                 ServiceResult result)
             {
                 Context = context;
                 SourceNode = new WeakReference<NodeState>(sourceNode);
                 SourceVersion = sourceVersion;
+                AddressSpaceVersion = addressSpaceVersion;
                 Result = result;
             }
 
             public readonly MonitoredItemPermissionContext Context;
             public readonly WeakReference<NodeState> SourceNode;
             public readonly long SourceVersion;
+            public readonly long AddressSpaceVersion;
             public readonly ServiceResult Result;
         }
 
