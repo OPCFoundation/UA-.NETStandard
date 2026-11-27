@@ -323,7 +323,7 @@ namespace Opc.Ua.Bindings
             };
             try
             {
-                await socket.ConnectAsync(endpoint).ConfigureAwait(false);
+                await ConnectSocketAsync(socket, endpoint, ct).ConfigureAwait(false);
 
                 ct.ThrowIfCancellationRequested();
                 lock (m_socketLock)
@@ -353,6 +353,44 @@ namespace Opc.Ua.Bindings
                     ShutdownAndDispose(socket);
                 }
             }
+        }
+
+        /// <summary>
+        /// Connects the socket and observes <paramref name="ct"/> while the
+        /// connect is pending, so a connect the network never answers can be
+        /// cancelled instead of waiting for the operating system timeout.
+        /// </summary>
+        /// <exception cref="OperationCanceledException">
+        /// <paramref name="ct"/> was cancelled before the connect completed.
+        /// </exception>
+        private static async Task ConnectSocketAsync(
+            Socket socket,
+            EndPoint endpoint,
+            CancellationToken ct)
+        {
+            ct.ThrowIfCancellationRequested();
+#if NET5_0_OR_GREATER
+            await socket.ConnectAsync(endpoint, ct).ConfigureAwait(false);
+#else
+            // Socket.ConnectAsync has no cancellation overload on this target:
+            // disposing the socket aborts the pending connect.
+            using CancellationTokenRegistration registration = ct.Register(
+                static state => ((Socket)state!).Dispose(),
+                socket,
+                useSynchronizationContext: false);
+            try
+            {
+                await socket.ConnectAsync(endpoint).ConfigureAwait(false);
+            }
+            catch (SocketException e) when (ct.IsCancellationRequested)
+            {
+                throw new OperationCanceledException("Connection attempt was cancelled.", e, ct);
+            }
+            catch (ObjectDisposedException e) when (ct.IsCancellationRequested)
+            {
+                throw new OperationCanceledException("Connection attempt was cancelled.", e, ct);
+            }
+#endif
         }
 
         /// <summary>
