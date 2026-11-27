@@ -121,6 +121,10 @@ namespace Opc.Ua.Wot
                 }
                 nodeSetBytes = nodeSetStream.ToArray();
             }
+            if (!ValidateNodeSetXmlDepth(nodeSetBytes, options, diagnostics))
+            {
+                return new WotConversionResult<WotDocument>(null, diagnostics);
+            }
 
             UANode? root = SelectRootNode(nodeSet);
             string resolvedTitle = title

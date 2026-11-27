@@ -324,7 +324,8 @@ converter emits the envelope without `uav:nodes`. Older fallback documents may
 contain an incomplete `uav:nodes`; the converter accepts it with a warning only
 when it matches the complete projection regenerated from the validated envelope.
 A truncated legacy projection remains a conflict because it cannot be
-distinguished from a projection with deleted records.
+distinguished from a projection with deleted records. The configured
+`MaxXmlDepth` also applies when exporting or restoring an envelope.
 
 ### Generated document-set limits
 

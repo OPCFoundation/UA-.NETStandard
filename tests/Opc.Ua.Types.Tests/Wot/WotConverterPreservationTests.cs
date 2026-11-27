@@ -62,6 +62,15 @@ namespace Opc.Ua.Types.Tests.Wot
             using WotDocument generated = forward.Value!;
             Assert.That(generated.TryGetEnvelope(out _), Is.True);
             Assert.That(generated.TryGetNativeProjection(out _), Is.False);
+            var depthOptions = new WotNodeSetConverterOptions { MaxXmlDepth = 1 };
+            WotConversionResult<WotDocument> depthLimitedForward =
+                WotNodeSetConverter.FromNodeSetResult(source, options: depthOptions);
+            Assert.That(depthLimitedForward.Value, Is.Null);
+            Assert.That(depthLimitedForward.Diagnostics.Any(d => d.Code == WotDiagnosticCode.DepthExceeded), Is.True);
+            WotConversionResult<UANodeSet> depthLimitedReverse =
+                WotNodeSetConverter.ToNodeSetResult(generated, depthOptions);
+            Assert.That(depthLimitedReverse.Value, Is.Null);
+            Assert.That(depthLimitedReverse.Diagnostics.Any(d => d.Code == WotDiagnosticCode.DepthExceeded), Is.True);
 
             JsonNode json = JsonNode.Parse(generated.Utf8Json.Span)!;
             if (legacyProjection)
@@ -106,7 +115,7 @@ namespace Opc.Ua.Types.Tests.Wot
                 WotConversionResult<UANodeSet> depthLimited = WotNodeSetConverter.ToNodeSetResult(
                     document, new WotNodeSetConverterOptions { MaxXmlDepth = 1 });
                 Assert.That(depthLimited.HasErrors, Is.True);
-                Assert.That(depthLimited.Diagnostics.Any(d => d.Code == WotDiagnosticCode.NativeProjectionConflict),
+                Assert.That(depthLimited.Diagnostics.Any(d => d.Code == WotDiagnosticCode.DepthExceeded),
                     Is.True);
 
                 json["uav:nodes"]!["nodes"]![0]!["browseName"] = "1:Tampered";
