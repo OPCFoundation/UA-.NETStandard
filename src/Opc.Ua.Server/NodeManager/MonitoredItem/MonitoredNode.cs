@@ -1487,9 +1487,22 @@ namespace Opc.Ua.Server
                 m_sourceNodeId = sourceNodeId;
             }
 
-            public Task<NodeState?> GetAsync(CancellationToken cancellationToken)
+            /// <summary>
+            /// The source instance and its <see cref="NodeState.PermissionVersion"/>, both taken
+            /// when the lookup resolved it.
+            /// </summary>
+            public readonly record struct Snapshot(NodeState? Node, long Version)
             {
-                Task<NodeState?>? lookup = Volatile.Read(ref m_lookup);
+                /// <summary>
+                /// Whether the instance was removed after the lookup resolved it, so that a newer
+                /// instance may now own the NodeId.
+                /// </summary>
+                public bool IsStale => Node != null && Node.PermissionVersion != Version;
+            }
+
+            public Task<Snapshot> GetAsync(CancellationToken cancellationToken)
+            {
+                Task<Snapshot>? lookup = Volatile.Read(ref m_lookup);
                 if (lookup != null)
                 {
                     return lookup;
@@ -1499,31 +1512,63 @@ namespace Opc.Ua.Server
                     lookup = m_lookup;
                     if (lookup == null)
                     {
-                        lookup = m_masterNodeManager
-                            .FindNodeInAddressSpaceAsync(m_sourceNodeId, cancellationToken)
-                            .AsTask();
+                        lookup = ResolveAsync(m_masterNodeManager, m_sourceNodeId, cancellationToken);
                         Volatile.Write(ref m_lookup, lookup);
                     }
                     return lookup;
                 }
             }
 
-            public bool TryGetCompleted(out NodeState? sourceNode)
+            /// <summary>
+            /// Forgets a lookup whose source instance was removed after it resolved, so that
+            /// the next <see cref="GetAsync"/> resolves the current instance.
+            /// </summary>
+            /// <param name="stale">The lookup that returned the removed instance.</param>
+            public void Refresh(Task<Snapshot> stale)
             {
-                Task<NodeState?>? lookup = Volatile.Read(ref m_lookup);
+                Interlocked.CompareExchange(ref m_lookup, null, stale);
+            }
+
+            public bool TryGetCompleted(out Snapshot source)
+            {
+                Task<Snapshot>? lookup = Volatile.Read(ref m_lookup);
                 if (lookup?.Status == TaskStatus.RanToCompletion)
                 {
-                    sourceNode = lookup.Result;
+                    source = lookup.Result;
                     return true;
                 }
-                sourceNode = null;
+                source = default;
                 return false;
+            }
+
+            private static async Task<Snapshot> ResolveAsync(
+                IMasterNodeManager masterNodeManager,
+                NodeId sourceNodeId,
+                CancellationToken cancellationToken)
+            {
+                while (true)
+                {
+                    // the instance may be removed between the lookup and reading its version,
+                    // which would leave its settled version looking current. A removal moves
+                    // AddressSpaceVersion before the instance's own version, so a version read
+                    // after the removal is always followed by a changed AddressSpaceVersion.
+                    long addressSpaceVersion = NodeState.AddressSpaceVersion;
+                    NodeState? node = await masterNodeManager
+                        .FindNodeInAddressSpaceAsync(sourceNodeId, cancellationToken)
+                        .ConfigureAwait(false);
+                    long version = node?.PermissionVersion ?? 0;
+                    if (NodeState.AddressSpaceVersion == addressSpaceVersion)
+                    {
+                        return new Snapshot(node, version);
+                    }
+                    cancellationToken.ThrowIfCancellationRequested();
+                }
             }
 
             private readonly Lock m_lock = new();
             private readonly IMasterNodeManager m_masterNodeManager;
             private readonly NodeId m_sourceNodeId;
-            private Task<NodeState?>? m_lookup;
+            private Task<Snapshot>? m_lookup;
         }
 
         /// <summary>
@@ -1776,14 +1821,17 @@ namespace Opc.Ua.Server
                 return false;
             }
             authorization = NotificationAuthorization.Capture(context.Session);
-            if (!sourceLookup.TryGetCompleted(out NodeState? sourceNode) ||
-                sourceNode == null ||
+            if (!sourceLookup.TryGetCompleted(out EventSourceLookup.Snapshot source) ||
+                source.Node is not { } sourceNode ||
+                source.IsStale ||
                 !m_eventPermissionCache.TryGetValue(
                     new EventPermissionCacheKey(monitoredItem.Id, eventTypeId, sourceNodeId),
                     out CachedEventPermission? cached) ||
                 !cached.Context.Matches(context) ||
                 !cached.SourceNode.TryGetTarget(out NodeState? cachedSourceNode) ||
-                !ReferenceEquals(cachedSourceNode, sourceNode))
+                !ReferenceEquals(cachedSourceNode, sourceNode) ||
+                cached.SourceVersion != source.Version ||
+                cached.AddressSpaceVersion != NodeState.AddressSpaceVersion)
             {
                 return false;
             }
@@ -1842,10 +1890,22 @@ namespace Opc.Ua.Server
                     return (restrictions, authorization.Session, notificationAuthorization);
                 }
                 NodeState? sourceNode = null;
+                Task<EventSourceLookup.Snapshot>? sourceTask = null;
+                long sourceVersion = 0;
                 if (cacheable)
                 {
-                    sourceNode = await sourceLookup!.GetAsync(cancellationToken).ConfigureAwait(false);
+                    sourceTask = sourceLookup!.GetAsync(cancellationToken);
+                    EventSourceLookup.Snapshot source = await sourceTask.ConfigureAwait(false);
                     cancellationToken.ThrowIfCancellationRequested();
+                    // the shared lookup may hold an instance removed after it resolved; a verdict
+                    // validated for it would not see the removal of the instance that replaced it.
+                    if (source.IsStale)
+                    {
+                        sourceLookup.Refresh(sourceTask);
+                        continue;
+                    }
+                    sourceNode = source.Node;
+                    sourceVersion = source.Version;
                     if (!authorization.Matches(CapturePermissionContext(monitoredItem)))
                     {
                         continue;
@@ -1856,13 +1916,18 @@ namespace Opc.Ua.Server
                 {
                     cacheable = false;
                 }
+                // the verdict also depends on what the event type NodeId resolves to; taken
+                // after the source lookup, whose own retries move it, and before the role check.
+                long addressSpaceVersion = NodeState.AddressSpaceVersion;
                 if (cacheable &&
                     m_eventPermissionCache.TryGetValue(
                         key,
                         out CachedEventPermission? cached) &&
                     cached.Context.Matches(authorization) &&
                     cached.SourceNode.TryGetTarget(out NodeState? cachedSourceNode) &&
-                    ReferenceEquals(cachedSourceNode, sourceNode))
+                    ReferenceEquals(cachedSourceNode, sourceNode) &&
+                    cached.SourceVersion == sourceVersion &&
+                    cached.AddressSpaceVersion == addressSpaceVersion)
                 {
                     result = cached.Result;
                 }
@@ -1873,7 +1938,8 @@ namespace Opc.Ua.Server
                     cancellationToken.ThrowIfCancellationRequested();
                     if (cacheable)
                     {
-                        m_eventPermissionCache[key] = new CachedEventPermission(authorization, sourceNode!, result);
+                        m_eventPermissionCache[key] = new CachedEventPermission(
+                            authorization, sourceNode!, sourceVersion, addressSpaceVersion, result);
                     }
                 }
                 if (!ServiceResult.IsBad(result))
@@ -1885,6 +1951,19 @@ namespace Opc.Ua.Server
                     {
                         return (currentRestrictions, authorization.Session, notificationAuthorization);
                     }
+                }
+                // the event source may be removed while the role check is suspended; that moves
+                // only the source's own version, not the notifier's context, so the verdict was
+                // computed for an instance that is gone and is validated again for the current one.
+                if (sourceNode != null && sourceNode.PermissionVersion != sourceVersion)
+                {
+                    sourceLookup!.Refresh(sourceTask!);
+                    continue;
+                }
+                // node management may have added or removed the event type meanwhile.
+                if (NodeState.AddressSpaceVersion != addressSpaceVersion)
+                {
+                    continue;
                 }
                 if (authorization.Matches(CapturePermissionContext(monitoredItem)))
                 {
@@ -1984,6 +2063,7 @@ namespace Opc.Ua.Server
                 Volatile.Read(ref m_permissionGeneration),
                 NodeState.RolePermissionsVersion,
                 Node,
+                Node.PermissionVersion,
                 (m_server.NodeManager as IDynamicNodeManagerBatchHost)?.RoutingRevision,
                 session,
                 session?.EffectiveIdentity ?? monitoredItem.EffectiveIdentity,
@@ -2303,6 +2383,7 @@ namespace Opc.Ua.Server
             }
             long generation = authorization.Generation +
                 authorization.RolePermissionsVersion +
+                authorization.NodePermissionVersion +
                 authorization.IdentityGeneration;
             var inputs = MonitoredReadInputs.Capture(monitoredItem.Session, Node);
             ServerSystemContext cachedContext = GetSubscriberContext(GetSubscriberContextTemplate(), monitoredItem);
@@ -2348,6 +2429,7 @@ namespace Opc.Ua.Server
                 MonitoredItemPermissionContext authorization = CapturePermissionContext(monitoredItem);
                 long generation = authorization.Generation +
                     authorization.RolePermissionsVersion +
+                    authorization.NodePermissionVersion +
                     authorization.IdentityGeneration;
                 var inputs = MonitoredReadInputs.Capture(monitoredItem.Session, Node);
                 // the subscriber's own context, also when the reporter's context is not a
@@ -3118,6 +3200,9 @@ namespace Opc.Ua.Server
         /// <param name="Generation">The monitored node's local invalidation generation.</param>
         /// <param name="RolePermissionsVersion">The version of node and user role-permission attributes.</param>
         /// <param name="Node">The current node-state instance, guarding against NodeId reuse.</param>
+        /// <param name="NodePermissionVersion">
+        /// The <see cref="NodeState.PermissionVersion"/> of <paramref name="Node"/>, which moves when it is removed.
+        /// </param>
         /// <param name="RoutingRevision">The address-space routing snapshot used to resolve event nodes.</param>
         /// <param name="Session">The subscription's current owning session.</param>
         /// <param name="Identity">The current effective identity, not merely the principal's display name.</param>
@@ -3126,6 +3211,7 @@ namespace Opc.Ua.Server
             long Generation,
             long RolePermissionsVersion,
             NodeState Node,
+            long NodePermissionVersion,
             NodeManagerRoutingTable.RoutingSnapshot? RoutingRevision,
             ISession? Session,
             IUserIdentity? Identity,
@@ -3139,6 +3225,7 @@ namespace Opc.Ua.Server
                 return Generation == other.Generation &&
                     RolePermissionsVersion == other.RolePermissionsVersion &&
                     ReferenceEquals(Node, other.Node) &&
+                    NodePermissionVersion == other.NodePermissionVersion &&
                     ReferenceEquals(RoutingRevision, other.RoutingRevision) &&
                     ReferenceEquals(Session, other.Session) &&
                     ReferenceEquals(Identity, other.Identity) &&
@@ -3187,15 +3274,21 @@ namespace Opc.Ua.Server
             public CachedEventPermission(
                 in MonitoredItemPermissionContext context,
                 NodeState sourceNode,
+                long sourceVersion,
+                long addressSpaceVersion,
                 ServiceResult result)
             {
                 Context = context;
                 SourceNode = new WeakReference<NodeState>(sourceNode);
+                SourceVersion = sourceVersion;
+                AddressSpaceVersion = addressSpaceVersion;
                 Result = result;
             }
 
             public readonly MonitoredItemPermissionContext Context;
             public readonly WeakReference<NodeState> SourceNode;
+            public readonly long SourceVersion;
+            public readonly long AddressSpaceVersion;
             public readonly ServiceResult Result;
         }
 

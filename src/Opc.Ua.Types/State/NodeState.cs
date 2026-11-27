@@ -432,7 +432,14 @@ namespace Opc.Ua
         public NodeStateChangeMasks ChangeMasks
         {
             get => m_changeMasks;
-            protected set => m_changeMasks = value;
+            protected set
+            {
+                if ((value & NodeStateChangeMasks.Deleted) != 0)
+                {
+                    InvalidatePermissionVerdicts();
+                }
+                m_changeMasks = value;
+            }
         }
 
         /// <summary>
@@ -3280,6 +3287,10 @@ namespace Opc.Ua
         /// </summary>
         public void UpdateChangeMasks(NodeStateChangeMasks changeMasks)
         {
+            if ((changeMasks & NodeStateChangeMasks.Deleted) != 0)
+            {
+                InvalidatePermissionVerdicts();
+            }
             m_changeMasks |= changeMasks;
         }
 
@@ -7265,15 +7276,15 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Changes when role-permission attributes change or address-space membership may
-        /// replace the node resolved for a NodeId.
+        /// Changes when role-permission attributes change, or when node management changes
+        /// verdicts that no node instance's <see cref="PermissionVersion"/> covers.
         /// Cached permission verdicts use this version without retaining every resolved node.
         /// </summary>
         internal static long RolePermissionsVersion => Interlocked.Read(ref s_rolePermissionsVersion);
 
         /// <summary>
-        /// Advances the permission cache version around node-management operations that can
-        /// replace the node resolved for a NodeId.
+        /// Retires every cached permission verdict of the process, for node-management operations
+        /// whose effect on verdicts is not limited to the instances they remove.
         /// </summary>
         internal static void InvalidateRolePermissionsCache()
         {
@@ -7281,6 +7292,64 @@ namespace Opc.Ua
         }
 
         private static long s_rolePermissionsVersion;
+
+        /// <summary>
+        /// Changes whenever node management adds or removes a node of the address space, and
+        /// whenever a node is marked deleted.
+        /// </summary>
+        /// <remarks>
+        /// Event permission verdicts check the event type's NodeId, which can resolve to a
+        /// node of any class and passes the role check while it is unknown. They keep no
+        /// instance of it, so they use this version: adding or removing any node retires them.
+        /// Verdicts of data-change and sampled items are kept per instance and ignore it.
+        /// </remarks>
+        internal static long AddressSpaceVersion => Interlocked.Read(ref s_addressSpaceVersion);
+
+        /// <summary>
+        /// Advances <see cref="AddressSpaceVersion"/> after node management changed which
+        /// node a NodeId resolves to.
+        /// </summary>
+        internal static void InvalidateAddressSpaceVersion()
+        {
+            Interlocked.Increment(ref s_addressSpaceVersion);
+        }
+
+        private static long s_addressSpaceVersion;
+
+        /// <summary>
+        /// Changes when this node instance leaves the address space, so that a permission
+        /// verdict cached for it is computed again although no role-permission attribute changed.
+        /// </summary>
+        /// <remarks>
+        /// A permission check resolves the NodeId of the checked node, so once the node is
+        /// removed the check no longer sees the instance a cached verdict was computed for.
+        /// Verdicts are kept per instance, so moving this version, rather than
+        /// <see cref="RolePermissionsVersion"/>, retires only the verdicts of this node: the
+        /// verdicts of every other node stay cached across node management.
+        /// </remarks>
+        internal long PermissionVersion
+        {
+            get
+            {
+                NodeStateSecurityData? data = Volatile.Read(ref m_securityData);
+                return data is null ? 0 : Interlocked.Read(ref data.PermissionVersion);
+            }
+        }
+
+        /// <summary>
+        /// Retires every permission verdict cached for this node instance (see
+        /// <see cref="PermissionVersion"/>). Marking the node deleted calls it.
+        /// </summary>
+        /// <remarks>
+        /// <see cref="AddressSpaceVersion"/> moves first: a reader that sees the moved
+        /// <see cref="PermissionVersion"/> then also sees the moved address space version, so
+        /// it can tell that the instance it looked up may have been removed meanwhile.
+        /// </remarks>
+        internal void InvalidatePermissionVerdicts()
+        {
+            InvalidateAddressSpaceVersion();
+            Interlocked.Increment(ref GetOrCreateSecurityData().PermissionVersion);
+        }
 
         private void SetAccessRestrictions(AccessRestrictionType? value)
         {
@@ -7383,6 +7452,7 @@ namespace Opc.Ua
             public ArrayOf<RolePermissionType> RolePermissions;
             public ArrayOf<RolePermissionType> UserRolePermissions;
             public AccessRestrictionType? AccessRestrictions;
+            public long PermissionVersion;
         }
 
         private sealed class NodeStateDesignMetadata

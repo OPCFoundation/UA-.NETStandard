@@ -233,11 +233,6 @@ namespace Opc.Ua.Server
                 var results = new AddNodesResult[nodesToAdd.Count];
                 var diagnosticInfos = new DiagnosticInfo[nodesToAdd.Count];
                 bool anyDiagnostics = false;
-                invalidatePermissionCache = nodesToAdd.Count > 0;
-                if (invalidatePermissionCache)
-                {
-                    NodeState.InvalidateRolePermissionsCache();
-                }
 
                 for (int ii = 0; ii < nodesToAdd.Count; ii++)
                 {
@@ -251,11 +246,33 @@ namespace Opc.Ua.Server
                     }
                     catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
                     {
+                        // the owner may have added part of the node before it was cancelled.
+                        NodeState.InvalidateAddressSpaceVersion();
+                        invalidatePermissionCache |= RequiresServerWideInvalidation(item);
                         throw;
                     }
                     catch (Exception exception)
                     {
+                        NodeState.InvalidateAddressSpaceVersion();
+                        invalidatePermissionCache |= RequiresServerWideInvalidation(item);
                         result = CreateNodeManagementError(exception);
+                    }
+
+                    // a type or a node that may define namespace defaults changes cached verdicts
+                    // (see RequiresServerWideInvalidation); any other added node is a new instance,
+                    // which only event verdicts may have checked while its NodeId was unknown, and
+                    // a rejected item changed nothing.
+                    if (ServiceResult.IsGood(result))
+                    {
+                        NodeState.InvalidateAddressSpaceVersion();
+                        invalidatePermissionCache |= RequiresServerWideInvalidation(item);
+                    }
+
+                    // retire them before the next item can suspend the request.
+                    if (invalidatePermissionCache)
+                    {
+                        NodeState.InvalidateRolePermissionsCache();
+                        invalidatePermissionCache = false;
                     }
 
                     results[ii] = new AddNodesResult
@@ -282,7 +299,7 @@ namespace Opc.Ua.Server
             {
                 if (invalidatePermissionCache)
                 {
-                    // Retire verdicts resolved while the address-space mutation was in progress.
+                    // Also retires verdicts resolved while the item was being added.
                     NodeState.InvalidateRolePermissionsCache();
                 }
             }
@@ -312,28 +329,39 @@ namespace Opc.Ua.Server
                 var results = new StatusCode[nodesToDelete.Count];
                 var diagnosticInfos = new DiagnosticInfo[nodesToDelete.Count];
                 bool anyDiagnostics = false;
-                invalidatePermissionCache = nodesToDelete.Count > 0;
-                if (invalidatePermissionCache)
-                {
-                    NodeState.InvalidateRolePermissionsCache();
-                }
-
                 for (int ii = 0; ii < nodesToDelete.Count; ii++)
                 {
                     DeleteNodesItem item = nodesToDelete[ii];
                     ServiceResult result;
                     try
                     {
-                        result = await DispatchDeleteNodeAsync(
+                        bool invalidateAll;
+                        (result, invalidateAll) = await DispatchDeleteNodeAsync(
                             context, item, mutationAdmission, cancellationToken).ConfigureAwait(false);
+                        invalidatePermissionCache |= invalidateAll;
+                        if (ServiceResult.IsGood(result))
+                        {
+                            // an event type NodeId may have resolved to the removed node.
+                            NodeState.InvalidateAddressSpaceVersion();
+                        }
                     }
                     catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
                     {
+                        // the owner may have removed part of the subtree before it was cancelled.
+                        invalidatePermissionCache = true;
                         throw;
                     }
                     catch (Exception exception)
                     {
+                        invalidatePermissionCache = true;
                         result = CreateNodeManagementError(exception);
+                    }
+
+                    // retire them before the next item can suspend the request.
+                    if (invalidatePermissionCache)
+                    {
+                        NodeState.InvalidateRolePermissionsCache();
+                        invalidatePermissionCache = false;
                     }
 
                     results[ii] = result.StatusCode;
@@ -356,7 +384,7 @@ namespace Opc.Ua.Server
             {
                 if (invalidatePermissionCache)
                 {
-                    // Retire verdicts resolved while the address-space mutation was in progress.
+                    // Also retires verdicts resolved while the node was being deleted.
                     NodeState.InvalidateRolePermissionsCache();
                 }
             }
@@ -722,11 +750,24 @@ namespace Opc.Ua.Server
             }
             catch (ServiceResultException ex)
             {
+                // the owner may have added part of the node, such as a type, before it threw.
+                NodeState.InvalidateAddressSpaceVersion();
+                if (RequiresServerWideInvalidation(item))
+                {
+                    NodeState.InvalidateRolePermissionsCache();
+                }
                 return (new ServiceResult(ex), NodeId.Null);
             }
         }
 
-        private async ValueTask<ServiceResult> DispatchDeleteNodeAsync(
+        /// <summary>
+        /// Deletes one node through its owner.
+        /// </summary>
+        /// <returns>
+        /// The result, and whether every cached permission verdict of the server must be retired
+        /// because the deletion can change verdicts that are not kept for the deleted instances.
+        /// </returns>
+        private async ValueTask<(ServiceResult Result, bool InvalidateAll)> DispatchDeleteNodeAsync(
             OperationContext context,
             DeleteNodesItem item,
             INodeManagerBatchAdmission admission,
@@ -734,12 +775,12 @@ namespace Opc.Ua.Server
         {
             if (item == null)
             {
-                return new ServiceResult(StatusCodes.BadNothingToDo);
+                return (new ServiceResult(StatusCodes.BadNothingToDo), false);
             }
 
             if (item.NodeId.IsNull)
             {
-                return new ServiceResult(StatusCodes.BadNodeIdInvalid);
+                return (new ServiceResult(StatusCodes.BadNodeIdInvalid), false);
             }
 
             (object? handle, IAsyncNodeManager? owner) =
@@ -747,12 +788,12 @@ namespace Opc.Ua.Server
                     .ConfigureAwait(false);
             if (handle == null || owner == null)
             {
-                return new ServiceResult(StatusCodes.BadNodeIdUnknown);
+                return (new ServiceResult(StatusCodes.BadNodeIdUnknown), false);
             }
 
             if (!owner.AllowNodeManagement)
             {
-                return new ServiceResult(StatusCodes.BadUserAccessDenied);
+                return (new ServiceResult(StatusCodes.BadUserAccessDenied), false);
             }
 
             ServiceResult permissionResult = await ValidatePermissionsAsync(
@@ -765,9 +806,16 @@ namespace Opc.Ua.Server
                 cancellationToken).ConfigureAwait(false);
             if (ServiceResult.IsBad(permissionResult))
             {
-                return permissionResult;
+                return (permissionResult, false);
             }
 
+            NodeState? node = handle switch
+            {
+                NodeHandle nodeHandle => nodeHandle.Node,
+                NodeState state => state,
+                _ => null
+            };
+            ServiceResult result;
             try
             {
                 var permit = new NodeManagerCallbackPermit(GetAdmissionCapabilities(admission),
@@ -775,7 +823,7 @@ namespace Opc.Ua.Server
                 using var callbackContext = new OperationContext(context, permit);
                 try
                 {
-                    return await owner.DeleteNodeAsync(callbackContext, item, cancellationToken)
+                    result = await owner.DeleteNodeAsync(callbackContext, item, cancellationToken)
                         .ConfigureAwait(false);
                 }
                 finally
@@ -785,8 +833,99 @@ namespace Opc.Ua.Server
             }
             catch (ServiceResultException ex)
             {
-                return new ServiceResult(ex);
+                // the owner may have removed part of the subtree before it failed.
+                return (new ServiceResult(ex), true);
             }
+
+            if (ServiceResult.IsBad(result))
+            {
+                return (result, false);
+            }
+
+            // Verdicts are kept per source instance, so the deletion retires the verdicts of the
+            // deleted instance (marking it deleted does the same for the managers that do so for
+            // every node of the subtree) and leaves the verdicts of all other nodes cached.
+            node?.InvalidatePermissionVerdicts();
+            return (result, RequiresServerWideInvalidation(owner, node));
+        }
+
+        /// <summary>
+        /// Whether a node deletion can change a cached permission verdict that the deleted
+        /// instance's <see cref="NodeState.PermissionVersion"/> does not cover.
+        /// </summary>
+        /// <remarks>
+        /// That is the case when the deleted instance is unknown, when the owner does not mark
+        /// every removed node of the subtree deleted, when a type is deleted (event verdicts are
+        /// keyed on the event type's NodeId, not its instance) and when the node may define
+        /// namespace defaults, which the verdicts of every node of the namespace depend on.
+        /// </remarks>
+        private static bool RequiresServerWideInvalidation(IAsyncNodeManager owner, NodeState? node)
+        {
+            if (node == null || node is BaseTypeState || MayDefineNamespaceDefaults(node))
+            {
+                return true;
+            }
+#pragma warning disable CS0618, UA0031 // Legacy CustomNodeManager2 owners mark their removed nodes deleted.
+            return owner is not AsyncCustomNodeManager &&
+                owner is not AsyncNodeManagerAdapter { SyncNodeManager: CustomNodeManager2 };
+#pragma warning restore CS0618, UA0031
+        }
+
+        /// <summary>
+        /// Whether adding a node must retire every cached permission verdict of the server
+        /// rather than none.
+        /// </summary>
+        /// <remarks>
+        /// An added instance is new, so no verdict was cached for it, except for two cases. A
+        /// node that may define namespace defaults changes the verdicts of every node of the
+        /// namespace. A type node can resolve a NodeId that a verdict was cached for while it was
+        /// unknown: event verdicts check the event type's NodeId, and an unknown NodeId passes
+        /// the role check, so a Good verdict would otherwise survive the type's restrictions.
+        /// </remarks>
+        private static bool RequiresServerWideInvalidation(AddNodesItem? item)
+        {
+            if (item == null)
+            {
+                return false;
+            }
+            return MayDefineNamespaceDefaults(item) ||
+                item.NodeClass is NodeClass.ObjectType or NodeClass.VariableType or
+                    NodeClass.DataType or NodeClass.ReferenceType;
+        }
+
+        /// <summary>
+        /// Whether an added node may define the default permissions of a namespace: a namespace
+        /// metadata object, one of its default permission properties or any node added below
+        /// <c>Server/Namespaces</c>.
+        /// </summary>
+        private static bool MayDefineNamespaceDefaults(AddNodesItem? item)
+        {
+            if (item == null)
+            {
+                return false;
+            }
+            return item.TypeDefinition == ObjectTypeIds.NamespaceMetadataType ||
+                item.ParentNodeId == ObjectIds.Server_Namespaces ||
+                IsDefaultPermissionProperty(item.BrowseName);
+        }
+
+        /// <summary>
+        /// Whether a deleted node may define the default permissions of a namespace.
+        /// </summary>
+        private static bool MayDefineNamespaceDefaults(NodeState node)
+        {
+            return node is NamespaceMetadataState ||
+                IsDefaultPermissionProperty(node.BrowseName) ||
+                (node is BaseInstanceState { Parent: { } parent } &&
+                    (parent is NamespaceMetadataState || parent.NodeId == ObjectIds.Server_Namespaces));
+        }
+
+        private static bool IsDefaultPermissionProperty(QualifiedName browseName)
+        {
+            return browseName.NamespaceIndex == 0 &&
+                (browseName.Name == BrowseNames.DefaultRolePermissions ||
+                    browseName.Name == BrowseNames.DefaultUserRolePermissions ||
+                    browseName.Name == BrowseNames.DefaultAccessRestrictions);
         }
 
         private async ValueTask<ServiceResult> DispatchAddReferenceAsync(
