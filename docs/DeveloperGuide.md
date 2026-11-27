@@ -155,7 +155,7 @@ Conventions and requirements:
       -f net10.0 `
       -p:CustomTestTarget=net10.0
   ```
-- **Before a pull request that changes C# source files**, the `UA.slnx` suite must pass on at least **.NET Framework 4.8** and **.NET 10.0**. Pull requests changing only non-C# files do not require these .NET test runs before opening.
+- **Before opening a pull request that changes C# source files**, the `UA.slnx` suite should pass on at least **.NET Framework 4.8** and **.NET 10.0**. An explicit waiver allows opening the pull request before those runs pass. Note which runs did not pass or were not run in the pull request. Pull requests changing only non-C# files do not need these .NET test runs.
 - **Testing a specific target framework.** The libraries multi-target, but the test executables run on one framework at a time. To run the suite against a non-default framework, set `CustomTestTarget` (supported values: `net48`, `net10.0`, `net11.0`). The batch file [`tests/customtest.bat`](../tests/customtest.bat) cleans, restores, and runs the tests for a chosen target; in Visual Studio, uncomment and set the `CustomTestTarget` property in [`targets.props`](../targets.props). A clean build for the target is recommended when switching.
 - **CI matrix.** The pull-request gate runs the test suite on **net48** and **net11.0**, and compiles the solution for *every* supported target framework; the remaining test matrices (net10.0 and Debug) run in scheduled or manual CI. Fix all failing, flaky, and CodeQL findings in the pipelines. See [Continuous integration](#continuous-integration).
 
