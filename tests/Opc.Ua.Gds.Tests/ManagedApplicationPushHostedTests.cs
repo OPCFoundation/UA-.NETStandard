@@ -40,9 +40,7 @@ namespace Opc.Ua.Gds.Tests
         {
             const string firstUri = "urn:hosted:provisionable:application:first";
             const string secondUri = "urn:hosted:provisionable:application:second";
-            string root = Path.Combine(
-                TestContext.CurrentContext.WorkDirectory, "onboarding-hosted-applications",
-                Guid.NewGuid().ToString("N"));
+            string root = Path.Combine(Path.GetTempPath(), Path.GetRandomFileName());
             try
             {
                 using TestTarget first = await TestTarget.CreateAsync(firstUri).ConfigureAwait(false);
