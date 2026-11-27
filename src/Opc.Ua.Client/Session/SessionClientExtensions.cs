@@ -617,7 +617,7 @@ namespace Opc.Ua.Client
             var referencesList = new List<ArrayOf<ReferenceDescription>>();
             foreach (BrowseResult result in results)
             {
-                if (StatusCode.IsBad(result.StatusCode))
+                if (StatusCode.IsNotGood(result.StatusCode))
                 {
                     errors.Add(
                         new ServiceResult(
@@ -681,7 +681,7 @@ namespace Opc.Ua.Client
             var referencesList = new List<ArrayOf<ReferenceDescription>>();
             foreach (BrowseResult result in results)
             {
-                if (StatusCode.IsBad(result.StatusCode))
+                if (StatusCode.IsNotGood(result.StatusCode))
                 {
                     errors.Add(
                         new ServiceResult(

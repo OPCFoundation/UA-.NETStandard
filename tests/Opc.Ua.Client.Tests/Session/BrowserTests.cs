@@ -487,6 +487,57 @@ namespace Opc.Ua.Client.Tests
                 browseNext ? Times.Once() : Times.Never());
         }
 
+        [TestCase(StatusCodes.UncertainNotAllNodesAvailable, StatusCodes.Good,
+            StatusCodes.UncertainNotAllNodesAvailable)]
+        [TestCase(StatusCodes.Good, StatusCodes.UncertainNotAllNodesAvailable,
+            StatusCodes.UncertainNotAllNodesAvailable)]
+        [TestCase(StatusCodes.UncertainNotAllNodesAvailable, StatusCodes.BadNodeIdUnknown,
+            StatusCodes.BadNodeIdUnknown)]
+        [TestCase(StatusCodes.Good, StatusCodes.Good, StatusCodes.Good)]
+        public async Task ManagedBrowsePreservesPageStatusAsync(uint firstStatus, uint nextStatus, uint expectedStatus)
+        {
+            using SessionMock session = SessionMock.Create();
+            session.Channel
+                .Setup(c => c.SendRequestAsync(It.IsAny<BrowseRequest>(), It.IsAny<CancellationToken>()))
+                .Returns(new ValueTask<IServiceResponse>(new BrowseResponse
+                {
+                    Results =
+                    [
+                        new BrowseResult
+                        {
+                            StatusCode = firstStatus,
+                            References = [CreateReferenceDescription("FirstPage")],
+                            ContinuationPoint = ByteString.From([1])
+                        }
+                    ],
+                    DiagnosticInfos = []
+                }));
+            session.Channel
+                .Setup(c => c.SendRequestAsync(It.IsAny<BrowseNextRequest>(), It.IsAny<CancellationToken>()))
+                .Returns(new ValueTask<IServiceResponse>(new BrowseNextResponse
+                {
+                    Results =
+                    [
+                        new BrowseResult
+                        {
+                            StatusCode = nextStatus,
+                            References = [CreateReferenceDescription("NextPage")]
+                        }
+                    ],
+                    DiagnosticInfos = []
+                }));
+
+            (ArrayOf<ArrayOf<ReferenceDescription>> references, ArrayOf<ServiceResult> errors) =
+                await session.ManagedBrowseAsync(
+                    null, null, [ObjectIds.RootFolder], 1, BrowseDirection.Forward,
+                    ReferenceTypeIds.HierarchicalReferences, true, 0).ConfigureAwait(false);
+
+            Assert.That(errors[0].StatusCode, Is.EqualTo(expectedStatus));
+            Assert.That(references[0], Has.Count.EqualTo(2));
+            Assert.That(references[0][0].BrowseName, Is.EqualTo(new QualifiedName("FirstPage")));
+            Assert.That(references[0][1].BrowseName, Is.EqualTo(new QualifiedName("NextPage")));
+        }
+
         private static ReferenceDescription CreateReferenceDescription(string name)
         {
             return new ReferenceDescription
