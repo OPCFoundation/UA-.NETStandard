@@ -13,6 +13,7 @@ using System.Threading.Tasks;
 using NUnit.Framework;
 using Opc.Ua.Client;
 using Opc.Ua.Client.Subscriptions;
+using Opc.Ua.Client.Subscriptions.MonitoredItems;
 using Opc.Ua.Client.TestFramework;
 using ManagedSessionType = Opc.Ua.Client.ManagedSession;
 
@@ -236,6 +237,41 @@ namespace Opc.Ua.Subscriptions.Tests
             }
         }
 
+        [Test]
+        [CancelAfter(60_000)]
+        public async Task OptedInSubscriptionReceivesResentValueAfterReactivationAsync(CancellationToken ct)
+        {
+            ConfiguredEndpoint endpoint = await ClientFixture.GetEndpointAsync(ServerUrl, SecurityPolicies.None)
+                .ConfigureAwait(false);
+            await using ManagedSessionType session = await new ManagedSessionBuilder(ClientFixture.Config, Telemetry)
+                .UseEndpoint(endpoint)
+                .WithSessionName(nameof(OptedInSubscriptionReceivesResentValueAfterReactivationAsync))
+                .ConnectAsync(ct)
+                .ConfigureAwait(false);
+            var handler = new RecordingHandler();
+            await using ISubscription subscription = session.AddSubscription(handler, options => options with
+            {
+                PublishingEnabled = true,
+                PublishingInterval = TimeSpan.FromMilliseconds(250),
+                KeepAliveCount = 10,
+                LifetimeCount = 100,
+                RefreshValuesOnRecovery = true
+            });
+            Assert.That(subscription.TryAddMonitoredItem("StartTime", VariableIds.Server_ServerStatus_StartTime,
+                o => o with { SamplingInterval = TimeSpan.FromMilliseconds(250), QueueSize = 1 },
+                out IMonitoredItem? item), Is.True);
+            Assert.That(await handler.WaitForDataAsync(TimeSpan.FromSeconds(20), ct).ConfigureAwait(false), Is.True);
+            NodeId sessionId = session.SessionId;
+            uint itemId = item!.ServerId;
+
+            await session.ReconnectAsync(null, null, ct).ConfigureAwait(false);
+            await handler.WaitForSecondDataAsync(ct).ConfigureAwait(false);
+
+            Assert.That(session.SessionId, Is.EqualTo(sessionId));
+            Assert.That(item.ServerId, Is.EqualTo(itemId));
+            Assert.That(handler.SnapshotCount, Is.Zero, "A successful resend must use the regular Publish callback.");
+        }
+
         private static async Task<bool> WaitForAsync(
             Func<bool> predicate,
             TimeSpan timeout,
@@ -296,14 +332,17 @@ namespace Opc.Ua.Subscriptions.Tests
             }
         }
 
-        private sealed class RecordingHandler : ISubscriptionNotificationHandler
+        private sealed class RecordingHandler : ISubscriptionNotificationHandler, ISubscriptionValueSnapshotHandler
         {
             private readonly TaskCompletionSource<bool> m_firstData
+                = new(TaskCreationOptions.RunContinuationsAsynchronously);
+            private readonly TaskCompletionSource<bool> m_secondData
                 = new(TaskCreationOptions.RunContinuationsAsynchronously);
 
             public int DataChangeCount;
             public int KeepAliveCount;
             public int EventCount;
+            public int SnapshotCount;
 
             public ValueTask OnDataChangeNotificationAsync(
                 ISubscription subscription,
@@ -313,8 +352,18 @@ namespace Opc.Ua.Subscriptions.Tests
                 PublishState publishStateMask,
                 IReadOnlyList<string> stringTable)
             {
-                Interlocked.Add(ref DataChangeCount, notification.Length);
+                if (Interlocked.Add(ref DataChangeCount, notification.Length) >= 2)
+                {
+                    m_secondData.TrySetResult(true);
+                }
                 m_firstData.TrySetResult(true);
+                return default;
+            }
+
+            public ValueTask OnValueSnapshotAsync(
+                ISubscription subscription, IMonitoredItem monitoredItem, DataValue value, CancellationToken ct)
+            {
+                Interlocked.Increment(ref SnapshotCount);
                 return default;
             }
 
@@ -360,6 +409,8 @@ namespace Opc.Ua.Subscriptions.Tests
                     return await m_firstData.Task.ConfigureAwait(false);
                 }
             }
+
+            public Task<bool> WaitForSecondDataAsync(CancellationToken ct) => m_secondData.Task.WaitAsync(ct);
         }
     }
 }

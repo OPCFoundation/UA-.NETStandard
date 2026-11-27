@@ -34,6 +34,11 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
         /// <inheritdoc/>
         public bool Created => ServerId != 0;
 
+        /// <summary>
+        /// Identifies the current options revision, including changes not yet applied on the server.
+        /// </summary>
+        internal MonitoredItemOptions? OptionsRevision => Volatile.Read(ref m_currentOptions);
+
         /// <inheritdoc/>
         public bool HasPendingChanges
         {
