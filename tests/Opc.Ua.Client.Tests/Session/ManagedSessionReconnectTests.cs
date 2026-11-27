@@ -29,29 +29,39 @@ namespace Opc.Ua.Client.Tests.ManagedSession
     {
         [TestCase(false)]
         [TestCase(true)]
-        public async Task RecoveryDeliversReadSnapshotForSurvivingSubscriptionAsync(bool transfer)
+        public async Task RecoveryDeliversUnchangedReadSnapshotForSurvivingSubscriptionAsync(bool transfer)
         {
+            DateTimeUtc sourceTimestamp = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+            var unchanged = new DataValue(new Variant(42), StatusCodes.Good, sourceTimestamp);
             await using var harness = new ManagedSessionReconnectHarness(TimeSpan.Zero)
             {
                 RecoveryActivationStatus = transfer ? StatusCodes.BadSessionIdInvalid : StatusCodes.Good,
                 TransferStatus = StatusCodes.Good,
                 ResendStatus = StatusCodes.BadMethodInvalid,
-                SnapshotRead = (_, _) => new ValueTask<ArrayOf<DataValue>>([new DataValue(new Variant(42))])
+                SnapshotRead = (_, _) => new ValueTask<ArrayOf<DataValue>>([unchanged])
             };
             await harness.ConnectAsync(transfer).ConfigureAwait(false);
             harness.ReplacementSession.Release();
             ISubscription subscription = harness.AddSubscription(refreshValues: true);
-            await WaitForPhaseAsync(harness.NextMonitoredItemsAsync().AsTask(), "initial monitored item")
+            CreateMonitoredItemsRequest items = await WaitForPhaseAsync(
+                harness.NextMonitoredItemsAsync().AsTask(), "initial monitored item").ConfigureAwait(false);
+            WirePublish publish = await WaitForPhaseAsync(harness.NextWirePublishAsync().AsTask(), "initial publish")
                 .ConfigureAwait(false);
-            await WaitForPhaseAsync(harness.NextWirePublishAsync().AsTask(), "initial publish").ConfigureAwait(false);
+            harness.FirstNotification.Release();
+            uint handle = items.ItemsToCreate[0].RequestedParameters.ClientHandle;
+            publish.ReplyWithValue(handle, 42, sourceTimestamp: sourceTimestamp);
+            ReceivedData initial = await WaitForPhaseAsync(harness.NextNotificationAsync().AsTask(), "initial value")
+                .ConfigureAwait(false);
+            Assert.That(initial.Change.Value, Is.EqualTo(unchanged));
+            Assert.That(initial.Change.MonitoredItem, Is.Not.Null);
 
             await RecoverForValueRefreshAsync(harness).ConfigureAwait(false);
             ReceivedSnapshot snapshot = await WaitForPhaseAsync(
                 harness.NextSnapshotAsync().AsTask(), "fallback snapshot").ConfigureAwait(false);
 
             Assert.That(snapshot.Subscription, Is.SameAs(subscription));
-            Assert.That(snapshot.Item.Name, Is.EqualTo("Value"));
-            Assert.That(snapshot.Value.WrappedValue, Is.EqualTo(new Variant(42)));
+            Assert.That(snapshot.Item, Is.SameAs(initial.Change.MonitoredItem));
+            Assert.That(snapshot.Value, Is.EqualTo(unchanged));
             CallRequest resend = await WaitForPhaseAsync(harness.NextResendAsync().AsTask(), "resend call")
                 .ConfigureAwait(false);
             NodeId token = new(transfer ? "token-2" : "token-1", 1);

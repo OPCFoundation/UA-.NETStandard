@@ -30,11 +30,12 @@ namespace Opc.Ua.Client.Subscriptions
         /// <summary>
         /// Coalesces recovery requests into a single worker for this partition.
         /// </summary>
-        internal void ScheduleValueRefresh(ISessionClient session, uint id, long generation, Func<bool> isCurrent)
+        internal void ScheduleValueRefresh(
+            ISessionClient session, uint id, long generation, long epoch, Func<bool> isCurrent)
         {
             SubscriptionValueRefresh? refresh = m_valueRefresh;
             if (refresh == null ||
-                !refresh.Enqueue(new(session, id, generation, isCurrent)))
+                !refresh.Enqueue(new(session, id, generation, epoch, isCurrent)))
             {
                 return;
             }
@@ -130,7 +131,7 @@ namespace Opc.Ua.Client.Subscriptions
                     {
                         Logger.SubscriptionRecoveryReadRejected(request.Id, candidate.ServerId, value.StatusCode);
                     }
-                    else if (refresh.TryAccept(candidate, value))
+                    else if (refresh.TryAccept(request.Epoch, candidate, value))
                     {
                         try
                         {
@@ -242,12 +243,14 @@ namespace Opc.Ua.Client.Subscriptions
         {
             lock (m_lock)
             {
+                long epoch = Registration.RecoveryEpoch;
                 foreach (ref readonly DataValueChange change in changes)
                 {
                     if (change.MonitoredItem is ManagedMonitoredItem item &&
                         m_items.TryGetValue(item, out ItemState? state) && IsReporting(item, state.ServerId))
                     {
                         state.Revision++;
+                        state.ValueEpoch = epoch;
                         state.ValueTime = ValueTime.From(change.Value);
                     }
                 }
@@ -281,12 +284,13 @@ namespace Opc.Ua.Client.Subscriptions
         /// <summary>
         /// Accepts only a snapshot that is current for the captured item and fresher than its last observed value.
         /// </summary>
-        public bool TryAccept(Candidate candidate, in DataValue value)
+        public bool TryAccept(long epoch, Candidate candidate, in DataValue value)
         {
             lock (m_lock)
             {
                 ManagedMonitoredItem item = candidate.Item;
-                if (!m_items.TryGetValue(item, out ItemState? state) ||
+                if (epoch != Registration.RecoveryEpoch ||
+                    !m_items.TryGetValue(item, out ItemState? state) ||
                     !IsReporting(item, candidate.ServerId) || item.ClientHandle != candidate.ClientHandle ||
                     !ReferenceEquals(item.OptionsRevision, candidate.Options) ||
                     !ReferenceEquals(state.Target, candidate.Target) || state.Revision != candidate.Revision)
@@ -294,11 +298,12 @@ namespace Opc.Ua.Client.Subscriptions
                     return false;
                 }
                 ValueTime time = ValueTime.From(value);
-                if (state.ValueTime is { } previous && !time.IsNewerThan(previous))
+                if (state.ValueEpoch == epoch && state.ValueTime is { } previous && !time.IsNewerThan(previous))
                 {
                     return false;
                 }
                 state.Revision++;
+                state.ValueEpoch = epoch;
                 state.ValueTime = time;
                 return true;
             }
@@ -312,7 +317,8 @@ namespace Opc.Ua.Client.Subscriptions
         /// <summary>
         /// A queued recovery pass tied to the current session and partition binding.
         /// </summary>
-        internal readonly record struct Request(ISessionClient Session, uint Id, long Generation, Func<bool> IsCurrent);
+        internal readonly record struct Request(
+            ISessionClient Session, uint Id, long Generation, long Epoch, Func<bool> IsCurrent);
 
         /// <summary>
         /// The item binding and revision to revalidate before delivering the result.
@@ -325,6 +331,7 @@ namespace Opc.Ua.Client.Subscriptions
         {
             public ReadValueId Target { get; } = target;
             public uint ServerId { get; } = serverId;
+            public long ValueEpoch { get; set; }
             public ValueTime? ValueTime { get; set; }
             public long Revision { get; set; }
         }

@@ -27,7 +27,7 @@ namespace Opc.Ua.Client.Subscriptions
             }
             lock (m_subscriptionLock)
             {
-                m_valueRecoveryEpoch++;
+                Interlocked.Increment(ref m_valueRecoveryEpoch);
                 m_refreshReactivatedValues = false;
                 m_transferredValueRefresh?.Clear();
                 m_reactivationValueRefresh?.Clear();
@@ -84,7 +84,7 @@ namespace Opc.Ua.Client.Subscriptions
                     {
                         continue;
                     }
-                    partition.ScheduleValueRefresh(session, binding.Id, binding.Generation, IsCurrent);
+                    partition.ScheduleValueRefresh(session, binding.Id, binding.Generation, epoch, IsCurrent);
 
                     bool IsCurrent()
                     {
@@ -108,7 +108,7 @@ namespace Opc.Ua.Client.Subscriptions
             }
         }
 
-        private static SubscriptionValueSnapshotRegistration? CreateValueRefreshRegistration(
+        private SubscriptionValueSnapshotRegistration? CreateValueRefreshRegistration(
             ISubscriptionNotificationHandler handler, SubscriptionOptions options)
         {
             if (!options.RefreshValuesOnRecovery)
@@ -116,7 +116,8 @@ namespace Opc.Ua.Client.Subscriptions
                 return null;
             }
             return handler is ISubscriptionValueSnapshotHandler snapshotHandler
-                ? new SubscriptionValueSnapshotRegistration(snapshotHandler)
+                ? new SubscriptionValueSnapshotRegistration(
+                    snapshotHandler, () => Interlocked.Read(ref m_valueRecoveryEpoch))
                 : throw new ArgumentException(
                     "Recovery value refresh requires an ISubscriptionValueSnapshotHandler.", nameof(handler));
         }
@@ -144,8 +145,14 @@ namespace Opc.Ua.Client.Subscriptions
     /// <summary>
     /// Shares an opted-in snapshot destination and callback ordering across a logical subscription's partitions.
     /// </summary>
-    internal sealed class SubscriptionValueSnapshotRegistration(ISubscriptionValueSnapshotHandler handler)
+    internal sealed class SubscriptionValueSnapshotRegistration(
+        ISubscriptionValueSnapshotHandler handler, Func<long> getRecoveryEpoch)
     {
+        /// <summary>
+        /// The session recovery epoch used to scope timestamp baselines.
+        /// </summary>
+        public long RecoveryEpoch => getRecoveryEpoch();
+
         /// <summary>
         /// Connects the destination after the primary partition has been constructed.
         /// </summary>

@@ -904,7 +904,9 @@ namespace Opc.Ua.Client.Tests.Stack.Client.Fakes
             /// </param>
             /// <param name="value">The integer value delivered in the data-change notification.</param>
             /// <param name="sequenceNumber">The notification sequence number, also advertised as available.</param>
-            public void ReplyWithValue(uint clientHandle, int value, uint sequenceNumber = 1)
+            /// <param name="sourceTimestamp">The source timestamp of the value, if provided by the server.</param>
+            public void ReplyWithValue(
+                uint clientHandle, int value, uint sequenceNumber = 1, DateTimeUtc sourceTimestamp = default)
             {
                 m_response.SetResult(new PublishResponse
                 {
@@ -926,7 +928,7 @@ namespace Opc.Ua.Client.Tests.Stack.Client.Fakes
                                     new MonitoredItemNotification
                                     {
                                         ClientHandle = clientHandle,
-                                        Value = new DataValue(new Variant(value), StatusCodes.Good)
+                                        Value = new DataValue(new Variant(value), StatusCodes.Good, sourceTimestamp)
                                     }
                                 ]
                             })

@@ -61,10 +61,12 @@ public ValueTask OnValueSnapshotAsync(
 
 The client discards bad results and results made obsolete by a newer
 recovery, changed item state, or an intervening notification. When a value
-has already been delivered for the item state, the snapshot must have a
-strictly newer comparable timestamp. The callback has no Publish sequence
-number or acknowledgement. It supplies a current value, not missed samples
-or events, and it doesn't change normal Publish or Republish delivery.
+has already been delivered for the item during the current recovery, the
+snapshot must have a strictly newer comparable timestamp. If no value has
+been delivered in this recovery, an unchanged source timestamp from before
+the disconnect does not prevent the snapshot. The callback has no Publish
+sequence number or acknowledgement. It supplies a current value, not missed
+samples or events, and it doesn't change normal Publish or Republish delivery.
 
 See [OPC 10000-4 §6.7](https://reference.opcfoundation.org/specs/OPC-10000-4/v1.05.07/6.7)
 for the distinction between recovering messages and refreshing values, or
