@@ -29,6 +29,7 @@
 
 using System;
 using System.Diagnostics;
+using System.Net.Sockets;
 using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
@@ -60,7 +61,7 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
 
         [Test]
         [CancelAfter(30000)]
-        public void SocketConnectWithCancelledTokenThrows()
+        public async Task SocketConnectWithCancelledTokenThrowsAsync()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
             var socket = new TcpMessageSocket(
@@ -71,9 +72,10 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             using var cts = new CancellationTokenSource();
             cts.Cancel();
 
-            Assert.That(
-                async () => await socket.ConnectAsync(s_unansweredUrl, cts.Token).ConfigureAwait(false),
-                Throws.InstanceOf<OperationCanceledException>());
+            Exception error = await CaptureAsync(
+                () => socket.ConnectAsync(s_unansweredUrl, cts.Token)).ConfigureAwait(false);
+
+            Assert.That(error, Is.InstanceOf<OperationCanceledException>(), error.ToString());
             Assert.That(socket.RemoteEndpoint, Is.Null);
             socket.Close();
         }
@@ -139,11 +141,31 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             Assert.That(error, Is.InstanceOf<OperationCanceledException>(), error.ToString());
         }
 
+        /// <summary>
+        /// Runs the connect and returns its exception. The connect races an
+        /// independent timer, so a connect that ignores cancellation fails the
+        /// test after <see cref="s_maxCancelLatency"/> instead of blocking until
+        /// the operating system gives up.
+        /// </summary>
         private static async Task<Exception> CaptureAsync(Func<Task> action)
         {
+            Task connect = action();
+            Task completed = await Task.WhenAny(connect, Task.Delay(s_maxCancelLatency))
+                .ConfigureAwait(false);
+            if (completed != connect)
+            {
+                // observe the late outcome so it does not surface as unobserved.
+                _ = connect.ContinueWith(
+                    static t => _ = t.Exception,
+                    CancellationToken.None,
+                    TaskContinuationOptions.ExecuteSynchronously,
+                    TaskScheduler.Default);
+                Assert.Fail("the pending connect ignored the cancellation token");
+            }
+
             try
             {
-                await action().ConfigureAwait(false);
+                await connect.ConfigureAwait(false);
             }
             catch (Exception e)
             {
@@ -155,7 +177,7 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
 
         private static void AssertCancelledPromptly(Exception error, TimeSpan elapsed)
         {
-            if (elapsed < s_cancelAfter && error is not OperationCanceledException)
+            if (elapsed < s_cancelAfter && IsNetworkRejection(error))
             {
                 // the network rejected the connect before the cancel: nothing to observe.
                 Assert.Inconclusive(
@@ -166,6 +188,22 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
                 elapsed,
                 Is.LessThan(s_maxCancelLatency),
                 "the pending connect ignored the cancellation token");
+        }
+
+        /// <summary>
+        /// Whether the connect failed because the network refused it
+        /// (unreachable, refused), as opposed to a fault in the code path.
+        /// </summary>
+        private static bool IsNetworkRejection(Exception error)
+        {
+            for (Exception e = error; e != null; e = e.InnerException)
+            {
+                if (e is SocketException)
+                {
+                    return true;
+                }
+            }
+            return false;
         }
     }
 }
