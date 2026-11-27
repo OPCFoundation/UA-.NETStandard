@@ -223,7 +223,7 @@ namespace Opc.Ua.Wot
                     resolvedTitle,
                     title is not null,
                     nodeSetBytes,
-                    nativeProjection,
+                    nativeComplete ? nativeProjection : null,
                     emitEnvelope,
                     options,
                     diagnostics);

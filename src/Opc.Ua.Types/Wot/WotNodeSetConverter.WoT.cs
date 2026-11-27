@@ -1567,28 +1567,56 @@ namespace Opc.Ua.Wot
                 projection,
                 options,
                 nativeDiagnostics);
-            if (projected is null || HasErrors(nativeDiagnostics))
+            bool nativeValid = projected is not null && !HasErrors(nativeDiagnostics);
+            NodeSetComparisonResult? comparison = nativeValid
+                ? NodeSetComparer.Compare(baseline, projected!, options.ToComparisonOptions())
+                : null;
+            if (!nativeValid || !comparison!.AreEquivalent)
             {
+                // Older fallback documents included the incomplete projection alongside
+                // the envelope. Accept it only if it matches the envelope's projection.
+                if (projection.ValueKind == JsonValueKind.Object &&
+                    projection.TryGetProperty("nodes", out JsonElement nodes) &&
+                    nodes.ValueKind == JsonValueKind.Array &&
+                    nodes.GetArrayLength() <= options.MaxNodeCount)
+                {
+                    try
+                    {
+                        var writeDiagnostics = new List<WotDiagnostic>();
+                        byte[] regenerated = WotNativeProjection.Write(
+                            baseline,
+                            new WotNodeSetConverterOptions { MaxNodeCount = nodes.GetArrayLength() },
+                            writeDiagnostics);
+                        if (writeDiagnostics.TrueForAll(d => d.Code == WotDiagnosticCode.NodeCountExceeded))
+                        {
+                            using var expected = JsonDocument.Parse(
+                                regenerated, new JsonDocumentOptions { MaxDepth = options.MaxJsonDepth });
+                            if (JsonElement.DeepEquals(projection, expected.RootElement))
+                            {
+                                diagnostics.Add(new WotDiagnostic(
+                                    WotDiagnosticSeverity.Warning,
+                                    WotDiagnosticCode.NativeProjectionIncomplete,
+                                    "The native projection is incomplete; the uav:nodeSet envelope was used."));
+                                return null;
+                            }
+                        }
+                    }
+                    catch (Exception ex) when (ex is JsonException or InvalidOperationException)
+                    {
+                        // An over-depth regeneration cannot establish consistency.
+                    }
+                }
                 diagnostics.Add(new WotDiagnostic(
                     WotDiagnosticSeverity.Error,
                     WotDiagnosticCode.NativeProjectionConflict,
-                    FirstDiagnosticMessage(nativeDiagnostics) ??
-                    "The native projection could not be reconstructed."));
-                return null;
-            }
-
-            NodeSetComparisonResult comparison =
-                NodeSetComparer.Compare(baseline, projected, options.ToComparisonOptions());
-            if (!comparison.AreEquivalent)
-            {
-                diagnostics.Add(new WotDiagnostic(
-                    WotDiagnosticSeverity.Error,
-                    WotDiagnosticCode.NativeProjectionConflict,
-                    comparison.Differences.Count > 0
+                    !nativeValid
+                        ? FirstDiagnosticMessage(nativeDiagnostics) ??
+                            "The native projection could not be reconstructed."
+                        : comparison!.Differences.Count > 0
                         ? comparison.Differences[0]
                         : "The native projection conflicts with the preservation baseline."));
             }
-            return projected;
+            return nativeValid ? projected : null;
         }
 
         private static void ValidateNativeAffordanceCoverage(
