@@ -2705,6 +2705,36 @@ namespace Opc.Ua.Server.Tests
         }
 
         /// <summary>
+        /// N6: an added type can resolve a NodeId that an event verdict was cached for while it
+        /// was unknown (an unknown event type passes the role check), so a successful AddNodes of
+        /// a type retires every cached verdict.
+        /// </summary>
+        [TestCase(NodeClass.ObjectType)]
+        [TestCase(NodeClass.VariableType)]
+        [TestCase(NodeClass.DataType)]
+        [TestCase(NodeClass.ReferenceType)]
+        public async Task AddNodesOfTypeRetiresCachedVerdictsAsync(NodeClass nodeClass)
+        {
+            using var harness = new AuthorizationHarness();
+            harness.SetAddNodePermissions(PermissionType.AddNode);
+            AddNodesItem item = harness.CreateAddNodesItem();
+            item.NodeClass = nodeClass;
+            item.TypeDefinition = ExpandedNodeId.Null;
+            harness.SourceManager
+                .Setup(manager => manager.AddNodeAsync(
+                    It.IsAny<OperationContext>(), It.IsAny<AddNodesItem>(), It.IsAny<CancellationToken>()))
+                .Returns(new ValueTask<(ServiceResult, NodeId)>(
+                    (ServiceResult.Good, new NodeId("AddedType", harness.SourceNamespaceIndex))));
+            long version = NodeState.RolePermissionsVersion;
+
+            (ArrayOf<AddNodesResult> results, _) = await harness.Sut.AddNodesAsync(
+                harness.AddNodesContext, [item]).ConfigureAwait(false);
+
+            Assert.That(results[0].StatusCode, Is.EqualTo(StatusCodes.Good));
+            Assert.That(NodeState.RolePermissionsVersion, Is.GreaterThan(version));
+        }
+
+        /// <summary>
         /// N6: a DeleteNodes request whose items are all rejected leaves every cached verdict
         /// intact.
         /// </summary>

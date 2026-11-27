@@ -755,6 +755,80 @@ namespace Opc.Ua.Server.Tests
         }
 
         /// <summary>
+        /// N6: an event source removed while its role check is suspended moves only the source's
+        /// own version, not the notifier's context. The verdict computed for the removed instance
+        /// must not deliver the event; the current source is looked up and validated again.
+        /// </summary>
+        [Test]
+        public async Task EventSourceDeletedDuringPermissionValidationIsValidatedAgainAsync()
+        {
+            Mock<IServerInternal> server = DeterministicServerMock.Create(out MonitoredItemQueueFactory queues);
+            using (queues)
+            {
+                NodeId sourceNodeId = new("event-source", 1);
+                var source = new BaseObjectState(null) { NodeId = sourceNodeId };
+                var replacement = new BaseObjectState(null) { NodeId = sourceNodeId };
+                int lookups = 0;
+                Mock.Get(server.Object.NodeManager)
+                    .Setup(value => value.FindNodeInAddressSpaceAsync(sourceNodeId, It.IsAny<CancellationToken>()))
+                    .Returns(() => new ValueTask<NodeState?>(
+                        Interlocked.Increment(ref lookups) == 1 ? source : replacement));
+                var permissionEntered = new TaskCompletionSource<bool>(
+                    TaskCreationOptions.RunContinuationsAsynchronously);
+                var releasePermission = new TaskCompletionSource<bool>(
+                    TaskCreationOptions.RunContinuationsAsynchronously);
+                int validations = 0;
+                var nodeManager = new Mock<IAsyncNodeManager>();
+                nodeManager.Setup(value => value.ValidateEventRolePermissionsAsync(
+                        It.IsAny<IEventMonitoredItem>(), It.IsAny<IFilterTarget>(), It.IsAny<CancellationToken>()))
+                    .Returns(async () =>
+                    {
+                        if (Interlocked.Increment(ref validations) > 1)
+                        {
+                            // the replacement source denies ReceiveEvents.
+                            return new ServiceResult(StatusCodes.BadUserAccessDenied);
+                        }
+                        permissionEntered.TrySetResult(true);
+                        await releasePermission.Task.ConfigureAwait(false);
+                        return ServiceResult.Good;
+                    });
+
+                var notifier = new BaseObjectState(null) { NodeId = ObjectIds.Server };
+                Mock<IEventMonitoredItem> item = CreateEventMonitoredItemMock(1);
+                await using var monitored = new MonitoredNode2(nodeManager.Object, server.Object, notifier);
+                monitored.Add(item.Object);
+
+                var notification = new BaseEventState(null);
+                notification.EventType = new PropertyState<NodeId>.Implementation<VariantBuilder>(notification)
+                {
+                    Value = ObjectTypeIds.BaseEventType
+                };
+                notification.SourceNode = new PropertyState<NodeId>.Implementation<VariantBuilder>(notification)
+                {
+                    Value = sourceNodeId
+                };
+
+                try
+                {
+                    await monitored.OnReportEventAsync(
+                        server.Object.DefaultSystemContext, notifier, notification).ConfigureAwait(false);
+                    await permissionEntered.Task.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+                    source.UpdateChangeMasks(NodeStateChangeMasks.Deleted);
+                }
+                finally
+                {
+                    releasePermission.TrySetResult(true);
+                }
+
+                await monitored.WaitForPendingNotificationsAsync(CancellationToken.None).ConfigureAwait(false);
+
+                item.Verify(value => value.QueueEvent(It.IsAny<IFilterTarget>()), Times.Never);
+                Assert.That(validations, Is.EqualTo(2));
+                Assert.That(lookups, Is.EqualTo(2));
+            }
+        }
+
+        /// <summary>
         /// A notifier restriction tightened during permission validation must be applied before event delivery.
         /// </summary>
         [Test]

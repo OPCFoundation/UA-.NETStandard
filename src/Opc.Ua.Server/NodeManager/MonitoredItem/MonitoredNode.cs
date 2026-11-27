@@ -1508,6 +1508,16 @@ namespace Opc.Ua.Server
                 }
             }
 
+            /// <summary>
+            /// Forgets a lookup whose source instance was removed while a verdict was validated
+            /// for it, so that the next <see cref="GetAsync"/> resolves the current instance.
+            /// </summary>
+            /// <param name="stale">The lookup that returned the removed instance.</param>
+            public void Refresh(Task<NodeState?> stale)
+            {
+                Interlocked.CompareExchange(ref m_lookup, null, stale);
+            }
+
             public bool TryGetCompleted(out NodeState? sourceNode)
             {
                 Task<NodeState?>? lookup = Volatile.Read(ref m_lookup);
@@ -1843,10 +1853,12 @@ namespace Opc.Ua.Server
                     return (restrictions, authorization.Session, notificationAuthorization);
                 }
                 NodeState? sourceNode = null;
+                Task<NodeState?>? sourceTask = null;
                 long sourceVersion = 0;
                 if (cacheable)
                 {
-                    sourceNode = await sourceLookup!.GetAsync(cancellationToken).ConfigureAwait(false);
+                    sourceTask = sourceLookup!.GetAsync(cancellationToken);
+                    sourceNode = await sourceTask.ConfigureAwait(false);
                     sourceVersion = sourceNode?.PermissionVersion ?? 0;
                     cancellationToken.ThrowIfCancellationRequested();
                     if (!authorization.Matches(CapturePermissionContext(monitoredItem)))
@@ -1890,6 +1902,14 @@ namespace Opc.Ua.Server
                     {
                         return (currentRestrictions, authorization.Session, notificationAuthorization);
                     }
+                }
+                // the event source may be removed while the role check is suspended; that moves
+                // only the source's own version, not the notifier's context, so the verdict was
+                // computed for an instance that is gone and is validated again for the current one.
+                if (sourceNode != null && sourceNode.PermissionVersion != sourceVersion)
+                {
+                    sourceLookup!.Refresh(sourceTask!);
+                    continue;
                 }
                 if (authorization.Matches(CapturePermissionContext(monitoredItem)))
                 {

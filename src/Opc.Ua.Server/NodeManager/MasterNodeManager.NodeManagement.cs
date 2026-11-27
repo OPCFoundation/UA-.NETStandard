@@ -247,19 +247,19 @@ namespace Opc.Ua.Server
                     catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
                     {
                         // the owner may have added part of the node before it was cancelled.
-                        invalidatePermissionCache |= MayDefineNamespaceDefaults(item);
+                        invalidatePermissionCache |= RequiresServerWideInvalidation(item);
                         throw;
                     }
                     catch (Exception exception)
                     {
-                        invalidatePermissionCache |= MayDefineNamespaceDefaults(item);
+                        invalidatePermissionCache |= RequiresServerWideInvalidation(item);
                         result = CreateNodeManagementError(exception);
                     }
 
-                    // a node that may define namespace defaults changes the verdicts of existing
-                    // nodes; any other added node is a new instance that no verdict was cached for,
+                    // a type or a node that may define namespace defaults changes cached verdicts
+                    // (see RequiresServerWideInvalidation); any other added node is a new instance,
                     // and a rejected item changed nothing.
-                    if (ServiceResult.IsGood(result) && MayDefineNamespaceDefaults(item))
+                    if (ServiceResult.IsGood(result) && RequiresServerWideInvalidation(item))
                     {
                         invalidatePermissionCache = true;
                     }
@@ -840,6 +840,28 @@ namespace Opc.Ua.Server
             return owner is not AsyncCustomNodeManager &&
                 owner is not AsyncNodeManagerAdapter { SyncNodeManager: CustomNodeManager2 };
 #pragma warning restore CS0618, UA0031
+        }
+
+        /// <summary>
+        /// Whether adding a node must retire every cached permission verdict of the server
+        /// rather than none.
+        /// </summary>
+        /// <remarks>
+        /// An added instance is new, so no verdict was cached for it, except for two cases. A
+        /// node that may define namespace defaults changes the verdicts of every node of the
+        /// namespace. A type node can resolve a NodeId that a verdict was cached for while it was
+        /// unknown: event verdicts check the event type's NodeId, and an unknown NodeId passes
+        /// the role check, so a Good verdict would otherwise survive the type's restrictions.
+        /// </remarks>
+        private static bool RequiresServerWideInvalidation(AddNodesItem? item)
+        {
+            if (item == null)
+            {
+                return false;
+            }
+            return MayDefineNamespaceDefaults(item) ||
+                item.NodeClass is NodeClass.ObjectType or NodeClass.VariableType or
+                    NodeClass.DataType or NodeClass.ReferenceType;
         }
 
         /// <summary>
