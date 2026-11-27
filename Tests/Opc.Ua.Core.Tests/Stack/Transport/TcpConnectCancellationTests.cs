@@ -177,7 +177,11 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
 
         private static void AssertCancelledPromptly(Exception error, TimeSpan elapsed)
         {
-            if (elapsed < s_cancelAfter && IsNetworkRejection(error))
+            // a cancellation may wrap the SocketException of the aborted
+            // connect (legacy targets): always validate it.
+            if (elapsed < s_cancelAfter &&
+                error is not OperationCanceledException &&
+                IsNetworkRejection(error))
             {
                 // the network rejected the connect before the cancel: nothing to observe.
                 Assert.Inconclusive(
