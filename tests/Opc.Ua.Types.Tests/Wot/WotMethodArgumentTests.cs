@@ -610,6 +610,13 @@ namespace Opc.Ua.Types.Tests.Wot
             [Values] bool argumentUsesSubtype)
         {
             UANodeSet source = CreateMethodNodeSet();
+            source.Aliases =
+            [
+                new NodeIdAlias { Alias = "HasSubtype", Value = "i=45" },
+                new NodeIdAlias { Alias = "HasComponent", Value = "i=47" },
+                new NodeIdAlias { Alias = "HasProperty", Value = "i=46" },
+                new NodeIdAlias { Alias = "HasTypeDefinition", Value = "i=40" }
+            ];
             var baseType = new UADataType
             {
                 NodeId = "ns=1;i=3005",
