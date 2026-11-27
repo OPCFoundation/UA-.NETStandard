@@ -601,6 +601,96 @@ namespace Opc.Ua.Types.Tests.Wot
         }
 
         /// <summary>
+        /// Verifies that definition-less Structure subtypes inherit fields without breaking unrelated actions.
+        /// </summary>
+        [Test]
+        public void StructureSubtypesWithoutDefinitionsRoundTripWithActions(
+            [Values] bool intermediateWithoutDefinition,
+            [Values] bool addsFields,
+            [Values] bool argumentUsesSubtype)
+        {
+            UANodeSet source = CreateMethodNodeSet();
+            var baseType = new UADataType
+            {
+                NodeId = "ns=1;i=3005",
+                BrowseName = "1:CollectionDataType",
+                IsAbstract = true,
+                References = [new Reference { ReferenceType = "HasSubtype", IsForward = false, Value = "i=22" }],
+                Definition = new Export.DataTypeDefinition
+                {
+                    Name = "1:CollectionDataType",
+                    Field =
+                    [
+                        new DataTypeField { Name = "ID", DataType = "i=12" },
+                        new DataTypeField
+                        {
+                            Name = "SerialNumbers", DataType = "i=12", ValueRank = 1, ArrayDimensions = "0"
+                        }
+                    ]
+                }
+            };
+            var intermediate = new UADataType
+            {
+                NodeId = "ns=1;i=3006",
+                BrowseName = "1:IntermediateCollectionDataType",
+                IsAbstract = true,
+                References =
+                [
+                    new Reference { ReferenceType = "HasSubtype", IsForward = false, Value = baseType.NodeId }
+                ]
+            };
+            var subtype = new UADataType
+            {
+                NodeId = "ns=1;i=3008",
+                BrowseName = "1:SNCollectionDataType",
+                References =
+                [
+                    new Reference
+                    {
+                        ReferenceType = "HasSubtype",
+                        IsForward = false,
+                        Value = intermediateWithoutDefinition ? intermediate.NodeId : baseType.NodeId
+                    }
+                ],
+                Definition = addsFields
+                    ? new Export.DataTypeDefinition
+                    {
+                        Name = "1:SNCollectionDataType",
+                        Field = [new DataTypeField { Name = "Count", DataType = "i=7" }]
+                    }
+                    : null
+            };
+            source.Items = intermediateWithoutDefinition
+                ? [.. source.Items!, baseType, intermediate, subtype]
+                : [.. source.Items!, baseType, subtype];
+            if (argumentUsesSubtype)
+            {
+                UAVariable input = source.Items.OfType<UAVariable>()
+                    .Single(node => node.BrowseName == "InputArguments");
+                System.Xml.XmlElement argument = input.Value.Required().GetElementsByTagName("Argument", UaXsd)
+                    .OfType<System.Xml.XmlElement>().First();
+                Child(Child(argument, "DataType"), "Identifier").InnerText = subtype.NodeId;
+            }
+
+            WotConversionResult<WotDocument> exported = WotNodeSetConverter.FromNodeSetResult(source);
+            Assert.That(exported.Success, Is.True, string.Join("; ", exported.Diagnostics));
+            using WotDocument document = exported.Value!;
+            using var parsed = WotDocument.Parse(document.Utf8Json);
+            JsonElement definition = parsed.RootElement.GetProperty("uav:dataTypeDefinitions")
+                .EnumerateArray().Single(value =>
+                    value.GetProperty("uav:dataTypeId").GetString() == "nsu=urn:test:model;i=3008");
+            Assert.That(definition.GetProperty("@type").GetString(), Is.EqualTo("uav:StructureDefinition"));
+            Assert.That(definition.GetProperty("uav:fields").EnumerateArray()
+                .Select(field => field.GetProperty("uav:fieldName").GetString()),
+                Is.EqualTo(addsFields ? s_extendedCollectionFields : s_collectionFields));
+            WotConversionResult<UANodeSet> restored = WotNodeSetConverter.ToNodeSetResult(parsed);
+            Assert.That(restored.Success, Is.True, string.Join("; ", restored.Diagnostics));
+            NodeSetComparisonResult comparison = NodeSetComparer.Compare(source, restored.Value!);
+            Assert.That(comparison.AreEquivalent, Is.True, string.Join("; ", comparison.Differences));
+            Assert.That(subtype.Definition?.Field?.Length, Is.EqualTo(addsFields ? (int?)1 : null));
+        }
+
+        /// <summary>
         /// Verifies that explicit single layouts retain the whole value across repeated round trips.
         /// </summary>
         /// <param name="structure">The structure flag for this test case.</param>
@@ -1117,6 +1207,8 @@ namespace Opc.Ua.Types.Tests.Wot
         private static readonly string[] s_explicitInputOrder = ["Level", "Reason"];
         private static readonly string[] s_explicitInputTypes = ["i=7", "i=12"];
         private static readonly string[] s_singleStructureFields = ["Value"];
+        private static readonly string[] s_collectionFields = ["ID", "SerialNumbers"];
+        private static readonly string[] s_extendedCollectionFields = ["ID", "SerialNumbers", "Count"];
         private static readonly string[] s_resetOutputOrder = ["Accepted"];
         private static readonly uint[] s_levelDimensions = [4];
         private static readonly string[] s_levelDimensionText = ["4"];
