@@ -487,15 +487,19 @@ namespace Opc.Ua.Client.Tests
                 browseNext ? Times.Once() : Times.Never());
         }
 
-        [TestCase(StatusCodes.UncertainNotAllNodesAvailable, StatusCodes.Good,
-            StatusCodes.UncertainNotAllNodesAvailable)]
-        [TestCase(StatusCodes.Good, StatusCodes.UncertainNotAllNodesAvailable,
-            StatusCodes.UncertainNotAllNodesAvailable)]
-        [TestCase(StatusCodes.UncertainNotAllNodesAvailable, StatusCodes.BadNodeIdUnknown,
-            StatusCodes.BadNodeIdUnknown)]
-        [TestCase(StatusCodes.Good, StatusCodes.Good, StatusCodes.Good)]
-        public async Task ManagedBrowsePreservesPageStatusAsync(uint firstStatus, uint nextStatus, uint expectedStatus)
+        [TestCase(true, false, false)]
+        [TestCase(false, true, false)]
+        [TestCase(true, false, true)]
+        [TestCase(false, false, false)]
+        public async Task ManagedBrowsePreservesPageStatusAsync(bool firstUncertain, bool nextUncertain, bool nextBad)
         {
+            StatusCode firstStatus = firstUncertain ? StatusCodes.UncertainNotAllNodesAvailable : StatusCodes.Good;
+            StatusCode nextStatus = nextBad
+                ? StatusCodes.BadNodeIdUnknown
+                : nextUncertain ? StatusCodes.UncertainNotAllNodesAvailable : StatusCodes.Good;
+            StatusCode expectedStatus = nextBad
+                ? StatusCodes.BadNodeIdUnknown
+                : firstUncertain || nextUncertain ? StatusCodes.UncertainNotAllNodesAvailable : StatusCodes.Good;
             using SessionMock session = SessionMock.Create();
             session.Channel
                 .Setup(c => c.SendRequestAsync(It.IsAny<BrowseRequest>(), It.IsAny<CancellationToken>()))
