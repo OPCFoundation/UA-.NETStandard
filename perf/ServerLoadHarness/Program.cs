@@ -234,6 +234,29 @@ namespace Opc.Ua.Perf.ServerLoadHarness
             }
         }
 
+        /// <summary>
+        /// Writes false to the reference server's Scalar_Simulation_Enabled variable, as a client
+        /// Write would, so its simulation loop stops assigning values.
+        /// </summary>
+        private static async Task DisableSimulationAsync(Opc.Ua.Server.IServerInternal server)
+        {
+            int namespaceIndex = server.NamespaceUris.GetIndex(Quickstarts.ReferenceServer.Namespaces.ReferenceServer);
+            NodeState? node = namespaceIndex < 0
+                ? null
+                : await server.NodeManager.FindNodeInAddressSpaceAsync(
+                    new NodeId("Scalar_Simulation_Enabled", (ushort)namespaceIndex)).ConfigureAwait(false);
+            ServiceResult? result = node?.WriteAttribute(
+                server.DefaultSystemContext,
+                Attributes.Value,
+                NumericRange.Null,
+                new DataValue(new Variant(false)));
+            if (result == null || ServiceResult.IsBad(result))
+            {
+                throw new InvalidOperationException(
+                    $"--simulation 0: cannot write Scalar_Simulation_Enabled ({result?.StatusCode.ToString() ?? "node not found"}).");
+            }
+        }
+
         private static async Task<int> RunServerAsync(ApplicationInstance application, ITelemetryContext telemetry)
         {
             int port = ArgInt("port", 62555);
@@ -359,6 +382,13 @@ namespace Opc.Ua.Perf.ServerLoadHarness
             var lifecycle = new LifecycleChurn(server, ArgInt("lc-managers", 0), ArgInt("lc-vars", 10));
             await using ConfiguredAsyncDisposable disposeLifecycle = lifecycle.ConfigureAwait(false);
             await lifecycle.InitializeAsync().ConfigureAwait(false);
+            // --simulation 0 stops the reference server's simulation, which assigns random values
+            // to the Scalar_Simulation_* variables every second (about 5 MB/s of allocation when
+            // no client is connected). No scenario reads those variables.
+            if (ArgInt("simulation", 1) == 0 && server is ReferenceServer)
+            {
+                await DisableSimulationAsync(server.CurrentInstance).ConfigureAwait(false);
+            }
             Console.WriteLine(FormattableString.Invariant($"READY {endpointUrl} {Environment.ProcessId}"));
 
             ProcessStats mark = ProcessStats.Capture();
@@ -518,7 +548,8 @@ namespace Opc.Ua.Perf.ServerLoadHarness
                 FormattableString.Invariant(
                     $"--password-length {passwordLength} --token-length {tokenLength} ") +
                 FormattableString.Invariant(
-                    $"--inject-alloc {Arg("inject-alloc", "0")} --inject-spin-us {Arg("inject-spin-us", "0")}"),
+                    $"--inject-alloc {Arg("inject-alloc", "0")} --inject-spin-us {Arg("inject-spin-us", "0")} ") +
+                FormattableString.Invariant($"--simulation {Arg("simulation", "1")}"),
                 serverEnvironment);
             using Process server = startedServer;
             using BlockingCollection<string> serverLines = startedLines;
@@ -723,6 +754,25 @@ namespace Opc.Ua.Perf.ServerLoadHarness
                 : new RequestWorkload(scenario, sessions, ArgInt("nodes", 100), ArgInt("inflight", 1));
             await workload.SetupAsync().ConfigureAwait(false);
 
+            // --baseline S: measure the allocation rate of both processes for S seconds with the
+            // sessions and subscriptions set up but no load, so bytes per operation can be reported
+            // without the work that runs on timers (simulation, keep-alives). That work allocates
+            // by the second, so it adds more to each operation the slower the machine is.
+            int baselineSeconds = ArgInt("baseline", 0);
+            (double Server, double Client)? background = null;
+            if (baselineSeconds > 0)
+            {
+                await Task.Delay(1000).ConfigureAwait(false);
+                await server.StandardInput.WriteLineAsync("mark").ConfigureAwait(false);
+                Take(serverLines, "MARKED");
+                ProcessStats baselineMark = ProcessStats.Capture();
+                await Task.Delay(TimeSpan.FromSeconds(baselineSeconds)).ConfigureAwait(false);
+                string clientBaseline = ProcessStats.Capture().Delta(baselineMark);
+                await server.StandardInput.WriteLineAsync("report").ConfigureAwait(false);
+                string serverBaseline = Take(serverLines, "REPORT")[7..];
+                background = (GetBytesPerSecond(serverBaseline), GetBytesPerSecond(clientBaseline));
+            }
+
             using var stop = new CancellationTokenSource();
             Task run = workload.RunAsync(stop.Token);
             if (workload is LifecycleWorkload lifecycleWorkload && ArgInt("lc-interval", 2000) > 0)
@@ -746,6 +796,7 @@ namespace Opc.Ua.Perf.ServerLoadHarness
                 await Task.Delay(2000).ConfigureAwait(false);
             }
 
+            await workload.BeforeMeasureAsync().ConfigureAwait(false);
             await server.StandardInput.WriteLineAsync("mark").ConfigureAwait(false);
             Take(serverLines, "MARKED");
             GC.Collect();
@@ -833,6 +884,27 @@ namespace Opc.Ua.Perf.ServerLoadHarness
                     $"  client-per-op: allocB={allocatedMb * 1048576 / operations:F0} ")
                     .Append("cpuUs=").Append(ProcessCpuReport.FormatPerOperation(cpuMs, operations))
                     .Append("  (").Append(workload.OperationName).Append(")\n");
+            }
+            if (background is (double serverRate, double clientRate) && operations > 0)
+            {
+                // bytes of the window minus what the idle baseline allocates in as many seconds
+                double serverNet = Math.Max(0, GetBytes(report) - (serverRate * GetSeconds(report)));
+                double clientNet = Math.Max(0, GetBytes(clientProcess) - (clientRate * GetSeconds(clientProcess)));
+                result.Append(
+                    CultureInfo.InvariantCulture,
+                    $"  background: serverB/s={serverRate:F0} clientB/s={clientRate:F0}\n");
+                result.Append(
+                    CultureInfo.InvariantCulture,
+                    $"  per-op-net: allocB={serverNet / operations:F0}  ({workload.OperationName})\n");
+                if (secondary is (double netSecondaryCount, string netSecondaryName) && netSecondaryCount > 0)
+                {
+                    result.Append(
+                        CultureInfo.InvariantCulture,
+                        $"  per-op2-net: allocB={serverNet / netSecondaryCount:F0}  ({netSecondaryName})\n");
+                }
+                result.Append(
+                    CultureInfo.InvariantCulture,
+                    $"  client-per-op-net: allocB={clientNet / operations:F0}  ({workload.OperationName})\n");
             }
             Console.Write(result.ToString());
             if (s_args.TryGetValue("out", out string? outFile))
@@ -978,6 +1050,35 @@ namespace Opc.Ua.Perf.ServerLoadHarness
             }
         }
 
+        private static double GetReportValue(string report, string key)
+        {
+            foreach (string part in report.Split(' '))
+            {
+                if (part.Length > key.Length + 1 &&
+                    part.StartsWith(key, StringComparison.Ordinal) &&
+                    part[key.Length] == '=')
+                {
+                    return double.Parse(part.AsSpan(key.Length + 1), CultureInfo.InvariantCulture);
+                }
+            }
+            throw new FormatException("No " + key + " in the process report: " + report);
+        }
+
+        private static double GetBytes(string report)
+        {
+            return GetReportValue(report, "allocBytes");
+        }
+
+        private static double GetSeconds(string report)
+        {
+            return GetReportValue(report, "sec");
+        }
+
+        private static double GetBytesPerSecond(string report)
+        {
+            return GetBytes(report) / GetSeconds(report);
+        }
+
         private static (double AllocatedMb, double CpuMs) ParseProcessReport(string report)
         {
             Dictionary<string, string> values = report
@@ -1041,7 +1142,8 @@ namespace Opc.Ua.Perf.ServerLoadHarness
                 FormattableString.Invariant(
                 $"contention={Contention - mark.Contention} threads={Threads} wsMB={WorkingSet / 1048576} heapMB={Heap / 1048576} ") +
                 FormattableString.Invariant(
-                $"userMs={(UserCpu - mark.UserCpu).TotalMilliseconds:F0} workItems={WorkItems - mark.WorkItems}");
+                $"userMs={(UserCpu - mark.UserCpu).TotalMilliseconds:F0} workItems={WorkItems - mark.WorkItems} ") +
+                FormattableString.Invariant($"allocBytes={Allocated - mark.Allocated}");
         }
     }
 
@@ -1200,6 +1302,14 @@ namespace Opc.Ua.Perf.ServerLoadHarness
         }
 
         public abstract Task RunAsync(CancellationToken ct);
+
+        /// <summary>
+        /// Runs right before the measurement window starts, while the workload is running.
+        /// </summary>
+        public virtual Task BeforeMeasureAsync()
+        {
+            return Task.CompletedTask;
+        }
 
         public abstract void ResetStats();
 

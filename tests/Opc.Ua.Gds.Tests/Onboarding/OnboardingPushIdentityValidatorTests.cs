@@ -401,7 +401,8 @@ namespace Opc.Ua.Gds.Tests.Onboarding
             Mock<ITransportChannel> channel = Channel();
             channel.SetupGet(value => value.ServerChannelCertificate).Returns(new byte[] { 1, 2, 3 });
 
-            await Assert.ThrowsAsync<CryptographicException>(async () =>
+            // CatchAsync: the macOS PAL throws a CryptographicException subclass.
+            await Assert.CatchAsync<CryptographicException>(async () =>
                 await Validator(identities).ValidatePeerAsync(channel.Object, []).ConfigureAwait(false));
 
             identities.VerifyNoOtherCalls();

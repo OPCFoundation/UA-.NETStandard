@@ -1234,7 +1234,8 @@ namespace Opc.Ua.Client.Subscriptions
             }
         }
 
-        private async ValueTask<bool> ApplyStateChangesAsync(int consecutiveApplyFailures, CancellationToken ct)
+        private async ValueTask<bool> ApplyStateChangesAsync(int consecutiveApplyFailures, bool deferRetries,
+            CancellationToken ct)
         {
             await m_stateLock.WaitAsync(ct).ConfigureAwait(false);
             SubscriptionOptions options = Options;
@@ -1262,7 +1263,7 @@ namespace Opc.Ua.Client.Subscriptions
                         await ModifyAsync(options, ct).ConfigureAwait(false);
                     }
 
-                    bool modified = await m_monitoredItems.ApplyChangesAsync(false, false, ct)
+                    bool modified = await m_monitoredItems.ApplyChangesAsync(false, false, ct, deferRetries)
                         .ConfigureAwait(false);
                     if (modified)
                     {
@@ -1305,6 +1306,24 @@ namespace Opc.Ua.Client.Subscriptions
         }
 
         /// <summary>
+        /// Waits for the retry backoff to elapse or for the state manager to be
+        /// signalled, whichever happens first. A consumed signal is restored by
+        /// the caller, which signals the state manager after every backoff.
+        /// </summary>
+        /// <returns><c>true</c> when the state manager was signalled.</returns>
+        private async Task<bool> WaitForBackoffOrChangeAsync(TimeSpan backoff, CancellationToken ct)
+        {
+            using var cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+            Task changed = m_stateControl.WaitAsync(cts.Token);
+            Task elapsed = TimeProvider.Delay(backoff, cts.Token);
+            await Task.WhenAny(changed, elapsed).ConfigureAwait(false);
+            // Withdraw the losing wait so it cannot consume a later signal.
+            cts.Cancel();
+            ct.ThrowIfCancellationRequested();
+            return changed.Status == TaskStatus.RanToCompletion;
+        }
+
+        /// <summary>
         /// Controls the state changes of the subscriptions and the contained monitored
         /// items.
         /// </summary>
@@ -1314,16 +1333,23 @@ namespace Opc.Ua.Client.Subscriptions
         {
             OnSubscriptionStateChanged(SubscriptionState.Opened);
             int consecutiveApplyFailures = 0;
+            // While set, a new change cut the retry backoff short: the next pass
+            // applies only fresh work, and work that already failed waits for
+            // retryDue, so a stream of new changes cannot spend its retry budget.
+            bool deferRetries = false;
+            long retryDue = 0;
             try
             {
                 while (!ct.IsCancellationRequested)
                 {
                     await m_stateControl.WaitAsync(ct).ConfigureAwait(false);
                     bool applyFailed = false;
+                    bool deferThisPass = deferRetries;
                     await AckQueue.RunWithSessionAvailableAsync(
-                        async token => applyFailed = await ApplyStateChangesAsync(consecutiveApplyFailures, token)
-                            .ConfigureAwait(false),
+                        async token => applyFailed = await ApplyStateChangesAsync(consecutiveApplyFailures,
+                            deferThisPass, token).ConfigureAwait(false),
                         ct).ConfigureAwait(false);
+                    deferRetries = false;
 
                     // A per-item change can fail transiently (e.g. a bad status
                     // in a CreateMonitoredItems response while the server is
@@ -1345,15 +1371,46 @@ namespace Opc.Ua.Client.Subscriptions
                         // the apply with a bounded, escalating backoff so the
                         // subscription self-heals instead of silently delivering
                         // no notifications.
-                        consecutiveApplyFailures++;
-                        int backoffMs = Math.Min(
-                            kBaseApplyRetryBackoffMs << Math.Min(consecutiveApplyFailures - 1, 5),
-                            kMaxApplyRetryBackoffMs);
+                        TimeSpan backoff;
+                        if (deferThisPass && !applyFailed)
+                        {
+                            // Only fresh work ran: keep the deadline of the
+                            // retries it skipped.
+                            // GetElapsedTime scales in floating point, so a
+                            // long-expired deadline cannot overflow.
+                            backoff = TimeProvider.GetElapsedTime(TimeProvider.GetTimestamp(), retryDue);
+                            if (backoff < TimeSpan.Zero)
+                            {
+                                backoff = TimeSpan.Zero;
+                            }
+                        }
+                        else
+                        {
+                            consecutiveApplyFailures++;
+                            backoff = TimeSpan.FromMilliseconds(Math.Min(
+                                kBaseApplyRetryBackoffMs << Math.Min(consecutiveApplyFailures - 1, 5),
+                                kMaxApplyRetryBackoffMs));
+                            retryDue = TimeProvider.GetTimestamp() +
+                                (long)(backoff.TotalSeconds * TimeProvider.TimestampFrequency);
+                        }
                         try
                         {
-                            await TimeProvider
-                                .Delay(TimeSpan.FromMilliseconds(backoffMs), ct)
-                                .ConfigureAwait(false);
+                            if (applyFailed)
+                            {
+                                await TimeProvider.Delay(backoff, ct).ConfigureAwait(false);
+                            }
+                            else
+                            {
+                                // Only per-item work is left (e.g. an item the
+                                // server rejected transiently, or one added after
+                                // the pass took its snapshot). A new change must
+                                // not queue behind that item's backoff: wake as
+                                // soon as the state manager is signalled again,
+                                // and apply only the new work until the backoff
+                                // ends.
+                                deferRetries = await WaitForBackoffOrChangeAsync(backoff, ct)
+                                    .ConfigureAwait(false) && TimeProvider.GetTimestamp() < retryDue;
+                            }
                         }
                         catch (OperationCanceledException)
                         {

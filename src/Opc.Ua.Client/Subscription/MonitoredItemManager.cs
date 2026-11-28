@@ -484,16 +484,22 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
         /// <param name="once"></param>
         /// <param name="resetAll"></param>
         /// <param name="ct"></param>
+        /// <param name="deferRetries">
+        /// Apply only fresh work: leave changes, deletes and triggering operations
+        /// that already failed for the next full pass, so they keep their retry
+        /// backoff and do not spend their retry budget early.
+        /// </param>
         /// <returns></returns>
         internal async Task<bool> ApplyChangesAsync(bool once, bool resetAll,
-            CancellationToken ct)
+            CancellationToken ct, bool deferRetries = false)
         {
             bool modified = false;
             var attemptedChanges = new HashSet<MonitoredItem.Change>();
             var attemptedDeletes = new HashSet<MonitoredItem>();
             while (!ct.IsCancellationRequested &&
                 TryGetMonitoredItemChanges(
-                    out List<MonitoredItem>? itemsToDelete, out List<MonitoredItem.Change>? itemsToModify, resetAll))
+                    out List<MonitoredItem>? itemsToDelete, out List<MonitoredItem.Change>? itemsToModify, resetAll,
+                    deferRetries))
             {
                 if (modified &&
                     itemsToDelete.TrueForAll(attemptedDeletes.Contains) &&
@@ -509,6 +515,7 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
                         lock (m_monitoredItemsLock)
                         {
                             m_deletedItems.AddRange(itemsToDelete);
+                            m_failedDeletes.UnionWith(itemsToDelete);
                         }
                     }
                     break;
@@ -530,8 +537,11 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
             // the time the RPC fires. Pending operations whose
             // referenced items are not yet Created get re-queued (with
             // a bounded retry budget) for the next ApplyChangesAsync
-            // pass.
+            // pass. A pass that defers retries leaves the queue alone while it
+            // holds a retried operation: draining only part of it would reorder
+            // the operations, and later ones override earlier ones per edge.
             if (!ct.IsCancellationRequested &&
+                !(deferRetries && HasRetriedTriggeringOperation()) &&
                 await ApplyTriggeringOperationsAsync(ct).ConfigureAwait(false))
             {
                 modified = true;
@@ -616,6 +626,7 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
                         lock (m_monitoredItemsLock)
                         {
                             m_deletedItems.Add(itemsToDelete[index]);
+                            m_failedDeletes.Add(itemsToDelete[index]);
                         }
                     }
                 }
@@ -624,6 +635,7 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
                     lock (m_monitoredItemsLock)
                     {
                         m_deletedItems.AddRange(itemsToDelete);
+                        m_failedDeletes.UnionWith(itemsToDelete);
                     }
                     m_logger.FailedDeleteMonitoredItems(ex);
                 }
@@ -747,6 +759,21 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
         }
 
         /// <summary>
+        /// True when a queued triggering operation already failed at least once.
+        /// </summary>
+        private bool HasRetriedTriggeringOperation()
+        {
+            foreach (TriggeringOperation op in m_triggeringOps)
+            {
+                if (Volatile.Read(ref op.RetryCount) > 0)
+                {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        /// <summary>
         /// True when monitored-item changes are still queued to be applied
         /// (a pending create/modify, or a delete awaiting retry) so the owning
         /// subscription must schedule another <see cref="ApplyChangesAsync"/>
@@ -791,16 +818,31 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
         /// <param name="itemsToDelete"></param>
         /// <param name="itemsToModify"></param>
         /// <param name="resetAll"></param>
+        /// <param name="deferRetries">Leave deletes and changes that already
+        /// failed in the queue; fresh removals and changes are still taken.</param>
         /// <returns></returns>
         internal bool TryGetMonitoredItemChanges(out List<MonitoredItem> itemsToDelete,
-            out List<MonitoredItem.Change> itemsToModify, bool resetAll = false)
+            out List<MonitoredItem.Change> itemsToModify, bool resetAll = false,
+            bool deferRetries = false)
         {
             // modify the subscription.
             itemsToModify = [];
             lock (m_monitoredItemsLock)
             {
-                itemsToDelete = [.. m_deletedItems];
-                m_deletedItems.Clear();
+                if (deferRetries)
+                {
+                    // Take only fresh removals; deletes that failed keep
+                    // their retry deadline.
+                    itemsToDelete = m_deletedItems.FindAll(m => !m_failedDeletes.Contains(m));
+                    m_deletedItems.RemoveAll(m => !m_failedDeletes.Contains(m));
+                }
+                else
+                {
+                    itemsToDelete = [.. m_deletedItems];
+                    m_deletedItems.Clear();
+                    // A delete that fails again is marked again.
+                    m_failedDeletes.Clear();
+                }
 
                 foreach (MonitoredItem monitoredItem in m_monitoredItems.Values)
                 {
@@ -810,7 +852,8 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
                         monitoredItem.Reset();
                     }
                     // build item request.
-                    if (monitoredItem.TryGetPendingChange(out MonitoredItem.Change? change))
+                    if (monitoredItem.TryGetPendingChange(out MonitoredItem.Change? change) &&
+                        !(deferRetries && change.RetryCount > 0))
                     {
                         itemsToModify.Add(change);
                     }
@@ -978,6 +1021,7 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
                 }
 
                 m_deletedItems.Clear();
+                m_failedDeletes.Clear();
                 itemsToDelete = new ArrayOf<uint>(serverClientHandleMap.Keys
                     .Concat(duplicateServerHandles)
                     .Distinct()
@@ -2107,6 +2151,8 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
 
         private readonly IMonitoredItemManagerContext m_context;
         private readonly List<MonitoredItem> m_deletedItems = [];
+        // Items in m_deletedItems whose delete already failed at least once.
+        private readonly HashSet<MonitoredItem> m_failedDeletes = [];
         private readonly Lock m_monitoredItemsLock = new();
         private SubscriptionValueRefresh? m_valueRefresh;
         private readonly Dictionary<uint, MonitoredItem> m_monitoredItems = [];
