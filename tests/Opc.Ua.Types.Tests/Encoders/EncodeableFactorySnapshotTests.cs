@@ -572,6 +572,25 @@ namespace Opc.Ua.Types.Tests.Encoders
                 proposed, source, revision, new NamespaceTable(), rebase: true, out _));
         }
 
+        /// <summary>
+        /// A rebased merge rejects an alias the candidate added for an existing type when another publication
+        /// remapped that type's XML name, so encoding and XML-name lookups cannot resolve to different types.
+        /// </summary>
+        [Test]
+        public void RebasedMergeRejectsAliasWhoseXmlNameWasRemapped()
+        {
+            var factory = new EncodeableFactory();
+            IEncodeableType original = CreateNamedStructure("Shared");
+            factory.Builder.AddEncodeableType(s_structureId, original).Commit();
+            EncodeableFactory proposed = factory.CaptureSnapshot(out EncodeableFactory source, out long revision);
+            proposed.Builder.AddEncodeableType(s_otherStructureId, original).Commit();
+            factory.Builder.AddEncodeableType(new ExpandedNodeId(9004, kNamespace), CreateNamedStructure("Shared"))
+                .Commit();
+
+            Assert.Throws<OptimisticPublicationConflictException>(() => factory.PrepareAdditiveMerge(
+                proposed, source, revision, new NamespaceTable(), rebase: true, out _));
+        }
+
         private static IEncodeableType CreateNamedStructure(string name)
         {
             var type = new Mock<IEncodeableType>();

@@ -150,7 +150,14 @@ namespace Opc.Ua
                             $"Registration '{key}' changed after the batch was prepared.");
                     }
                 }
-                foreach (XmlQualifiedName key in proposed.m_xmlNameToType.Keys)
+                // An added alias for an existing type shares that type's XML name without changing the XML-name
+                // entry, so every XML name an added or replaced registration uses must also be unchanged.
+                IEnumerable<XmlQualifiedName> xmlNames = proposed.m_xmlNameToType.Keys
+                    .Concat(proposed.m_encodeableTypes.Values.Select(type => type.XmlName))
+                    .Concat(proposed.m_enumeratedTypes.Values.Select(type => type.XmlName))
+                    .Where(name => name is not null)
+                    .Distinct();
+                foreach (XmlQualifiedName key in xmlNames)
                 {
                     if (!CapturedMaps.IsUnchanged(captured.XmlNames, merged.m_xmlNameToType, key))
                     {

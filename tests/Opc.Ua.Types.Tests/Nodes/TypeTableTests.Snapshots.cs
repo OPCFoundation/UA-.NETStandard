@@ -814,6 +814,29 @@ namespace Opc.Ua.Types.Tests.Nodes
         }
 
         /// <summary>
+        /// Verifies that a type the candidate removed and re-added privately keeps its captured serving version, so
+        /// an unrelated publication does not make the batch stale.
+        /// </summary>
+        [Test]
+        public void RebasedMergeAcceptsTypeRemovedAndReaddedByCandidate()
+        {
+            TypeTable proposed = m_typeTable.CaptureSnapshot(out TypeTable source, out long revision);
+            proposed.Remove(s_grandchildTypeId);
+            proposed.AddSubtype(s_grandchildTypeId, s_childTypeId);
+            m_typeTable.AddSubtype(new NodeId(5000), s_rootTypeId);
+
+            TypeTable merged = m_typeTable.PrepareAdditiveMerge(proposed, source, revision, rebase: true, out _);
+
+            using (Assert.EnterMultipleScope())
+            {
+                Assert.That(merged.IsTypeOf(s_grandchildTypeId, s_childTypeId), Is.True);
+                Assert.That(merged.GetRegistrationVersion(s_grandchildTypeId),
+                    Is.EqualTo(proposed.GetRegistrationVersion(s_grandchildTypeId)));
+                Assert.That(merged.IsKnown(new NodeId(5000)), Is.True);
+            }
+        }
+
+        /// <summary>
         /// Verifies that a rebased merge rejects a type that another publication registered, replaced or removed
         /// after the capture, and a supertype that disappeared.
         /// </summary>
