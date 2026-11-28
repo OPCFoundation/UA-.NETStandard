@@ -49,7 +49,7 @@ warm-up and a 10 s measurement window. A check compares the median over the roun
 | `lt-events.generatedPerSec / calibration.reqPerSec` | ≥ 0.01 | 0.085 (one G1 collapse round: 0.018) | Event fan-out cost: #4757 took the rate from ~4,000 to ~125 events/s (32×). |
 | `lt-events.allocB2` | ≤ 150,000 B | 88–97 KB; 145–163 KB in a round with a G1 collapse | Server bytes per event for 750 subscriptions: #4757 was ~5 MB. E6 (+50 %) lands near the ceiling. |
 | `write.valuesPerSec / calibration.valuesPerSec` | ≥ 0.2 | 0.54–0.62 | Write throughput 2.5× below master, for example a request-wide lock. |
-| `write.allocB` | ≤ 98,000 B | 85.3–85.8 KB | Server bytes per 100-value Write. X1 (#4999) added 13.5 KB. |
+| `write.allocB` | ≤ 29,000 B | 20.6–22.6 KB (2026-11-28; 85 KB before the X1, N3 and R0 fixes) | Server bytes per 100-value Write. X1 (#4999) added 13.5 KB. |
 
 `allocB` and `allocB2` are the harness `per-op` and `per-op2` values: allocated bytes of the
 server process divided by the operations of the window. They vary by a few percent from run
@@ -59,8 +59,9 @@ a ratio to the `read` calibration of the same round, with a floor several times 
 Those floors catch collapses, not 10 % regressions. Latency (`p50Ms`, `p99Ms`), CPU per operation,
 GC pause and lock contention are reported in the summary but not checked.
 
-Ceilings are absolute. When an improvement lands (for example the X1 fix brings `write.allocB`
-to about 72 KB), lower the ceiling in the same pull request so the gain is kept.
+Ceilings are absolute. When an improvement lands, lower the ceiling in the same pull request so
+the gain is kept. `write.allocB` has room for the idle allocation of the reference server (about
+5 MB/s), which adds 1–2 KB per Write at the request rate of a 4-core runner.
 
 ## Validating a floor
 
