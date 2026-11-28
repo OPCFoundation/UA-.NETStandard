@@ -4124,6 +4124,19 @@ namespace Opc.Ua.Server
             // fill results for unknown nodes.
             for (int ii = 0; ii < errors.Count; ii++)
             {
+                // Retirement can release the native source after the initial detached check.
+                // A subscription that already withdrew this item cannot bind it to a new source.
+                if (itemsToDelete[ii] is IMonitoredItemGenerationBinding
+                    {
+                        IsRemoved: true,
+                        IsSourceUnavailable: true
+                    } &&
+                    (itemsToDelete[ii].MonitoredItemType & MonitoredItemTypeMask.Events) == 0 &&
+                    (ServiceResult.IsGood(errors[ii]) || errors[ii].StatusCode == StatusCodes.BadMonitoredItemIdInvalid))
+                {
+                    errors[ii] = ServiceResult.Good;
+                    continue;
+                }
                 if (!processedItems[ii])
                 {
                     errors[ii] = StatusCodes.BadMonitoredItemIdInvalid;

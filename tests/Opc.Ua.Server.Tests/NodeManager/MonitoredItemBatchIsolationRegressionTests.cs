@@ -18,6 +18,20 @@ namespace Opc.Ua.Server.Tests.NodeManager
     public sealed class MonitoredItemBatchIsolationRegressionTests
     {
         /// <summary>
+        /// A concurrent source release finishes deletion, but a missing item with a live source remains invalid.
+        /// </summary>
+        [TestCase(true)]
+        [TestCase(false)]
+        public async Task DeleteRechecksSourceAfterOwnerReportsMissingItemAsync(bool sourceReleased)
+        {
+            using var harness = new BatchHarness(partial: false);
+            harness.SimulateSourceReleaseDuringDelete(sourceReleased);
+            await harness.DispatchAsync(setMode: false, CancellationToken.None).ConfigureAwait(false);
+            Assert.That(harness.Errors[0].StatusCode, Is.EqualTo(
+                sourceReleased ? StatusCodes.Good : StatusCodes.BadMonitoredItemIdInvalid));
+        }
+
+        /// <summary>
         /// Verifies that one owner's failure preserves completed item results and still dispatches later owners.
         /// </summary>
         [TestCase(false, false)]
@@ -312,6 +326,32 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 {
                     await m_master.DeleteMonitoredItemsAsync(context, 1, m_items, Errors, ct).ConfigureAwait(false);
                 }
+            }
+
+            /// <summary>
+            /// Controls whether the source is detached by the time the owner reports that the item is missing.
+            /// </summary>
+            public void SimulateSourceReleaseDuringDelete(bool sourceReleased)
+            {
+                var item = new Mock<IMonitoredItem>();
+                Mock<IMonitoredItemGenerationBinding> binding = item.As<IMonitoredItemGenerationBinding>();
+                bool detached = false;
+                binding.SetupGet(value => value.IsRemoved).Returns(true);
+                binding.SetupGet(value => value.IsSourceUnavailable).Returns(() => detached);
+                item.SetupGet(value => value.NodeManager).Returns(m_owners[0]);
+                m_items[0] = item.Object;
+                Mock.Get(m_owners[0]).Setup(value => value.DeleteMonitoredItemsAsync(
+                        It.IsAny<OperationContext>(), It.IsAny<IList<IMonitoredItem>>(),
+                        It.IsAny<IList<bool>>(), It.IsAny<IList<ServiceResult>>(),
+                        It.IsAny<CancellationToken>()))
+                    .Returns((OperationContext _, IList<IMonitoredItem> _, IList<bool> processed,
+                        IList<ServiceResult> errors, CancellationToken _) =>
+                    {
+                        detached = sourceReleased;
+                        processed[0] = true;
+                        errors[0] = StatusCodes.BadMonitoredItemIdInvalid;
+                        return default;
+                    });
             }
 
             /// <summary>
