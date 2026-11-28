@@ -107,6 +107,46 @@ namespace Opc.Ua.Server.Tests
         }
 
         /// <summary>
+        /// A copy made through the generated, non-virtual
+        /// <see cref="ReadResponse.MemberwiseClone"/> does not own the buffer: reusing
+        /// it leaves the original's values intact, and the original returns the buffer
+        /// once. The copy keeps its own values after the original was reused.
+        /// </summary>
+        [Test]
+        public void MemberwiseCopyDoesNotOwnTheBuffer()
+        {
+            ReadResultBuffer buffer = ReadResultBuffer.CreateUnpooled(2);
+            DataValue[] values = buffer.Values;
+            buffer.ValueList[0] = new DataValue(new Variant(11));
+            buffer.ValueList[1] = new DataValue(new Variant("twelve"));
+            ReadResponse response = new PooledReadResponse(buffer);
+
+            var copy = (ReadResponse)response.MemberwiseClone();
+            ((IPooledEncodeable)copy).Reuse();
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(buffer.Count, Is.EqualTo(2), "a copy does not return the buffer");
+                Assert.That(values[0].WrappedValue.GetInt32(), Is.EqualTo(11), "not cleared");
+                Assert.That(response.Results.Count, Is.EqualTo(2));
+            });
+
+            ReadResponse decoded = Decode(Encode(response));
+            ((IPooledEncodeable)response).Reuse();
+            ((IPooledEncodeable)copy).Reuse();
+            values[0] = new DataValue(new Variant(-1));
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(decoded.Results[0].WrappedValue.GetInt32(), Is.EqualTo(11));
+                Assert.That(decoded.Results[1].WrappedValue.GetString(), Is.EqualTo("twelve"));
+                Assert.That(buffer.Count, Is.Zero, "the original returned the buffer");
+                Assert.That(copy.Results.Count, Is.EqualTo(2));
+                Assert.That(copy.Results[0].WrappedValue.GetInt32(), Is.EqualTo(11), "the copy keeps its values");
+            });
+        }
+
+        /// <summary>
         /// The node managers see lists of exactly the request's length, although the
         /// pooled arrays are larger: like an array, they can be written by index but not
         /// resized.

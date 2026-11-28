@@ -250,6 +250,7 @@ namespace Opc.Ua.Server
         public PooledReadResponse(ReadResultBuffer buffer)
         {
             m_buffer = buffer;
+            m_owner = this;
             Results = buffer.Results;
         }
 
@@ -257,8 +258,11 @@ namespace Opc.Ua.Server
         protected override void ReuseCore()
         {
             ReadResultBuffer? buffer = Interlocked.Exchange(ref m_buffer, null);
-            if (buffer == null)
+            if (buffer == null || !ReferenceEquals(m_owner, this))
             {
+                // a copy made by the generated, non-virtual ReadResponse.MemberwiseClone
+                // shares the reference to the buffer but not its ownership: only the
+                // response the buffer was rented for returns it.
                 return;
             }
 
@@ -279,5 +283,6 @@ namespace Opc.Ua.Server
         }
 
         private ReadResultBuffer? m_buffer;
+        private readonly PooledReadResponse m_owner;
     }
 }
