@@ -2338,7 +2338,8 @@ namespace Opc.Ua.PackML.Tests
                     using CancellationTokenRegistration registration =
                         token.Register(() => secondCancelled.TrySetResult(true));
                     secondEntered.TrySetResult(true);
-                    await Task.Delay(Timeout.InfiniteTimeSpan, token);
+                    await secondCancelled.Task;
+                    token.ThrowIfCancellationRequested();
                     return ServiceResult.Good;
                 }
             };

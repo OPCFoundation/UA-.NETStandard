@@ -1144,7 +1144,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
         /// completed its work can still hold a target on its stack for a moment, so a single
         /// collection right after the awaited call may find it alive.
         /// </remarks>
-        private static async Task CollectUntilReleasedAsync(Func<bool> released)
+        internal static async Task CollectUntilReleasedAsync(Func<bool> released)
         {
             for (int attempt = 0; attempt < 200; attempt++)
             {
@@ -1438,13 +1438,8 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 release.TrySetResult(true);
                 await disposal.WaitAsync(timeout.Token).ConfigureAwait(false);
                 harness.ReleaseHostRecorderReferences();
-                await Task.Yield();
-                for (int attempt = 0; attempt < 3 && candidate.IsAlive; attempt++)
-                {
-                    GC.Collect();
-                    GC.WaitForPendingFinalizers();
-                    GC.Collect();
-                }
+                await NodeManagerLifecycleTests.CollectUntilReleasedAsync(() => !candidate.IsAlive)
+                    .ConfigureAwait(false);
                 NodeManagerRegistrationSnapshot snapshot = prepared.Registrations[0];
                 using (Assert.EnterMultipleScope())
                 {
