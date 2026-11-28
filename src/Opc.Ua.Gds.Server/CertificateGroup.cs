@@ -21,7 +21,9 @@ using X509AuthorityKeyIdentifierExtension = Opc.Ua.Security.Certificates.X509Aut
 
 namespace Opc.Ua.Gds.Server
 {
-    public class CertificateGroup : ICertificateGroup
+    public class CertificateGroup :
+        ICertificateGroupWithApprovedUriSans,
+        ICertificateGroupWithAuthenticatedSigningRequest
     {
         /// <inheritdoc/>
         public NodeId Id { get; set; }
@@ -389,12 +391,27 @@ namespace Opc.Ua.Gds.Server
             NodeId certificateType,
             ByteString certificateRequest)
         {
+            ReadSigningRequestWithMatchingKey(certificateType, certificateRequest);
+        }
+
+        private static Pkcs10CertificationRequest ReadSigningRequestWithMatchingKey(
+            NodeId certificateType,
+            ByteString certificateRequest,
+            bool requireAuthenticatedRequest = false)
+        {
             string keyAlgorithm;
             string? curve;
             int rsaKeySize;
+            Pkcs10CertificationRequest request;
             try
             {
-                var request = new Pkcs10CertificationRequest(certificateRequest.ToArray());
+                byte[] encodedRequest = certificateRequest.ToArray();
+                if (requireAuthenticatedRequest)
+                {
+                    ValidateAuthenticatedSigningRequestEncoding(certificateType, encodedRequest);
+                }
+
+                request = new Pkcs10CertificationRequest(encodedRequest);
                 (keyAlgorithm, curve, rsaKeySize) = ReadPublicKeyInfo(request.SubjectPublicKeyInfo);
             }
             catch (Exception ex) when (ex is CryptographicException or AsnContentException)
@@ -445,7 +462,7 @@ namespace Opc.Ua.Gds.Server
                             minKeySize,
                             maxKeySize));
                 }
-                return;
+                return request;
             }
 
             if (!TryGetEccCurveOids(certificateType, out string[]? curveOids))
@@ -477,13 +494,97 @@ namespace Opc.Ua.Gds.Server
                         certificateType,
                         string.Join(" or ", curveOids!.Select(DescribeCurve))));
             }
+
+            return request;
         }
 
-        public virtual async Task<Certificate> SigningRequestAsync(
+        /// <inheritdoc/>
+        public virtual Task<Certificate> SigningRequestAsync(
             ApplicationRecordDataType application,
             NodeId certificateType,
             string[] domainNames,
             ByteString certificateRequest,
+            CancellationToken ct = default)
+        {
+            return SigningRequestWithApprovedUriSansAsync(
+                application,
+                certificateType,
+                domainNames,
+                certificateRequest,
+                ArrayOf<string>.Empty,
+                ct);
+        }
+
+        /// <inheritdoc/>
+        public virtual Task<Certificate> SigningRequestWithAdditionalUriSansAsync(
+            ApplicationRecordDataType application,
+            NodeId certificateType,
+            ArrayOf<string> domainNames,
+            ByteString certificateRequest,
+            ArrayOf<string> approvedAdditionalUriSans,
+            CancellationToken ct = default)
+        {
+            if (GetType() != typeof(CertificateGroup))
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadNotSupported,
+                    "A CertificateGroup subclass must override signing with additional URI SANs.");
+            }
+
+            return SigningRequestWithApprovedUriSansAsync(
+                application,
+                certificateType,
+                domainNames.Span.ToArray(),
+                certificateRequest,
+                approvedAdditionalUriSans,
+                ct);
+        }
+
+        /// <inheritdoc/>
+        public virtual Task<Certificate> SigningRequestForAuthenticatedEvidenceAsync(
+            NodeId certificateType,
+            string approvedSubjectName,
+            string applicationUri,
+            string productInstanceUri,
+            ArrayOf<string> approvedAdditionalUriSans,
+            ArrayOf<string> approvedDomainNames,
+            ByteString certificateRequest,
+            CancellationToken ct = default)
+        {
+            if (GetType() != typeof(CertificateGroup))
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadNotSupported,
+                    "A CertificateGroup subclass must override authenticated evidence signing.");
+            }
+
+            return SigningRequestWithApprovedIdentityAsync(
+                certificateType,
+                approvedSubjectName,
+                applicationUri,
+                productInstanceUri,
+                approvedAdditionalUriSans,
+                approvedDomainNames,
+                certificateRequest,
+                ct);
+        }
+
+        /// <summary>
+        /// Issues a CSR after adding URI SANs explicitly approved by the host.
+        /// </summary>
+        /// <param name="application">The application the CSR is for.</param>
+        /// <param name="certificateType">The requested certificate type.</param>
+        /// <param name="domainNames">Fallback domain names when the CSR has no DNS or IP SANs.</param>
+        /// <param name="certificateRequest">The DER encoded PKCS#10 request.</param>
+        /// <param name="approvedAdditionalUriSans">Additional URI SANs explicitly approved by the host.</param>
+        /// <param name="ct">The cancellation token.</param>
+        /// <returns>The issued certificate.</returns>
+        protected async Task<Certificate> SigningRequestWithApprovedUriSansAsync(
+            ApplicationRecordDataType application,
+            NodeId certificateType,
+            string[] domainNames,
+            ByteString certificateRequest,
+            ArrayOf<string> approvedAdditionalUriSans,
             CancellationToken ct = default)
         {
             try
@@ -491,9 +592,8 @@ namespace Opc.Ua.Gds.Server
                 // a request queued before the key check existed, or one a
                 // custom group verified without it, still fails here with the
                 // exact reason rather than a public key decoding error.
-                VerifySigningRequestKey(certificateType, certificateRequest);
-
-                var pkcs10CertificationRequest = new Pkcs10CertificationRequest(certificateRequest.ToArray());
+                Pkcs10CertificationRequest pkcs10CertificationRequest =
+                    ReadSigningRequestWithMatchingKey(certificateType, certificateRequest);
 
                 if (!pkcs10CertificationRequest.Verify())
                 {
@@ -504,6 +604,7 @@ namespace Opc.Ua.Gds.Server
 
                 X509SubjectAltNameExtension? altNameExtension =
                     Pkcs10Utils.GetSubjectAltNameExtension(pkcs10CertificationRequest.Attributes);
+                var applicationUris = new List<string> { application.ApplicationUri! };
                 if (altNameExtension == null)
                 {
                     // OPC 10000-12 §7.9.3: the ApplicationUri shall be specified in the CSR.
@@ -529,6 +630,11 @@ namespace Opc.Ua.Gds.Server
                             applicationUriMissing.ToString());
                     }
 
+                    foreach (string approvedUri in approvedAdditionalUriSans.Span)
+                    {
+                        AddApprovedUriSan(applicationUris, approvedUri);
+                    }
+
                     if (altNameExtension.IPAddresses.Count > 0 ||
                         altNameExtension.DomainNames.Count > 0)
                     {
@@ -539,38 +645,177 @@ namespace Opc.Ua.Gds.Server
                     }
                 }
 
-                DateTime yesterday = DateTime.Today.AddDays(-1);
-                using Certificate signingKey = await LoadSigningKeyAsync(
+                return await IssueSigningRequestAsync(
+                    certificateType,
                     Certificates[certificateType]!,
-                    null,
-                    m_telemetry,
-                    ct)
-                    .ConfigureAwait(false);
-                X500DistinguishedName subjectName = pkcs10CertificationRequest.Subject;
-
-                ICertificateBuilder builder = CertificateBuilder
-                    .Create(subjectName)
-                    .AddExtension(
-                        new X509SubjectAltNameExtension(application.ApplicationUri!, domainNames))
-                    .SetNotBefore(yesterday)
-                    .SetLifeTime(Configuration.DefaultCertificateLifetime);
-
-                return TryGetECCCurve(certificateType, out ECCurve curve)
-                    ? builder
-                        .SetIssuer(signingKey)
-                        .SetECDsaPublicKey(pkcs10CertificationRequest.SubjectPublicKeyInfo)
-                        .CreateForECDsa()
-                    : builder
-                        .SetHashAlgorithm(X509Utils.GetRSAHashAlgorithmName(
-                            Configuration.DefaultCertificateHashSize))
-                        .SetIssuer(signingKey)
-                        .SetRSAPublicKey(pkcs10CertificationRequest.SubjectPublicKeyInfo)
-                        .CreateForRSA();
+                    pkcs10CertificationRequest,
+                    pkcs10CertificationRequest.Subject,
+                    new X509SubjectAltNameExtension(applicationUris, domainNames),
+                    ct).ConfigureAwait(false);
             }
             catch (Exception ex) when (ex is not ServiceResultException)
             {
                 throw new ServiceResultException(StatusCodes.BadInvalidArgument, ex.Message);
             }
+        }
+
+        /// <summary>
+        /// Issues a CSR using identity values explicitly approved by the authenticated host.
+        /// </summary>
+        /// <param name="certificateType">The requested certificate type.</param>
+        /// <param name="approvedSubjectName">The X.500 subject name selected by the host.</param>
+        /// <param name="applicationUri">The application URI approved by the host.</param>
+        /// <param name="productInstanceUri">The product instance URI approved by the host.</param>
+        /// <param name="approvedAdditionalUriSans">Other URI SANs approved by the host.</param>
+        /// <param name="approvedDomainNames">DNS names or IP addresses approved by the host.</param>
+        /// <param name="certificateRequest">The DER encoded PKCS#10 request.</param>
+        /// <param name="ct">The cancellation token.</param>
+        /// <returns>The issued certificate.</returns>
+        protected Task<Certificate> SigningRequestWithApprovedIdentityAsync(
+            NodeId certificateType,
+            string approvedSubjectName,
+            string applicationUri,
+            string productInstanceUri,
+            ArrayOf<string> approvedAdditionalUriSans,
+            ArrayOf<string> approvedDomainNames,
+            ByteString certificateRequest,
+            CancellationToken ct = default)
+        {
+            Pkcs10CertificationRequest pkcs10CertificationRequest =
+                ReadSigningRequestWithMatchingKey(
+                    certificateType, certificateRequest, requireAuthenticatedRequest: true);
+            if (!pkcs10CertificationRequest.Verify())
+            {
+                throw new ServiceResultException(StatusCodes.BadInvalidArgument, "CSR signature invalid.");
+            }
+
+            if (string.IsNullOrWhiteSpace(approvedSubjectName))
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadInvalidArgument,
+                    "The host-approved subject is required.");
+            }
+
+            var approvedUris = new List<string>();
+            AddApprovedUriSan(approvedUris, applicationUri);
+            AddApprovedUriSan(approvedUris, productInstanceUri);
+            foreach (string approvedUri in approvedAdditionalUriSans.Span)
+            {
+                AddApprovedUriSan(approvedUris, approvedUri);
+            }
+
+            string[] domains = approvedDomainNames.Span.ToArray();
+            foreach (string domainName in domains)
+            {
+                if (string.IsNullOrWhiteSpace(domainName) ||
+                    Uri.CheckHostName(domainName) is not
+                        (UriHostNameType.Dns or UriHostNameType.IPv4 or UriHostNameType.IPv6))
+                {
+                    throw new ServiceResultException(
+                        StatusCodes.BadInvalidArgument,
+                        "An approved DNS name or IP address is invalid.");
+                }
+            }
+
+            if (!Certificates.TryGetValue(certificateType, out Certificate? authority))
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadNotSupported,
+                    "The certificate type is not configured in this certificate group.");
+            }
+            if (authority == null)
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadConfigurationError,
+                    "The certificate group has no signing authority for the requested certificate type.");
+            }
+
+            return IssueSigningRequestAsync(
+                certificateType,
+                authority,
+                pkcs10CertificationRequest,
+                new X500DistinguishedName(approvedSubjectName),
+                new X509SubjectAltNameExtension(approvedUris, domains),
+                ct);
+        }
+
+        private static void AddApprovedUriSan(List<string> uris, string uri)
+        {
+            if (string.IsNullOrWhiteSpace(uri) ||
+                !Uri.TryCreate(uri, UriKind.Absolute, out Uri? parsed) ||
+                !string.Equals(uri, parsed.AbsoluteUri, StringComparison.Ordinal))
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadCertificateUriInvalid,
+                    "An approved URI SAN must be absolute and retain its exact value in the certificate.");
+            }
+
+            if (!uris.Contains(uri))
+            {
+                uris.Add(uri);
+            }
+        }
+
+        private static void ValidateAuthenticatedSigningRequestEncoding(
+            NodeId certificateType,
+            ReadOnlyMemory<byte> encodedRequest)
+        {
+            var framing = new AsnReader(encodedRequest, AsnEncodingRules.DER);
+            AsnReader request = framing.ReadSequence();
+            framing.ThrowIfNotEmpty();
+
+            request.ReadEncodedValue();
+            AsnReader signatureAlgorithm = request.ReadSequence();
+            string signatureOid = signatureAlgorithm.ReadObjectIdentifier();
+            bool isRsa = IsRsaCertificateType(certificateType);
+            bool approved = isRsa
+                ? signatureOid is Oids.RsaPkcs1Sha256 or Oids.RsaPkcs1Sha384 or Oids.RsaPkcs1Sha512
+                : signatureOid is Oids.ECDsaWithSha256 or Oids.ECDsaWithSha384 or Oids.ECDsaWithSha512;
+            if (!approved)
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadInvalidArgument,
+                    "The CSR signature must use a supported SHA-2 algorithm for the requested certificate type.");
+            }
+
+            if (isRsa && signatureAlgorithm.HasData)
+            {
+                signatureAlgorithm.ReadNull();
+            }
+            signatureAlgorithm.ThrowIfNotEmpty();
+        }
+
+        private async Task<Certificate> IssueSigningRequestAsync(
+            NodeId certificateType,
+            Certificate authority,
+            Pkcs10CertificationRequest request,
+            X500DistinguishedName subjectName,
+            X509SubjectAltNameExtension altNames,
+            CancellationToken ct)
+        {
+            DateTime yesterday = DateTime.Today.AddDays(-1);
+            using Certificate signingKey = await LoadSigningKeyAsync(
+                authority,
+                null,
+                m_telemetry,
+                ct).ConfigureAwait(false);
+            ICertificateBuilder builder = CertificateBuilder
+                .Create(subjectName)
+                .AddExtension(altNames)
+                .SetNotBefore(yesterday)
+                .SetLifeTime(Configuration.DefaultCertificateLifetime);
+
+            return TryGetECCCurve(certificateType, out _)
+                ? builder
+                    .SetIssuer(signingKey)
+                    .SetECDsaPublicKey(request.SubjectPublicKeyInfo)
+                    .CreateForECDsa()
+                : builder
+                    .SetHashAlgorithm(X509Utils.GetRSAHashAlgorithmName(
+                        Configuration.DefaultCertificateHashSize))
+                    .SetIssuer(signingKey)
+                    .SetRSAPublicKey(request.SubjectPublicKeyInfo)
+                    .CreateForRSA();
         }
 
         public virtual async Task<Certificate> CreateCACertificateAsync(

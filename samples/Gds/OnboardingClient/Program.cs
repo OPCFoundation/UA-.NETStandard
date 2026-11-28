@@ -58,6 +58,19 @@ try
         throw new ArgumentException("--externalAuthentication must be true or false.");
     }
     bool runExternalAuthentication = bool.TryParse(externalAuthentication, out bool external) && external;
+    string? fdoRendezvous = builder.Configuration["fdoRendezvous"];
+    if (fdoRendezvous != null)
+    {
+#if ENABLE_FDO_ONBOARDING
+        if (!runPull || softwareStatus != null || runExternalAuthentication)
+        {
+            throw new ArgumentException("--fdoRendezvous requires --pull and cannot be combined with other modes.");
+        }
+        runExternalAuthentication = true;
+#else
+        throw new ArgumentException("Build with -p:EnableFdoOnboarding=true to use --fdoRendezvous.");
+#endif
+    }
     if (runExternalAuthentication && (!runPull ||
         builder.Configuration["signingJournal"] != null ||
         builder.Configuration["resumeApplicationId"] != null ||
@@ -268,6 +281,12 @@ try
                 }
             }
         }
+#if ENABLE_FDO_ONBOARDING
+        if (fdoRendezvous != null)
+        {
+            await FdoEnrollment.RunAsync(builder.Configuration, host.Services, ct).ConfigureAwait(false);
+        }
+#endif
         Func<CancellationToken, Task<ManagedSession>> connect =
             host.Services.GetRequiredService<
                 Func<CancellationToken, Task<ManagedSession>>>();

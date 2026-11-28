@@ -208,6 +208,11 @@ namespace Opc.Ua.Client.Tests.Stack.Client.Fakes
         public AsyncOperationGate? TakeoverActivation { get; set; }
 
         /// <summary>
+        /// Gets or sets an optional gate for the first subscription creation response.
+        /// </summary>
+        public AsyncOperationGate? InitialSubscriptionResponse { get; set; }
+
+        /// <summary>
         /// Gets or sets an optional gate the response to a monitored-item creation waits at, after
         /// the server has received the request.
         /// </summary>
@@ -553,6 +558,7 @@ namespace Opc.Ua.Client.Tests.Stack.Client.Fakes
             ReplacementSession.Release();
             SuccessorSession.Release();
             ReplacementSubscription.Release();
+            InitialSubscriptionResponse?.Release();
         }
 
         /// <inheritdoc/>
@@ -686,6 +692,10 @@ namespace Opc.Ua.Client.Tests.Stack.Client.Fakes
                     int subscriptionNumber = Interlocked.Increment(ref m_subscriptionCount);
                     uint subscriptionId = m_serverSubscriptions.AddOrUpdate(
                         create.RequestHeader.AuthenticationToken, SubscriptionId, (_, previous) => previous + 1);
+                    if (subscriptionNumber == 1 && InitialSubscriptionResponse is { } initialSubscriptionResponse)
+                    {
+                        await initialSubscriptionResponse.WaitAsync(ct).ConfigureAwait(false);
+                    }
                     if (HoldSubscriptionRestoration && subscriptionNumber == 2)
                     {
                         await ReplacementSubscription.WaitAsync(ct).ConfigureAwait(false);

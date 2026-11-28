@@ -1,3 +1,5 @@
+<!-- SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL -->
+<!-- SPDX-License-Identifier: MIT -->
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <TargetFrameworks>$(ModernTargetFrameworks)</TargetFrameworks>
@@ -9,6 +11,16 @@
     <PublishAot>true</PublishAot>
     <RestrictForLegacyTfm>true</RestrictForLegacyTfm>
   </PropertyGroup>
+  <PropertyGroup Condition="'$(EnableFdoOnboarding)' == 'true'">
+    <DefineConstants>$(DefineConstants);ENABLE_FDO_ONBOARDING</DefineConstants>
+  </PropertyGroup>
+  <ItemGroup Condition="'$(EnableFdoOnboarding)' == 'true'">
+    <ProjectReference Include="..\..\..\src\Opc.Ua.Gds.Fdo\Opc.Ua.Gds.Fdo.csproj" />
+  </ItemGroup>
+  <ItemGroup Condition="'$(EnableFdoOnboarding)' != 'true'">
+    <Compile Remove="FdoEnrollment.cs" />
+    <Compile Remove="FdoDeviceEnrollmentSetup.cs" />
+  </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\..\..\src\Opc.Ua.Configuration\Opc.Ua.Configuration.csproj" />
     <ProjectReference Include="..\..\..\src\Opc.Ua.Client\Opc.Ua.Client.csproj" />

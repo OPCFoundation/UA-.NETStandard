@@ -11,6 +11,7 @@ See the [GDS developer guide](GDS.md) for directory and certificate management.
 
 - [OPC 10000-21 OnboardingClient](#opc-10000-21-onboardingclient)
 - [External authentication certificate handoff](#external-authentication-certificate-handoff)
+- [FDO onboarding for OPC UA GDS](#fdo-onboarding-for-opc-ua-gds)
 - [Part 21 requirements and implementation boundaries](#part-21-requirements-and-implementation-boundaries)
 - [Replace a provisionable device's node manager](#replace-a-provisionable-devices-node-manager)
 
@@ -1387,6 +1388,16 @@ After admission, persisted lifecycle authorization governs the DCA, as with
 ticket-based admission. Hosts use the existing lifecycle operations to change
 software approval and application ownership.
 
+For a host that issues the external DCA credential, `ICertificateGroupWithApprovedUriSans`
+adds explicitly approved URI SANs while still requiring the application URI in
+the CSR. `ICertificateGroupWithAuthenticatedSigningRequest` instead uses only
+the subject and SANs approved by the host. The host must bind authentication
+and approval to the exact CSR. The issuer verifies the DER encoding, SHA-2
+signature and key type; it does not authenticate the device, approve enrollment
+or admit the certificate to the registrar. Neither capability is exposed by
+the Part 12 signing services. See [FDO onboarding](#fdo-onboarding-for-opc-ua-gds)
+for an adapter that implements this handoff.
+
 The typed client uses the already installed external DCA credential. First
 obtain the configured managers without requesting application certificates:
 
@@ -1418,15 +1429,55 @@ Direct hosts can construct `ExternalAuthenticationProvider` with their
 certificate manager and policy. A separately supplied adapter can instead
 implement `IDeviceRegistrarExternalAuthenticationProvider` and register it with
 `AddDeviceRegistrarExternalAuthenticationProvider`. It must enforce equivalent
-issuer, URI and approval checks. The seam permits a future .NET FDO SDK adapter
-without requiring an SDK dependency in the registrar.
+issuer, URI and approval checks.
+
+### FDO onboarding for OPC UA GDS
 
 [Part 21 §7.4.2](https://reference.opcfoundation.org/specs/OPC-10000-21/v1.05.04/7.4.2)
-describes an FDO Owner supplying the DCA credential through `fdo.csr`. FDO
-TO0/TO1/TO2, ownership vouchers, service-info negotiation and the installation
-of that credential remain external. This stack supplies the certificate
-handoff and subsequent OPC UA management, not an FDO implementation or evidence
-of interoperability with an FDO Owner.
+describes an FDO Owner supplying the DCA credential through `fdo.csr`.
+The opt-in `OPCFoundation.NetStandard.Opc.Ua.Gds.Fdo` package connects the
+FDO Owner and Device enrollment callbacks to OPC UA onboarding on .NET 10 and
+.NET 11. The base GDS packages do not depend on FDO. The `Fdo` library handles
+TO0/TO1/TO2, ownership vouchers, service-info negotiation, protocol
+authentication, protected exchange and credential replacement.
+
+On the Owner, use `FdoRegistrarEnrollmentPolicy` as both the FDO enrollment
+handler and the GDS external-authentication policy. Configure the approved
+wire-order Device GUID and attestation certificate SHA-256 pin, the DCA
+application and product URIs, and the GDS signing group. Register the same
+policy instance with both paths. The ordinary external authentication provider
+still verifies the configured CA trust; the application policy still approves
+software requirements and the identity.
+
+Supply `IFdoEnrollmentReceiptStore` for each product and application pair.
+Every writer for that pair must share an atomic storage scope. The Owner
+persists the pending receipt before returning the certificate, then commits
+that exact issuance after authenticated `Done20`. Commit does not prove that
+the Device received `DoneAck20`. An interrupted run must be reconciled before
+new issuance; the module neither overwrites an existing receipt nor assumes
+an unsuccessful callback left storage unchanged.
+
+For tests and single-process demonstrations, explicitly register
+`InMemoryFdoEnrollmentReceiptStore` instead. It enforces exclusive creation
+and atomic replacement, but loses receipts on restart. Do not use it to
+authorize production devices or as a fallback when durable storage fails.
+
+On the Device, construct `FdoDeviceEnrollmentHandler` per session with the
+expected Device GUID and exact CSR. Supply a validation callback that checks
+the issued leaf against enrollment trust and the locally retained key without
+installing it, and an installation callback that durably persists the key
+pair before activation. The adapter only hands the validated leaf to the
+installation callback after the FDO Device authenticates `DoneAck20`. The host
+must reconcile uncertain installation before starting a new session.
+
+The adapters support initial client-key enrollment only. The
+[loopback sample](../samples/Gds/FdoOnboarding/README.md) shows a local
+deployment with demo PKI, in-memory receipts for credential reuse and
+single-writer durable storage for credential replacement. Do not use the
+sample's storage or approval defaults as a distributed deployment policy.
+The sample does not establish interoperability with another FDO implementation.
+For device-only enrollment against running FDO roles, see the
+[OnboardingClient FDO mode](../samples/Gds/README.md#enroll-a-provisioned-fdo-device).
 
 ## Part 21 requirements and implementation boundaries
 
@@ -1462,7 +1513,7 @@ are listed separately.
 | §6.4: source-dependent ticket authority trust | `OnboardingTicketValidator`, `OnboardingTicketTrustProvider` | `OnboardingTicketValidatorTests`, `OnboardingTicketTrustProviderTests`; online authority-revocation services are not supplied by these adapters |
 | §7.2 and Part 12 §§7.9.5, 7.9.8: request retry and certificate recovery | Public signing receipts, retained signing keys, protected key-pair checkpoints and bounded replacement of consumed key-pair requests | `PullDcaWorkflowTests`, `DevicePullSigningRecoveryTests`, `DevicePullReceiptRetryTests`, `DevicePullResetGenerationTests`, `ProvisionableDevicePullInstallationRecoveryTests` and `PullRegistrarIntegrationTests.KeyPairRecoveryInstallsRetainedCredentialsOnARecreatedSession` |
 | §7.3: push provisioning, first registrar and installed trust | device security transition provider, standard push authorization and transaction completion, generated-client processor with separate trust/certificate apply connections, secret-store enrollment journal, retained singleton scope and connected registrar/device samples | processor fixtures cover managed Client, Server and ClientAndServer paths; Server paths require host-authoritative endpoint metadata and two fresh-channel certificate proofs. `ConnectedManagedApplicationRecoveryTests.InterruptedManagedRotationReopensFilesAndResumesOnlyRetainedCertificate` covers process-durable recovery through two live servers, and `ProvisionableDevicePushChannelTests.ConcretePushActivatesCertificateAndRecoversAcrossHostRestartAndFactoryReset` covers DCA restart/reset. These fixtures are authored; this map does not assert their execution results. |
-| §7.4: alternate authentication/FDO | Dedicated CA validation and configured product/DCA approval through `IDeviceRegistrarExternalAuthenticationProvider`; typed external pull and registrar push reuse shared registrar/Part 12 lifecycle | `ExternalAuthenticationProviderTests`, `ProvideIdentitiesRuntimeTests`, `PullDcaWorkflowTests`, `DeviceRegistrarPushProcessorTests` and enrollment recovery cases cover the handoff. `PullRegistrarIntegrationTests.ExternalHandoffOnLiveChannelRequiresDeviceApprovalBeforePart12Issuance` exercises the provider boundary on real channels with software approval gating. FDO protocols and credential installation remain external; no FDO interoperability result is asserted |
+| §7.4: alternate authentication/FDO | Dedicated CA validation and configured product/DCA approval through `IDeviceRegistrarExternalAuthenticationProvider`; typed external pull and registrar push reuse the shared registrar/Part 12 lifecycle | The registrar tests cover the handoff, including software approval and committed enrollment receipts on live OPC UA channels. The separate [FDO demo](../samples/Gds/FdoOnboarding/README.md) runs enrollment and DCA installation through the external FDO library. It does not establish interoperability with another FDO implementation |
 | §§8.1-8.2: signed JSON tickets and String-subtype `EncodedTicket` | `OnboardingTicketWriter`, ticket validator, standard model and strict-UTF-8 compatibility wrappers | writer, validator, onboarding-client and stack-generation fixtures; vendor-specific unprotected metadata is not interpreted and cannot extend signing-certificate validity |
 | §§9.2.2-9.2.8: registrar methods and application ownership | registrar runtime, async bindings, shared GDS database and certificate authorization | `DeviceRegistrarRuntimeTests`, `ProvideIdentitiesRuntimeTests`, `ApplicationsNodeManagerOnboardingTests`; database/lifecycle publication is not a distributed transaction |
 | §§9.2.9-9.2.15: administration, managed authorities and restricted audit delivery | ticket administration bindings, managed authority file services, `DeviceRegistrarAuditReporter` | administration, authority-list and audit-reporter fixtures; connected authorized/unauthorized event delivery still needs remote execution |

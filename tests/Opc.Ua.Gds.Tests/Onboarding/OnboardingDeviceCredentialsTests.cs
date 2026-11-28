@@ -519,6 +519,153 @@ namespace Opc.Ua.Gds.Tests.Onboarding
         }
 
         /// <summary>
+        /// External validation uses the host's enrollment trust without storing or activating the leaf.
+        /// </summary>
+        [TestCase(true)]
+        [TestCase(false)]
+        public async Task ExternalValidationRequiresEnrollmentTrustWithoutInstallation(bool trusted)
+        {
+            using Certificate anchor = CertificateBuilder.Create("CN=Sample Enrollment CA")
+                .SetCAConstraint().SetRSAKeySize(2048).CreateForRSA();
+            var scope = new CertificateValidationScope([Encoded(anchor)]);
+            var storeProvider = new Mock<ICertificateStoreProvider>(MockBehavior.Strict);
+            m_credentials = new OnboardingDeviceCredentials(m_configuration, m_telemetry, [storeProvider.Object]);
+            m_manager.Setup(m => m.ValidateAsync(
+                    It.Is<CertificateCollection>(chain => chain.Count == 1 &&
+                        chain[0].Thumbprint == m_identity.Thumbprint && !chain[0].HasPrivateKey),
+                    TrustListIdentifier.Peers,
+                    It.Is<ValidationOptions>(options => options.TrustScope == scope &&
+                        options.RejectUnknownRevocationStatus == true &&
+                        options.AutoAcceptUntrustedCertificates == false && !options.RecordRejectedCertificates),
+                    CancellationToken.None))
+                .ReturnsAsync(trusted
+                    ? CertificateValidationResult.Success
+                    : new CertificateValidationResult(false, StatusCodes.BadCertificateUntrusted, [], false));
+
+            if (trusted)
+            {
+                await m_credentials.ValidateExternalCredentialAsync(Encoded(m_identity), m_identity, scope)
+                    .ConfigureAwait(false);
+            }
+            else
+            {
+                ServiceResultException error = await Assert.ThrowsAsync<ServiceResultException>(() =>
+                    m_credentials.ValidateExternalCredentialAsync(Encoded(m_identity), m_identity, scope).AsTask());
+                Assert.That(error.StatusCode, Is.EqualTo(StatusCodes.BadCertificateUntrusted));
+            }
+
+            m_manager.Verify(m => m.ValidateAsync(
+                It.IsAny<CertificateCollection>(), TrustListIdentifier.Peers,
+                It.IsAny<ValidationOptions>(), CancellationToken.None), Times.Once);
+            VerifyNoInstallation(verifyNoValidation: false);
+            storeProvider.Verify(value => value.CreateStore(It.IsAny<ITelemetryContext>()), Times.Never);
+        }
+
+        /// <summary>
+        /// A leaf with the expected URI still requires its exact retained private key.
+        /// </summary>
+        [TestCase(true)]
+        [TestCase(false)]
+        public async Task ExternalValidationRejectsMissingOrDifferentRequestKey(bool matchesPublicKey)
+        {
+            using Certificate retained = matchesPublicKey
+                ? Certificate.FromRawData(m_identity.RawData)
+                : CreateIdentity(kApplicationUri);
+            var scope = new CertificateValidationScope([Encoded(m_identity)]);
+
+            ServiceResultException error = await Assert.ThrowsAsync<ServiceResultException>(() =>
+                m_credentials.ValidateExternalCredentialAsync(Encoded(m_identity), retained, scope).AsTask());
+
+            Assert.That(error.StatusCode, Is.EqualTo(StatusCodes.BadSecurityChecksFailed));
+            VerifyNoInstallation();
+        }
+
+        /// <summary>
+        /// An enrollment trust anchor is not an application leaf, even when the Device holds its key.
+        /// </summary>
+        [Test]
+        public async Task ExternalValidationRejectsCertificateAuthorityAsLeaf()
+        {
+            using Certificate authority = CertificateBuilder.Create("CN=Sample Enrollment CA")
+                .SetCAConstraint()
+                .AddExtension(new X509SubjectAltNameExtension(kApplicationUri, ["localhost"]))
+                .SetRSAKeySize(2048)
+                .CreateForRSA();
+            ByteString encoded = Encoded(authority);
+
+            ServiceResultException error = await Assert.ThrowsAsync<ServiceResultException>(() =>
+                m_credentials.ValidateExternalCredentialAsync(
+                    encoded, authority, new CertificateValidationScope([encoded])).AsTask());
+
+            Assert.That(error.StatusCode, Is.EqualTo(StatusCodes.BadCertificateInvalid));
+            VerifyNoInstallation();
+        }
+
+        /// <summary>
+        /// External credentials activate only after their stored private key is verified, without changing peer trust.
+        /// </summary>
+        [TestCase(true)]
+        [TestCase(false)]
+        public async Task ExternalInstallationVerifiesStoredKeyWithoutReplacingPeerTrust(bool retainsKey)
+        {
+            const string storeType = "SampleExternalCredentialStore";
+            NodeId type = CoreObjectTypeIds.RsaSha256ApplicationCertificateType;
+            using var issuers = new CertificateCollection();
+            var store = new Mock<ICertificateStore>(MockBehavior.Strict);
+            store.Setup(value => value.Open(m_identifier.StorePath!, false));
+            store.Setup(value => value.Dispose());
+            store.Setup(value => value.FindByThumbprintAsync(m_identity.Thumbprint, CancellationToken.None))
+                .ReturnsAsync(() => new CertificateCollection());
+
+            var sequence = new MockSequence();
+            store.InSequence(sequence)
+                .Setup(value => value.AddAsync(It.Is<Certificate>(leaf =>
+                    leaf.HasPrivateKey && leaf.Thumbprint == m_identity.Thumbprint),
+                    It.IsAny<char[]>(), CancellationToken.None))
+                .Returns(Task.CompletedTask);
+            store.InSequence(sequence)
+                .Setup(value => value.LoadPrivateKeyAsync(
+                    m_identity.Thumbprint, null, null, type, It.IsAny<char[]>(), CancellationToken.None))
+                .ReturnsAsync(() => retainsKey ? m_identity.AddRef() : null);
+            if (retainsKey)
+            {
+                m_manager.InSequence(sequence)
+                    .Setup(value => value.UpdateApplicationCertificateAsync(
+                        type, It.Is<Certificate>(leaf => leaf.HasPrivateKey), issuers, CancellationToken.None))
+                    .Returns(Task.CompletedTask);
+            }
+
+            var provider = new Mock<ICertificateStoreProvider>(MockBehavior.Strict);
+            provider.SetupGet(value => value.StoreTypeName).Returns(storeType);
+            provider.Setup(value => value.CreateStore(m_telemetry)).Returns(store.Object);
+            m_identifier.StoreType = storeType;
+            m_credentials = new OnboardingDeviceCredentials(m_configuration, m_telemetry, [provider.Object]);
+
+            if (retainsKey)
+            {
+                await m_credentials.InstallCompletedExternalCredentialAsync(Encoded(m_identity), m_identity, issuers)
+                    .ConfigureAwait(false);
+                Assert.That(m_identifier.RawData, Is.Null);
+                Assert.That(m_identifier.Thumbprint, Is.EqualTo(m_identity.Thumbprint));
+                m_manager.Verify(value => value.UpdateApplicationCertificateAsync(
+                    type, It.IsAny<Certificate>(), issuers, CancellationToken.None), Times.Once);
+            }
+            else
+            {
+                ServiceResultException error = await Assert.ThrowsAsync<ServiceResultException>(() =>
+                    m_credentials.InstallCompletedExternalCredentialAsync(
+                        Encoded(m_identity), m_identity, issuers).AsTask());
+                Assert.That(error.StatusCode, Is.EqualTo(StatusCodes.BadSecurityChecksFailed));
+                Assert.That(m_identifier.RawData, Is.EqualTo(m_identity.RawData));
+                VerifyNoInstallation();
+            }
+
+            m_manager.Verify(value => value.WriteTrustListAsync(
+                It.IsAny<TrustListIdentifier>(), It.IsAny<TrustListData>(),
+                It.IsAny<TrustListMasks>(), It.IsAny<CancellationToken>()), Times.Never);
+        }
+
+        /// <summary>
         /// Cancellation is observed before key lookup, request creation, or installation side effects.
         /// </summary>
         [Test]

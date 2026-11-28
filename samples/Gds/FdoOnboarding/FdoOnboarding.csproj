@@ -1,0 +1,24 @@
+<!-- SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL -->
+<!-- SPDX-License-Identifier: MIT -->
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <IsPackable>false</IsPackable>
+    <RestrictForLegacyTfm>true</RestrictForLegacyTfm>
+    <Description>Local paired FDO enrollment and OPC UA registrar handoff.</Description>
+    <RestoreAdditionalProjectSources Condition="'$(FdoLocalFeed)' != ''">$(RestoreAdditionalProjectSources);$(FdoLocalFeed)</RestoreAdditionalProjectSources>
+  </PropertyGroup>
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+    <ProjectReference Include="..\..\..\src\Opc.Ua.Configuration\Opc.Ua.Configuration.csproj" />
+    <ProjectReference Include="..\..\..\src\Opc.Ua.Gds.Client\Opc.Ua.Gds.Client.csproj" />
+    <ProjectReference Include="..\..\..\src\Opc.Ua.Gds.Server\Opc.Ua.Gds.Server.csproj" />
+    <ProjectReference Include="..\..\..\src\Opc.Ua.Gds.Fdo\Opc.Ua.Gds.Fdo.csproj" />
+    <Compile Include="..\OnboardingClient\OnboardingDeviceCredentials.cs" Link="OnboardingDeviceCredentials.cs" />
+    <Compile Include="..\OnboardingClient\FdoDeviceEnrollmentSetup.cs" Link="FdoDeviceEnrollmentSetup.cs" />
+    <Compile Include="..\OnboardingDevice\DevicePullJournal.cs" Link="DevicePullJournal.cs" />
+    <Compile Include="..\OnboardingRegistrar\PullRegistrarPolicy.cs" Link="PullRegistrarPolicy.cs" />
+    <Compile Include="..\OnboardingRegistrar\PushRegistrarCheckpointFiles.cs" Link="PushRegistrarCheckpointFiles.cs" />
+  </ItemGroup>
+</Project>

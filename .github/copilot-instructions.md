@@ -196,7 +196,7 @@ This is the official OPC UA .NET Standard Stack from the OPC Foundation. It prov
 #### Pull Request Guidelines
 - Provide clear description of changes
 - Reference any related issues
-- If a PR changes C# source files, ensure the UA.slnx tests pass on net48 and net10.0 before creating it. PRs changing only non-C# files do not require these .NET test runs.
+- If a PR changes C# source files, the `UA.slnx` tests should pass on `net48` and `net10.0` before creating it, unless the user explicitly waives the pre-PR test runs. If either run did not pass or was not run, note that in the PR and leave the full-suite checklist item unchecked. PRs changing only non-C# files do not need these .NET test runs.
 - Ensure CI/CD pipelines pass
 - Use the opc-ua-codestyle-enforcer agent if needed to ensure compliance before opening pull requests.
 
