@@ -12,6 +12,7 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Moq;
 using Opc.Ua.Client.Subscriptions;
+using Opc.Ua.Client.Subscriptions.MonitoredItems;
 using Opc.Ua.Tests;
 using UaManagedSession = Opc.Ua.Client.ManagedSession;
 
@@ -138,6 +139,26 @@ namespace Opc.Ua.Client.Tests.Stack.Client.Fakes
         /// to succeed.
         /// </summary>
         public StatusCode RecoveryActivationStatus { get; set; } = StatusCodes.BadSessionIdInvalid;
+
+        /// <summary>
+        /// Status returned for each subscription transfer request.
+        /// </summary>
+        public StatusCode TransferStatus { get; set; } = StatusCodes.BadSubscriptionIdInvalid;
+
+        /// <summary>
+        /// Status returned for each ResendData method request.
+        /// </summary>
+        public StatusCode ResendStatus { get; set; } = StatusCodes.Good;
+
+        /// <summary>
+        /// Optional per-subscription override for ResendData method results.
+        /// </summary>
+        public Func<uint, StatusCode>? ResendResult { get; set; }
+
+        /// <summary>
+        /// Script for application Read requests targeting the fixture's Value nodes.
+        /// </summary>
+        public Func<ReadRequest, CancellationToken, ValueTask<ArrayOf<DataValue>>>? SnapshotRead { get; set; }
 
         /// <summary>
         /// Gets or sets the data-value status returned by the server-state reads used for keepalive.
@@ -427,7 +448,7 @@ namespace Opc.Ua.Client.Tests.Stack.Client.Fakes
         /// Adds a real publishing subscription with one Value data-change item and a gated notification callback.
         /// </summary>
         /// <exception cref="InvalidOperationException"></exception>
-        public ISubscription AddSubscription()
+        public ISubscription AddSubscription(bool refreshValues = false, uint? maxItemsPerPartition = null)
         {
             ISubscription subscription = EngineFactory.Engine.SubscriptionManager.Add(
                 new NotificationHandler(this),
@@ -436,7 +457,9 @@ namespace Opc.Ua.Client.Tests.Stack.Client.Fakes
                     PublishingEnabled = true,
                     PublishingInterval = SubscriptionPublishingInterval,
                     KeepAliveCount = 10,
-                    LifetimeCount = 100
+                    LifetimeCount = 100,
+                    RefreshValuesOnRecovery = refreshValues,
+                    MaxMonitoredItemsPerPartition = maxItemsPerPartition
                 }));
             if (!subscription.MonitoredItems.TryAdd(
                 "Value",
@@ -484,6 +507,16 @@ namespace Opc.Ua.Client.Tests.Stack.Client.Fakes
         {
             return m_publishes.Reader.ReadAsync(CancellationToken);
         }
+
+        /// <summary>
+        /// Dequeues a ResendData request observed by the scripted server.
+        /// </summary>
+        public ValueTask<CallRequest> NextResendAsync() => m_resends.Reader.ReadAsync(CancellationToken);
+
+        /// <summary>
+        /// Dequeues a snapshot delivered to the application handler.
+        /// </summary>
+        public ValueTask<ReceivedSnapshot> NextSnapshotAsync() => m_snapshots.Reader.ReadAsync(CancellationToken);
 
         /// <summary>
         /// Dequeues the next monitored-item creation request received by the script,
@@ -676,10 +709,10 @@ namespace Opc.Ua.Client.Tests.Stack.Client.Fakes
                     return new CreateMonitoredItemsResponse
                     {
                         ResponseHeader = channel.CreateGoodHeader(),
-                        Results = createItems.ItemsToCreate.ToList().Select(item => new MonitoredItemCreateResult
+                        Results = createItems.ItemsToCreate.ToList().Select((item, index) => new MonitoredItemCreateResult
                         {
                             StatusCode = StatusCodes.Good,
-                            MonitoredItemId = (uint)m_subscriptionCount * 100,
+                            MonitoredItemId = ((uint)m_subscriptionCount * 100) + (uint)index,
                             RevisedSamplingInterval = item.RequestedParameters.SamplingInterval,
                             RevisedQueueSize = item.RequestedParameters.QueueSize
                         }).ToArrayOf()
@@ -709,9 +742,39 @@ namespace Opc.Ua.Client.Tests.Stack.Client.Fakes
                         ResponseHeader = channel.CreateGoodHeader(),
                         Results = transfer.SubscriptionIds.ToList().Select(_ => new TransferResult
                         {
-                            StatusCode = StatusCodes.BadSubscriptionIdInvalid,
+                            StatusCode = TransferStatus,
                             AvailableSequenceNumbers = []
                         }).ToArrayOf()
+                    };
+                case CallRequest call when call.MethodsToCall.Count > 0 &&
+                    call.MethodsToCall[0].MethodId == MethodIds.Server_ResendData:
+                    m_resends.Writer.TryWrite(call);
+                    return new CallResponse
+                    {
+                        ResponseHeader = channel.CreateGoodHeader(),
+                        Results = call.MethodsToCall.ToList()
+                            .Select(method => new CallMethodResult
+                            {
+                                StatusCode = ResendResult != null &&
+                                    method.InputArguments[0].TryGetValue(out uint targetId)
+                                        ? ResendResult(targetId)
+                                        : ResendStatus
+                            }).ToArrayOf()
+                    };
+                case CallRequest call when call.MethodsToCall.Count > 0 &&
+                    call.MethodsToCall[0].MethodId == MethodIds.Server_GetMonitoredItems &&
+                    StatusCode.IsGood(TransferStatus):
+                    return new CallResponse
+                    {
+                        ResponseHeader = channel.CreateGoodHeader(),
+                        Results = [new CallMethodResult { StatusCode = StatusCodes.BadMethodInvalid }]
+                    };
+                case ReadRequest read when SnapshotRead != null && read.NodesToRead.Count > 0 &&
+                    read.NodesToRead[0].NodeId.NamespaceIndex == 1:
+                    return new ReadResponse
+                    {
+                        ResponseHeader = channel.CreateGoodHeader(),
+                        Results = await SnapshotRead(read, ct).ConfigureAwait(false)
                     };
                 case PublishRequest publish:
                     var exchange = new WirePublish(
@@ -841,7 +904,9 @@ namespace Opc.Ua.Client.Tests.Stack.Client.Fakes
             /// </param>
             /// <param name="value">The integer value delivered in the data-change notification.</param>
             /// <param name="sequenceNumber">The notification sequence number, also advertised as available.</param>
-            public void ReplyWithValue(uint clientHandle, int value, uint sequenceNumber = 1)
+            /// <param name="sourceTimestamp">The source timestamp of the value, if provided by the server.</param>
+            public void ReplyWithValue(
+                uint clientHandle, int value, uint sequenceNumber = 1, DateTimeUtc sourceTimestamp = default)
             {
                 m_response.SetResult(new PublishResponse
                 {
@@ -863,7 +928,7 @@ namespace Opc.Ua.Client.Tests.Stack.Client.Fakes
                                     new MonitoredItemNotification
                                     {
                                         ClientHandle = clientHandle,
-                                        Value = new DataValue(new Variant(value), StatusCodes.Good)
+                                        Value = new DataValue(new Variant(value), StatusCodes.Good, sourceTimestamp)
                                     }
                                 ]
                             })
@@ -883,8 +948,15 @@ namespace Opc.Ua.Client.Tests.Stack.Client.Fakes
         /// The harness providing the observation queue, first-notification gate, and lifetime token.
         /// </param>
         private sealed class NotificationHandler(ManagedSessionReconnectHarness owner)
-            : ISubscriptionNotificationHandler
+            : ISubscriptionNotificationHandler, ISubscriptionValueSnapshotHandler
         {
+            public ValueTask OnValueSnapshotAsync(
+                ISubscription subscription, IMonitoredItem monitoredItem, DataValue value, CancellationToken ct)
+            {
+                owner.m_snapshots.Writer.TryWrite(new ReceivedSnapshot(subscription, monitoredItem, value));
+                return default;
+            }
+
             /// <inheritdoc/>
             /// <remarks>
             /// Queues each change before holding the first callback at the harness's first-notification gate.
@@ -957,6 +1029,11 @@ namespace Opc.Ua.Client.Tests.Stack.Client.Fakes
         /// </summary>
         public const uint SubscriptionId = 77;
 
+        /// <summary>
+        /// A value delivered by the dedicated recovery callback rather than a Publish response.
+        /// </summary>
+        internal readonly record struct ReceivedSnapshot(ISubscription Subscription, IMonitoredItem Item, DataValue Value);
+
         private readonly AuthenticatedSessionPeer? m_authenticatedPeer;
         private readonly CancellationTokenSource m_shutdown = new();
         private readonly ConcurrentQueue<IServiceRequest> m_requests = new();
@@ -967,6 +1044,8 @@ namespace Opc.Ua.Client.Tests.Stack.Client.Fakes
             Channel.CreateUnbounded<CreateMonitoredItemsRequest>();
 
         private readonly Channel<ReceivedData> m_notifications = Channel.CreateUnbounded<ReceivedData>();
+        private readonly Channel<CallRequest> m_resends = Channel.CreateUnbounded<CallRequest>();
+        private readonly Channel<ReceivedSnapshot> m_snapshots = Channel.CreateUnbounded<ReceivedSnapshot>();
 
         private readonly ReconnectPolicy m_outerPolicy = new(new ReconnectPolicyOptions
         {

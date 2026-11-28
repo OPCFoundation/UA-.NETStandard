@@ -70,6 +70,22 @@ namespace Opc.Ua.Client.Subscriptions
         internal ISubscriptionNotificationMessageHandler? MessageHandler =>
             m_userHandler is ISubscriptionNotificationMessageHandler ? this : null;
 
+        /// <summary>
+        /// Runs snapshot delivery in the same logical callback order as Publish.
+        /// </summary>
+        internal async ValueTask DispatchValueSnapshotsAsync(Func<ValueTask> callback, CancellationToken ct)
+        {
+            await m_serialise.WaitAsync(ct).ConfigureAwait(false);
+            try
+            {
+                await callback().ConfigureAwait(false);
+            }
+            finally
+            {
+                ReleaseSerialise();
+            }
+        }
+
         /// <inheritdoc/>
         public async ValueTask OnNotificationMessageAsync(
             SubscriptionNotificationMessage message, CancellationToken ct = default)

@@ -1811,35 +1811,24 @@ namespace Opc.Ua.Server
                 {
                     if (snapshot.NodeOverrides.Count != 0)
                     {
-                        await DispatchOverridesAsync(
-                            snapshot,
-                            nodesToRead,
-                            static item => item.NodeId,
-                            static item => item.Processed,
-                            static (item, processed) => item.Processed = processed,
-                            ReadWithBudgetAsync, context.Readiness).ConfigureAwait(false);
+                        await ReadWithOverridesAsync(
+                            snapshot, dispatchOrder, routes, context, maxAge, nodesToRead, values, errors,
+                            unread, cancellationToken).ConfigureAwait(false);
                     }
-                    foreach (IAsyncNodeManager nodeManager in dispatchOrder)
+                    else
                     {
-                        if (!routes.Includes(nodeManager) ||
-                            !CanDispatchTo(snapshot, nodeManager, context.Readiness))
+                        // the common case captures nothing: a closure here would be allocated by every Read.
+                        foreach (IAsyncNodeManager nodeManager in dispatchOrder)
                         {
-                            continue;
-                        }
+                            if (!routes.Includes(nodeManager) ||
+                                !CanDispatchTo(snapshot, nodeManager, context.Readiness))
+                            {
+                                continue;
+                            }
 
-                        if (snapshot.NodeOverrides.Count == 0)
-                        {
-                            await ReadWithBudgetAsync(nodeManager).ConfigureAwait(false);
-                        }
-                        else
-                        {
-                            await DispatchWithoutOverridesAsync(
-                                snapshot,
-                                nodesToRead,
-                                static item => item.NodeId,
-                                static item => item.Processed,
-                                static (item, processed) => item.Processed = processed,
-                                () => ReadWithBudgetAsync(nodeManager)).ConfigureAwait(false);
+                            await ReadWithBudgetAsync(
+                                nodeManager, context, maxAge, nodesToRead, values, errors, unread,
+                                cancellationToken).ConfigureAwait(false);
                         }
                     }
                 }
@@ -1848,48 +1837,6 @@ namespace Opc.Ua.Server
                     if (unread != null)
                     {
                         System.Buffers.ArrayPool<bool>.Shared.Return(unread);
-                    }
-                }
-
-                async ValueTask ReadWithBudgetAsync(IAsyncNodeManager nodeManager)
-                {
-                    long remaining = 0;
-                    if (unread != null)
-                    {
-                        // Snapshot after routing masks are applied, so masked items are never charged.
-                        for (int ii = 0; ii < count; ii++)
-                        {
-                            unread[ii] = !nodesToRead[ii].Processed;
-                        }
-                        remaining = context.ResponseBytesRemaining;
-                    }
-
-                    await nodeManager.ReadAsync(
-                        context, maxAge, nodesToRead, values, errors, cancellationToken).ConfigureAwait(false);
-
-                    if (unread == null)
-                    {
-                        return;
-                    }
-
-                    // A manager that left the budget unchanged did not charge its own results.
-                    if (context.ResponseBytesRemaining == remaining)
-                    {
-                        long responseBytes = 0;
-                        for (int ii = 0; ii < count && responseBytes <= remaining; ii++)
-                        {
-                            if (unread[ii] && nodesToRead[ii].Processed)
-                            {
-                                responseBytes += ResponseSizeEstimator.EstimateValue(values[ii]);
-                            }
-                        }
-                        context.TryChargeResponse(responseBytes);
-                    }
-                    if (context.ResponseBudgetExceeded)
-                    {
-                        throw new ServiceResultException(
-                            StatusCodes.BadResponseTooLarge,
-                            "The values of the Read exceed the response size limit.");
                     }
                 }
             }
@@ -5528,6 +5475,105 @@ namespace Opc.Ua.Server
             private NodeManagerRoutingTable.RoutingSnapshot? m_snapshot = snapshot;
 
             private NodeManagerReadinessScope? m_readiness = readiness;
+        }
+
+        /// <summary>
+        /// Reads through the override owners first and then the other node managers without the overrides.
+        /// </summary>
+        private static async ValueTask ReadWithOverridesAsync(
+            NodeManagerRoutingTable.RoutingSnapshot snapshot,
+            IAsyncNodeManager[] dispatchOrder,
+            NamespaceRoutes routes,
+            OperationContext context,
+            double maxAge,
+            ArrayOf<ReadValueId> nodesToRead,
+            DataValue[] values,
+            ServiceResult[] errors,
+            bool[]? unread,
+            CancellationToken cancellationToken)
+        {
+            await DispatchOverridesAsync(
+                snapshot,
+                nodesToRead,
+                static item => item.NodeId,
+                static item => item.Processed,
+                static (item, processed) => item.Processed = processed,
+                nodeManager => ReadWithBudgetAsync(
+                    nodeManager, context, maxAge, nodesToRead, values, errors, unread, cancellationToken),
+                context.Readiness).ConfigureAwait(false);
+            foreach (IAsyncNodeManager nodeManager in dispatchOrder)
+            {
+                if (!routes.Includes(nodeManager) ||
+                    !CanDispatchTo(snapshot, nodeManager, context.Readiness))
+                {
+                    continue;
+                }
+
+                await DispatchWithoutOverridesAsync(
+                    snapshot,
+                    nodesToRead,
+                    static item => item.NodeId,
+                    static item => item.Processed,
+                    static (item, processed) => item.Processed = processed,
+                    () => ReadWithBudgetAsync(
+                        nodeManager, context, maxAge, nodesToRead, values, errors, unread, cancellationToken))
+                    .ConfigureAwait(false);
+            }
+        }
+
+        /// <summary>
+        /// Reads through one node manager and charges the values it did not charge itself against the
+        /// response budget.
+        /// </summary>
+        private static async ValueTask ReadWithBudgetAsync(
+            IAsyncNodeManager nodeManager,
+            OperationContext context,
+            double maxAge,
+            ArrayOf<ReadValueId> nodesToRead,
+            DataValue[] values,
+            ServiceResult[] errors,
+            bool[]? unread,
+            CancellationToken cancellationToken)
+        {
+            int count = nodesToRead.Count;
+            long remaining = 0;
+            if (unread != null)
+            {
+                // Snapshot after routing masks are applied, so masked items are never charged.
+                for (int ii = 0; ii < count; ii++)
+                {
+                    unread[ii] = !nodesToRead[ii].Processed;
+                }
+                remaining = context.ResponseBytesRemaining;
+            }
+
+            await nodeManager.ReadAsync(
+                context, maxAge, nodesToRead, values, errors, cancellationToken).ConfigureAwait(false);
+
+            if (unread == null)
+            {
+                return;
+            }
+
+            // A manager that left the budget unchanged did not charge its own results.
+            if (context.ResponseBytesRemaining == remaining)
+            {
+                long responseBytes = 0;
+                for (int ii = 0; ii < count && responseBytes <= remaining; ii++)
+                {
+                    if (unread[ii] && nodesToRead[ii].Processed)
+                    {
+                        responseBytes += ResponseSizeEstimator.EstimateValue(values[ii]);
+                    }
+                }
+                context.TryChargeResponse(responseBytes);
+            }
+            if (context.ResponseBudgetExceeded)
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadResponseTooLarge,
+                    "The values of the Read exceed the response size limit.");
+            }
         }
 
         /// <summary>

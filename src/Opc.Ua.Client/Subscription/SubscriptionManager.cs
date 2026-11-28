@@ -30,7 +30,7 @@ namespace Opc.Ua.Client.Subscriptions
     /// The queued acknowledgements are then sent by the workers the
     /// next publish cycle.
     /// </summary>
-    internal sealed class SubscriptionManager : ISubscriptionManager,
+    internal sealed partial class SubscriptionManager : ISubscriptionManager,
         IMessageAckQueue, IAsyncDisposable
     {
         /// <summary>
@@ -722,6 +722,7 @@ namespace Opc.Ua.Client.Subscriptions
             }
 
             SubscriptionOptions snapshot = options.CurrentValue ?? new SubscriptionOptions();
+            SubscriptionValueSnapshotRegistration? valueRefresh = CreateValueRefreshRegistration(handler, snapshot);
 
             // In multi-partition mode every partition fires its
             // notification callbacks on the same logical wrapper —
@@ -740,7 +741,8 @@ namespace Opc.Ua.Client.Subscriptions
             }
 
             IManagedSubscription primary = m_session.CreateSubscription(
-                effectiveHandler, options, this);
+                effectiveHandler, options, this,
+                initialize: valueRefresh == null ? null : valueRefresh.InitializePartition);
 
             // Build the placement policy + on-demand partition factory
             // unless the caller opted out via DisableUnboundedItemMode.
@@ -765,8 +767,11 @@ namespace Opc.Ua.Client.Subscriptions
                 // minted secondary partitions can route their reactive-
                 // fallback callbacks back to the same logical.
                 LogicalSubscription? created = null;
-                partitionFactory = () => MintPartition(effectiveHandler, options,
-                    part => InitializePartition(part, created));
+                partitionFactory = () => MintPartition(effectiveHandler, options, part =>
+                {
+                    valueRefresh?.InitializePartition(part);
+                    InitializePartition(part, created);
+                });
                 wrapper = new LogicalSubscription(primary, policy, partitionFactory,
                     m_timeProvider,
                     NormalizeIdleTimeout(snapshot.SecondaryPartitionIdleTimeout),
@@ -775,6 +780,10 @@ namespace Opc.Ua.Client.Subscriptions
                 AttachReactiveFallback(primary, wrapper);
                 forwardingHandler!.BindLogical(wrapper);
                 wrapper.AttachForwardingHandler(forwardingHandler);
+            }
+            if (valueRefresh != null)
+            {
+                valueRefresh.Bind(wrapper, forwardingHandler);
             }
 
             lock (m_subscriptionLock)
@@ -794,6 +803,10 @@ namespace Opc.Ua.Client.Subscriptions
                         "Failed to register logical subscription.");
                 }
                 m_logger.SubscriptionAdded(primary.Id);
+                if (valueRefresh != null)
+                {
+                    Volatile.Write(ref m_hasValueRefresh, 1);
+                }
             }
             m_publishControl.Set();
             return wrapper;
@@ -2114,6 +2127,7 @@ namespace Opc.Ua.Client.Subscriptions
                             ct).ConfigureAwait(false);
                         if (success)
                         {
+                            RecordTransferredValueRefresh(subscriptions[index]);
                             continue;
                         }
                         //

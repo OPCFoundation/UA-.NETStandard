@@ -16,12 +16,17 @@ namespace Opc.Ua.Server
     /// <param name="Transport">The endpoint's transport profile when captured.</param>
     /// <param name="Restrictions">The node's own access restrictions when captured.</param>
     /// <param name="SecureChannelId">The subscriber's accepted secure channel identity.</param>
+    /// <param name="NodePermissionVersion">
+    /// The node instance's <see cref="NodeState.PermissionVersion"/> when captured, which moves when the
+    /// node is removed from the address space.
+    /// </param>
     internal readonly record struct MonitoredReadInputs(
         EndpointDescription? Endpoint,
         MessageSecurityMode? SecurityMode,
         string? Transport,
         AccessRestrictionType? Restrictions,
-        string? SecureChannelId)
+        string? SecureChannelId,
+        long NodePermissionVersion)
     {
         /// <summary>
         /// Captures the current inputs of the subscriber's session and the node.
@@ -31,7 +36,7 @@ namespace Opc.Ua.Server
             EndpointDescription? endpoint = MonitoredReadAuthorization.GetEndpoint(session);
             return new MonitoredReadInputs(
                 endpoint, endpoint?.SecurityMode, endpoint?.TransportProfileUri, node.AccessRestrictions,
-                session?.SecureChannelId);
+                session?.SecureChannelId, node.PermissionVersion);
         }
 
         /// <summary>
@@ -45,7 +50,8 @@ namespace Opc.Ua.Server
                 SecurityMode == current?.SecurityMode &&
                 Transport == current?.TransportProfileUri &&
                 Restrictions == node.AccessRestrictions &&
-                SecureChannelId == session?.SecureChannelId;
+                SecureChannelId == session?.SecureChannelId &&
+                NodePermissionVersion == node.PermissionVersion;
         }
 
         /// <summary>
@@ -57,7 +63,8 @@ namespace Opc.Ua.Server
                 SecurityMode == other.SecurityMode &&
                 Transport == other.Transport &&
                 Restrictions == other.Restrictions &&
-                SecureChannelId == other.SecureChannelId;
+                SecureChannelId == other.SecureChannelId &&
+                NodePermissionVersion == other.NodePermissionVersion;
         }
     }
 
