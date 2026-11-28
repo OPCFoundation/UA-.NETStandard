@@ -162,6 +162,24 @@ namespace Opc.Ua.Server
             }
 
             /// <summary>
+            /// Creates a buffer for <paramref name="count"/> entries that is not retained
+            /// when it is returned.
+            /// </summary>
+            /// <param name="count">The number of entries, at least one.</param>
+            /// <exception cref="ArgumentOutOfRangeException"></exception>
+            public TBuffer CreateUnpooled(int count)
+            {
+                if (count <= 0)
+                {
+                    throw new ArgumentOutOfRangeException(nameof(count));
+                }
+
+                TBuffer buffer = m_create(count, null);
+                ((PooledNotificationBuffer<TBuffer>)buffer).Count = count;
+                return buffer;
+            }
+
+            /// <summary>
             /// The number of buffers the bucket for <paramref name="count"/> entries retains
             /// at most.
             /// </summary>
