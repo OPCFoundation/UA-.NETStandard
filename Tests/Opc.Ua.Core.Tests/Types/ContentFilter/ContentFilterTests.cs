@@ -29,6 +29,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Text.RegularExpressions;
 using NUnit.Framework;
 using Opc.Ua.Tests;
 using Assert = NUnit.Framework.Legacy.ClassicAssert;
@@ -429,6 +430,79 @@ namespace Opc.Ua.Core.Tests.Types.ContentFilter
             // apply filter.
             object result = Filter.WhereClause.Evaluate(FilterContext, TestFilterTarget);
             Assert.AreEqual(expectedResult, result);
+        }
+
+        /// <summary>
+        /// The regular expression engine times out on wall-clock time, so a benign match
+        /// on a loaded machine (or the first match in a process, which also compiles the
+        /// engine) can time out. That must not turn a matching Like into false.
+        /// </summary>
+        [Test]
+        public void LikeThatTimedOutOnceIsMatchedAgain()
+        {
+            var timeouts = new List<TimeSpan>();
+            FilterEvaluator evaluator = CreateLikeEvaluator(
+                1,
+                (input, expression, timeout) =>
+                {
+                    timeouts.Add(timeout);
+                    if (timeouts.Count == 1)
+                    {
+                        throw new RegexMatchTimeoutException(input, expression, timeout);
+                    }
+                    return Regex.IsMatch(input, expression, RegexOptions.None, timeout);
+                });
+
+            Assert.IsTrue(evaluator.Result);
+            Assert.AreEqual(2, timeouts.Count);
+            Assert.That(timeouts[1], Is.GreaterThan(TimeSpan.Zero));
+            Assert.That(timeouts[1], Is.LessThanOrEqualTo(timeouts[0]));
+        }
+
+        /// <summary>
+        /// A Like element whose match times out again is NULL, and it uses up the time
+        /// of the evaluation: the Like elements after it are not matched at all.
+        /// </summary>
+        [Test]
+        public void LikeThatTimesOutTwiceIsNullAndEndsTheLikeTime()
+        {
+            int calls = 0;
+            FilterEvaluator evaluator = CreateLikeEvaluator(
+                3,
+                (input, expression, timeout) =>
+                {
+                    calls++;
+                    throw new RegexMatchTimeoutException(input, expression, timeout);
+                });
+
+            Assert.IsFalse(evaluator.Result);
+            Assert.AreEqual(2, calls);
+        }
+
+        /// <summary>
+        /// Creates an evaluator for Or("mainstation" Like "main%", Or(...)) with the
+        /// given number of Like elements and regular expression engine.
+        /// </summary>
+        private FilterEvaluator CreateLikeEvaluator(
+            int likeCount,
+            Func<string, string, TimeSpan, bool> regexIsMatch)
+        {
+            // Push inserts each element at the front, so the last one is the root.
+            var whereClause = new Ua.ContentFilter();
+            ContentFilterElement root = null;
+            for (int ii = 0; ii < likeCount; ii++)
+            {
+                ContentFilterElement like = whereClause.Push(
+                    FilterOperator.Like,
+                    new LiteralOperand { Value = new Variant("mainstation") },
+                    new LiteralOperand { Value = new Variant("main%") });
+                root = root == null ? like : whereClause.Push(FilterOperator.Or, like, root);
+            }
+
+            return new FilterEvaluator(whereClause, FilterContext, TestFilterTarget)
+            {
+                RegexIsMatch = regexIsMatch
+            };
         }
     }
 }

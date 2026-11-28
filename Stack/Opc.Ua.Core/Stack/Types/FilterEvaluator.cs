@@ -61,7 +61,8 @@ namespace Opc.Ua
         /// <summary>
         /// The shortest time in milliseconds that the regular expression engine is
         /// given for one match. Its clock can be as coarse as 16 ms, so a shorter
-        /// time could cut off a match that has only just started.
+        /// time could cut off a match that has only just started. A match that timed
+        /// out is tried once more with this time.
         /// </summary>
         private const int kMinLikeEngineTimeMs = 32;
 
@@ -69,6 +70,15 @@ namespace Opc.Ua
         /// What is left of the time for Like elements in the current evaluation.
         /// </summary>
         private TimeSpan m_likeTimeLeft;
+
+        /// <summary>
+        /// Matches a string against a regular expression within a timeout.
+        /// </summary>
+        /// <remarks>
+        /// Tests replace it to simulate a match that the engine cut off.
+        /// </remarks>
+        internal Func<string, string, TimeSpan, bool> RegexIsMatch { get; set; }
+            = (input, expression, timeout) => Regex.IsMatch(input, expression, RegexOptions.None, timeout);
 
         /// <summary>
         /// Create evaluator
@@ -551,8 +561,6 @@ namespace Opc.Ua
                 return null;
             }
 
-            long start = Stopwatch.GetTimestamp();
-
             string expression = pattern;
 
             // 1) Suppress unused regular expression characters with special meaning
@@ -573,15 +581,11 @@ namespace Opc.Ua
             // replace all "[!" with "[^", except "\[!"
             expression = ReplaceBrackets.Replace(expression, "[^");
 
-            // the time to convert the pattern counts as well and is taken off before
-            // the engine gets its share.
-            long converted = Stopwatch.GetTimestamp();
-            m_likeTimeLeft -= ToTimeSpan(converted - start);
-
-            if (m_likeTimeLeft <= TimeSpan.Zero)
-            {
-                return null;
-            }
+            // The conversion above does not count against the time for Like elements:
+            // it is a fixed set of linear replacements chosen by the Server, and the
+            // first conversion in a process also pays for starting those expressions.
+            // Counting it could cut off a Like element before the engine even ran.
+            long start = Stopwatch.GetTimestamp();
 
             // the engine gets what is left of the time, but not less than its clock
             // can measure.
@@ -591,13 +595,22 @@ namespace Opc.Ua
 
             try
             {
-                bool isMatch = Regex.IsMatch(
-                    target,
-                    expression,
-                    RegexOptions.None,
-                    TimeSpan.FromMilliseconds(engineTimeMs));
+                bool isMatch;
+                try
+                {
+                    isMatch = RegexIsMatch(target, expression, TimeSpan.FromMilliseconds(engineTimeMs));
+                }
+                catch (RegexMatchTimeoutException)
+                {
+                    // The engine measures wall-clock time, so a match can also time out
+                    // because the thread was not scheduled, or because the first match in
+                    // a process compiled the engine itself. A pattern that is slow to
+                    // match is slow again, while a match that was only delayed now
+                    // answers at once: try it one more time with the shortest time.
+                    isMatch = RegexIsMatch(target, expression, TimeSpan.FromMilliseconds(kMinLikeEngineTimeMs));
+                }
 
-                m_likeTimeLeft -= ToTimeSpan(Stopwatch.GetTimestamp() - converted);
+                m_likeTimeLeft -= ToTimeSpan(Stopwatch.GetTimestamp() - start);
                 return isMatch;
             }
             catch (RegexMatchTimeoutException)
