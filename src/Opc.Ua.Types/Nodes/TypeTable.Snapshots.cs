@@ -314,16 +314,22 @@ namespace Opc.Ua
                 {
                     continue;
                 }
+                // Staging already rejects a candidate that takes over an encoding owned at capture, so in a rebase
+                // a mismatch here was introduced by another publication after the batch was prepared.
                 if (!merged.m_nodes.TryGetValue(encoding.Value.NodeId, out TypeInfo? target))
                 {
-                    throw new InvalidOperationException(
-                        $"Encoding '{encoding.Key}' requires an unavailable data type.");
+                    string unavailable = $"Encoding '{encoding.Key}' requires an unavailable data type.";
+                    throw only is not null
+                        ? new OptimisticPublicationConflictException(unavailable)
+                        : new InvalidOperationException(unavailable);
                 }
                 if (merged.m_encodings.TryGetValue(encoding.Key, out TypeInfo? existing) &&
                     existing.NodeId != target.NodeId)
                 {
-                    throw new InvalidOperationException(
-                        $"Encoding '{encoding.Key}' cannot redefine a serving data type.");
+                    string redefined = $"Encoding '{encoding.Key}' cannot redefine a serving data type.";
+                    throw only is not null
+                        ? new OptimisticPublicationConflictException(redefined)
+                        : new InvalidOperationException(redefined);
                 }
                 merged.m_encodings[encoding.Key] = target;
                 if (target.Encodings is null)

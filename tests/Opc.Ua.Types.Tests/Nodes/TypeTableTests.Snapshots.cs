@@ -846,6 +846,7 @@ namespace Opc.Ua.Types.Tests.Nodes
         [TestCase("RemovedType")]
         [TestCase("RemovedSupertype")]
         [TestCase("RemovedSupertypeOfReregisteredType")]
+        [TestCase("SameNewEncodingForDifferentTypes")]
         public void RebasedMergeRejectsOverlappingTypeChanges(string change)
         {
             TypeTable proposed = m_typeTable.CaptureSnapshot(out TypeTable source, out long revision);
@@ -863,6 +864,11 @@ namespace Opc.Ua.Types.Tests.Nodes
                 case "RemovedType":
                     proposed.AddSubtype(s_grandchildTypeId, s_childTypeId);
                     m_typeTable.Remove(s_grandchildTypeId);
+                    break;
+                case "SameNewEncodingForDifferentTypes":
+                    // Both assign a previously unused encoding to different, otherwise unchanged types.
+                    Assert.That(proposed.AddEncoding(s_childTypeId, new ExpandedNodeId(7001)), Is.True);
+                    Assert.That(m_typeTable.AddEncoding(s_grandchildTypeId, new ExpandedNodeId(7001)), Is.True);
                     break;
                 case "RemovedSupertypeOfReregisteredType":
                     // The surviving child keeps its deleted parent pointer; its re-registration must still conflict.
