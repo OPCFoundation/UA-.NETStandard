@@ -1376,9 +1376,13 @@ namespace Opc.Ua.Client.Subscriptions
                         {
                             // Only fresh work ran: keep the deadline of the
                             // retries it skipped.
-                            backoff = TimeSpan.FromTicks(Math.Max(0,
-                                (retryDue - TimeProvider.GetTimestamp()) * TimeSpan.TicksPerSecond /
-                                TimeProvider.TimestampFrequency));
+                            // GetElapsedTime scales in floating point, so a
+                            // long-expired deadline cannot overflow.
+                            backoff = TimeProvider.GetElapsedTime(TimeProvider.GetTimestamp(), retryDue);
+                            if (backoff < TimeSpan.Zero)
+                            {
+                                backoff = TimeSpan.Zero;
+                            }
                         }
                         else
                         {
