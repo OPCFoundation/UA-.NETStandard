@@ -214,6 +214,12 @@ namespace Opc.Ua.Client.Tests.Stack.Client.Fakes
         public AsyncOperationGate? MonitoredItemsResponse { get; set; }
 
         /// <summary>
+        /// Gets or sets an optional per-item status for monitored-item creation; items it maps to
+        /// <c>null</c> are created with Good.
+        /// </summary>
+        public Func<MonitoredItemCreateRequest, StatusCode?>? MonitoredItemCreateStatus { get; set; }
+
+        /// <summary>
         /// Gets or sets an optional source of the server nonce returned by each successful
         /// activation of the saved takeover session; null returns no nonce.
         /// </summary>
@@ -711,11 +717,18 @@ namespace Opc.Ua.Client.Tests.Stack.Client.Fakes
                         ResponseHeader = channel.CreateGoodHeader(),
                         Results = createItems.ItemsToCreate.ToList().Select((item, index) => new MonitoredItemCreateResult
                         {
-                            StatusCode = StatusCodes.Good,
+                            StatusCode = MonitoredItemCreateStatus?.Invoke(item) ?? StatusCodes.Good,
                             MonitoredItemId = ((uint)m_subscriptionCount * 100) + (uint)index,
                             RevisedSamplingInterval = item.RequestedParameters.SamplingInterval,
                             RevisedQueueSize = item.RequestedParameters.QueueSize
                         }).ToArrayOf()
+                    };
+                case DeleteMonitoredItemsRequest deleteItems:
+                    return new DeleteMonitoredItemsResponse
+                    {
+                        ResponseHeader = channel.CreateGoodHeader(),
+                        Results = deleteItems.MonitoredItemIds.ToList()
+                            .Select(_ => (StatusCode)StatusCodes.Good).ToArrayOf()
                     };
                 case SetPublishingModeRequest publishing:
                     return new SetPublishingModeResponse
