@@ -183,7 +183,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     kSecondRegistrationValue, _ => { }, kSecondModelNamespaceUri).CreateAsync);
             await using ILifecycleWriter invocation = await capture.BeginAsync().ConfigureAwait(false);
             await Assert.ThatAsync(async () => await invocation.PrepareAsync([LifecycleChange.Add(factory)])
-                .ConfigureAwait(false), Throws.TypeOf<InvalidOperationException>()).ConfigureAwait(false);
+                .ConfigureAwait(false), Throws.TypeOf<NodeManagerLifecycleConflictException>()).ConfigureAwait(false);
             Assert.That(factory.CreateCount, Is.Zero);
             Assert.That(invocation.IsCurrent, Is.False);
         }
@@ -254,7 +254,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             else
             {
                 await Assert.ThatAsync(() => exactPreparation!.WaitAsync(timeout.Token),
-                    Throws.InvalidOperationException).ConfigureAwait(false);
+                    Throws.TypeOf<NodeManagerLifecycleConflictException>()).ConfigureAwait(false);
                 Assert.That(factory.CreateCount, Is.Zero);
                 Assert.That(lifecycle.Revision, Is.EqualTo(published.Revision));
             }
@@ -435,7 +435,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             var factory = new CountingNodeManagerFactory([kModelNamespaceUri],
                 CreateTrackingNodeManagementFactory(kGeneration1Value, _ => { }).CreateAsync);
             await Assert.ThatAsync(async () => await writer.PrepareAsync([LifecycleChange.Add(factory)])
-                .ConfigureAwait(false), Throws.InvalidOperationException).ConfigureAwait(false);
+                .ConfigureAwait(false), Throws.TypeOf<NodeManagerLifecycleConflictException>()).ConfigureAwait(false);
             Assert.That(writer.IsCurrent, Is.False);
             Assert.That(factory.CreateCount, Is.Zero);
         }
@@ -616,10 +616,10 @@ namespace Opc.Ua.Server.Tests.NodeManager
             LifecycleChange acquired = await inputs.WaitAsync(timeout.Token).ConfigureAwait(false);
             await using ILifecycleWriter writer = await capture.BeginAsync(timeout.Token).ConfigureAwait(false);
             await Assert.ThatAsync(async () => await writer.PrepareAsync([acquired], timeout.Token)
-                .ConfigureAwait(false), Throws.InvalidOperationException).ConfigureAwait(false);
+                .ConfigureAwait(false), Throws.TypeOf<NodeManagerLifecycleConflictException>()).ConfigureAwait(false);
             await Assert.ThatAsync(async () => await writer.ValidateAsync(
                 [acquired], (_, _) => default, timeout.Token).ConfigureAwait(false),
-                Throws.InvalidOperationException).ConfigureAwait(false);
+                Throws.TypeOf<NodeManagerLifecycleConflictException>()).ConfigureAwait(false);
             Assert.That(writer.IsCurrent, Is.False);
             Assert.That(factory.CreateCount, Is.Zero);
 
@@ -1597,7 +1597,8 @@ namespace Opc.Ua.Server.Tests.NodeManager
             LifecycleWriter writer = harness.Writer;
             Assert.That(writer.ActiveOperationCount, Is.Zero);
 
-            Mock<IAsyncNodeManager> candidate = CreateManager(kNamespaceUri);
+            // Both additions append a different namespace at the same index, so the prepared one is stale.
+            Mock<IAsyncNodeManager> candidate = CreateManager(kNamespaceUri + ":candidate");
             int candidateFactoryCalls = 0;
             var candidateFactory = CreateFactory(candidate, () => candidateFactoryCalls++);
             IPreparedChanges prepared = await lifecycle.PrepareAsync(
@@ -1606,7 +1607,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             try
             {
                 LifecycleResult winner = await lifecycle.ApplyAsync(
-                    [LifecycleChange.Add(CreateFactory(CreateManager(kNamespaceUri)))])
+                    [LifecycleChange.Add(CreateFactory(CreateManager(kNamespaceUri + ":winner")))])
                     .ConfigureAwait(false);
                 await winner.Retired.ConfigureAwait(false);
                 using (Assert.EnterMultipleScope())
@@ -1623,7 +1624,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                         decisions++;
                         return default;
                     }).ConfigureAwait(false)).ConfigureAwait(false);
-                Assert.That(stale, Is.TypeOf<NodeManagerRoutingConflictException>());
+                Assert.That(stale, Is.InstanceOf<NodeManagerLifecycleConflictException>());
                 InvalidOperationException? repeated = await Assert.CatchAsync<InvalidOperationException>(
                     async () => await prepared.CommitAsync(_ =>
                     {

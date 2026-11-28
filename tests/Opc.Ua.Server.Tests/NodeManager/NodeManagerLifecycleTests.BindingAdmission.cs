@@ -674,7 +674,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 }
                 catch (InvalidOperationException conflict) when (!rejectDecision)
                 {
-                    Assert.That(conflict, Is.TypeOf<InvalidOperationException>());
+                    Assert.That(conflict, Is.TypeOf<NodeManagerLifecycleConflictException>());
                     Assert.That(conflict.Message,
                         Is.EqualTo("The publication invocation conflicts with a newer address-space revision."));
                     Assert.That(factory.CreateCount, Is.Zero);
@@ -815,7 +815,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     }
                     catch (InvalidOperationException conflict)
                     {
-                        Assert.That(conflict, Is.TypeOf<InvalidOperationException>());
+                        Assert.That(conflict, Is.TypeOf<NodeManagerLifecycleConflictException>());
                         Assert.That(conflict.Message,
                             Is.EqualTo("The publication invocation conflicts with a newer address-space revision."));
                         Assert.That(callbackFactory.CreateCount, Is.Zero);
@@ -1007,7 +1007,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     }
                     catch (InvalidOperationException conflict) when (!rejectDecision)
                     {
-                        Assert.That(conflict, Is.TypeOf<InvalidOperationException>());
+                        Assert.That(conflict, Is.TypeOf<NodeManagerLifecycleConflictException>());
                         Assert.That(conflict.Message,
                             Is.EqualTo("The publication invocation conflicts with a newer address-space revision."));
                         Assert.That(nestedFactory.CreateCount, Is.Zero);

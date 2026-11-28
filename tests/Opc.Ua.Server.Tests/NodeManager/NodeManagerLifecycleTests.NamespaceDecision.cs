@@ -179,7 +179,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
         }
 
         /// <summary>
-        /// An unrelated namespace change before reservation still invalidates an already prepared batch.
+        /// An alias namespace appended before reservation at the index a prepared batch assigned invalidates it.
         /// </summary>
         [TestCase(false)]
         [TestCase(true)]
@@ -214,7 +214,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     master.RegisterNamespaceManager(AliasUri, manager);
                 }
                 NodeManagerRoutingTable.RoutingSnapshot changed = host.RoutingRevision;
-                await Assert.ThrowsAsync<NodeManagerRoutingConflictException>(async () =>
+                await Assert.CatchAsync<NodeManagerLifecycleConflictException>(async () =>
                 {
                     await prepared.CommitAsync(_ =>
                     {

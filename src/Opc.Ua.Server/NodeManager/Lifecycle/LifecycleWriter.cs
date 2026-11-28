@@ -596,9 +596,14 @@ namespace Opc.Ua.Server
                 lock (m_state)
                 {
                     PublicationRevision revision = Revision;
-                    if (!revision.IsCurrent() || (server is not null && !revision.MatchesServer(server)))
+                    if (revision.Owner.m_publicationFailed)
                     {
                         throw new InvalidOperationException(
+                            "The NodeManager lifecycle failed after a durable decision; restart the server to recover.");
+                    }
+                    if (!revision.IsCurrent() || (server is not null && !revision.MatchesServer(server)))
+                    {
+                        throw new NodeManagerLifecycleConflictException(
                             "The publication invocation conflicts with a newer address-space revision.");
                     }
                 }

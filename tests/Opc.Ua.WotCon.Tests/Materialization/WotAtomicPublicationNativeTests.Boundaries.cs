@@ -132,7 +132,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                             HandoffRequest("real-reference-conflict"), ct).ConfigureAwait(false))
                         .ConfigureAwait(false);
                     Assert.That(failure!.GetType().FullName,
-                        Is.EqualTo("Opc.Ua.OptimisticPublicationConflictException"));
+                        Is.EqualTo("Opc.Ua.Server.NodeManagerLifecycleConflictException"));
                     Assert.That(failure.Message, Is.EqualTo("Serving references changed during preparation."));
                     Assert.That(coordinator.Generation, Is.Zero);
                     Assert.That(m_registry.Current, Is.SameAs(before));

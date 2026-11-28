@@ -163,7 +163,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             }
             long revision = lifecycle.Revision;
             int decisions = 0;
-            await Assert.ThrowsAsync<NodeManagerRoutingConflictException>(async () => await prepared.CommitAsync(_ =>
+            await Assert.CatchAsync<NodeManagerLifecycleConflictException>(async () => await prepared.CommitAsync(_ =>
             {
                 decisions++;
                 return default;
@@ -213,7 +213,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     return innerFactory.CreateAsync(server, configuration, token);
                 });
 
-            await Assert.ThrowsAsync<OptimisticPublicationConflictException>(async () => await lifecycle.ApplyAsync(
+            await Assert.CatchAsync<NodeManagerLifecycleConflictException>(async () => await lifecycle.ApplyAsync(
                 [LifecycleChange.Add(factory.Object)], timeout.Token).ConfigureAwait(false)).ConfigureAwait(false);
             Assert.That(factoryCalls, Is.EqualTo(1));
             LifecycleResult publicationResult1 = await CommitChangeAsync(
@@ -277,10 +277,10 @@ namespace Opc.Ua.Server.Tests.NodeManager
         }
 
         /// <summary>
-        /// A serving type-tree revision change during candidate creation is retried by the compatibility API.
+        /// An unrelated serving type registered during candidate creation does not make the batch stale.
         /// </summary>
         [Test]
-        public async Task CompatibilityAdditionRetriesAfterServingTypeTreeChangesDuringPreparationAsync()
+        public async Task AdditionRebasesOntoServingTypeTreeChangesDuringPreparationAsync()
         {
             using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(30));
             INodeManagerLifecycle lifecycle = m_server.NodeManagerLifecycle;
@@ -302,22 +302,21 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     return innerFactory.CreateAsync(server, configuration, token);
                 });
 
-            await Assert.ThrowsAsync<OptimisticPublicationConflictException>(async () => await lifecycle.ApplyAsync(
-                [LifecycleChange.Add(factory.Object)], timeout.Token).ConfigureAwait(false)).ConfigureAwait(false);
-            Assert.That(factoryCalls, Is.EqualTo(1));
-            LifecycleResult publicationResult2 = await CommitChangeAsync(
-                lifecycle, LifecycleChange.Add(factory.Object), timeout.Token).ConfigureAwait(false);
-            NodeManagerRegistration registration = RequireRegistration(publicationResult2.Registrations[0]);
+            LifecycleResult added = await lifecycle.ApplyAsync(
+                [LifecycleChange.Add(factory.Object)], timeout.Token).ConfigureAwait(false);
+            NodeManagerRegistration registration = RequireRegistration(added.Registrations[0]);
 
-            Assert.That(factoryCalls, Is.EqualTo(2));
+            Assert.That(factoryCalls, Is.EqualTo(1));
             Assert.That(lifecycle.Registrations.ToList(), Does.Contain(registration));
+            Assert.That(m_server.CurrentInstance.TypeTree.FindSuperType(new NodeId(99001)),
+                Is.EqualTo(ObjectTypeIds.BaseObjectType));
         }
 
         /// <summary>
-        /// A serving encodeable-factory revision change during candidate creation is retried by the compatibility API.
+        /// An unrelated serving encodeable registration made during candidate creation does not make the batch stale.
         /// </summary>
         [Test]
-        public async Task CompatibilityAdditionRetriesAfterServingFactoryChangesDuringPreparationAsync()
+        public async Task AdditionRebasesOntoServingFactoryChangesDuringPreparationAsync()
         {
             using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(30));
             INodeManagerLifecycle lifecycle = m_server.NodeManagerLifecycle;
@@ -345,15 +344,14 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     return innerFactory.CreateAsync(server, configuration, token);
                 });
 
-            await Assert.ThrowsAsync<OptimisticPublicationConflictException>(async () => await lifecycle.ApplyAsync(
-                [LifecycleChange.Add(factory.Object)], timeout.Token).ConfigureAwait(false)).ConfigureAwait(false);
-            Assert.That(factoryCalls, Is.EqualTo(1));
-            LifecycleResult publicationResult3 = await CommitChangeAsync(
-                lifecycle, LifecycleChange.Add(factory.Object), timeout.Token).ConfigureAwait(false);
-            NodeManagerRegistration registration = RequireRegistration(publicationResult3.Registrations[0]);
+            LifecycleResult added = await lifecycle.ApplyAsync(
+                [LifecycleChange.Add(factory.Object)], timeout.Token).ConfigureAwait(false);
+            NodeManagerRegistration registration = RequireRegistration(added.Registrations[0]);
 
-            Assert.That(factoryCalls, Is.EqualTo(2));
+            Assert.That(factoryCalls, Is.EqualTo(1));
             Assert.That(lifecycle.Registrations.ToList(), Does.Contain(registration));
+            Assert.That(m_server.CurrentInstance.Factory.TryGetEncodeableType(new ExpandedNodeId(99002), out _),
+                Is.True);
         }
 
         /// <summary>
@@ -588,21 +586,34 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     cancellation.Cancel();
                 }
                 release.TrySetResult(true);
-                await Assert.ThatAsync(() => pending.WaitAsync(timeout.Token),
-                    outcome == "Cancel" ? Throws.InstanceOf<OperationCanceledException>() :
-                    outcome == "Failure" ? Throws.TypeOf<SentinelException>() :
-                    Throws.TypeOf<NodeManagerRoutingConflictException>()).ConfigureAwait(false);
+                if (outcome == "Retire")
+                {
+                    // The removed owner never held the source, so discovery against the newer view finds the
+                    // same (no) owner: the batch is rebased and commits, as it would after the removal.
+                    await pending.WaitAsync(timeout.Token).ConfigureAwait(false);
+                }
+                else
+                {
+                    await Assert.ThatAsync(() => pending.WaitAsync(timeout.Token),
+                        outcome == "Cancel" ? Throws.InstanceOf<OperationCanceledException>() :
+                        outcome == "Failure" ? Throws.TypeOf<SentinelException>() :
+                        Throws.InstanceOf<NodeManagerLifecycleConflictException>()).ConfigureAwait(false);
+                }
             }
             LifecycleResult committed = RequireLifecycleValue(independentResult);
             await committed.Retired.WaitAsync(timeout.Token).ConfigureAwait(false);
+            bool rebased = outcome == "Retire";
             using (Assert.EnterMultipleScope())
             {
-                Assert.That(decisions, Is.Zero);
-                Assert.That(publication.IsCommitted, Is.False);
-                Assert.That(lifecycle.Revision, Is.EqualTo(committed.Revision));
-                Assert.That(m_server.CurrentInstance.NamespaceUris.GetIndex(kSecondModelNamespaceUri), Is.EqualTo(-1));
+                Assert.That(decisions, Is.EqualTo(rebased ? 1 : 0));
+                Assert.That(publication.IsCommitted, Is.EqualTo(rebased));
+                Assert.That(lifecycle.Revision, Is.EqualTo(committed.Revision + (rebased ? 1 : 0)));
+                Assert.That(m_server.CurrentInstance.NamespaceUris.GetIndex(kSecondModelNamespaceUri),
+                    rebased ? Is.GreaterThanOrEqualTo(0) : Is.EqualTo(-1));
             }
-            owner.Verify(value => value.GetManagerHandleAsync(source, It.IsAny<CancellationToken>()), Times.Once);
+            // A stale view is discovered again once before publication rejects the taken namespace index.
+            owner.Verify(value => value.GetManagerHandleAsync(source, It.IsAny<CancellationToken>()),
+                outcome == "Stale" ? Times.Between(1, 2, Moq.Range.Inclusive) : Times.Once());
 
             async ValueTask<object?> ResolveAsync(CancellationToken token)
             {
@@ -736,7 +747,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             {
                 decisions++;
                 return default;
-            }, timeout.Token).AsTask(), Throws.TypeOf<NodeManagerRoutingConflictException>()).ConfigureAwait(false);
+            }, timeout.Token).AsTask(), Throws.InstanceOf<NodeManagerLifecycleConflictException>()).ConfigureAwait(false);
             await outer.DisposeAsync().ConfigureAwait(false);
             using (Assert.EnterMultipleScope())
             {
@@ -829,7 +840,8 @@ namespace Opc.Ua.Server.Tests.NodeManager
         }
 
         /// <summary>
-        /// Candidate callbacks do not serialize unrelated publication, and a stale candidate is never rebased.
+        /// Candidate callbacks do not serialize unrelated publication, and a candidate whose namespace index was taken
+        /// meanwhile is rejected without rerunning its factory.
         /// </summary>
         [TestCase(false)]
         [TestCase(true)]
@@ -890,7 +902,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 {
                     decisions++;
                     return default;
-                }, timeout.Token).AsTask(), Throws.TypeOf<NodeManagerRoutingConflictException>()).ConfigureAwait(false);
+                }, timeout.Token).AsTask(), Throws.InstanceOf<NodeManagerLifecycleConflictException>()).ConfigureAwait(false);
                 Assert.That(stale.IsCommitted, Is.False);
                 Assert.That(decisions, Is.Zero, "A conflicting preparation must fail before any durable decision.");
             }

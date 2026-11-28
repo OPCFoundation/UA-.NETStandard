@@ -444,7 +444,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             Assert.That(namespaces.GetIndex(kModelNamespaceUri), Is.EqualTo(-1));
             ushort concurrent = namespaces.GetIndexOrAppend("urn:opcfoundation.org:Tests:ConcurrentNamespace");
             int decisions = 0;
-            await Assert.ThrowsAsync<OptimisticPublicationConflictException>(async () =>
+            await Assert.CatchAsync<NodeManagerLifecycleConflictException>(async () =>
                 await prepared.CommitAsync(_ =>
                 {
                     decisions++;
@@ -509,8 +509,12 @@ namespace Opc.Ua.Server.Tests.NodeManager
             await AssertReadinessValueAsync(kSecondModelNamespaceUri, kSecondRegistrationValue).ConfigureAwait(false);
         }
 
+        /// <summary>
+        /// A serving type registered after preparation that the batch does not register is not an input of the
+        /// batch: the commit rebases onto it and keeps it.
+        /// </summary>
         [Test]
-        public async Task PreparedBatchRejectsChangedTypeInputsBeforeDecisionAsync()
+        public async Task PreparedBatchRebasesOntoUnrelatedTypeChangeAsync()
         {
             INodeManagerLifecycle lifecycle = m_server.NodeManagerLifecycle;
             await using IPreparedChanges prepared = await lifecycle.PrepareAsync(
@@ -520,17 +524,48 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 m_server.CurrentInstance.NamespaceUris.GetIndexOrAppend(kModelNamespaceUri));
             m_server.CurrentInstance.TypeTree.AddSubtype(unrelated, Ua.ObjectTypeIds.BaseObjectType);
             int decisions = 0;
-            await Assert.ThrowsAsync<OptimisticPublicationConflictException>(async () =>
-                await prepared.CommitAsync(_ =>
-                {
-                    decisions++;
-                    return default;
-                }).ConfigureAwait(false)).ConfigureAwait(false);
+            await prepared.CommitAsync(_ =>
+            {
+                decisions++;
+                return default;
+            }).ConfigureAwait(false);
+            Assert.That(decisions, Is.EqualTo(1));
+            Assert.That(prepared.IsCommitted, Is.True);
+            Assert.That(m_server.CurrentInstance.TypeTree.FindSuperType(unrelated),
+                Is.EqualTo(Ua.ObjectTypeIds.BaseObjectType));
+            await AssertReadinessValueAsync(kModelNamespaceUri, kFirstRegistrationValue).ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// A type the batch registers that another caller registers after preparation is a changed input: the
+        /// commit is a retryable conflict before the decision and publishes nothing.
+        /// </summary>
+        [Test]
+        public async Task PreparedBatchRejectsChangedTypeInputsBeforeDecisionAsync()
+        {
+            INodeManagerLifecycle lifecycle = m_server.NodeManagerLifecycle;
+            NodeId shared = new(8301,
+                m_server.CurrentInstance.NamespaceUris.GetIndexOrAppend(kModelNamespaceUri));
+            await using IPreparedChanges prepared = await lifecycle.PrepareAsync(
+                [LifecycleChange.Add(CreateTrackingNodeManagementFactory(kFirstRegistrationValue, manager =>
+                    manager.Server.TypeTree.AddSubtype(shared, Ua.ObjectTypeIds.BaseObjectType)))])
+                .ConfigureAwait(false);
+            m_server.CurrentInstance.TypeTree.AddSubtype(shared, Ua.ObjectTypeIds.BaseObjectType);
+            long registered = ((TypeTable)m_server.CurrentInstance.TypeTree).GetRegistrationVersion(shared);
+            int decisions = 0;
+            NodeManagerLifecycleConflictException? conflict =
+                await Assert.CatchAsync<NodeManagerLifecycleConflictException>(async () =>
+                    await prepared.CommitAsync(_ =>
+                    {
+                        decisions++;
+                        return default;
+                    }).ConfigureAwait(false)).ConfigureAwait(false);
+            Assert.That(conflict?.InnerException, Is.TypeOf<OptimisticPublicationConflictException>());
             Assert.That(decisions, Is.Zero);
             Assert.That(prepared.IsCommitted, Is.False);
             Assert.That(GetBranchRegistrations(lifecycle).IsEmpty, Is.True);
-            Assert.That(m_server.CurrentInstance.TypeTree.FindSuperType(unrelated),
-                Is.EqualTo(Ua.ObjectTypeIds.BaseObjectType));
+            Assert.That(((TypeTable)m_server.CurrentInstance.TypeTree).GetRegistrationVersion(shared),
+                Is.EqualTo(registered));
         }
 
         [Test]
@@ -1182,7 +1217,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 NodeManagerRegistration intervening = RequireRegistration(publicationResult13.Registrations[0]);
                 int decisions = 0;
 
-                await Assert.ThrowsAsync<NodeManagerRoutingConflictException>(async () =>
+                await Assert.CatchAsync<NodeManagerLifecycleConflictException>(async () =>
                     await prepared.CommitAsync(_ =>
                     {
                         decisions++;
@@ -1238,7 +1273,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             NodeManagerRegistration intervening = RequireRegistration(publicationResult14.Registrations[0]);
             int decisions = 0;
 
-            await Assert.ThrowsAsync<NodeManagerRoutingConflictException>(async () =>
+            await Assert.CatchAsync<NodeManagerLifecycleConflictException>(async () =>
                 await prepared.CommitAsync(_ =>
                 {
                     decisions++;

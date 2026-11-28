@@ -115,7 +115,8 @@ namespace Opc.Ua.Server
             EnsureSameRunningServer(batch.Server, batch.Host, null);
             BatchEntry entry = batch.Entries[0];
             NodeManagerGeneration predecessor = entry.Current!.Registration.Identity;
-            if (!ReferenceEquals(batch.Host.RoutingRevision, batch.RoutingRevision) ||
+            // A commit on other managers moves the view without touching the predecessor; the commit rebases it.
+            if ((!CanRebase(batch) && !ReferenceEquals(batch.Host.RoutingRevision, batch.RoutingRevision)) ||
                 !IsSelected(batch.Host, predecessor) || !IsCurrentRegistration(entry.Current.Registration))
             {
                 throw new NodeManagerRoutingConflictException(

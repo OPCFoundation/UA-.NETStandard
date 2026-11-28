@@ -289,12 +289,13 @@ namespace Opc.Ua.Server.Tests.NodeManager
             candidate.Setup(value => value.DeleteAddressSpaceAsync(It.IsAny<CancellationToken>())).Throws(failure);
             IPreparedChanges prepared = await harness.Lifecycle.PrepareAsync([LifecycleChange.Add(
                 NodeManagerLifecycleChangeSetCleanupTests.CreateFactory(candidate))]).ConfigureAwait(false);
-            harness.Data.TypeTree.AddSubtype(new NodeId("conflict-abort", 0), DataTypeIds.BaseDataType);
+            // Another namespace at the candidate's private index is a conflict; an unrelated type would be rebased.
+            harness.Data.NamespaceUris.GetIndexOrAppend("urn:test:native:conflict-abort:other");
             AggregateException? observed = await Assert.ThrowsAsync<AggregateException>(
                 async () => await prepared.CommitAsync().ConfigureAwait(false)).ConfigureAwait(false);
             Assert.That(observed!.Flatten().InnerExceptions, Does.Contain(failure));
             Assert.That(
-                observed.Flatten().InnerExceptions.Any(value => value is OptimisticPublicationConflictException),
+                observed.Flatten().InnerExceptions.Any(value => value is NodeManagerLifecycleConflictException),
                 Is.True);
             candidate.Verify(value => value.DeleteAddressSpaceAsync(It.IsAny<CancellationToken>()), Times.Once);
             candidate.As<IDisposable>().Verify(value => value.Dispose(), Times.Never);

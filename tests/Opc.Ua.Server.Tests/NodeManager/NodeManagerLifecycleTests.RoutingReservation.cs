@@ -120,7 +120,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
 
         [TestCase(false)]
         [TestCase(true)]
-        public async Task PreparedBatchRejectsNamespaceRoutingChangesBeforeDecisionAsync(bool register)
+        public async Task PreparedBatchKeepsConcurrentNamespaceRoutingChangesOfOtherManagersAsync(bool register)
         {
             using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(30));
             LifecycleResult publicationResult2 = await CommitChangeAsync(
@@ -148,22 +148,22 @@ namespace Opc.Ua.Server.Tests.NodeManager
             }
             int decisions = 0;
             long revision = lifecycle.Revision;
-            await Assert.ThatAsync(() => prepared.CommitAsync(_ =>
+            // The batch does not touch the survivor's namespace: it is rebased onto the changed routes and keeps them.
+            await prepared.CommitAsync(_ =>
             {
                 decisions++;
                 return default;
-            }, timeout.Token).AsTask(), Throws.InstanceOf<InvalidOperationException>()).ConfigureAwait(false);
-            Assert.That(decisions, Is.Zero);
-            Assert.That(prepared.IsCommitted, Is.False);
-            Assert.That(GetBranchRegistrations(lifecycle).Count, Is.EqualTo(1));
+            }, timeout.Token).ConfigureAwait(false);
+            Assert.That(decisions, Is.EqualTo(1));
+            Assert.That(prepared.IsCommitted, Is.True);
+            Assert.That(GetBranchRegistrations(lifecycle).Count, Is.EqualTo(2));
             NodeId root = new(kRootNodeId,
                 (ushort)m_server.CurrentInstance.NamespaceUris.GetIndex(kModelNamespaceUri));
             (_, IAsyncNodeManager? owner) = await master.GetManagerHandleAsync(root, timeout.Token)
                 .ConfigureAwait(false);
             Assert.That(owner, register ? Is.SameAs(survivor.NodeManager) : Is.Null);
-            await prepared.DisposeAsync().ConfigureAwait(false);
-            Assert.That(lifecycle.Revision, Is.EqualTo(revision));
-            Assert.That(m_server.CurrentInstance.NamespaceUris.GetIndex(kSecondModelNamespaceUri), Is.EqualTo(-1));
+            Assert.That(lifecycle.Revision, Is.EqualTo(revision + 1));
+            await AssertReadinessValueAsync(kSecondModelNamespaceUri, kSecondRegistrationValue).ConfigureAwait(false);
             master.RegisterNamespaceManager(kModelNamespaceUri, survivor.NodeManager);
             Assert.That(master.UnregisterNamespaceManager(kModelNamespaceUri, survivor.NodeManager), Is.True);
             master.RegisterNamespaceManager(kModelNamespaceUri, survivor.NodeManager);

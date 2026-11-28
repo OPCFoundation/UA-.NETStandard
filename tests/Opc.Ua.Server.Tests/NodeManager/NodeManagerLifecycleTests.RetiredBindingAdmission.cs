@@ -365,7 +365,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     release.TrySetResult(true);
                     await Task.WhenAll(commit, mutation).WaitAsync(TimeSpan.FromSeconds(10), timeout.Token)
                         .ConfigureAwait(false);
-                    InvalidOperationException? stale = await Assert.ThrowsAsync<InvalidOperationException>(
+                    InvalidOperationException? stale = await Assert.ThrowsAsync<NodeManagerLifecycleConflictException>(
                         async () => await pendingAdd.WaitAsync(TimeSpan.FromSeconds(10), timeout.Token)
                             .ConfigureAwait(false)).ConfigureAwait(false);
                     adding = null;
@@ -510,7 +510,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     await Task.WhenAll(commit, activation).WaitAsync(TimeSpan.FromSeconds(10), timeout.Token)
                         .ConfigureAwait(false);
                     session = await activation.ConfigureAwait(false);
-                    InvalidOperationException? stale = await Assert.ThrowsAsync<InvalidOperationException>(
+                    InvalidOperationException? stale = await Assert.ThrowsAsync<NodeManagerLifecycleConflictException>(
                         async () => await pendingAdd.WaitAsync(TimeSpan.FromSeconds(10), timeout.Token)
                             .ConfigureAwait(false)).ConfigureAwait(false);
                     adding = null;

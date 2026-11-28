@@ -75,8 +75,12 @@ namespace Opc.Ua.Server.Tests.NodeManager
             }
         }
 
+        /// <summary>
+        /// A publication on another manager while the predecessor drains does not make the successor stale: the
+        /// handoff is rebased and commits.
+        /// </summary>
         [Test]
-        public async Task HandoffWorkerAllowsUnrelatedPublicationAndRejectsStaleSuccessorAsync()
+        public async Task HandoffWorkerAllowsUnrelatedPublicationAndCommitsSuccessorAsync()
         {
             using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(30));
             var lifecycle = (NodeManagerLifecycle)m_server.NodeManagerLifecycle;
@@ -102,11 +106,11 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 Assert.That(pause.Finished.Task.IsCompleted, Is.False);
 
                 pause.AllowDrain.TrySetResult(true);
-                Assert.That(await pause.Finished.Task.WaitAsync(timeout.Token).ConfigureAwait(false), Is.True);
-                Assert.That(lifecycle.Revision, Is.EqualTo(unrelated.Revision));
+                Assert.That(await pause.Finished.Task.WaitAsync(timeout.Token).ConfigureAwait(false), Is.False);
+                Assert.That(lifecycle.Revision, Is.EqualTo(unrelated.Revision + 1));
                 Assert.That(predecessor.Slot.TryGetCurrent(out NodeManagerSlotSnapshot current), Is.True);
-                Assert.That(current.NodeManager, Is.SameAs(predecessor.NodeManager));
-                Assert.That(current.Generation, Is.EqualTo(predecessor.Generation));
+                Assert.That(current.NodeManager, Is.Not.SameAs(predecessor.NodeManager));
+                Assert.That(current.Generation, Is.EqualTo(predecessor.Generation + 1));
             }
             finally
             {

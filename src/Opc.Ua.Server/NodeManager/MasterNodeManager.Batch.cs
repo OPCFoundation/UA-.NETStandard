@@ -213,7 +213,10 @@ namespace Opc.Ua.Server
         {
             if (!view.TryPin(out int stripe))
             {
-                throw new NodeManagerRoutingConflictException("The reference preparation view has retired.", view);
+                throw new NodeManagerRoutingConflictException("The reference preparation view has retired.", view)
+                {
+                    StaleDiscovery = true
+                };
             }
             try
             {
@@ -234,7 +237,10 @@ namespace Opc.Ua.Server
                     if (!ReferenceEquals(view, m_nodeManagers.Revision))
                     {
                         throw new NodeManagerRoutingConflictException(
-                            "The address space changed before reference discovery.", view);
+                            "The address space changed before reference discovery.", view)
+                        {
+                            StaleDiscovery = true
+                        };
                     }
                     ApplyDeferredReferencePrunes();
                     previous = m_dynamicExternalReferences;
@@ -573,9 +579,13 @@ namespace Opc.Ua.Server
                             retiringGenerations.Add(generation!);
                         }
 
-                        typeTree = originalTypes.PrepareAdditiveMerge(typeTree, originalTypes, typeRevision);
+                        // A rebased batch merges only its own registrations onto the serving images; the
+                        // revisions it merged onto are the ones reserved below.
+                        typeTree = originalTypes.PrepareAdditiveMerge(
+                            typeTree, originalTypes, typeRevision, context.Rebase, out typeRevision);
                         factory = originalFactory.PrepareAdditiveMerge(
-                            factory, originalFactory, factoryRevision, context.Preparation.NamespaceUris);
+                            factory, originalFactory, factoryRevision, context.Preparation.NamespaceUris,
+                            context.Rebase, out factoryRevision);
                         PreparedAddressSpaceReferences references = context.References ??
                             throw new InvalidOperationException("Reference discovery must precede publication.");
                         if (!ReferenceEquals(references.View, m_nodeManagers.Revision) ||
@@ -610,12 +620,12 @@ namespace Opc.Ua.Server
                         using EncodeableFactory.Publication registrations =
                             originalFactory.BeginPublication(originalFactory, factoryRevision);
                         using StringTable.Publication namespaces = Server.NamespaceUris.BeginPublication(
-                            context.Preparation.NamespaceUris, context.Preparation.NamespaceRevision);
+                            context.Preparation.NamespaceUris, context.Preparation.NamespaceRevision, context.Rebase);
                         namespaceReservation = new NamespacePublication(
                             routes, namespaces,
                             context.Preparation.NamespaceUris.ToArray().Skip(Server.NamespaceUris.Count));
                         using StringTable.Publication serverUris = Server.ServerUris.BeginPublication(
-                            context.Preparation.ServerUris, context.Preparation.ServerRevision);
+                            context.Preparation.ServerUris, context.Preparation.ServerRevision, context.Rebase);
                         foreach (NodeState.ReferenceUpdate update in referenceUpdates)
                         {
                             update.Reserve();
@@ -895,7 +905,11 @@ namespace Opc.Ua.Server
                     int stripe = 0;
                     if (generation is not null && !generation.Gate.TryEnter(out stripe))
                     {
-                        throw new InvalidOperationException("A reference owner retired during discovery.");
+                        throw new NodeManagerRoutingConflictException(
+                            "A reference owner retired during discovery.", view)
+                        {
+                            StaleDiscovery = true
+                        };
                     }
                     NodeState? node;
                     try

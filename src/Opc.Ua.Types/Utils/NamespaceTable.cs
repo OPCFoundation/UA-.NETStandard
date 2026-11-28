@@ -436,12 +436,39 @@ namespace Opc.Ua
         /// </exception>
         internal Publication BeginPublication(StringTable additions, long revision)
         {
+            return BeginPublication(additions, revision, rebase: false);
+        }
+
+        /// <summary>
+        /// Reserves the namespace prefix a publication was prepared against and preallocates its additions.
+        /// </summary>
+        /// <remarks>
+        /// Without <paramref name="rebase"/> the table must be unchanged since preparation. With it, entries
+        /// appended meanwhile are accepted as long as every index the prepared table uses still maps to the same
+        /// string; two publications that appended different strings at the same index conflict.
+        /// </remarks>
+        /// <param name="additions">The prepared table, the captured entries followed by its additions.</param>
+        /// <param name="revision">The revision observed during capture.</param>
+        /// <param name="rebase">Whether entries appended after preparation are accepted.</param>
+        /// <exception cref="OptimisticPublicationConflictException">
+        /// The serving namespace prefix changed after preparation.
+        /// </exception>
+        /// <exception cref="InvalidOperationException">
+        /// Another publication already reserves the namespace prefix.
+        /// </exception>
+        internal Publication BeginPublication(StringTable additions, long revision, bool rebase)
+        {
             string[] proposed = additions.ToArray();
             lock (m_syncRoot)
             {
                 EnsureMutable();
-                if (m_version != revision || proposed.Length < m_strings.Count ||
-                    !m_strings.SequenceEqual(proposed.Take(m_strings.Count)))
+                bool consistent = rebase
+                    ? (proposed.Length >= m_strings.Count
+                        ? m_strings.SequenceEqual(proposed.Take(m_strings.Count))
+                        : proposed.SequenceEqual(m_strings.Take(proposed.Length)))
+                    : m_version == revision && proposed.Length >= m_strings.Count &&
+                        m_strings.SequenceEqual(proposed.Take(m_strings.Count));
+                if (!consistent)
                 {
                     throw new OptimisticPublicationConflictException("The string table changed after preparation.");
                 }

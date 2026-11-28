@@ -105,6 +105,9 @@ namespace Opc.Ua.Server
         /// <param name="decideAsync">The external durable decision, or null for an in-memory decision.</param>
         /// <param name="cancellationToken">Cancels before publication.</param>
         /// <returns>The authoritative committed result.</returns>
+        /// <exception cref="NodeManagerLifecycleConflictException">
+        /// Another publication changed an input of the prepared changes; nothing was published. Prepare again to retry.
+        /// </exception>
         ValueTask<LifecycleResult> CommitAsync(
             Func<CancellationToken, ValueTask>? decideAsync = null, CancellationToken cancellationToken = default);
 
@@ -118,6 +121,9 @@ namespace Opc.Ua.Server
         /// </param>
         /// <param name="cancellationToken">Cancels before publication.</param>
         /// <returns>The authoritative committed result.</returns>
+        /// <exception cref="NodeManagerLifecycleConflictException">
+        /// Another publication changed an input of the prepared changes; nothing was published. Prepare again to retry.
+        /// </exception>
         ValueTask<LifecycleResult> CommitAsync(
             Func<CancellationToken, ValueTask>? decideAsync,
             Action publishCommittedState,
@@ -130,6 +136,9 @@ namespace Opc.Ua.Server
         /// <param name="publishCommittedState">Optional application state to install after the routing swap.</param>
         /// <param name="cancellationToken">Cancels before publication.</param>
         /// <returns>The authoritative committed result.</returns>
+        /// <exception cref="NodeManagerLifecycleConflictException">
+        /// Another publication changed an input of the prepared changes; nothing was published. Prepare again to retry.
+        /// </exception>
         ValueTask<LifecycleResult> CommitWithDecisionAsync(
             Func<NodeManagerDecisionContext, CancellationToken, ValueTask> decideAsync,
             Action? publishCommittedState = null,
@@ -141,6 +150,9 @@ namespace Opc.Ua.Server
         /// <param name="decisionContext">The context supplied to the durable decision.</param>
         /// <param name="cancellationToken">Cancels before publication.</param>
         /// <returns>The authoritative committed result.</returns>
+        /// <exception cref="NodeManagerLifecycleConflictException">
+        /// Another publication changed an input of the prepared changes; nothing was published. Prepare again to retry.
+        /// </exception>
         ValueTask<LifecycleResult> CommitInMemoryAsync(
             NodeManagerDecisionContext decisionContext,
             CancellationToken cancellationToken);

@@ -522,5 +522,82 @@ namespace Opc.Ua.Types.Tests.Encoders
         private const string kNamespace = "urn:opcfoundation.org:Tests:FactorySnapshots";
         private static readonly ExpandedNodeId s_structureId = new(9001, kNamespace);
         private static readonly ExpandedNodeId s_enumId = new(9002, kNamespace);
+
+        /// <summary>
+        /// A rebased merge adds the candidate's registrations onto a newer serving factory and reserves the
+        /// revision it merged onto.
+        /// </summary>
+        [Test]
+        public void RebasedMergeAddsCandidateRegistrationsOntoNewerServingFactory()
+        {
+            var factory = new EncodeableFactory();
+            EncodeableFactory proposed = factory.CaptureSnapshot(out EncodeableFactory source, out long revision);
+            IEncodeableType candidate = CreateNamedStructure("Candidate");
+            IEncodeableType serving = CreateNamedStructure("Serving");
+            proposed.Builder.AddEncodeableType(s_structureId, candidate).Commit();
+            factory.Builder.AddEncodeableType(s_otherStructureId, serving).Commit();
+
+            Assert.Throws<OptimisticPublicationConflictException>(() =>
+                factory.PrepareAdditiveMerge(proposed, source, revision, new NamespaceTable()));
+            EncodeableFactory merged = factory.PrepareAdditiveMerge(
+                proposed, source, revision, new NamespaceTable(), rebase: true, out long mergedRevision);
+            using (EncodeableFactory.Publication publication = factory.BeginPublication(source, mergedRevision))
+            {
+                publication.Complete(merged);
+            }
+
+            using (Assert.EnterMultipleScope())
+            {
+                Assert.That(factory.TryGetEncodeableType(s_structureId, out IEncodeableType? added), Is.True);
+                Assert.That(added, Is.SameAs(candidate));
+                Assert.That(factory.TryGetEncodeableType(s_otherStructureId, out IEncodeableType? kept), Is.True);
+                Assert.That(kept, Is.SameAs(serving));
+                Assert.That(factory.TryGetType(serving.XmlName, out IType? keptName), Is.True);
+                Assert.That(keptName, Is.SameAs(serving));
+            }
+        }
+
+        /// <summary>
+        /// A rebased merge rejects a registration another publication made for the same key after the capture.
+        /// </summary>
+        [Test]
+        public void RebasedMergeRejectsOverlappingRegistration()
+        {
+            var factory = new EncodeableFactory();
+            EncodeableFactory proposed = factory.CaptureSnapshot(out EncodeableFactory source, out long revision);
+            proposed.Builder.AddEncodeableType(s_structureId, CreateNamedStructure("Candidate")).Commit();
+            factory.Builder.AddEncodeableType(s_structureId, CreateNamedStructure("Serving")).Commit();
+
+            Assert.Throws<OptimisticPublicationConflictException>(() => factory.PrepareAdditiveMerge(
+                proposed, source, revision, new NamespaceTable(), rebase: true, out _));
+        }
+
+        /// <summary>
+        /// A rebased merge rejects an alias the candidate added for an existing type when another publication
+        /// remapped that type's XML name, so encoding and XML-name lookups cannot resolve to different types.
+        /// </summary>
+        [Test]
+        public void RebasedMergeRejectsAliasWhoseXmlNameWasRemapped()
+        {
+            var factory = new EncodeableFactory();
+            IEncodeableType original = CreateNamedStructure("Shared");
+            factory.Builder.AddEncodeableType(s_structureId, original).Commit();
+            EncodeableFactory proposed = factory.CaptureSnapshot(out EncodeableFactory source, out long revision);
+            proposed.Builder.AddEncodeableType(s_otherStructureId, original).Commit();
+            factory.Builder.AddEncodeableType(new ExpandedNodeId(9004, kNamespace), CreateNamedStructure("Shared"))
+                .Commit();
+
+            Assert.Throws<OptimisticPublicationConflictException>(() => factory.PrepareAdditiveMerge(
+                proposed, source, revision, new NamespaceTable(), rebase: true, out _));
+        }
+
+        private static IEncodeableType CreateNamedStructure(string name)
+        {
+            var type = new Mock<IEncodeableType>();
+            type.SetupGet(value => value.XmlName).Returns(new XmlQualifiedName(name, kNamespace));
+            return type.Object;
+        }
+
+        private static readonly ExpandedNodeId s_otherStructureId = new(9003, kNamespace);
     }
 }

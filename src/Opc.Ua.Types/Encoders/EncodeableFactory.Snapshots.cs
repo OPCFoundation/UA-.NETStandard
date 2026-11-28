@@ -44,7 +44,8 @@ namespace Opc.Ua
                 return new EncodeableFactory(this)
                 {
                     m_captureSource = new WeakReference<EncodeableFactory>(this),
-                    m_captureRevision = m_revision
+                    m_captureRevision = m_revision,
+                    m_capturedMaps = new CapturedMaps(m_encodeableTypes, m_enumeratedTypes, m_xmlNameToType)
                 };
             }
         }
@@ -69,6 +70,36 @@ namespace Opc.Ua
             long revision,
             NamespaceTable namespaceUris)
         {
+            return PrepareAdditiveMerge(additions, source, revision, namespaceUris, rebase: false, out _);
+        }
+
+        /// <summary>
+        /// Builds compatible additive registration maps without changing either input, optionally rebasing the
+        /// private registrations onto a newer serving revision.
+        /// </summary>
+        /// <remarks>
+        /// Without <paramref name="rebase"/> the serving revision must still match preparation. With it, a newer
+        /// revision is accepted when no registration the candidate added or replaced was changed by another
+        /// publication since the capture; such an overlap is an <see cref="OptimisticPublicationConflictException"/>.
+        /// Publication must reserve <paramref name="mergedRevision"/> before the durable decision.
+        /// </remarks>
+        /// <param name="additions">The privately prepared registrations.</param>
+        /// <param name="source">The serving factory captured before preparation.</param>
+        /// <param name="revision">The captured serving revision.</param>
+        /// <param name="namespaceUris">The namespaces used to compare data type definitions.</param>
+        /// <param name="rebase">Whether a newer serving revision may be merged.</param>
+        /// <param name="mergedRevision">The serving revision the result was merged onto.</param>
+        /// <returns>The independently owned merged factory.</returns>
+        /// <exception cref="ArgumentNullException"></exception>
+        /// <exception cref="InvalidOperationException"></exception>
+        internal EncodeableFactory PrepareAdditiveMerge(
+            EncodeableFactory additions,
+            EncodeableFactory source,
+            long revision,
+            NamespaceTable namespaceUris,
+            bool rebase,
+            out long mergedRevision)
+        {
             if (additions is null)
             {
                 throw new ArgumentNullException(nameof(additions));
@@ -78,7 +109,9 @@ namespace Opc.Ua
                 throw new ArgumentNullException(nameof(namespaceUris));
             }
             EncodeableFactory merged = CaptureSnapshot(out EncodeableFactory current, out long currentRevision);
-            if (!ReferenceEquals(source, current) || revision != currentRevision)
+            mergedRevision = currentRevision;
+            bool rebased = revision != currentRevision;
+            if (!ReferenceEquals(source, current) || (rebased && !rebase))
             {
                 throw new OptimisticPublicationConflictException(
                     "Serving factory registrations changed after preparation.");
@@ -87,7 +120,52 @@ namespace Opc.Ua
             {
                 return merged;
             }
+            CapturedMaps? captured = null;
+            if (rebased)
+            {
+                lock (additions.m_publicationGate)
+                {
+                    captured = additions.m_capturedMaps;
+                }
+                if (captured is null)
+                {
+                    throw new OptimisticPublicationConflictException(
+                        "Serving factory registrations changed after preparation.");
+                }
+            }
             EncodeableFactory proposed = additions.CaptureSnapshot(out _, out _);
+            if (captured is not null)
+            {
+                // Only registrations the candidate added or replaced are merged onto the newer image; another
+                // publication must not have changed the same keys since the capture.
+                proposed.m_encodeableTypes = CapturedMaps.Delta(proposed.m_encodeableTypes, captured.EncodeableTypes);
+                proposed.m_enumeratedTypes = CapturedMaps.Delta(proposed.m_enumeratedTypes, captured.EnumeratedTypes);
+                proposed.m_xmlNameToType = CapturedMaps.Delta(proposed.m_xmlNameToType, captured.XmlNames);
+                foreach (ExpandedNodeId key in proposed.m_encodeableTypes.Keys.Concat(proposed.m_enumeratedTypes.Keys))
+                {
+                    if (!CapturedMaps.IsUnchanged(captured.EncodeableTypes, merged.m_encodeableTypes, key) ||
+                        !CapturedMaps.IsUnchanged(captured.EnumeratedTypes, merged.m_enumeratedTypes, key))
+                    {
+                        throw new OptimisticPublicationConflictException(
+                            $"Registration '{key}' changed after the batch was prepared.");
+                    }
+                }
+                // An added alias for an existing type shares that type's XML name without changing the XML-name
+                // entry, so every XML name an added or replaced registration uses must also be unchanged.
+                IEnumerable<XmlQualifiedName> xmlNames = proposed.m_xmlNameToType.Keys
+                    .Concat(proposed.m_encodeableTypes.Values.Select(type => type.XmlName))
+                    .Concat(proposed.m_enumeratedTypes.Values.Select(type => type.XmlName))
+                    .Where(name => name is not null)
+                    .Distinct();
+                foreach (XmlQualifiedName key in xmlNames)
+                {
+                    if (!CapturedMaps.IsUnchanged(captured.XmlNames, merged.m_xmlNameToType, key))
+                    {
+                        throw new OptimisticPublicationConflictException(
+                            $"Registration '{key}' changed after the batch was prepared.");
+                    }
+                }
+            }
             Dictionary<ExpandedNodeId, IEncodeableType> structures = merged.m_encodeableTypes
                 .ToDictionary(entry => entry.Key, entry => entry.Value);
             Dictionary<ExpandedNodeId, IEnumeratedType> enumerations = merged.m_enumeratedTypes
@@ -227,6 +305,58 @@ namespace Opc.Ua
 
         /// <summary>The serving revision from which these private maps were copied.</summary>
         private long m_captureRevision;
+
+        /// <summary>The immutable serving maps this private copy started from, used to rebase it.</summary>
+        private CapturedMaps? m_capturedMaps;
+
+        /// <summary>
+        /// Holds the frozen serving maps of a capture. They are immutable, so holding them costs no copy.
+        /// </summary>
+        private sealed class CapturedMaps(
+            FrozenDictionary<ExpandedNodeId, IEncodeableType> encodeableTypes,
+            FrozenDictionary<ExpandedNodeId, IEnumeratedType> enumeratedTypes,
+            FrozenDictionary<XmlQualifiedName, IType> xmlNames)
+        {
+            internal FrozenDictionary<ExpandedNodeId, IEncodeableType> EncodeableTypes { get; } = encodeableTypes;
+
+            internal FrozenDictionary<ExpandedNodeId, IEnumeratedType> EnumeratedTypes { get; } = enumeratedTypes;
+
+            internal FrozenDictionary<XmlQualifiedName, IType> XmlNames { get; } = xmlNames;
+
+            /// <summary>
+            /// Gets the entries of a private map that differ from the captured serving map.
+            /// </summary>
+            /// <typeparam name="TKey">The registration key type.</typeparam>
+            /// <typeparam name="TValue">The registration type.</typeparam>
+            internal static FrozenDictionary<TKey, TValue> Delta<TKey, TValue>(
+                FrozenDictionary<TKey, TValue> proposed,
+                FrozenDictionary<TKey, TValue> captured)
+                where TKey : notnull
+                where TValue : class
+            {
+                return proposed
+                    .Where(entry => !captured.TryGetValue(entry.Key, out TValue? value) ||
+                        !ReferenceEquals(value, entry.Value))
+                    .ToFrozenDictionary(entry => entry.Key, entry => entry.Value);
+            }
+
+            /// <summary>
+            /// Checks that a key maps to the same registration, or is absent, in both images.
+            /// </summary>
+            /// <typeparam name="TKey">The registration key type.</typeparam>
+            /// <typeparam name="TValue">The registration type.</typeparam>
+            internal static bool IsUnchanged<TKey, TValue>(
+                FrozenDictionary<TKey, TValue> captured,
+                FrozenDictionary<TKey, TValue> current,
+                TKey key)
+                where TKey : notnull
+                where TValue : class
+            {
+                return captured.TryGetValue(key, out TValue? before)
+                    ? current.TryGetValue(key, out TValue? after) && ReferenceEquals(before, after)
+                    : !current.ContainsKey(key);
+            }
+        }
         private long m_revision
         {
             get => m_storage.Revision;
@@ -248,6 +378,7 @@ namespace Opc.Ua
         internal void BindTo(EncodeableFactory canonical)
         {
             m_storage = canonical.m_storage;
+            m_capturedMaps = null;
         }
 
         /// <summary>

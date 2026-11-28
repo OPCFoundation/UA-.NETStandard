@@ -1,31 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 using System;
 using System.Reflection;
@@ -73,8 +47,9 @@ namespace Opc.Ua.Server.Tests.NodeManager
             CollectTargets();
             Assert.That(IsAlive(batch), Is.False);
             Assert.That(IsAlive(manager), Is.False);
-            Assert.That(conflict, Is.TypeOf<OptimisticPublicationConflictException>());
-            Assert.That(conflict.Message, Does.Contain("Serving types changed"));
+            Assert.That(conflict, Is.TypeOf<NodeManagerLifecycleConflictException>());
+            Assert.That(conflict.InnerException, Is.TypeOf<OptimisticPublicationConflictException>());
+            Assert.That(conflict.Message, Does.Contain("string table changed"));
             GC.KeepAlive(conflict);
         }
 
@@ -109,12 +84,17 @@ namespace Opc.Ua.Server.Tests.NodeManager
         {
             await using var harness = new NodeManagerLifecycleChangeSetCleanupTests.ChangeSetCleanupHarness();
             var factory = new EqualFactory("urn:test:native-conflict:" + ownerState);
-            await using IPreparedChanges prepared = await harness.Lifecycle.PrepareAsync([LifecycleChange.Add(factory)])
-                .ConfigureAwait(false);
+            // A routing conflict needs an exact-revision capture: a plain preparation is rebased onto the view.
+            await using ILifecycleWriter? writer = kind == "Routing"
+                ? await harness.Lifecycle.CaptureChanges().BeginAsync().ConfigureAwait(false)
+                : null;
+            await using IPreparedChanges prepared = writer is null
+                ? await harness.Lifecycle.PrepareAsync([LifecycleChange.Add(factory)]).ConfigureAwait(false)
+                : await writer.PrepareAsync([LifecycleChange.Add(factory)]).ConfigureAwait(false);
             if (kind == "Prepared")
             {
-                harness.Data.TypeTree.AddSubtype(
-                    new NodeId("native-conflict:" + ownerState, 0), DataTypeIds.BaseDataType);
+                // Appending another namespace at the candidate's private index makes its metadata stale.
+                harness.Data.NamespaceUris.GetIndexOrAppend("urn:test:native-conflict:other:" + ownerState);
             }
             else
             {
@@ -145,8 +125,9 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 }).ConfigureAwait(false)).ConfigureAwait(false);
             Assert.That(second, Is.SameAs(first));
             Assert.That(first, kind == "Prepared"
-                ? Is.TypeOf<OptimisticPublicationConflictException>()
+                ? Is.TypeOf<NodeManagerLifecycleConflictException>()
                 : Is.TypeOf<NodeManagerRoutingConflictException>());
+            Assert.That(first, Is.InstanceOf<NodeManagerLifecycleConflictException>());
             Assert.That(decisions, Is.Zero);
             Assert.That(factory.CreateCount, Is.EqualTo(1));
             Assert.That(factory.DeleteCount, Is.EqualTo(1));
@@ -215,11 +196,15 @@ namespace Opc.Ua.Server.Tests.NodeManager
             var other = new EqualFactory("urn:test:native-conflict:equal:second");
             Assert.That(current, Is.EqualTo(other));
             Assert.That(current, Is.Not.SameAs(other));
-            await using IPreparedChanges prepared = await harness.Lifecycle.PrepareAsync([LifecycleChange.Add(current)])
-                .ConfigureAwait(false);
+            await using ILifecycleWriter? writer = kind == "Routing"
+                ? await harness.Lifecycle.CaptureChanges().BeginAsync().ConfigureAwait(false)
+                : null;
+            await using IPreparedChanges prepared = writer is null
+                ? await harness.Lifecycle.PrepareAsync([LifecycleChange.Add(current)]).ConfigureAwait(false)
+                : await writer.PrepareAsync([LifecycleChange.Add(current)]).ConfigureAwait(false);
             if (kind == "Prepared")
             {
-                harness.Data.TypeTree.AddSubtype(new NodeId("equal-owner-conflict", 0), DataTypeIds.BaseDataType);
+                harness.Data.NamespaceUris.GetIndexOrAppend("urn:test:native-conflict:equal:other");
             }
             else
             {
@@ -235,7 +220,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     return default;
                 }).ConfigureAwait(false)).ConfigureAwait(false);
             Assert.That(conflict, kind == "Prepared"
-                ? Is.TypeOf<OptimisticPublicationConflictException>()
+                ? Is.TypeOf<NodeManagerLifecycleConflictException>()
                 : Is.TypeOf<NodeManagerRoutingConflictException>());
             Assert.That(decisions, Is.Zero);
             Assert.That(current.CreateCount, Is.EqualTo(1));
@@ -257,8 +242,13 @@ namespace Opc.Ua.Server.Tests.NodeManager
             NodeManagerRoutingTable.RoutingSnapshot? routing =
                 ((IDynamicNodeManagerBatchHost)harness.Master).RoutingRevision;
             var snapshot = new WeakReference<NodeManagerRoutingTable.RoutingSnapshot>(routing);
-            IPreparedChanges? prepared = await harness.Lifecycle.PrepareAsync([LifecycleChange.Add(factory)])
-                .ConfigureAwait(false);
+            // A routing conflict needs an exact-revision capture: a plain preparation is rebased onto the view.
+            await using ILifecycleWriter? writer = metadata
+                ? null
+                : await harness.Lifecycle.CaptureChanges().BeginAsync().ConfigureAwait(false);
+            IPreparedChanges? prepared = writer is null
+                ? await harness.Lifecycle.PrepareAsync([LifecycleChange.Add(factory)]).ConfigureAwait(false)
+                : await writer.PrepareAsync([LifecycleChange.Add(factory)]).ConfigureAwait(false);
             var owner = new WeakReference<IPreparedChanges>(prepared);
             WeakReference<IAsyncNodeManager> manager = factory.Candidate!;
             CollectTargets();
@@ -267,7 +257,8 @@ namespace Opc.Ua.Server.Tests.NodeManager
             Assert.That(IsAlive(snapshot), Is.True);
             if (metadata)
             {
-                harness.Data.TypeTree.AddSubtype(new NodeId("retention-conflict", 0), DataTypeIds.BaseDataType);
+                // Appending another namespace at the candidate's private index makes its metadata stale.
+                harness.Data.NamespaceUris.GetIndexOrAppend("urn:test:native-conflict:retention:other");
             }
             else
             {
@@ -280,7 +271,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 async () => await prepared.CommitAsync().ConfigureAwait(false)).ConfigureAwait(false) ??
                 throw new AssertionException("The native unit did not report its conflict.");
             Assert.That(failure, metadata
-                ? Is.TypeOf<OptimisticPublicationConflictException>()
+                ? Is.TypeOf<NodeManagerLifecycleConflictException>()
                 : Is.TypeOf<NodeManagerRoutingConflictException>());
             await prepared.DisposeAsync().ConfigureAwait(false);
             Assert.That(factory.DeleteCount, Is.EqualTo(1));
