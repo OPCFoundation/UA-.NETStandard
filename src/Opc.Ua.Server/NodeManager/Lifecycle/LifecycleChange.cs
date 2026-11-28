@@ -147,6 +147,9 @@ namespace Opc.Ua.Server
         /// <param name="changes">The additions, replacements and removals.</param>
         /// <param name="cancellationToken">Cancels preparation or the pre-publication decision.</param>
         /// <returns>The authoritative committed result, including any reconciliation issues.</returns>
+        /// <exception cref="NodeManagerLifecycleConflictException">
+        /// Another publication changed an input of the prepared changes; nothing was published. Apply again to retry.
+        /// </exception>
         /// <exception cref="ArgumentNullException"><paramref name="lifecycle"/> is null.</exception>
         public static async ValueTask<LifecycleResult> ApplyAsync(
             this INodeManagerLifecycle lifecycle,

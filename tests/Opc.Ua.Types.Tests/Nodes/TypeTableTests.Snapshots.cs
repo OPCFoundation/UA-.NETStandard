@@ -741,5 +741,114 @@ namespace Opc.Ua.Types.Tests.Nodes
                 candidate.Add(node);
             }
         }
+
+        /// <summary>
+        /// Verifies that a rebased merge adds the candidate's registrations onto a newer serving image.
+        /// </summary>
+        [Test]
+        public void RebasedMergeAddsCandidateRegistrationsOntoNewerServingTypes()
+        {
+            TypeTable proposed = m_typeTable.CaptureSnapshot(out TypeTable source, out long revision);
+            var serving = new NodeId(5000);
+            var candidate = new NodeId(6000);
+            proposed.AddSubtype(candidate, s_rootTypeId);
+            m_typeTable.AddSubtype(serving, s_rootTypeId);
+
+            Assert.Throws<OptimisticPublicationConflictException>(() =>
+                m_typeTable.PrepareAdditiveMerge(proposed, source, revision));
+            TypeTable merged = m_typeTable.PrepareAdditiveMerge(
+                proposed, source, revision, rebase: true, out long mergedRevision);
+
+            using (Assert.EnterMultipleScope())
+            {
+                Assert.That(merged.IsTypeOf(candidate, s_rootTypeId), Is.True);
+                Assert.That(merged.IsTypeOf(serving, s_rootTypeId), Is.True);
+                Assert.That(merged.IsTypeOf(s_grandchildTypeId, s_rootTypeId), Is.True);
+                Assert.That(mergedRevision, Is.Not.EqualTo(revision));
+                Assert.That(m_typeTable.IsCurrentSnapshot(source, mergedRevision), Is.True);
+                Assert.That(m_typeTable.IsKnown(candidate), Is.False);
+            }
+        }
+
+        /// <summary>
+        /// Verifies that a rebased merge does not bring back types removed after the capture.
+        /// </summary>
+        [Test]
+        public void RebasedMergeDoesNotRestoreTypesRemovedAfterCapture()
+        {
+            TypeTable proposed = m_typeTable.CaptureSnapshot(out TypeTable source, out long revision);
+            var candidate = new NodeId(6000);
+            proposed.AddSubtype(candidate, s_rootTypeId);
+            m_typeTable.Remove(s_grandchildTypeId);
+
+            TypeTable merged = m_typeTable.PrepareAdditiveMerge(proposed, source, revision, rebase: true, out _);
+
+            using (Assert.EnterMultipleScope())
+            {
+                Assert.That(merged.IsKnown(s_grandchildTypeId), Is.False);
+                Assert.That(merged.IsKnown(candidate), Is.True);
+            }
+        }
+
+        /// <summary>
+        /// Verifies that a re-registered type keeps the candidate's registration version after a rebase, so the
+        /// retirement of the replaced registration does not remove it.
+        /// </summary>
+        [Test]
+        public void RebasedMergeKeepsCandidateRegistrationVersionOfReregisteredType()
+        {
+            TypeTable proposed = m_typeTable.CaptureSnapshot(out TypeTable source, out long revision);
+            long replaced = m_typeTable.GetRegistrationVersion(s_grandchildTypeId);
+            proposed.AddSubtype(s_grandchildTypeId, s_childTypeId);
+            m_typeTable.AddSubtype(new NodeId(5000), s_rootTypeId);
+
+            TypeTable merged = m_typeTable.PrepareAdditiveMerge(proposed, source, revision, rebase: true, out _);
+
+            using (Assert.EnterMultipleScope())
+            {
+                Assert.That(merged.GetRegistrationVersion(s_grandchildTypeId),
+                    Is.EqualTo(proposed.GetRegistrationVersion(s_grandchildTypeId)));
+                Assert.That(merged.GetRegistrationVersion(s_grandchildTypeId), Is.Not.EqualTo(replaced));
+                Assert.That(merged.IsTypeOf(s_grandchildTypeId, s_childTypeId), Is.True);
+            }
+        }
+
+        /// <summary>
+        /// Verifies that a rebased merge rejects a type that another publication registered, replaced or removed
+        /// after the capture, and a supertype that disappeared.
+        /// </summary>
+        /// <param name="change">The serving change made after the capture.</param>
+        [TestCase("SameNewType")]
+        [TestCase("ReregisteredType")]
+        [TestCase("RemovedType")]
+        [TestCase("RemovedSupertype")]
+        public void RebasedMergeRejectsOverlappingTypeChanges(string change)
+        {
+            TypeTable proposed = m_typeTable.CaptureSnapshot(out TypeTable source, out long revision);
+            var added = new NodeId(6000);
+            switch (change)
+            {
+                case "SameNewType":
+                    proposed.AddSubtype(added, s_rootTypeId);
+                    m_typeTable.AddSubtype(added, s_rootTypeId);
+                    break;
+                case "ReregisteredType":
+                    proposed.AddSubtype(s_grandchildTypeId, s_childTypeId);
+                    m_typeTable.AddSubtype(s_grandchildTypeId, s_childTypeId);
+                    break;
+                case "RemovedType":
+                    proposed.AddSubtype(s_grandchildTypeId, s_childTypeId);
+                    m_typeTable.Remove(s_grandchildTypeId);
+                    break;
+                default:
+                    proposed.AddSubtype(added, s_childTypeId);
+                    m_typeTable.Remove(s_grandchildTypeId);
+                    m_typeTable.Remove(s_childTypeId);
+                    break;
+            }
+
+            Assert.Throws<OptimisticPublicationConflictException>(() =>
+                m_typeTable.PrepareAdditiveMerge(proposed, source, revision, rebase: true, out _));
+        }
     }
 }

@@ -1946,36 +1946,37 @@ It preserves serving type relationships, reference names, encoding ownership and
 A replacement must not reparent a serving type, reuse a reference name or encoding for another
 type, or change a registered CLR type, XML name or data type definition. Such changes fail before
 the decision callback; use new type and encoding identifiers for incompatible definitions.
-Preparation also requires the same serving identity and revision at commit: even an unrelated
-concurrent metadata addition makes the batch stale and requires preparation again.
-
 Preparation captures its serving view and private metadata under the lifecycle writer, then
 releases the writer before invoking factories, address-space creation, reload participants or
 NodeId policy preparation. A generation admission protects a current participant while these
-callbacks run. Unrelated changes may publish concurrently. Commit rejects a changed serving
-view with `InvalidOperationException` before the durable decision; an explicit prepared batch
-does not rerun factories or rebase private namespace indexes.
+callbacks run. Changes on other NodeManagers may publish concurrently, and a batch prepared
+before such a publication still commits: commit moves it onto the newer address space instead of
+rejecting it. Only what the batch itself prepared is checked against what changed meanwhile:
 
-The compatibility `AddAsync`, `ReloadAsync` and `RemoveAsync` extensions retry a routing-view
-conflict caused by an independent publication. Each attempt disposes its uncommitted batch
-before preparing against the current view, so private namespace indexes are reconstructed
-rather than rebased. An addition or replacement factory may therefore run again; it must
-support aborted candidates and repeated construction. Use an explicit prepared batch when
-application code must control reconstruction. Only conflicts from that batch's own routing
-checks permit retry; a nested explicit batch's failure remains an error of the callback that
-invoked it. Factory failures, registration ownership changes and failed aborts remain errors.
-The extensions never retry after their decision begins or the batch commits.
-They permit at most three attempts. Pass a cancellation token to bound waits
-within those attempts. Slot-based change sets and explicit prepared units do
-not perform these convenience-adapter retries.
+- the registrations it replaces or removes must still be current;
+- every namespace and server URI index it assigned must still map to the same URI. Two batches
+  that append different namespaces at the same index conflict;
+- every type it registers must still have the serving registration it saw at preparation, and
+  its supertypes must still exist. The same holds for every encodeable registration it adds;
+- reference-owner discovery and the diagnostics conformance image are computed again against the
+  newer view. They are not a conflict.
 
-Commit also releases the writer while discovering monitored-item transitions. The current
-generation remains admitted until discovery ends and the writer revalidates the captured view.
-A concurrent publication makes the transaction stale before its durable decision is invoked.
-Reference-owner discovery also runs outside the writer and host publication semaphores.
-It pins the captured view and admits each existing owner callback through that generation's
-gate. Reference edits capture each source's version before later owner callbacks run;
-publication revalidates the view, contribution map, and source versions before deciding.
+A batch that fails these checks is rejected with `NodeManagerLifecycleConflictException` before the
+durable decision callback runs; nothing of it is published. The conflict is retryable: dispose the
+rejected batch and prepare the changes again against the current address space. Calling `CommitAsync`
+again on the rejected batch does not retry it, and an explicit prepared batch never reruns factories.
+Other `InvalidOperationException` failures (factory failures, incompatible type definitions, failed
+aborts) are not resolved by a retry. A batch begun from an `ILifecycleCapture` keeps its exact-revision
+semantics: any newer publication makes it a `NodeManagerLifecycleConflictException`.
+
+Commit also releases the writer while discovering monitored-item transitions and reference owners.
+The current generation remains admitted until discovery ends and the writer revalidates the view.
+Reference-owner discovery runs outside the writer and host publication semaphores. It pins the
+view and admits each existing owner callback through that generation's gate. Reference edits
+capture each source's version before later owner callbacks run; publication revalidates the view,
+contribution map, and source versions before deciding. When another commit publishes during
+discovery, discovery runs again against the newer view (up to eight times before the batch is
+rejected as a conflict).
 
 ```csharp
 await using IPreparedChanges prepared = await lifecycle.PrepareAsync(

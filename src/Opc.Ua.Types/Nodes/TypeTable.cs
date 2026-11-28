@@ -565,6 +565,7 @@ namespace Opc.Ua
                 }
 
                 // create the type info.
+                TrackStagedRegistration(node.NodeId);
                 m_revision++;
                 if (!m_nodes.TryGetValue(node.NodeId, out TypeInfo? typeInfo))
                 {
@@ -694,6 +695,7 @@ namespace Opc.Ua
                 }
                 EnsureMutable();
                 EnsureWritableGraph();
+                TrackStagedRegistration(dataTypeId);
                 typeInfo = m_nodes[dataTypeId];
                 if (typeInfo.Encodings == null)
                 {
@@ -752,6 +754,7 @@ namespace Opc.Ua
                 }
 
                 // create the type info.
+                TrackStagedRegistration(subTypeId);
                 m_revision++;
                 if (!m_nodes.TryGetValue(subTypeId, out TypeInfo? typeInfo))
                 {

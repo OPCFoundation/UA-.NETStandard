@@ -421,8 +421,12 @@ namespace Opc.Ua.Server
                 {
                     if (!generation.Gate.TryEnter(out int stripe))
                     {
-                        throw new InvalidOperationException(
-                            "A conformance contributor retired before its generation could be admitted.");
+                        const string retired =
+                            "A conformance contributor retired before its generation could be admitted.";
+                        // A batch's view was superseded by a concurrent commit: the batch rebases and reads again.
+                        throw preparingFrom is not null
+                            ? new NodeManagerRoutingConflictException(retired, preparingFrom) { StaleDiscovery = true }
+                            : new InvalidOperationException(retired);
                     }
                     admissions.Add((generation, stripe));
                 }

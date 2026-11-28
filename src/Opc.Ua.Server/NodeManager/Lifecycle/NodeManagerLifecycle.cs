@@ -2205,6 +2205,127 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
+        /// The number of times a batch is rebased onto a newer serving view before the conflict is reported.
+        /// </summary>
+        private const int kMaxRebaseAttempts = 8;
+
+        /// <summary>
+        /// Gets whether a batch may move onto a newer serving view. Explicit captures
+        /// (<see cref="ILifecycleCapture"/>) and startup or shutdown publications require their exact view.
+        /// </summary>
+        private static bool CanRebase(PreparationPayload batch)
+        {
+            return batch.Publication is null && batch.Initial is null && batch.Shutdown is null;
+        }
+
+        /// <summary>
+        /// Keeps a prepared batch on the current serving view. The caller holds the lifecycle writer.
+        /// </summary>
+        /// <remarks>
+        /// The routing view moves on every commit. A batch depends on it only through the registrations it
+        /// replaces or removes; node ids are reserved during preparation, and namespaces, server URIs, types
+        /// and encodeable registrations are checked by their own revisions at publication. Reference discovery
+        /// and the conformance image are computed against the view the batch is rebased onto.
+        /// </remarks>
+        /// <param name="batch">The prepared batch.</param>
+        /// <param name="message">The diagnostic for a batch that cannot be rebased.</param>
+        /// <exception cref="NodeManagerRoutingConflictException">
+        /// A registration of the batch changed, or the batch requires its exact view.
+        /// </exception>
+        private void RebaseOrReject(PreparationPayload batch, string message)
+        {
+            foreach (BatchEntry entry in batch.Entries)
+            {
+                if (entry.Current is null)
+                {
+                    continue;
+                }
+                bool current;
+                lock (m_registrationLock)
+                {
+                    current = m_registrations.TryGetValue(entry.Current.Registration.Id, out RegistrationState? state) &&
+                        ReferenceEquals(state, entry.Current);
+                }
+                if (!current)
+                {
+                    throw new NodeManagerRoutingConflictException(
+                        "A registration changed while the batch was prepared.", batch.RoutingRevision);
+                }
+                _ = GetCurrentState(
+                    entry.Current.Registration,
+                    batch.Shutdown is not null,
+                    allowRemovalAfterFailedReadiness: entry.Change.Factory is null);
+            }
+            NodeManagerRoutingTable.RoutingSnapshot serving = batch.Host.RoutingRevision;
+            if (ReferenceEquals(serving, batch.RoutingRevision))
+            {
+                return;
+            }
+            if (!CanRebase(batch))
+            {
+                throw new NodeManagerRoutingConflictException(message, batch.RoutingRevision);
+            }
+            // Fails fast, before discovery runs again; publication checks the final tables authoritatively.
+            if (!IsPrefixConsistent(batch.Preparation.NamespaceUris, batch.Server.NamespaceUris) ||
+                !IsPrefixConsistent(batch.Preparation.ServerUris, batch.Server.ServerUris))
+            {
+                throw new NodeManagerRoutingConflictException(
+                    "A namespace or server URI index the batch assigned now identifies another URI.",
+                    batch.RoutingRevision);
+            }
+            batch.Rebase(serving);
+
+            static bool IsPrefixConsistent(StringTable prepared, StringTable serving)
+            {
+                string[] staged = prepared.ToArray();
+                string[] current = serving.ToArray();
+                int common = Math.Min(staged.Length, current.Length);
+                for (int index = 0; index < common; index++)
+                {
+                    if (!string.Equals(staged[index], current[index], StringComparison.Ordinal))
+                    {
+                        return false;
+                    }
+                }
+                return true;
+            }
+        }
+
+        /// <summary>
+        /// Adds the diagnostics conformance image for the batch's current view to its read images.
+        /// </summary>
+        private static ArrayOf<INodeManagerReadImage> PrepareConformanceReadImages(
+            PreparationPayload batch,
+            Dictionary<NodeManagerGeneration, ConformanceUnitsManager.NodeManagerContribution>? stagedConformance)
+        {
+            ArrayOf<INodeManagerReadImage> readImages = batch.ReadImages;
+            if (batch.Entries.Count != 0 && stagedConformance is not null &&
+                batch.Server is IConformanceUnitsManagerProvider { ConformanceUnitsManager: { } catalog } &&
+                batch.Server.DiagnosticsNodeManager is DiagnosticsNodeManager diagnostics &&
+                batch.RoutingRevision.TryGetGeneration(diagnostics, out NodeManagerGeneration? diagnosticsOwner))
+            {
+                var retiringGenerations = new HashSet<NodeManagerGeneration>(RefEqualityComparer.Default);
+                foreach (BatchEntry entry in batch.Entries)
+                {
+                    if (entry.Current is { } current)
+                    {
+                        retiringGenerations.Add(current.Registration.Identity);
+                    }
+                }
+                if (diagnosticsOwner is not null && !retiringGenerations.Contains(diagnosticsOwner))
+                {
+                    readImages =
+                    [
+                        .. readImages,
+                        catalog.PrepareReadImage(diagnostics, batch.RoutingRevision,
+                            retiringGenerations, stagedConformance)
+                    ];
+                }
+            }
+            return readImages;
+        }
+
+        /// <summary>
         /// Validates or commits a prepared batch: switches routing to the prepared image, retires replaced generations,
         /// and reports cleanup failures after the commit.
         /// </summary>
@@ -2260,24 +2381,9 @@ namespace Opc.Ua.Server
                         }
                     }
                 }
-                if (!ReferenceEquals(
-                    batch.Host.RoutingRevision, batch.RoutingRevision))
-                {
-                    throw new NodeManagerRoutingConflictException(
-                        "The address space changed while the batch was prepared.", batch.RoutingRevision);
-                }
+                RebaseOrReject(batch, "The address space changed while the batch was prepared.");
                 foreach (BatchEntry entry in batch.Entries)
                 {
-                    if (entry.Current is not null &&
-                        !ReferenceEquals(
-                            GetCurrentState(
-                                entry.Current.Registration,
-                                batch.Shutdown is not null,
-                                allowRemovalAfterFailedReadiness: entry.Change.Factory is null),
-                            entry.Current))
-                    {
-                        throw new InvalidOperationException("A registration changed while the batch was prepared.");
-                    }
                     if (entry.Current is not null)
                     {
                         NodeManagerGeneration generation = entry.Current.Registration.Identity;
@@ -2341,37 +2447,65 @@ namespace Opc.Ua.Server
                         batch.Server is IConformanceUnitsManagerProvider { ConformanceUnitsManager: not null }
                             ? ConformanceUnitsManager.StageContributions(candidates)
                             : null;
-                ArrayOf<INodeManagerReadImage> readImages = batch.ReadImages;
-                if (batch.Entries.Count != 0 && stagedConformance is not null &&
-                    batch.Server is IConformanceUnitsManagerProvider { ConformanceUnitsManager: { } catalog } &&
-                    batch.Server.DiagnosticsNodeManager is DiagnosticsNodeManager diagnostics &&
-                    batch.RoutingRevision.TryGetGeneration(diagnostics, out NodeManagerGeneration? diagnosticsOwner))
+                // Reference discovery runs outside the writer, so a commit on other managers can move the serving
+                // view meanwhile. The batch is then rebased and discovery repeated against the newer view, which is the
+                // serial outcome. Only a change of the batch's own inputs is a conflict: its registrations, its namespace
+                // indexes, or an exact-revision capture.
+                ArrayOf<INodeManagerReadImage> readImages;
+                PreparedAddressSpaceReferences? preparedReferences = null;
+                INodeManagerBatchAdmission? acquiredAdmission = null;
+                for (int attempt = 1; ; attempt++)
                 {
-                    var retiringGenerations = new HashSet<NodeManagerGeneration>(RefEqualityComparer.Default);
-                    foreach (BatchEntry entry in batch.Entries)
+                    try
                     {
-                        if (entry.Current is { } current)
+                        readImages = PrepareConformanceReadImages(batch, stagedConformance);
+                        preparedReferences = await batch.Host.PrepareReferencesAsync(
+                            candidates,
+                            removed,
+                            batch.RoutingRevision,
+                            cancellationToken,
+                            batch.CallbackPermit).ConfigureAwait(false);
+                        acquiredAdmission = await batch.Host.AcquireCommitAdmissionAsync(
+                            batch.CallbackPermit, cancellationToken).ConfigureAwait(false);
+                        mutation = await m_writer.BeginMutationAsync(cancellationToken).ConfigureAwait(false);
+                        EnsurePublicationServer(batch.Server, batch.Host, batch.Initial, batch.Shutdown, readiness);
+                        if (ReferenceEquals(batch.Host.RoutingRevision, batch.RoutingRevision))
                         {
-                            retiringGenerations.Add(current.Registration.Identity);
+                            break;
                         }
+                        if (attempt >= kMaxRebaseAttempts)
+                        {
+                            throw new NodeManagerRoutingConflictException(
+                                "The address space changed while transitions were prepared.", batch.RoutingRevision);
+                        }
+                        RebaseOrReject(batch, "The address space changed while transitions were prepared.");
                     }
-                    if (diagnosticsOwner is not null && !retiringGenerations.Contains(diagnosticsOwner))
+                    catch (NodeManagerRoutingConflictException stale) when (
+                        stale.StaleDiscovery && acquiredAdmission is null)
                     {
-                        readImages =
-                        [
-                            .. readImages,
-                            catalog.PrepareReadImage(diagnostics, batch.RoutingRevision,
-                                retiringGenerations, stagedConformance)
-                        ];
+                        // The host's own discovery observed a newer view (never a nested batch's conflict raised
+                        // inside an owner callback). Rebase under the writer and discover again.
+                        if (attempt >= kMaxRebaseAttempts || !CanRebase(batch))
+                        {
+                            throw new NodeManagerRoutingConflictException(stale.Message, batch.RoutingRevision);
+                        }
+                        mutation = await m_writer.BeginMutationAsync(cancellationToken).ConfigureAwait(false);
+                        RebaseOrReject(batch, stale.Message);
                     }
+                    catch
+                    {
+                        preparedReferences?.Dispose();
+                        acquiredAdmission?.Dispose();
+                        throw;
+                    }
+                    mutation.Dispose();
+                    preparedReferences?.Dispose();
+                    preparedReferences = null;
+                    acquiredAdmission?.Dispose();
+                    acquiredAdmission = null;
                 }
-                using PreparedAddressSpaceReferences references =
-                    await batch.Host.PrepareReferencesAsync(
-                        candidates,
-                        removed,
-                        batch.RoutingRevision,
-                        cancellationToken,
-                        batch.CallbackPermit).ConfigureAwait(false);
+                using PreparedAddressSpaceReferences references = preparedReferences!;
+                using INodeManagerBatchAdmission admission = acquiredAdmission!;
                 foreach (KeyValuePair<IAsyncNodeManager, List<LocalReference>> deferred in references.DeferredRemovals)
                 {
                     RetiredGeneration? retirement = retired.FirstOrDefault(item =>
@@ -2382,18 +2516,6 @@ namespace Opc.Ua.Server
                             "A deferred reference removal has no retiring NodeManager.");
                     }
                     retirement.PendingReferences.AddRange(deferred.Value);
-                }
-
-                using INodeManagerBatchAdmission admission =
-                    await batch.Host.AcquireCommitAdmissionAsync(
-                        batch.CallbackPermit, cancellationToken).ConfigureAwait(false);
-                mutation = await m_writer.BeginMutationAsync(cancellationToken).ConfigureAwait(false);
-                EnsurePublicationServer(batch.Server, batch.Host, batch.Initial, batch.Shutdown, readiness);
-                if (!ReferenceEquals(
-                    batch.Host.RoutingRevision, batch.RoutingRevision))
-                {
-                    throw new NodeManagerRoutingConflictException(
-                        "The address space changed while transitions were prepared.", batch.RoutingRevision);
                 }
                 foreach ((NodeManagerGeneration generation, int stripe) in preparationAdmissions)
                 {
@@ -2412,8 +2534,8 @@ namespace Opc.Ua.Server
                                 out RegistrationState? current) ||
                                 !ReferenceEquals(current, entry.Current)))
                         {
-                            throw new InvalidOperationException(
-                                "A registration changed while the batch was prepared.");
+                            throw new NodeManagerRoutingConflictException(
+                                "A registration changed while the batch was prepared.", batch.RoutingRevision);
                         }
                     }
 
@@ -2496,7 +2618,8 @@ namespace Opc.Ua.Server
                         References: references,
                         CallbackPermit: batch.CallbackPermit,
                         Admission: admission,
-                        Progress: batch.PublicationProgress);
+                        Progress: batch.PublicationProgress,
+                        Rebase: CanRebase(batch));
                     committedReferences = await batch.Host.CommitBatchAsync(context).ConfigureAwait(false);
                 }
                 catch (Exception failure) when (
@@ -3622,9 +3745,20 @@ namespace Opc.Ua.Server
             public int NamespaceCount { get; }
 
             /// <summary>
-            /// Gets the serving view that must remain current until publication admission.
+            /// Gets the serving view the batch is prepared against. It must be current at publication admission.
+            /// A batch whose own inputs did not change is rebased onto a newer view instead of being rejected.
             /// </summary>
-            public NodeManagerRoutingTable.RoutingSnapshot RoutingRevision { get; }
+            public NodeManagerRoutingTable.RoutingSnapshot RoutingRevision { get; private set; }
+
+            /// <summary>
+            /// Moves the batch onto a newer serving view. The caller holds the lifecycle writer and has verified
+            /// that every registration the batch replaces or removes is still current.
+            /// </summary>
+            /// <param name="current">The current serving view.</param>
+            public void Rebase(NodeManagerRoutingTable.RoutingSnapshot current)
+            {
+                RoutingRevision = current;
+            }
 
             /// <summary>
             /// Gets the private type tree image of the batch.
@@ -4029,7 +4163,12 @@ namespace Opc.Ua.Server
                     }
                     catch (Exception failure) when (failure is not OutOfMemoryException)
                     {
-                        executionFailure = failure;
+                        // A stale type, factory, namespace or reference image found before the decision is the
+                        // same retryable conflict as a stale routing view.
+                        executionFailure = failure is OptimisticPublicationConflictException &&
+                            !payload.DecisionCommitted && !payload.IsCommitted
+                                ? new NodeManagerLifecycleConflictException(failure.Message, failure)
+                                : failure;
                     }
                     if (!payload.IsCommitted &&
                         !payload.DecisionCommitted &&

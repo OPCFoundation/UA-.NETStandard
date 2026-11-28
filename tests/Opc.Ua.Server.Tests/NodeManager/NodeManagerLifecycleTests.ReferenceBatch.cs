@@ -1259,7 +1259,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     }
                     catch (InvalidOperationException conflict) when (
                         conflict is NodeManagerRoutingConflictException ||
-                        (conflict.GetType() == typeof(InvalidOperationException) &&
+                        (conflict.GetType() == typeof(NodeManagerLifecycleConflictException) &&
                             conflict.Message ==
                                 "The publication invocation conflicts with a newer address-space revision."))
                     {
@@ -1525,7 +1525,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                         }
                         catch (InvalidOperationException conflict)
                         {
-                            Assert.That(conflict, Is.TypeOf<InvalidOperationException>());
+                            Assert.That(conflict, Is.TypeOf<NodeManagerLifecycleConflictException>());
                             Assert.That(conflict.Message,
                                 Is.EqualTo(
                                     "The publication invocation conflicts with a newer address-space revision."));
@@ -2187,7 +2187,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 if (removeContributor)
                 {
                     await Assert.ThatAsync(() => prepared.CommitAsync(DecideAsync, timeout.Token).AsTask(),
-                        Throws.TypeOf<OptimisticPublicationConflictException>()
+                        Throws.TypeOf<NodeManagerLifecycleConflictException>()
                             .With.Message.StartsWith("Serving references changed during preparation."))
                         .ConfigureAwait(false);
                     Assert.That(decisions, Is.Zero);

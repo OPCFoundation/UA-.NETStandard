@@ -249,14 +249,14 @@ namespace Opc.Ua.Server.Tests.NodeManager
             {
                 Assert.That(first.IsCurrent, Is.True);
                 Assert.That(second.IsCurrent, Is.False);
-                Assert.Throws<InvalidOperationException>(() => second.ValidateRevision());
+                Assert.Throws<NodeManagerLifecycleConflictException>(() => second.ValidateRevision());
             }
             int preparations = 0;
             await Assert.ThatAsync(async () => await second.PrepareAsync(() =>
             {
                 preparations++;
                 return new ValueTask<PublicationCleanup>(new PublicationCleanup(() => { }));
-            }).ConfigureAwait(false), Throws.TypeOf<InvalidOperationException>()).ConfigureAwait(false);
+            }).ConfigureAwait(false), Throws.TypeOf<NodeManagerLifecycleConflictException>()).ConfigureAwait(false);
             Assert.That(preparations, Is.Zero);
             _ = await first.PrepareAsync(() =>
             {

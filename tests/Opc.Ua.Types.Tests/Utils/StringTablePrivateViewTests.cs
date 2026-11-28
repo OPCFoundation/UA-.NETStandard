@@ -397,6 +397,65 @@ namespace Opc.Ua.Types.Tests.Utils
             Assert.That(destination.Version, Is.EqualTo(version));
         }
 
+        /// <summary>
+        /// A rebased publication without additions keeps the entries appended after preparation.
+        /// </summary>
+        /// <param name="namespaces">Whether the table is a namespace table.</param>
+        [TestCase(false)]
+        [TestCase(true)]
+        public void RebasedPublicationKeepsEntriesAppendedAfterPreparation(bool namespaces)
+        {
+            StringTable serving = CreateTable(namespaces);
+            StringTable staged = serving.CaptureSnapshot();
+            long version = serving.Version;
+            serving.Append("urn:other");
+
+            Assert.Throws<OptimisticPublicationConflictException>(() => serving.BeginPublication(staged, version));
+            using (StringTable.Publication publication = serving.BeginPublication(staged, version, rebase: true))
+            {
+                publication.Complete();
+            }
+            Assert.That(serving.ToArray(), Is.EqualTo([Namespaces.OpcUa, "urn:base", "urn:other"]));
+        }
+
+        /// <summary>
+        /// A rebased publication accepts entries appended meanwhile at the indexes it prepared, when they match.
+        /// </summary>
+        [Test]
+        public void RebasedPublicationAcceptsMatchingEntryAtPreparedIndex()
+        {
+            StringTable serving = CreateTable(namespaces: true);
+            StringTable staged = serving.CaptureSnapshot();
+            staged.Append("urn:shared");
+            staged.Append("urn:candidate");
+            long version = serving.Version;
+            serving.Append("urn:shared");
+
+            using (StringTable.Publication publication = serving.BeginPublication(staged, version, rebase: true))
+            {
+                publication.Complete();
+            }
+            Assert.That(serving.ToArray(),
+                Is.EqualTo([Namespaces.OpcUa, "urn:base", "urn:shared", "urn:candidate"]));
+        }
+
+        /// <summary>
+        /// A rebased publication rejects a different entry appended meanwhile at an index it prepared.
+        /// </summary>
+        [Test]
+        public void RebasedPublicationRejectsDifferentEntryAtPreparedIndex()
+        {
+            StringTable serving = CreateTable(namespaces: true);
+            StringTable staged = serving.CaptureSnapshot();
+            staged.Append("urn:candidate");
+            long version = serving.Version;
+            serving.Append("urn:other");
+
+            Assert.Throws<OptimisticPublicationConflictException>(() =>
+                serving.BeginPublication(staged, version, rebase: true));
+            Assert.That(serving.ToArray(), Is.EqualTo([Namespaces.OpcUa, "urn:base", "urn:other"]));
+        }
+
         private static StringTable CreateTable(bool namespaces)
         {
             return namespaces

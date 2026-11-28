@@ -38,6 +38,7 @@ namespace Opc.Ua
                 revision = m_revision;
                 var storage = new Storage();
                 storage.ShareGraphFrom(m_storage);
+                storage.StagedRegistrations = [];
                 NamespaceTable capturedNamespaces = namespaceUris
                     ?? (copyNamespaceUris
                         ? new NamespaceTable(m_namespaceUris.GetSnapshot(out _).ToArray()!)
@@ -143,12 +144,43 @@ namespace Opc.Ua
         /// <exception cref="InvalidOperationException"></exception>
         internal TypeTable PrepareAdditiveMerge(TypeTable additions, TypeTable source, long revision)
         {
+            return PrepareAdditiveMerge(additions, source, revision, rebase: false, out _);
+        }
+
+        /// <summary>
+        /// Builds a compatible additive graph without changing either input, optionally rebasing the private
+        /// registrations onto a newer serving revision.
+        /// </summary>
+        /// <remarks>
+        /// Without <paramref name="rebase"/> the serving revision must still match preparation. With it, a newer
+        /// revision is accepted: only the types the candidate registered are merged, and each must still have the
+        /// serving registration it had when the batch was prepared. A type another publication registered or
+        /// removed meanwhile, or a supertype that disappeared, is an <see cref="OptimisticPublicationConflictException"/>.
+        /// Publication must reserve <paramref name="mergedRevision"/> before the durable decision.
+        /// </remarks>
+        /// <param name="additions">The privately prepared type graph.</param>
+        /// <param name="source">The serving table captured before preparation.</param>
+        /// <param name="revision">The captured serving revision.</param>
+        /// <param name="rebase">Whether a newer serving revision may be merged.</param>
+        /// <param name="mergedRevision">The serving revision the result was merged onto.</param>
+        /// <returns>The independently owned merged graph.</returns>
+        /// <exception cref="ArgumentNullException"></exception>
+        /// <exception cref="InvalidOperationException"></exception>
+        internal TypeTable PrepareAdditiveMerge(
+            TypeTable additions,
+            TypeTable source,
+            long revision,
+            bool rebase,
+            out long mergedRevision)
+        {
             if (additions is null)
             {
                 throw new ArgumentNullException(nameof(additions));
             }
             TypeTable merged = CaptureSnapshot(out TypeTable current, out long currentRevision);
-            if (!ReferenceEquals(source, current) || revision != currentRevision)
+            mergedRevision = currentRevision;
+            bool rebased = revision != currentRevision;
+            if (!ReferenceEquals(source, current) || (rebased && !rebase))
             {
                 throw new OptimisticPublicationConflictException("Serving types changed after the batch was prepared.");
             }
@@ -156,10 +188,44 @@ namespace Opc.Ua
             {
                 return merged;
             }
+            HashSet<NodeId>? only = null;
+            if (rebased)
+            {
+                Dictionary<NodeId, long> staged;
+                lock (additions.m_lock)
+                {
+                    if (additions.m_stagedRegistrations is null ||
+                        additions.m_captureSource is null ||
+                        !additions.m_captureSource.TryGetTarget(out TypeTable? captured) ||
+                        !ReferenceEquals(captured, source) ||
+                        additions.m_captureRevision != revision)
+                    {
+                        throw new OptimisticPublicationConflictException(
+                            "Serving types changed after the batch was prepared.");
+                    }
+                    staged = new Dictionary<NodeId, long>(additions.m_stagedRegistrations);
+                }
+                foreach (KeyValuePair<NodeId, long> registration in staged)
+                {
+                    long serving = merged.m_nodes.TryGetValue(registration.Key, out TypeInfo? existing)
+                        ? existing.RegistrationVersion
+                        : 0;
+                    if (serving != registration.Value)
+                    {
+                        throw new OptimisticPublicationConflictException(
+                            $"Type '{registration.Key}' changed after the batch was prepared.");
+                    }
+                }
+                only = [.. staged.Keys];
+            }
             TypeTable proposed = additions.CaptureSnapshot(out _, out _);
             merged.EnsureWritableGraph();
             foreach (KeyValuePair<NodeId, TypeInfo> entry in proposed.m_nodes)
             {
+                if (only is not null && !only.Contains(entry.Key))
+                {
+                    continue;
+                }
                 TypeInfo candidate = entry.Value;
                 if (merged.m_nodes.TryGetValue(entry.Key, out TypeInfo? existing))
                 {
@@ -184,6 +250,10 @@ namespace Opc.Ua
             }
             foreach (KeyValuePair<NodeId, TypeInfo> entry in proposed.m_nodes)
             {
+                if (only is not null && !only.Contains(entry.Key))
+                {
+                    continue;
+                }
                 TypeInfo candidate = entry.Value;
                 TypeInfo target = merged.m_nodes[entry.Key];
                 if (candidate.SuperType is { } parent)
@@ -194,8 +264,11 @@ namespace Opc.Ua
                         {
                             continue;
                         }
-                        throw new InvalidOperationException(
-                            $"Type '{entry.Key}' requires an unavailable supertype '{parent.NodeId}'.");
+                        // The capture had the supertype, so another publication removed it meanwhile.
+                        string missing = $"Type '{entry.Key}' requires an unavailable supertype '{parent.NodeId}'.";
+                        throw only is not null
+                            ? new OptimisticPublicationConflictException(missing)
+                            : new InvalidOperationException(missing);
                     }
                     target.SuperType = superType;
                     superType.AddSubType(target);
@@ -235,6 +308,10 @@ namespace Opc.Ua
             }
             foreach (KeyValuePair<NodeId, TypeInfo> encoding in proposed.m_encodings)
             {
+                if (only is not null && !only.Contains(encoding.Value.NodeId))
+                {
+                    continue;
+                }
                 if (!merged.m_nodes.TryGetValue(encoding.Value.NodeId, out TypeInfo? target))
                 {
                     throw new InvalidOperationException(
@@ -331,6 +408,11 @@ namespace Opc.Ua
 
         private HashSet<NodeId> m_candidateLocalTypes = [];
 
+        /// <summary>
+        /// The types a captured table registered privately, with the serving registration version each replaced.
+        /// </summary>
+        private Dictionary<NodeId, long>? m_stagedRegistrations => m_storage.StagedRegistrations;
+
         /// <summary>The serving revision from which this private graph was copied.</summary>
         private long m_captureRevision;
         private long m_revision
@@ -371,6 +453,21 @@ namespace Opc.Ua
             return m_rejectConflictingDefinitions || m_candidateLocalTypes.Contains(typeId);
         }
 
+        /// <summary>
+        /// Records the first private registration of a type in a captured table, with the serving registration
+        /// version it replaces (zero when the capture did not contain the type). Called under the table lock.
+        /// </summary>
+        private void TrackStagedRegistration(NodeId typeId)
+        {
+            Dictionary<NodeId, long>? staged = m_stagedRegistrations;
+            if (staged is not null && !staged.ContainsKey(typeId))
+            {
+                staged.Add(
+                    typeId,
+                    m_nodes.TryGetValue(typeId, out TypeInfo? captured) ? captured.RegistrationVersion : 0);
+            }
+        }
+
         private void TrackCandidateType(NodeId typeId)
         {
             if (m_captureSource is not null)
@@ -392,6 +489,12 @@ namespace Opc.Ua
         /// </summary>
         private sealed class Storage
         {
+            /// <summary>
+            /// The types registered through a captured storage, with the serving registration version each
+            /// replaced (zero when the capture did not contain the type). Null for serving storage.
+            /// </summary>
+            internal Dictionary<NodeId, long>? StagedRegistrations;
+
             /// <summary>
             /// Initializes an empty registration graph.
             /// </summary>

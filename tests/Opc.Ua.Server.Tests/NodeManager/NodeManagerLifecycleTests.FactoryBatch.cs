@@ -966,8 +966,12 @@ namespace Opc.Ua.Server.Tests.NodeManager
             Assert.That(holder.TryResolve(structure, out _), Is.EqualTo(publish));
         }
 
+        /// <summary>
+        /// An encodeable registration made after preparation under a key the batch does not register is not an
+        /// input of the batch: the commit merges the batch's registrations onto it and keeps it.
+        /// </summary>
         [Test]
-        public async Task PreparedBatchRejectsChangedFactoryBeforeDecisionAsync()
+        public async Task PreparedBatchRebasesOntoUnrelatedFactoryChangeAsync()
         {
             INodeManagerLifecycle lifecycle = m_server.NodeManagerLifecycle;
             await using IPreparedChanges prepared = await lifecycle.PrepareAsync(
@@ -979,15 +983,15 @@ namespace Opc.Ua.Server.Tests.NodeManager
             ExpandedNodeId alias = new(8305, "urn:opcfoundation.org:Tests:ConcurrentFactory");
             factory.Builder.AddEncodeableType(alias, type).Commit();
             int decisions = 0;
-            await Assert.ThatAsync(() => prepared.CommitAsync(_ =>
+            await prepared.CommitAsync(_ =>
             {
                 decisions++;
                 return default;
-            }).AsTask(), Throws.TypeOf<OptimisticPublicationConflictException>()).ConfigureAwait(false);
-            Assert.That(decisions, Is.Zero);
+            }).ConfigureAwait(false);
+            Assert.That(decisions, Is.EqualTo(1));
             Assert.That(factory.TryGetEncodeableType(alias, out IEncodeableType? retained), Is.True);
             Assert.That(retained, Is.SameAs(type));
-            Assert.That(prepared.IsCommitted, Is.False);
+            Assert.That(prepared.IsCommitted, Is.True);
         }
 
         [TestCase(false)]

@@ -34,7 +34,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 .ConfigureAwait(false))
             {
                 Assert.That(invocation.IsCurrent, Is.False);
-                await Assert.ThrowsAsync<InvalidOperationException>(async () =>
+                await Assert.ThrowsAsync<NodeManagerLifecycleConflictException>(async () =>
                     await invocation.PrepareAsync([LifecycleChange.Add(factory)], timeout.Token).ConfigureAwait(false))
                     .ConfigureAwait(false);
                 await using ILifecycleWriter peer = await lifecycle.CaptureChanges()
@@ -131,7 +131,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 () => invocation.PrepareAsync(
                 [LifecycleChange.Replace(
                 replaced.Registrations[0].Slot, rejectedFactory)], timeout.Token).AsTask(),
-                Throws.TypeOf<InvalidOperationException>()).ConfigureAwait(false);
+                Throws.TypeOf<NodeManagerLifecycleConflictException>()).ConfigureAwait(false);
             using (Assert.EnterMultipleScope())
             {
                 Assert.That(invocation.IsCurrent, Is.False);

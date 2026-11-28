@@ -379,6 +379,10 @@ namespace Opc.Ua.Server
     /// <param name="CallbackPermit">The callback permit captured when preparation began, if any.</param>
     /// <param name="Admission">The semantic host admission acquired before mutation ownership.</param>
     /// <param name="Progress">The transaction's core-publication progress, distinct from the route swap.</param>
+    /// <param name="Rebase">
+    /// Whether the type, factory, namespace and server URI images may have moved since preparation. Only the
+    /// batch's own registrations are merged onto them, and an overlapping change is a conflict.
+    /// </param>
     internal sealed record NodeManagerPublicationPlan(
         ArrayOf<PreparedNodeManager> Candidates,
         ArrayOf<IAsyncNodeManager> Removed,
@@ -396,7 +400,8 @@ namespace Opc.Ua.Server
         PreparedAddressSpaceReferences? References = null,
         NodeManagerCallbackPermit? CallbackPermit = null,
         INodeManagerBatchAdmission? Admission = null,
-        AddressSpacePublisher.PublicationProgress? Progress = null);
+        AddressSpacePublisher.PublicationProgress? Progress = null,
+        bool Rebase = false);
 
     /// <summary>
     /// Decorates publication and observes dispatch without replacing the bound host or its owners.

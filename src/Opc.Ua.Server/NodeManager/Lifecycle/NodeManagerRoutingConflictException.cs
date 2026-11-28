@@ -8,7 +8,7 @@ namespace Opc.Ua.Server
     /// <summary>
     /// Identifies a captured routing view superseded before a batch's durable decision.
     /// </summary>
-    internal sealed class NodeManagerRoutingConflictException : InvalidOperationException
+    internal sealed class NodeManagerRoutingConflictException : NodeManagerLifecycleConflictException
     {
         /// <summary>
         /// Creates a conflict for a superseded routing view.
@@ -45,6 +45,13 @@ namespace Opc.Ua.Server
             m_routingRevision = new WeakReference<NodeManagerRoutingTable.RoutingSnapshot>(
                 routingRevision ?? throw new ArgumentNullException(nameof(routingRevision)));
         }
+
+        /// <summary>
+        /// Gets or sets whether the host's own reference discovery found its view superseded. Only such a conflict
+        /// lets the batch that started the discovery rebase and discover again; a conflict raised by a nested batch
+        /// inside an owner callback is never flagged. The flag never leaves the batch that owns the discovery.
+        /// </summary>
+        internal bool StaleDiscovery { get; init; }
 
         /// <summary>
         /// Gets the live captured routing view checked by the publication host, if available.

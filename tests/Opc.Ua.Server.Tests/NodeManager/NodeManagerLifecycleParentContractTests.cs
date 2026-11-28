@@ -116,7 +116,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 .ConfigureAwait(false);
             Assert.That(publication.IsCurrent, Is.False);
             await Assert.ThatAsync(() => publication.PrepareAsync([acquiredChange], timeout.Token).AsTask(),
-                Throws.TypeOf<InvalidOperationException>()).ConfigureAwait(false);
+                Throws.TypeOf<NodeManagerLifecycleConflictException>()).ConfigureAwait(false);
             Assert.That(factory.CreateCount, Is.Zero);
 
             Task<LifecycleChange> AcquireInputAsync()
