@@ -28,6 +28,41 @@ namespace Opc.Ua.Gds.Tests.Onboarding
     public sealed class FdoRegistrarEnrollmentPolicyTests
     {
         /// <summary>
+        /// In-memory enrollment storage admits one issuance and changes only the matching receipt.
+        /// </summary>
+        [Test]
+        public async Task InMemoryReceiptStoreSerializesCreationAndChecksReplacement()
+        {
+            using var store = new InMemoryFdoEnrollmentReceiptStore();
+            Assert.That((await store.ReadAsync().ConfigureAwait(false)).IsNull, Is.True);
+            var entered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+            var release = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+            ByteString pending = ByteString.From([1]);
+            ByteString committed = ByteString.From([2]);
+            Task first = store.CreateAsync(async token =>
+            {
+                entered.SetResult();
+                await release.Task.WaitAsync(token).ConfigureAwait(false);
+                return pending;
+            }).AsTask();
+            await entered.Task.ConfigureAwait(false);
+            bool competingFactoryCalled = false;
+            Task second = store.CreateAsync(_ =>
+            {
+                competingFactoryCalled = true;
+                return ValueTask.FromResult(committed);
+            }).AsTask();
+            release.SetResult();
+            await first.ConfigureAwait(false);
+            ServiceResultException error = await Assert.ThrowsAsync<ServiceResultException>(() => second);
+            Assert.That(error.StatusCode, Is.EqualTo(StatusCodes.BadInvalidState));
+            Assert.That(competingFactoryCalled, Is.False);
+            Assert.That(await store.TryReplaceAsync(committed, pending).ConfigureAwait(false), Is.False);
+            Assert.That(await store.TryReplaceAsync(pending, committed).ConfigureAwait(false), Is.True);
+            Assert.That(await store.ReadAsync().ConfigureAwait(false), Is.EqualTo(committed));
+        }
+
+        /// <summary>
         /// Issuance alone cannot admit a certificate; only the exact committed leaf and approved identities qualify.
         /// </summary>
         [Test]

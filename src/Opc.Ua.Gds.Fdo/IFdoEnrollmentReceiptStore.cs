@@ -8,8 +8,9 @@ using System.Threading.Tasks;
 namespace Opc.Ua.Gds.Fdo
 {
     /// <summary>
-    /// Durable storage for one approved FDO device and DCA identity pair.
+    /// Atomic storage for one approved FDO device and DCA identity pair.
     /// Every writer for the same pair must share the same atomic storage scope.
+    /// Production deployments must use durable storage. The in-memory implementation is for demonstrations and tests.
     /// </summary>
     public interface IFdoEnrollmentReceiptStore
     {
@@ -19,7 +20,7 @@ namespace Opc.Ua.Gds.Fdo
         ValueTask<ByteString> ReadAsync(CancellationToken ct = default);
 
         /// <summary>
-        /// Exclusively creates a receipt when none exists and durably publishes it before returning.
+        /// Exclusively creates a receipt when none exists and publishes it before returning.
         /// Rejects an existing receipt without invoking the factory. A failed or uncertain publication
         /// must be reconciled before another enrollment run.
         /// </summary>
@@ -29,7 +30,7 @@ namespace Opc.Ua.Gds.Fdo
 
         /// <summary>
         /// Atomically replaces the exact expected receipt, returning false if it changed.
-        /// A successful replacement must be durable before this call returns.
+        /// A durable implementation must persist the replacement before returning success.
         /// </summary>
         ValueTask<bool> TryReplaceAsync(ByteString expected, ByteString replacement, CancellationToken ct = default);
     }

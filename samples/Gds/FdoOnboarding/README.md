@@ -22,12 +22,16 @@ dotnet run --project samples\Gds\FdoOnboarding `
 Use an empty user-controlled state directory and an unused loopback port.
 The demo prints `FDO_ONBOARDING_COMPLETE managers=0` when the registrar
 admits the DCA. No software or managed-application manager is configured.
-The state directory retains the demo PKI, including private keys, and the
-registrar receipts. Keep it private and dispose of it after inspection.
+The state directory retains the demo PKI, including private keys. The default
+run keeps registrar receipts in memory; `--replace` persists them to disk.
+Keep the directory private and dispose of it after inspection.
 The demo does not use or modify the operating system certificate stores.
 
 The demo is not part of `UA.slnx`. The solution includes the opt-in module,
 but applications that reference only the base GDS packages do not depend on FDO.
+
+To enroll only a provisioned Device against an existing deployment, use
+[OnboardingClient's FDO mode](../README.md#enroll-a-provisioned-fdo-device).
 
 ### Credential replacement
 

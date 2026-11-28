@@ -16,6 +16,7 @@
     <ProjectReference Include="..\..\..\src\Opc.Ua.Gds.Server\Opc.Ua.Gds.Server.csproj" />
     <ProjectReference Include="..\..\..\src\Opc.Ua.Gds.Fdo\Opc.Ua.Gds.Fdo.csproj" />
     <Compile Include="..\OnboardingClient\OnboardingDeviceCredentials.cs" Link="OnboardingDeviceCredentials.cs" />
+    <Compile Include="..\OnboardingClient\FdoDeviceEnrollmentSetup.cs" Link="FdoDeviceEnrollmentSetup.cs" />
     <Compile Include="..\OnboardingDevice\DevicePullJournal.cs" Link="DevicePullJournal.cs" />
     <Compile Include="..\OnboardingRegistrar\PullRegistrarPolicy.cs" Link="PullRegistrarPolicy.cs" />
     <Compile Include="..\OnboardingRegistrar\PushRegistrarCheckpointFiles.cs" Link="PushRegistrarCheckpointFiles.cs" />

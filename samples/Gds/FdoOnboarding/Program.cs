@@ -132,11 +132,6 @@ static async Task RunAsync(string root, int port, bool replace, CancellationToke
         trustReader.RegisterTrustList(enrollmentCa, groupConfig.TrustedListPath, groupConfig.IssuerListPath);
         using TrustListData authority = await trustReader.ReadTrustListAsync(enrollmentCa, TrustListMasks.All, ct)
             .ConfigureAwait(false);
-        var deviceTrust = new CertificateValidationScope(
-            authority.TrustedCertificates.Select(cert => ByteString.From(cert.RawData.AsSpan())).ToArrayOf(),
-            authority.IssuerCertificates.Select(cert => ByteString.From(cert.RawData.AsSpan())).ToArrayOf(),
-            authority.TrustedCrls.Concat(authority.IssuerCrls)
-                .Select(crl => ByteString.From(crl.RawData.AsSpan())).ToArrayOf());
         await ProvisionChannelTrustAsync(registrarPki, authority, telemetry, ct).ConfigureAwait(false);
 
         var ready = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -149,7 +144,9 @@ static async Task RunAsync(string root, int port, bool replace, CancellationToke
         serverBuilder.Services.AddSingleton<IDeviceRegistrarPushScheduler>(pullPolicy);
         serverBuilder.Services.AddSingleton<IDeviceRegistrarManagerProvider>(pullPolicy);
         serverBuilder.Services.AddSingleton<IFdoEnrollmentReceiptStore>(_ =>
-            new FdoSampleReceiptStore(Path.Combine(root, "receipts"), product, applicationUri));
+            replace
+                ? new FdoSampleReceiptStore(Path.Combine(root, "receipts"), product, applicationUri)
+                : new InMemoryFdoEnrollmentReceiptStore());
         serverBuilder.Services.AddSingleton<ITicketStore>(_ => new MemoryTicketStore());
         serverBuilder.Services.AddHostedFileSystemDeviceRegistrarLifecycle(Path.Combine(root, "device-lifecycle.json"));
         serverBuilder.Services.AddHostedDeviceRegistrarAuditing();
@@ -190,16 +187,8 @@ static async Task RunAsync(string root, int port, bool replace, CancellationToke
         {
             var policy = (FdoRegistrarEnrollmentPolicy)server.Services
                 .GetRequiredService<IDeviceRegistrarExternalAuthenticationPolicy>();
-            var deviceHandler = new FdoDeviceEnrollmentHandler(
-                guid, csr,
-                (certificate, token) => credentials.ValidateExternalCredentialAsync(
-                    certificate, key.Certificate, deviceTrust, token),
-                (certificate, token) =>
-                {
-                    replacement?.RequireActivated();
-                    return credentials.InstallCompletedExternalCredentialAsync(
-                        certificate, key.Certificate, authority.TrustedCertificates, token);
-                });
+            FdoDeviceEnrollmentHandler deviceHandler = FdoDeviceEnrollmentSetup.CreateHandler(
+                credentials, key.Certificate, authority, guid, csr, () => replacement?.RequireActivated());
             using TrustListData previousPeers = await deviceCertificates
                 .ReadTrustListAsync(TrustListIdentifier.Peers, TrustListMasks.All, ct).ConfigureAwait(false);
             FdoDeviceEnrollment enrolled = await RunEnrollmentAsync(

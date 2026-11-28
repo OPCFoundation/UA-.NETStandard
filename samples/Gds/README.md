@@ -625,6 +625,45 @@ after authenticating `DoneAck20` does the host call
 the stored key pair before activating it. Neither operation replaces OPC UA
 peer trust.
 
+### Enroll a provisioned FDO device
+
+The device-only mode runs TO1 and TO2 against a running FDO Rendezvous and
+Owner. It installs the new DCA certificate after authenticated `DoneAck20`,
+then connects to the OPC UA registrar using the external-authentication pull
+flow. It does not manufacture a device, start FDO roles, or replace its FDO
+credential. Build with `EnableFdoOnboarding=true`; the normal client build
+does not reference `Fdo`.
+
+Provision the device and register its voucher with the Owner and Rendezvous.
+Use the paired ECDH P-256/AES-128-GCM profile with credential reuse enabled.
+Provide the wire-order Device GUID and the encoded manufacturer key hash as
+hex, the P-256 attestation certificate and key in a private OPC UA directory
+store, and an existing RSA DCA key pair in the client's application store.
+The client uses `urn:localhost:OPCFoundation:OnboardingClient` as its
+application URI; configure the Owner to approve that URI.
+Populate the enrollment CA stores with trusted anchors, issuers and current
+CRLs. Configure registrar channel trust separately in the client PKI.
+
+Supply the 32-byte voucher HMAC secret as base64 in the sample process's
+`ONBOARDING_FDO_VOUCHER_SECRET` environment variable. Keep it out of command
+lines, shell history and logs. Use the normal OPC UA user credentials or
+`--anonymous true` if the registrar permits it.
+
+```powershell
+dotnet run --project samples\Gds\OnboardingClient -f net10.0 `
+  -p:CustomTestTarget=net10.0 -p:EnableFdoOnboarding=true -- `
+  --pull true --pkiRoot $clientPki --endpoint $registrarUrl `
+  --fdoRendezvous $rendezvousUrl --fdoOwner $ownerUrl `
+  --fdoDeviceGuid $deviceGuidHex --fdoManufacturerKeyHash $manufacturerKeyHashHex `
+  --fdoAttestationStore $attestationStore --fdoAttestationThumbprint $attestationThumbprint `
+  --fdoEnrollmentTrustedPath $enrollmentTrust --fdoEnrollmentIssuerPath $enrollmentIssuers
+```
+
+Use HTTPS with platform trust, or HTTP for loopback only. The FDO library
+verifies the signed Rendezvous redirect against the configured Owner during
+TO2. If installation does not finish, reconcile the Device and Owner state
+before trying another enrollment.
+
 ### Recover a lost FinishRequest response
 
 The registrar can accept `FinishRequest` and issue the certificate while
