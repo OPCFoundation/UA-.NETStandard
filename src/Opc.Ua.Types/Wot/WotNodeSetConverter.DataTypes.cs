@@ -2060,7 +2060,7 @@ namespace Opc.Ua.Wot
         {
             Export.DataTypeDefinition? definition = dataType.Definition;
             bool isEnumeration = definition is not null && HasEnumFields(definition);
-            if (definition is { IsUnion: false } && !isEnumeration)
+            if (definition is null || (definition is { IsUnion: false } && !isEnumeration))
             {
                 definition = CompleteStructureFieldPrefix(dataType, nodeSet, index);
             }
@@ -2137,9 +2137,9 @@ namespace Opc.Ua.Wot
         }
 
         /// <summary>
-        /// Expands locally declared structure fields into the complete inherited prefix required by a readable DTD.
+        /// Expands structure fields, including definition-less subtypes, into the complete inherited readable prefix.
         /// </summary>
-        private static Export.DataTypeDefinition CompleteStructureFieldPrefix(
+        private static Export.DataTypeDefinition? CompleteStructureFieldPrefix(
             UADataType dataType,
             UANodeSet nodeSet,
             Dictionary<string, UANode> index)
@@ -2148,13 +2148,20 @@ namespace Opc.Ua.Wot
             var visited = new HashSet<string>(StringComparer.Ordinal);
             INodeSetAliasResolver aliases = NodeSetDeclaredAliases.FromNodeSet(nodeSet, WotNodeSetAliases.Instance);
             UADataType? current = dataType;
-            while (current?.Definition is { IsUnion: false } definition && !HasEnumFields(definition))
+            while (current is not null)
             {
                 if (!visited.Add(current.NodeId ?? string.Empty))
                 {
-                    return dataType.Definition!;
+                    return dataType.Definition;
                 }
-                chain.Push(definition);
+                if (current.Definition is { } definition)
+                {
+                    if (definition.IsUnion || HasEnumFields(definition))
+                    {
+                        break;
+                    }
+                    chain.Push(definition);
+                }
                 UADataType? parent = null;
                 foreach (Reference reference in current.References ?? [])
                 {
@@ -2167,6 +2174,10 @@ namespace Opc.Ua.Wot
                     }
                 }
                 current = parent;
+            }
+            if (chain.Count == 0)
+            {
+                return dataType.Definition;
             }
             var fields = new List<DataTypeField>();
             while (chain.Count > 0)
@@ -2189,7 +2200,7 @@ namespace Opc.Ua.Wot
                     {
                         if (inheritedNames.Contains(field.Name))
                         {
-                            return dataType.Definition!;
+                            return dataType.Definition;
                         }
                     }
                 }
