@@ -3917,6 +3917,7 @@ namespace Opc.Ua.Client
                 Reconnecting = true;
                 resetReconnect = true;
                 m_reconnectLock.Release();
+                ValueRefreshManager?.BeginValueRecovery();
 
                 if (peerUri != null)
                 {
@@ -4346,12 +4347,21 @@ namespace Opc.Ua.Client
             {
                 ct.ThrowIfCancellationRequested();
                 await StartKeepAliveTimerAsync().ConfigureAwait(false);
+                if (networkRecovery || !recreateSubscriptions)
+                {
+                    ValueRefreshManager?.RecordReactivatedValueRefresh();
+                }
 #if OPCUA_V1_CLIENT
                 if (m_engine is ClassicSubscriptionEngine)
                 {
                     StartPublishing(OperationTimeout, true);
                 }
 #endif
+            }
+
+            if (recoveryClient == null)
+            {
+                ScheduleRecoveredSubscriptionValues();
             }
 
             void AuthenticateTarget(ITransportChannel candidate)
@@ -4371,9 +4381,13 @@ namespace Opc.Ua.Client
         /// <exception cref="ServiceResultException">The subscription recovery deadline expires.</exception>
         internal async Task CompleteSessionRecoveryAsync(CancellationToken ct)
         {
-            if (Volatile.Read(ref m_subscriptionRecoveryDeferrals) != 0 ||
-                m_pendingSubscriptionRecovery == null)
+            if (Volatile.Read(ref m_subscriptionRecoveryDeferrals) != 0)
             {
+                return;
+            }
+            if (m_pendingSubscriptionRecovery == null)
+            {
+                ScheduleRecoveredSubscriptionValues();
                 return;
             }
 
@@ -4387,6 +4401,25 @@ namespace Opc.Ua.Client
             finally
             {
                 m_subscriptionRecoveryGate.Release();
+            }
+            ScheduleRecoveredSubscriptionValues();
+        }
+
+        private Subscriptions.SubscriptionManager? ValueRefreshManager =>
+            (m_engine as DefaultSubscriptionEngine)?.SubscriptionManager as Subscriptions.SubscriptionManager;
+
+        private void ScheduleRecoveredSubscriptionValues()
+        {
+            if (ValueRefreshManager is { HasValueRefresh: true } manager && IsSessionAvailable())
+            {
+                manager.ScheduleValueRefresh(this, IsSessionAvailable);
+            }
+
+            bool IsSessionAvailable()
+            {
+                return !Reconnecting && !Closing && !Disposed && Connected &&
+                    (ManagedChannel is null or { State: ChannelState.Ready }) &&
+                    m_pendingSubscriptionRecovery == null && Volatile.Read(ref m_subscriptionRecoveryDeferrals) == 0;
             }
         }
 
@@ -4799,6 +4832,7 @@ namespace Opc.Ua.Client
                     return;
                 }
 
+                ValueRefreshManager?.BeginValueRecovery();
                 m_logger.SessionRECONNECTSessionIdStarting(SessionId);
 
                 await StopKeepAliveTimerAsync().ConfigureAwait(false);
@@ -5088,6 +5122,7 @@ namespace Opc.Ua.Client
                         engine.SubscriptionManager is Subscriptions.SubscriptionManager manager)
                     {
                         manager.OnSessionReactivated();
+                        manager.RecordReactivatedValueRefresh();
                     }
                     Reconnecting = false;
                     resetReconnect = false;
@@ -5098,6 +5133,10 @@ namespace Opc.Ua.Client
                     await StartKeepAliveTimerAsync().ConfigureAwait(false);
 
                     IndicateSessionConfigurationChanged();
+                    if (recoveryClient == null)
+                    {
+                        ScheduleRecoveredSubscriptionValues();
+                    }
                 }
                 catch (OperationCanceledException)
                     when (timeout.IsCancellationRequested && !ct.IsCancellationRequested)
@@ -7429,11 +7468,16 @@ namespace Opc.Ua.Client
                 }
             }
 
+            // The configured store decides which certificate is used. The key
+            // configuration validation loaded is reused only when that store
+            // lookup would load the same certificate from the unchanged store.
             using Certificate certificate = await configuration.SecurityConfiguration
                 .FindApplicationCertificateAsync(
                     securityProfile,
                     privateKey: true,
                     telemetry,
+                    configuration.CertificateManager as CertificateManager,
+                    configuration.ApplicationUri,
                     ct).ConfigureAwait(false)
                 ?? throw ServiceResultException.ConfigurationError(
                     "ApplicationCertificate for the security profile {0} cannot be found.",

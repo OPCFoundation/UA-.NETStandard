@@ -2415,14 +2415,16 @@ namespace Opc.Ua.Server
             NodeId key,
             NamespaceDefaultPermissions? defaults = null)
         {
+            long grantVersion = AsyncCustomNodeManager.SecurityAdminGrantVersion;
+            bool dynamicBefore = AsyncCustomNodeManager.RequiresDynamicPermissionReads(target);
             ArrayOf<Variant> values = ReadValidationAttributes(systemContext, target, defaults);
-            if (AsyncCustomNodeManager.RequiresDynamicPermissionReads(target))
+            if (AsyncCustomNodeManager.CanCachePermissionReads(target, dynamicBefore, grantVersion))
             {
-                uniqueNodesServiceAttributes.Remove(key);
+                uniqueNodesServiceAttributes[key] = values.ToArray()!;
             }
             else
             {
-                uniqueNodesServiceAttributes[key] = values.ToArray()!;
+                uniqueNodesServiceAttributes.Remove(key);
             }
 
             return values;

@@ -68,6 +68,14 @@ namespace Opc.Ua.Client.Subscriptions
         public bool SendInitialValuesOnTransfer { get; set; }
 
         /// <summary>
+        /// Requests current values after managed session reactivation or subscription transfer.
+        /// If ResendData fails, current values are read and delivered to an
+        /// <see cref="ISubscriptionValueSnapshotHandler"/>. Defaults to false.
+        /// Set this when registering the subscription; later options changes do not toggle it.
+        /// </summary>
+        public bool RefreshValuesOnRecovery { get; set; }
+
+        /// <summary>
         /// Controls how the client reacts to an unsolicited
         /// <c>Good_SubscriptionTransferred</c> StatusChangeNotification
         /// from the server. Defaults to

@@ -830,6 +830,68 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         }
 
         [Test]
+        public async Task LoadPrivateKeyAsyncFindsSameKeyPemRenewalRewrittenInPlaceAsync()
+        {
+            // "app.pem" holds A and "private/app.pem" its key. After a lookup
+            // warmed the store's cache, "app.pem" is rewritten with B, a
+            // renewal of A with the same key; the key file is not touched.
+            // The file names and count stay the same, so only the per-file
+            // check of the lookup notices that the cached entry is stale.
+            using Certificate a = CertificateBuilder.Create("CN=PemRenewal")
+                .SetRSAKeySize(2048).CreateForRSA();
+            using Certificate b = CreateRenewal(a);
+            string certs = Path.Combine(m_tempDir, "certs");
+            string keys = Path.Combine(m_tempDir, "private");
+            Directory.CreateDirectory(certs);
+            Directory.CreateDirectory(keys);
+            string certFile = Path.Combine(certs, "app.pem");
+            string keyFile = Path.Combine(keys, "app.pem");
+            File.WriteAllBytes(certFile, PEMWriter.ExportCertificateAsPEM(a));
+            File.WriteAllBytes(keyFile, PEMWriter.ExportPrivateKeyAsPEM(a));
+            NodeId rsaType = ObjectTypeIds.RsaSha256ApplicationCertificateType;
+
+            // The clock runs ahead of every file and directory timestamp, so
+            // the directory-level check keeps the cache: only the per-file
+            // check can notice the rewrite.
+            var time = new FakeTimeProvider(DateTimeOffset.UtcNow.AddMinutes(1));
+            using var store = new DirectoryCertificateStore(noSubDirs: false, m_telemetry, time);
+            store.Open(m_tempDir, false);
+
+            // A full enumeration completes the directory scan. A lookup alone
+            // stops at the first match and leaves the cache incomplete, and
+            // the next lookup would then reread every file anyway.
+            using (CertificateCollection all = await store.EnumerateAsync().ConfigureAwait(false))
+            {
+                Assert.That(all, Has.Count.EqualTo(1));
+            }
+            using (Certificate warm = (await store.LoadPrivateKeyAsync(
+                null!, "CN=PemRenewal", null, rsaType, null).ConfigureAwait(false))!)
+            {
+                Assert.That(warm, Is.Not.Null);
+                Assert.That(warm.Thumbprint, Is.EqualTo(a.Thumbprint));
+            }
+            DateTime keyWritten = File.GetLastWriteTimeUtc(keyFile);
+            DateTime certWritten = File.GetLastWriteTimeUtc(certFile);
+            DateTime certsDirWritten = Directory.GetLastWriteTimeUtc(certs);
+
+            File.WriteAllBytes(certFile, PEMWriter.ExportCertificateAsPEM(b));
+            // A distinct file timestamp, and the directory timestamp as before.
+            File.SetLastWriteTimeUtc(certFile, certWritten.AddSeconds(2));
+            Directory.SetLastWriteTimeUtc(certs, certsDirWritten);
+
+            using Certificate renewed = (await store.LoadPrivateKeyAsync(
+                null!, "CN=PemRenewal", null, rsaType, null).ConfigureAwait(false))!;
+            Assert.That(renewed, Is.Not.Null);
+            Assert.That(renewed.Thumbprint, Is.EqualTo(b.Thumbprint));
+            Assert.That(renewed.HasPrivateKey, Is.True);
+            Assert.That(
+                await store.LoadPrivateKeyAsync(a.Thumbprint, null, null, rsaType, null)
+                    .ConfigureAwait(false),
+                Is.Null);
+            Assert.That(File.GetLastWriteTimeUtc(keyFile), Is.EqualTo(keyWritten));
+        }
+
+        [Test]
         public async Task EnumerateCRLsAsyncOnEmptyStoreReturnsEmptyAsync()
         {
             using var store = new DirectoryCertificateStore(m_telemetry);

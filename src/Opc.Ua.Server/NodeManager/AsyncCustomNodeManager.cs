@@ -5150,6 +5150,7 @@ namespace Opc.Ua.Server
             NodeId key,
             NamespaceDefaultPermissions? defaults = null)
         {
+            long grantVersion = SecurityAdminGrantVersion;
             if (RequiresDynamicPermissionReads(target))
             {
                 var values = new Variant[3];
@@ -5162,7 +5163,7 @@ namespace Opc.Ua.Server
             t_validationValues = null;
             Variant[] cachedValues = scratch;
             ReadValidationAttributes(systemContext, target, ref cachedValues, defaults);
-            bool cacheable = !RequiresDynamicPermissionReads(target);
+            bool cacheable = CanCachePermissionReads(target, dynamicBefore: false, grantVersion);
             if (cacheable &&
                 cachedValues.Length == 3 &&
                 cachedValues[0].IsNull &&
@@ -11711,6 +11712,7 @@ namespace Opc.Ua.Server
                 }
 
                 var grant = new SecurityAdminCallPermissionGrant(owner, node.OnReadRolePermissions);
+                Interlocked.Increment(ref s_securityAdminGrantVersion);
                 s_securityAdminCallPermissions.Add(node, grant);
                 node.OnReadRolePermissions = grant.ReadRolePermissions;
                 owner.m_securityAdminGrantedNodes.Add(new WeakReference<NodeState>(node));
@@ -11738,11 +11740,43 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
-        /// Returns whether a node needs fresh permission reads, including after a configuration grant is retired.
+        /// Returns whether a node needs fresh permission reads, including after a configuration grant is
+        /// retired while another RolePermissions callback stays installed.
         /// </summary>
+        /// <remarks>
+        /// This runs several times per read and per permission check of every node, so a node without a
+        /// RolePermissions callback (the common case) must not pay the grant table lookup: a grant always
+        /// installs a callback, and a node without one behaves exactly as before any grant.
+        /// </remarks>
         internal static bool RequiresDynamicPermissionReads(NodeState node)
         {
-            return s_securityAdminCallPermissions.TryGetValue(node, out _);
+            NodeAttributeEventHandler<ArrayOf<RolePermissionType>>? handler = node.OnReadRolePermissions;
+            if (handler is null)
+            {
+                return false;
+            }
+            return handler.Target is SecurityAdminCallPermissionGrant ||
+                s_securityAdminCallPermissions.TryGetValue(node, out _);
+        }
+
+        /// <summary>
+        /// Gets the count of grant installs and retirements, which permission caches capture before a read.
+        /// </summary>
+        internal static long SecurityAdminGrantVersion => Volatile.Read(ref s_securityAdminGrantVersion);
+
+        /// <summary>
+        /// Returns whether permission values read since <paramref name="grantVersion"/> may be cached.
+        /// </summary>
+        /// <remarks>
+        /// A grant retired while the values were read leaves the node static afterwards, so the node alone
+        /// cannot tell that the values still include the grant. The read is cacheable only when the node
+        /// was static before and after it and no grant was installed or retired in between.
+        /// </remarks>
+        internal static bool CanCachePermissionReads(NodeState node, bool dynamicBefore, long grantVersion)
+        {
+            return !dynamicBefore &&
+                !RequiresDynamicPermissionReads(node) &&
+                SecurityAdminGrantVersion == grantVersion;
         }
 
         /// <summary>
@@ -11767,7 +11801,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Resolves inherited permissions before an asynchronous attribute read without blocking its callback.
         /// </summary>
-        internal static async ValueTask<(ServiceResult Result, DataValue Value)>
+        internal static ValueTask<(ServiceResult Result, DataValue Value)>
             ReadConfigurationPermissionAttributeAsync(
             IServerInternal server,
             NodeState node,
@@ -11778,11 +11812,30 @@ namespace Opc.Ua.Server
             DataValue value,
             CancellationToken cancellationToken)
         {
+            // the common case returns the node's own read without a second async state machine.
             if (attributeId != Attributes.RolePermissions || !RequiresDynamicPermissionReads(node))
             {
-                return await node.ReadAttributeAsync(
-                    context, attributeId, indexRange, dataEncoding, value, cancellationToken).ConfigureAwait(false);
+                return node.ReadAttributeAsync(
+                    context, attributeId, indexRange, dataEncoding, value, cancellationToken);
             }
+            return ReadDynamicPermissionAttributeAsync(
+                server, node, context, attributeId, indexRange, dataEncoding, value, cancellationToken);
+        }
+
+        /// <summary>
+        /// Reads RolePermissions of a node with a configuration grant against one namespace defaults snapshot.
+        /// </summary>
+        private static async ValueTask<(ServiceResult Result, DataValue Value)>
+            ReadDynamicPermissionAttributeAsync(
+            IServerInternal server,
+            NodeState node,
+            ServerSystemContext context,
+            uint attributeId,
+            NumericRange indexRange,
+            QualifiedName dataEncoding,
+            DataValue value,
+            CancellationToken cancellationToken)
+        {
             NamespaceDefaultPermissions defaults = await NamespaceDefaultPermissionReader.ReadAsync(
                 server, context, node.NodeId.NamespaceIndex, cancellationToken).ConfigureAwait(false);
 
@@ -12064,6 +12117,8 @@ namespace Opc.Ua.Server
             public void Retire(NodeState node)
             {
                 Interlocked.Exchange(ref m_active, 0);
+                // before the callback is restored: a permission read that saw the grant must not be cached.
+                Interlocked.Increment(ref s_securityAdminGrantVersion);
                 if (node.OnReadRolePermissions == ReadRolePermissions)
                 {
                     node.OnReadRolePermissions = m_original;
@@ -12665,6 +12720,11 @@ namespace Opc.Ua.Server
         /// </summary>
         private static readonly ConditionalWeakTable<NodeState, SecurityAdminCallPermissionGrant>
             s_securityAdminCallPermissions = new();
+
+        /// <summary>
+        /// Counts grant installs and retirements; see <see cref="CanCachePermissionReads"/>.
+        /// </summary>
+        private static long s_securityAdminGrantVersion;
 
         /// <summary>
         /// Serializes binding replacement and callback restoration.

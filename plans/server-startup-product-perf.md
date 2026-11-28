@@ -194,15 +194,142 @@ and stop are unchanged within noise.
   (`m_registrationScope`) came with the NodeManager lifecycle work in #5011 and
   was left alone. `NodeState` trees are mutable and owned by one server, so
   they are not cached across servers.
-- **Configuration validation still loads every key.** The first load per
-  configuration has to read the keys. Loading only the key types that the
-  configured security policies use, or loading lazily on first use, would save
-  more, but changes when a broken key is reported (at validation today).
-- **Session connect loads the client key again (2 per connect).** An unmanaged
-  `Session` (no channel manager) resolves its certificate through
-  `SecurityConfiguration.FindApplicationCertificateAsync` from the configured
-  store on purpose ("unmanaged callers retain configured-store selection,
-  including explicit store replacements"). It could ask
-  `TryAcquireLoadedApplicationKey` first, but that resolver opens the store
-  without the manager's providers, so it needs its own review.
+- **Configuration validation still loads every key.** See "Loading only the
+  keys the policies use" below: evaluated and not implemented.
 - The PKCS#12 iteration count is unchanged.
+
+## Follow-ups (2026-11-25)
+
+### 3. An unmanaged session connect reuses the validated client key
+
+An unmanaged `Session` (no channel manager) resolves its certificate from
+the configured store on purpose ("unmanaged callers retain configured-store
+selection, including explicit store replacements"). Both the channel
+(`DefaultSessionFactory`) and the session itself did so through
+`SecurityConfiguration.FindApplicationCertificateAsync`, which decrypted the
+client key twice per connect.
+
+That lookup differs from the manager's load in two ways:
+
+- **Store resolution.** It opens the store through the built-in resolution
+  (`CertificateStoreIdentifier.CreateStore`), not through the manager's
+  providers. For the type `Directory` the built-in resolution always creates a
+  `DirectoryCertificateStore`; a type registered with
+  `RegisterCertificateStoreType` cannot replace it. The manager reuses keys
+  only from a store its own providers serve with the built-in
+  `DirectoryStoreProvider`. So when both apply, both read the same directory
+  with the same store class.
+- **Application URI.** It passes no application URI, and the manager passes the
+  configuration's. The manager falls back to lookups by application URI when the
+  identifier's subject or thumbprint finds nothing, so it can hold a key that
+  this lookup would not find. Reusing such a key would make a session connect
+  with a certificate that the store lookup rejects.
+
+`SecurityConfiguration` now has an internal overload of
+`FindApplicationCertificateAsync` that first asks
+`CertificateManager.TryAcquireLoadedApplicationKeyForConfiguredStore`. It
+returns the remembered key only when all of these hold:
+
+- the identifier has a thumbprint (the certificate check fills it in), so in
+  the unchanged store only that certificate can match;
+- the identifier's store is a directory store for the built-in resolution
+  (explicit `StoreType`, or `DetermineStoreType` of the path). The manager's
+  snapshot check adds its own provider check;
+- the lookup, password provider, snapshot and 30 s age match, as for
+  `TryAcquireLoadedApplicationKey`;
+- the certificate matches the identifier's thumbprint, subject and certificate
+  type with the directory store's own match
+  (`DirectoryCertificateStore.MatchesPrivateKeyLookup`) and no application URI.
+  The store's first lookup applies exactly this match, so it would load the
+  same certificate.
+
+Otherwise the key is loaded from the store as before. An explicit replacement
+of the configured identifier, the case the remark protects, changes the lookup
+or the store snapshot, so the replacement is loaded from the store. With a mocked
+`ICertificateManager` (the existing regression test) nothing is reused. The
+managed path (channel manager, `AcquireApplicationCertificateBySecurityPolicy`)
+is unchanged.
+
+Tests: `CertificateManagerLoadedKeyTests` covers reuse by thumbprint, no
+reuse without a thumbprint, no reuse of a key that the manager found only through
+its application URI, and no reuse with a custom directory provider.
+
+### 4. Loading only the keys the policies use (evaluated, not implemented)
+
+The idea: load at validation only the keys of the certificate types that the
+configured security policies need, or load each key lazily on first use.
+
+- **Server.** `ServerConfiguration.SecurityPolicies` names the policies. A key
+  type that no policy uses would not be decrypted at startup. The test fixture
+  (`ServerFixture`) enables the RSA and the ECC policies, so all five types
+  are in use there and the saving is zero. A
+  production server usually configures only the certificate types it uses.
+- **Client.** The policy is chosen per connect from the server's endpoints, so
+  a client has no configured subset. Lazy loading would only move the
+  decryption into the first connect that uses each type.
+- **Broken keys.** Today a key that cannot be read or does not match its
+  certificate fails `ApplicationConfiguration.ValidateAsync` and the
+  certificate check at startup. With lazy loading it would fail the first
+  secure channel or the first GDS push that needs it, at runtime and on
+  another thread. With policy filtering, the key of an unused type would not be
+  checked until a configuration change (push management, a new policy) needs
+  it. `CheckApplicationInstanceCertificatesAsync` also creates or renews every
+  configured certificate, which needs every key, so that check would have to
+  change as well.
+
+The measured setups would gain nothing, and the change moves broken-key
+reporting out of validation. It is not implemented. A server that configures
+certificate types it does not use can remove those identifiers instead.
+
+### 5. Same-key PEM renewal rewritten in place
+
+`DirectoryCertificateStoreTests.LoadPrivateKeyAsyncFindsSameKeyPemRenewalRewrittenInPlaceAsync`:
+`certs/app.pem` holds A and `private/app.pem` its key. A lookup by subject
+warms the store's cache, then `certs/app.pem` is rewritten with B, a renewal of
+A with the same key (`CreateRenewal`). The key file is not touched. The lookup
+by subject returns B with its key, and the lookup by A's thumbprint returns
+nothing. The store's directory check alone (timestamps, file count) does not
+notice the change. The per-file check of the lookup does.
+
+### PFX loads and paired A/B (follow-up 3)
+
+Measured 2026-11-25 10:55–11:00. A is the #5171 head `9c497dc54`; B is this
+follow-up (`ef25f9bb7`). Both use the same probe and are net10.0 Release builds
+copied to short paths (`C:\sA`, `C:\sB`). The PKI folder is warm, shared and
+pre-warmed once. Each side ran 5 alternating rounds (A/B, B/A) with
+`OPCUA_STARTUP_PROBE_CYCLES=10`, serially and with
+`OPCUA_STARTUP_PROBE_WORKERS=4`: 50 cycles per cell, medians in ms, cold cycles
+excluded. All runs passed. The probe ran under `bench.lock`. Both builds carry
+the same temporary, environment-guarded PFX trace line (`OPCUA_PFX_TRACE`, not
+committed), which is off during the timing rounds.
+
+PFX loads, StandardServer, warm PKI, cold + 1 cycle (2 cycles), from the trace:
+
+| Caller | A | B |
+|---|---:|---:|
+| `ValidateAsync` (server 5 + client 5 per cycle) | 20 | 20 |
+| Connect (`Session.LoadInstanceCertificateEntryAsync`: channel and session) | 4 | 0 |
+| **Total (per cycle)** | **24 (12)** | **20 (10)** |
+
+| Mode | Server | A connect | B connect | A total | B total | Total change |
+|---|---|---:|---:|---:|---:|---:|
+| Warm | StandardServer | 39.2 | 21.8 | 280 | 249 | −11 % |
+| Warm | ReferenceServer | 43.4 | 23.3 | 892 | 817 | −8 % |
+| 4 workers | StandardServer | 48.8 | 32.8 | 605 | 574 | −5 % |
+| 4 workers | ReferenceServer | 52.1 | 33.2 | 1421 | 1382 | −3 % |
+
+Per-round medians of connect (A/B):
+
+- Warm StandardServer 32.0/20.7, 34.3/20.3, 33.1/21.7, 44.1/21.0, 191.2/26.7.
+- Warm ReferenceServer 34.8/20.8, 39.1/24.1, 41.9/21.1, 54.2/27.0, 71.8/27.3.
+- 4 workers StandardServer 43.4/31.3, 41.4/35.2, 49.8/29.1, 140.5/34.3, 55.3/34.4.
+- 4 workers ReferenceServer 47.0/33.4, 47.2/31.6, 44.2/31.3, 55.9/38.7, 140.5/37.8.
+
+Connect is faster in every round of every cell: ~17–20 ms (−44 %) warm and
+~16–19 ms with 4 workers, which is the two key decryptions. The other phases
+are unchanged within noise. Server load was 39.3 → 36.6 (StandardServer) and
+40.0 → 37.0 (ReferenceServer), the same code on both sides. Totals are
+noisier: per-round warm StandardServer totals were 226/255, 252/238, 250/248,
+313/235 and 852/298, and a round where A was faster occurs in each cell. The
+total change in the table is the connect saving plus noise on a shared
+machine.

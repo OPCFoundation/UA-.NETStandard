@@ -2633,6 +2633,328 @@ namespace Opc.Ua.Server.Tests
                 "deleted child must no longer be visible when browsing the parent through the master");
         }
 
+        /// <summary>
+        /// N6: an AddNodes request whose items are all rejected changes nothing, so it leaves
+        /// every cached permission verdict of the server intact.
+        /// </summary>
+        [Test]
+        public async Task RejectedAddNodesKeepsCachedPermissionVerdictsAsync()
+        {
+            using var harness = new AuthorizationHarness();
+            harness.SetAddNodePermissions(PermissionType.Browse);
+            long version = NodeState.RolePermissionsVersion;
+            long addressSpaceVersion = NodeState.AddressSpaceVersion;
+
+            (ArrayOf<AddNodesResult> results, _) = await harness.Sut.AddNodesAsync(
+                harness.AddNodesContext,
+                [harness.CreateAddNodesItem(), null!, harness.CreateAddNodesItem()]).ConfigureAwait(false);
+
+            Assert.That(results[0].StatusCode, Is.EqualTo(StatusCodes.BadUserAccessDenied));
+            Assert.That(results[1].StatusCode, Is.EqualTo(StatusCodes.BadNothingToDo));
+            Assert.That(NodeState.RolePermissionsVersion, Is.EqualTo(version));
+            Assert.That(NodeState.AddressSpaceVersion, Is.EqualTo(addressSpaceVersion));
+        }
+
+        /// <summary>
+        /// N6: a node added in one subtree is a new instance that no verdict was cached for, so
+        /// the cached verdicts of all existing nodes stay valid.
+        /// </summary>
+        [Test]
+        public async Task SuccessfulAddNodesKeepsCachedPermissionVerdictsAsync()
+        {
+            using var harness = new AuthorizationHarness();
+            harness.SetAddNodePermissions(PermissionType.AddNode);
+            long version = NodeState.RolePermissionsVersion;
+            long addressSpaceVersion = NodeState.AddressSpaceVersion;
+
+            (ArrayOf<AddNodesResult> results, _) = await harness.Sut.AddNodesAsync(
+                harness.AddNodesContext, [harness.CreateAddNodesItem()]).ConfigureAwait(false);
+
+            Assert.That(results[0].StatusCode, Is.EqualTo(StatusCodes.Good));
+            Assert.That(NodeState.RolePermissionsVersion, Is.EqualTo(version));
+            // only event verdicts, which keep no instance of the event type, are retired.
+            Assert.That(NodeState.AddressSpaceVersion, Is.GreaterThan(addressSpaceVersion));
+        }
+
+        /// <summary>
+        /// N6: an added node that may define namespace defaults (here a namespace metadata
+        /// object) can change what existing items may see, so every cached verdict is retired.
+        /// </summary>
+        [TestCase("Type")]
+        [TestCase("Property")]
+        public async Task AddNodesThatMayDefineNamespaceDefaultsRetiresCachedVerdictsAsync(string kind)
+        {
+            using var harness = new AuthorizationHarness();
+            harness.SetAddNodePermissions(PermissionType.AddNode);
+            AddNodesItem item = harness.CreateAddNodesItem();
+            if (kind == "Type")
+            {
+                item.TypeDefinition = ObjectTypeIds.NamespaceMetadataType;
+            }
+            else
+            {
+                item.BrowseName = new QualifiedName(BrowseNames.DefaultRolePermissions);
+            }
+            harness.SourceManager
+                .Setup(manager => manager.AddNodeAsync(
+                    It.IsAny<OperationContext>(), It.IsAny<AddNodesItem>(), It.IsAny<CancellationToken>()))
+                .Returns(new ValueTask<(ServiceResult, NodeId)>(
+                    (ServiceResult.Good, new NodeId("Added", harness.SourceNamespaceIndex))));
+            long version = NodeState.RolePermissionsVersion;
+
+            (ArrayOf<AddNodesResult> results, _) = await harness.Sut.AddNodesAsync(
+                harness.AddNodesContext, [item]).ConfigureAwait(false);
+
+            Assert.That(results[0].StatusCode, Is.EqualTo(StatusCodes.Good));
+            Assert.That(NodeState.RolePermissionsVersion, Is.GreaterThan(version));
+        }
+
+        /// <summary>
+        /// N6: an added type can resolve a NodeId that an event verdict was cached for while it
+        /// was unknown (an unknown event type passes the role check), so a successful AddNodes of
+        /// a type retires every cached verdict.
+        /// </summary>
+        [TestCase(NodeClass.ObjectType)]
+        [TestCase(NodeClass.VariableType)]
+        [TestCase(NodeClass.DataType)]
+        [TestCase(NodeClass.ReferenceType)]
+        public async Task AddNodesOfTypeRetiresCachedVerdictsAsync(NodeClass nodeClass)
+        {
+            using var harness = new AuthorizationHarness();
+            harness.SetAddNodePermissions(PermissionType.AddNode);
+            AddNodesItem item = harness.CreateAddNodesItem();
+            item.NodeClass = nodeClass;
+            item.TypeDefinition = ExpandedNodeId.Null;
+            harness.SourceManager
+                .Setup(manager => manager.AddNodeAsync(
+                    It.IsAny<OperationContext>(), It.IsAny<AddNodesItem>(), It.IsAny<CancellationToken>()))
+                .Returns(new ValueTask<(ServiceResult, NodeId)>(
+                    (ServiceResult.Good, new NodeId("AddedType", harness.SourceNamespaceIndex))));
+            long version = NodeState.RolePermissionsVersion;
+
+            (ArrayOf<AddNodesResult> results, _) = await harness.Sut.AddNodesAsync(
+                harness.AddNodesContext, [item]).ConfigureAwait(false);
+
+            Assert.That(results[0].StatusCode, Is.EqualTo(StatusCodes.Good));
+            Assert.That(NodeState.RolePermissionsVersion, Is.GreaterThan(version));
+        }
+
+        /// <summary>
+        /// N6: an owner can add a type before it throws. The dispatcher turns the exception into
+        /// a Bad result, so it must retire the cached verdicts itself.
+        /// </summary>
+        [Test]
+        public async Task AddNodesOfTypeWhoseOwnerThrowsRetiresCachedVerdictsAsync()
+        {
+            using var harness = new AuthorizationHarness();
+            harness.SetAddNodePermissions(PermissionType.AddNode);
+            AddNodesItem item = harness.CreateAddNodesItem();
+            item.NodeClass = NodeClass.ObjectType;
+            item.TypeDefinition = ExpandedNodeId.Null;
+            harness.SourceManager
+                .Setup(manager => manager.AddNodeAsync(
+                    It.IsAny<OperationContext>(), It.IsAny<AddNodesItem>(), It.IsAny<CancellationToken>()))
+                .ThrowsAsync(new ServiceResultException(StatusCodes.BadInternalError));
+            long version = NodeState.RolePermissionsVersion;
+
+            (ArrayOf<AddNodesResult> results, _) = await harness.Sut.AddNodesAsync(
+                harness.AddNodesContext, [item]).ConfigureAwait(false);
+
+            Assert.That(results[0].StatusCode, Is.EqualTo(StatusCodes.BadInternalError));
+            Assert.That(NodeState.RolePermissionsVersion, Is.GreaterThan(version));
+        }
+
+        /// <summary>
+        /// N6: an item that retires every cached verdict does so before the next item is
+        /// dispatched, which can suspend the request while events are delivered.
+        /// </summary>
+        [Test]
+        public async Task AddNodesRetiresVerdictsBeforeTheNextItemAsync()
+        {
+            using var harness = new AuthorizationHarness();
+            harness.SetAddNodePermissions(PermissionType.AddNode);
+            AddNodesItem type = harness.CreateAddNodesItem();
+            type.NodeClass = NodeClass.ObjectType;
+            type.TypeDefinition = ExpandedNodeId.Null;
+            AddNodesItem next = harness.CreateAddNodesItem();
+            next.BrowseName = new QualifiedName("Next", harness.SourceNamespaceIndex);
+            next.RequestedNewNodeId = new NodeId("Next", harness.SourceNamespaceIndex);
+            long versionAtNext = -1;
+            harness.SourceManager
+                .Setup(manager => manager.AddNodeAsync(
+                    It.IsAny<OperationContext>(), It.IsAny<AddNodesItem>(), It.IsAny<CancellationToken>()))
+                .Returns((OperationContext _, AddNodesItem item, CancellationToken _) =>
+                {
+                    if (ReferenceEquals(item, next))
+                    {
+                        versionAtNext = NodeState.RolePermissionsVersion;
+                    }
+                    return new ValueTask<(ServiceResult, NodeId)>(
+                        (ServiceResult.Good, new NodeId(item.BrowseName.Name!, item.BrowseName.NamespaceIndex)));
+                });
+            long version = NodeState.RolePermissionsVersion;
+
+            (ArrayOf<AddNodesResult> results, _) = await harness.Sut.AddNodesAsync(
+                harness.AddNodesContext, [type, next]).ConfigureAwait(false);
+
+            Assert.That(results[0].StatusCode, Is.EqualTo(StatusCodes.Good));
+            Assert.That(results[1].StatusCode, Is.EqualTo(StatusCodes.Good));
+            Assert.That(versionAtNext, Is.GreaterThan(version));
+        }
+
+        /// <summary>
+        /// N6: a DeleteNodes item that retires every cached verdict does so before the next item
+        /// is dispatched.
+        /// </summary>
+        [Test]
+        public async Task DeleteNodesRetiresVerdictsBeforeTheNextItemAsync()
+        {
+            using var harness = new AuthorizationHarness();
+            int calls = 0;
+            long versionAtSecond = -1;
+            harness.SourceManager
+                .Setup(manager => manager.DeleteNodeAsync(
+                    It.IsAny<OperationContext>(), It.IsAny<DeleteNodesItem>(), It.IsAny<CancellationToken>()))
+                .Returns(() =>
+                {
+                    if (Interlocked.Increment(ref calls) == 2)
+                    {
+                        versionAtSecond = NodeState.RolePermissionsVersion;
+                    }
+                    return new ValueTask<ServiceResult>(ServiceResult.Good);
+                });
+            long version = NodeState.RolePermissionsVersion;
+
+            (ArrayOf<StatusCode> results, _) = await harness.Sut.DeleteNodesAsync(
+                harness.DeleteNodesContext,
+                [
+                    new DeleteNodesItem { NodeId = harness.SourceNodeId },
+                    new DeleteNodesItem { NodeId = harness.SourceNodeId }
+                ]).ConfigureAwait(false);
+
+            Assert.That(results[0], Is.EqualTo(StatusCodes.Good));
+            Assert.That(calls, Is.EqualTo(2));
+            Assert.That(versionAtSecond, Is.GreaterThan(version));
+        }
+
+        /// <summary>
+        /// N6: a DeleteNodes request whose items are all rejected leaves every cached verdict
+        /// intact.
+        /// </summary>
+        [Test]
+        public async Task RejectedDeleteNodesKeepsCachedPermissionVerdictsAsync()
+        {
+            using var harness = new AuthorizationHarness();
+            harness.SourceManager
+                .Setup(manager => manager.DeleteNodeAsync(
+                    It.IsAny<OperationContext>(), It.IsAny<DeleteNodesItem>(), It.IsAny<CancellationToken>()))
+                .Returns(new ValueTask<ServiceResult>(new ServiceResult(StatusCodes.BadUserAccessDenied)));
+            long version = NodeState.RolePermissionsVersion;
+            long addressSpaceVersion = NodeState.AddressSpaceVersion;
+
+            (ArrayOf<StatusCode> results, _) = await harness.Sut.DeleteNodesAsync(
+                harness.DeleteNodesContext,
+                [
+                    new DeleteNodesItem { NodeId = harness.SourceNodeId },
+                    new DeleteNodesItem { NodeId = new NodeId("Unknown", harness.SourceNamespaceIndex) },
+                    null!
+                ]).ConfigureAwait(false);
+
+            Assert.That(results[0], Is.EqualTo(StatusCodes.BadUserAccessDenied));
+            Assert.That(results[1], Is.EqualTo(StatusCodes.BadNodeIdUnknown));
+            Assert.That(results[2], Is.EqualTo(StatusCodes.BadNothingToDo));
+            Assert.That(NodeState.RolePermissionsVersion, Is.EqualTo(version));
+            Assert.That(NodeState.AddressSpaceVersion, Is.EqualTo(addressSpaceVersion));
+        }
+
+        /// <summary>
+        /// N6: a node manager whose removed instances are unknown to the master (here a handle
+        /// that is no <see cref="NodeState"/>) still retires every cached verdict.
+        /// </summary>
+        [Test]
+        public async Task DeleteNodesOnUntrackedOwnerRetiresCachedVerdictsAsync()
+        {
+            using var harness = new AuthorizationHarness();
+            harness.SourceManager
+                .Setup(manager => manager.DeleteNodeAsync(
+                    It.IsAny<OperationContext>(), It.IsAny<DeleteNodesItem>(), It.IsAny<CancellationToken>()))
+                .Returns(new ValueTask<ServiceResult>(ServiceResult.Good));
+            long version = NodeState.RolePermissionsVersion;
+
+            (ArrayOf<StatusCode> results, _) = await harness.Sut.DeleteNodesAsync(
+                harness.DeleteNodesContext,
+                [new DeleteNodesItem { NodeId = harness.SourceNodeId }]).ConfigureAwait(false);
+
+            Assert.That(results[0], Is.EqualTo(StatusCodes.Good));
+            Assert.That(NodeState.RolePermissionsVersion, Is.GreaterThan(version));
+        }
+
+        /// <summary>
+        /// N6: deleting a node of an <see cref="AsyncCustomNodeManager"/> retires the verdicts of
+        /// every removed instance of its subtree, and only those: the verdicts of a sibling and
+        /// of every other node of the server stay cached.
+        /// </summary>
+        [Test]
+        public async Task DeleteNodesRetiresOnlyTheVerdictsOfTheDeletedSubtreeAsync()
+        {
+#pragma warning disable CA2000 // The MasterNodeManager disposes its registered node managers.
+            var manager = new NodeManagementAsyncCustomNodeManager(
+                m_server.CurrentInstance,
+                m_fixture.Config,
+                Microsoft.Extensions.Logging.Abstractions.NullLogger.Instance,
+                E2eNamespaceUri + "N6/");
+#pragma warning restore CA2000
+            using MasterNodeManager sut = DeterministicServerMock.CreateIsolatedMasterNodeManager(
+                m_server.CurrentInstance, m_fixture.Config, additionalAsyncManagers: [manager]);
+            ServerSystemContext ctx = manager.SystemContext;
+            ushort ns = manager.NamespaceIndexes[0];
+
+            var deleted = new BaseObjectState(null);
+            deleted.CreateAsPredefinedNode(ctx);
+            deleted.NodeId = new NodeId("N6Deleted", ns);
+            deleted.BrowseName = new QualifiedName("N6Deleted", ns);
+            var child = new BaseDataVariableState(deleted);
+            child.CreateAsPredefinedNode(ctx);
+            child.NodeId = new NodeId("N6Child", ns);
+            child.BrowseName = new QualifiedName("N6Child", ns);
+            child.ReferenceTypeId = ReferenceTypeIds.HasComponent;
+            deleted.AddChild(child);
+            await manager.AddNodeAsync(ctx, default, deleted).ConfigureAwait(false);
+            var sibling = new BaseDataVariableState(null);
+            sibling.CreateAsPredefinedNode(ctx);
+            sibling.NodeId = new NodeId("N6Sibling", ns);
+            sibling.BrowseName = new QualifiedName("N6Sibling", ns);
+            await manager.AddNodeAsync(ctx, default, sibling).ConfigureAwait(false);
+
+            long version = NodeState.RolePermissionsVersion;
+            long deletedVersion = deleted.PermissionVersion;
+            long childVersion = child.PermissionVersion;
+            long siblingVersion = sibling.PermissionVersion;
+
+            using OperationContext context = CreateContext();
+            (ArrayOf<StatusCode> results, _) = await sut.DeleteNodesAsync(
+                context, [new DeleteNodesItem { NodeId = deleted.NodeId }]).ConfigureAwait(false);
+
+            Assert.That(results[0], Is.EqualTo(StatusCodes.Good));
+            Assert.That(deleted.PermissionVersion, Is.GreaterThan(deletedVersion), "deleted node");
+            Assert.That(child.PermissionVersion, Is.GreaterThan(childVersion), "deleted child");
+            Assert.That(sibling.PermissionVersion, Is.EqualTo(siblingVersion), "sibling");
+            Assert.That(NodeState.RolePermissionsVersion, Is.EqualTo(version), "server-wide version");
+        }
+
+        /// <summary>
+        /// An <see cref="AsyncCustomNodeManager"/> that accepts node management.
+        /// </summary>
+        private sealed class NodeManagementAsyncCustomNodeManager(
+            IServerInternal server,
+            ApplicationConfiguration configuration,
+            Microsoft.Extensions.Logging.ILogger logger,
+            params string[] namespaceUris)
+            : TestableAsyncCustomNodeManager(server, configuration, logger, namespaceUris)
+        {
+            public override bool AllowNodeManagement => true;
+        }
+
         private static bool MatchesNodeManagementRequest(OperationContext callback, OperationContext request)
         {
             return !ReferenceEquals(callback, request) &&

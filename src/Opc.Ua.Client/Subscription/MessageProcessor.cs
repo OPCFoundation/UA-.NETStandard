@@ -2150,6 +2150,22 @@ namespace Opc.Ua.Client.Subscriptions
             }
         }
 
+        /// <summary>
+        /// Serializes recovery snapshots with real notification dispatch.
+        /// </summary>
+        protected async ValueTask DispatchValueSnapshotsAsync(Func<ValueTask> callback, CancellationToken ct)
+        {
+            await m_messageDispatchGate.WaitAsync(ct).ConfigureAwait(false);
+            try
+            {
+                await DispatchCallbackAsync(callback).ConfigureAwait(false);
+            }
+            finally
+            {
+                m_messageDispatchGate.Release();
+            }
+        }
+
         private async ValueTask DispatchCallbackAsync(Func<ValueTask> callback)
         {
             DispatchScope? previous = s_dispatchScope.Value;

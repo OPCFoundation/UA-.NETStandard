@@ -56,6 +56,11 @@ namespace Opc.Ua
         public const int NetworkModelClient = 600;
 
         /// <summary>
+        /// Best-effort subscription value recovery diagnostics.
+        /// </summary>
+        public const int SubscriptionValueRefresh = 610;
+
+        /// <summary>
         /// The <see cref="Microsoft.Extensions.Logging.ILogger"/> category name that
         /// preserves the identity of the legacy "OPC-UA-Client" EventSource provider
         /// (Guid 8CFA469E-18C6-480F-9B74-B005DACDE3D3). Loggers created for this
