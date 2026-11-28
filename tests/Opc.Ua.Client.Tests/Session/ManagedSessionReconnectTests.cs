@@ -246,8 +246,69 @@ namespace Opc.Ua.Client.Tests.ManagedSession
                 Is.True);
             await WaitForPhaseAsync(WaitUntilAsync(() => late!.Created),
                 "late monitored item created").ConfigureAwait(false);
+            // The rejected item keeps its retry deadline: it is retried once the backoff ends.
+            harness.Clock.Advance(TimeSpan.FromMilliseconds(250));
             await WaitForPhaseAsync(WaitUntilAsync(() => flaky!.Created),
                 "retried monitored item created").ConfigureAwait(false);
+
+            static async Task WaitUntilAsync(Func<bool> condition)
+            {
+                for (int i = 0; i < 4000 && !condition(); i++)
+                {
+                    await Task.Delay(5).ConfigureAwait(false);
+                }
+                Assert.That(condition(), Is.True);
+            }
+        }
+        /// <summary>
+        /// New items that cut the retry backoff short do not retry an item that already failed: it keeps its
+        /// retry deadline, so a stream of additions cannot use up its retry budget before the server recovers.
+        /// </summary>
+        [Test]
+        public async Task SuccessiveAdditionsDoNotSpendPendingItemRetriesAsync()
+        {
+            var flakyNode = new NodeId("Flaky", 1);
+            int flakyAttempts = 0;
+            bool recovered = false;
+            await using var harness = new ManagedSessionReconnectHarness(TimeSpan.Zero)
+            {
+                MonitoredItemCreateStatus = item =>
+                {
+                    if (item.ItemToMonitor.NodeId != flakyNode)
+                    {
+                        return null;
+                    }
+                    Interlocked.Increment(ref flakyAttempts);
+                    return Volatile.Read(ref recovered) ? null : StatusCodes.BadResourceUnavailable;
+                }
+            };
+            await harness.ConnectAsync(false).ConfigureAwait(false);
+            ISubscription subscription = harness.AddSubscription();
+            await WaitForPhaseAsync(harness.NextMonitoredItemsAsync().AsTask(), "initial monitored item")
+                .ConfigureAwait(false);
+            Task backoffStarted = harness.Clock.WaitForTimerCreatedAsync(TimeSpan.FromMilliseconds(250));
+            Assert.That(subscription.TryAddMonitoredItem("Flaky", flakyNode, o => o, out IMonitoredItem? flaky),
+                Is.True);
+            await WaitForPhaseAsync(backoffStarted, "pending-item backoff started").ConfigureAwait(false);
+
+            // More additions than the item's retry budget (six attempts).
+            for (int i = 0; i < 8; i++)
+            {
+                Assert.That(subscription.TryAddMonitoredItem("Late" + i, new NodeId("Late" + i, 1), o => o,
+                    out IMonitoredItem? late), Is.True);
+                await WaitForPhaseAsync(WaitUntilAsync(() => late!.Created), "late monitored item " + i + " created")
+                    .ConfigureAwait(false);
+            }
+            Assert.That(Volatile.Read(ref flakyAttempts), Is.EqualTo(1),
+                "Additions during the backoff must not retry the rejected item.");
+            Assert.That(flaky!.Created, Is.False);
+
+            // The server recovers and the backoff ends: the retry still has budget left and succeeds.
+            Volatile.Write(ref recovered, true);
+            harness.Clock.Advance(TimeSpan.FromMilliseconds(250));
+            await WaitForPhaseAsync(WaitUntilAsync(() => flaky.Created), "retried monitored item created")
+                .ConfigureAwait(false);
+            Assert.That(Volatile.Read(ref flakyAttempts), Is.EqualTo(2));
 
             static async Task WaitUntilAsync(Func<bool> condition)
             {
