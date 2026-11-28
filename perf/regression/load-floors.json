@@ -37,8 +37,8 @@
       "catches": "write path throughput at 2.5x below master (0.54-0.62)"
     },
     {
-      "scenario": "write", "metric": "allocB", "max": 98000,
-      "catches": "server bytes per 100-value Write (X1/#4999 +13.5 K); master incl. X1 85.3-85.8 K, lower to ~82 K once X1 is fixed"
+      "scenario": "write", "metric": "allocB", "max": 29000,
+      "catches": "server bytes per 100-value Write (X1/#4999 +13.5 K, N3 lookups); master 2026-11-28 20.6-22.6 K (was 85 K before X1/N3/R0)"
     }
   ]
 }

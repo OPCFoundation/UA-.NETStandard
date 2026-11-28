@@ -1,3 +1,6 @@
+<!-- SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL -->
+<!-- SPDX-License-Identifier: MIT -->
+
 # Server load floors
 
 `Invoke-LoadFloors.ps1` runs [ServerLoadHarness](../README.md) scenarios and checks the results
@@ -46,7 +49,7 @@ warm-up and a 10 s measurement window. A check compares the median over the roun
 | `lt-events.generatedPerSec / calibration.reqPerSec` | ≥ 0.01 | 0.085 (one G1 collapse round: 0.018) | Event fan-out cost: #4757 took the rate from ~4,000 to ~125 events/s (32×). |
 | `lt-events.allocB2` | ≤ 150,000 B | 88–97 KB; 145–163 KB in a round with a G1 collapse | Server bytes per event for 750 subscriptions: #4757 was ~5 MB. E6 (+50 %) lands near the ceiling. |
 | `write.valuesPerSec / calibration.valuesPerSec` | ≥ 0.2 | 0.54–0.62 | Write throughput 2.5× below master, for example a request-wide lock. |
-| `write.allocB` | ≤ 98,000 B | 85.3–85.8 KB | Server bytes per 100-value Write. X1 (#4999) added 13.5 KB. |
+| `write.allocB` | ≤ 29,000 B | 20.6–22.6 KB (2026-11-28; 85 KB before the X1, N3 and R0 fixes) | Server bytes per 100-value Write. X1 (#4999) added 13.5 KB. |
 
 `allocB` and `allocB2` are the harness `per-op` and `per-op2` values: allocated bytes of the
 server process divided by the operations of the window. They vary by a few percent from run
@@ -56,8 +59,9 @@ a ratio to the `read` calibration of the same round, with a floor several times 
 Those floors catch collapses, not 10 % regressions. Latency (`p50Ms`, `p99Ms`), CPU per operation,
 GC pause and lock contention are reported in the summary but not checked.
 
-Ceilings are absolute. When an improvement lands (for example the X1 fix brings `write.allocB`
-to about 72 KB), lower the ceiling in the same pull request so the gain is kept.
+Ceilings are absolute. When an improvement lands, lower the ceiling in the same pull request so
+the gain is kept. `write.allocB` has room for the idle allocation of the reference server (about
+5 MB/s), which adds 1–2 KB per Write at the request rate of a 4-core runner.
 
 ## Validating a floor
 
@@ -80,3 +84,49 @@ The values in the table were measured on a 24-core Windows machine. Byte counts 
 over to Linux runners, but rates and delivered % depend on the core count. After changing the
 runner or the shapes, run the script with the bounds of a check widened and set the bound from
 the measured median.
+
+## Allocation gate
+
+`alloc-gate.json` is a second floors file for the same script. It runs on every pull request in
+[perf-gate.yml](../../.github/workflows/perf-gate.yml) (the scenarios take about 9 minutes;
+most of it is fixed warm-up, baseline and measurement time) and checks only allocated bytes per operation, of the server and
+of the client, for ten scenarios: Read, Write, Browse, TranslateBrowsePaths, Call, classic and
+managed subscriptions, events, HistoryRead paging and connect. Each check names the path and
+the earlier regression or optimization it guards.
+
+```bash
+dotnet build perf/ServerLoadHarness -c Release -p:CustomTestTarget=net10.0
+pwsh perf/regression/Invoke-LoadFloors.ps1 -Floors perf/regression/alloc-gate.json
+```
+
+It must not fail on a slow or busy runner, so it checks nothing that depends on speed:
+
+| Measure | Why |
+|---|---|
+| Bytes per operation only | A busy machine completes fewer operations in a window; each one allocates the same. Throughput, latency and delivered % stay in the load floors. |
+| Reference server simulation off (`--simulation 0`) | The simulation assigns random values to the `Scalar_Simulation_*` variables every second, about 5 MB/s (mostly XmlElement comparisons). Divided by the operations of a starved window, that added 50-100 % to a Read. No scenario reads those variables. Without it the idle server allocates about 8 KB/s. |
+| Net of the idle allocation rate (`--baseline 3`) | What is left on timers (keep-alives, publish cycles) is measured in an idle window of the same run and taken out: the gate checks `netAllocB`, `netAllocB2` and `netClientAllocB`. |
+| Keys reloaded before the window (connect) | The CertificateManager reuses a loaded application key for 30 seconds (#5171/#5184); after that a connect loads it from the store, about 115 K more. The connect workload reloads the keys right before the window, so the check never depends on how long setup took. |
+| Smallest of three rounds (`aggregate: min`) | Work outside the operation only ever adds bytes. |
+| Confirmation (`confirmRounds: 2`) | A failed scenario runs twice more and fails the job only if it fails again. A regression fails every time. |
+| Retried runs, free ports | A run without a result (a server port taken by another process) is retried up to three times. |
+| Workstation GC in both processes | Allocation does not depend on the GC mode; fewer GC threads compete with the workload on a 4-core runner. |
+
+Measured on a 24-core Windows machine (2026-11-27), idle and with 24 busy processes that cut
+the request rate 20-fold: the net server bytes of the request scenarios agree within 10 %, the
+client bytes within 1 %, where the plain `allocB` of a Read rose from 20.4 K to 32.6-36.1 K.
+A simulated regression of 50 bytes per written value (`-ExtraArgs "--inject-alloc 50"`, +8 K
+per 100-value Write) fails `write.netAllocB` in every round and confirmation round.
+
+With the simulation on, `sub-classic.netAllocB2` (about 45 server bytes per notification) varied
+by ±40 % between rounds; with it off, by ±5 %. Its ceiling is still near twice its value and
+catches a fan-out regression such as #4757, not a few percent. The managed subscription scenario
+checks only the client. A workload error in a confirmation round fails the job even when the
+first rounds had none.
+
+The first Linux run (ubuntu-latest, 2026-11-28) agreed with Windows within 2 % except Browse
+(42 K against 50-52 K) and the client bytes of connect (264 K against 244 K); the catches text
+of each check lists both. When a pull request lowers the bytes of a path, the summary lists the
+ceilings that are more than twice the measured value; lower them in the same pull request. When
+a change adds bytes on purpose, raise the ceiling and say why in the pull request. To recalibrate,
+run the gate on the runner with `-Rounds 5` and set each ceiling 15 % above the largest round.
