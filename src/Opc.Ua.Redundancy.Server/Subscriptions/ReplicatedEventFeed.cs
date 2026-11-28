@@ -11,6 +11,7 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Opc.Ua.Redundancy;
 using Opc.Ua.Server;
+using Opc.Ua.Server.Fluent;
 using Opc.Ua.Server.Hosting;
 
 namespace Opc.Ua.Redundancy.Server
@@ -115,6 +116,75 @@ namespace Opc.Ua.Redundancy.Server
         }
 
         /// <summary>
+        /// Commits a native ordinary event and publishes it using the shared occurrence ID.
+        /// </summary>
+        /// <remarks>
+        /// Supply a stable occurrence UUID from the authoritative producer and reuse it on retry.
+        /// The event and its field values must remain unchanged during this call.
+        /// A local EventId is ignored and the original event is not modified.
+        /// </remarks>
+        public ValueTask<ByteString> PublishNativeEventAsync(
+            NodeId notifierId,
+            Uuid occurrenceId,
+            BaseEventState eventState,
+            CancellationToken cancellationToken = default)
+        {
+            if (eventState == null)
+            {
+                throw new ArgumentNullException(nameof(eventState));
+            }
+            if (eventState is ConditionState ||
+                eventState.Clone() is not BaseEventState snapshot || snapshot.GetType() != eventState.GetType())
+            {
+                throw new ArgumentException("Expected a cloneable ordinary event.", nameof(eventState));
+            }
+            if (occurrenceId == Guid.Empty || !m_notifiers.ContainsKey(notifierId))
+            {
+                throw new ArgumentException("A bound source and non-empty occurrence ID are required.");
+            }
+
+            cancellationToken.ThrowIfCancellationRequested();
+            IServerContext server = m_server ??
+                throw new ServiceResultException(StatusCodes.BadInvalidState, "The event feed has not started.");
+            snapshot.EventId = null;
+            NameBaseEventFields(snapshot);
+            Variant payload = Variant.From(NodeStateSerializer.Serialize(server.DefaultSystemContext, snapshot));
+            ReadNativeEvent(server.DefaultSystemContext, payload);
+            return PublishAsync(
+                new Entry(Kind.NativeOrdinary, occurrenceId, notifierId, default, payload), cancellationToken);
+        }
+
+        /// <summary>
+        /// Connects a fluent native event stream to this feed instead of local event reporting.
+        /// </summary>
+        /// <remarks>
+        /// Bind the notifier before server startup. Run the stream on the ready writer only, and use
+        /// occurrence UUIDs and timestamps assigned by the authoritative event source. The stream
+        /// runs without subscribers so an occurrence can survive a failover before a client connects.
+        /// </remarks>
+        public EventPublishOptions CreateNativeEventPublishOptions(
+            Func<BaseEventState, Uuid> getOccurrenceId,
+            EventPublishOptions? options = null)
+        {
+            if (getOccurrenceId == null)
+            {
+                throw new ArgumentNullException(nameof(getOccurrenceId));
+            }
+            if (options?.DispatchAsync != null)
+            {
+                throw new ArgumentException("The event stream already has a dispatcher.", nameof(options));
+            }
+
+            return (options ?? new EventPublishOptions()) with
+            {
+                AlwaysOn = true,
+                DispatchAsync = async (notifier, state, ct) =>
+                    await PublishNativeEventAsync(notifier.NodeId, getOccurrenceId(state), state, ct)
+                        .ConfigureAwait(false)
+            };
+        }
+
+        /// <summary>
         /// Commits and publishes an application condition update, with a stable BranchId for a branch update.
         /// </summary>
         public ValueTask<ByteString> PublishConditionAsync(
@@ -123,6 +193,52 @@ namespace Opc.Ua.Redundancy.Server
         {
             return PublishAsync(
                 new Entry(Kind.Condition, occurrenceId, conditionId, branchId, payload), cancellationToken);
+        }
+
+        /// <summary>
+        /// Commits the variable values of a detached native condition state and publishes the resulting occurrence.
+        /// </summary>
+        /// <remarks>
+        /// Prepare the state without changing the bound condition. Use the same condition type, field layout,
+        /// occurrence UUID and values on retry. Only field values and status codes are applied; methods,
+        /// permissions, references and the live condition's identity remain local. The feed assigns EventId
+        /// and BranchId before rebuilding the acknowledgement and confirmation associations.
+        /// </remarks>
+        public ValueTask<ByteString> PublishNativeConditionAsync(
+            NodeId conditionId,
+            NodeId branchId,
+            Uuid occurrenceId,
+            AcknowledgeableConditionState detachedState,
+            CancellationToken cancellationToken = default)
+        {
+            if (detachedState == null)
+            {
+                throw new ArgumentNullException(nameof(detachedState));
+            }
+            if (occurrenceId == Guid.Empty ||
+                !m_conditions.TryGetValue(conditionId, out AcknowledgeableConditionState? root) ||
+                ReferenceEquals(root, detachedState) ||
+                detachedState.Time is not { Value.IsNull: false })
+            {
+                throw new ArgumentException("Expected a bound condition, a detached state, a time and an occurrence ID.");
+            }
+
+            cancellationToken.ThrowIfCancellationRequested();
+            IServerContext server = m_server ??
+                throw new ServiceResultException(StatusCodes.BadInvalidState, "The event feed has not started.");
+            ISystemContext context = server.DefaultSystemContext;
+            if (detachedState.Clone() is not AcknowledgeableConditionState snapshot ||
+                snapshot.GetType() != detachedState.GetType())
+            {
+                throw new ArgumentException("Expected a cloneable condition state.", nameof(detachedState));
+            }
+            snapshot.EventId = null;
+            snapshot.BranchId = null;
+            ByteString payload = NodeStateSerializer.Serialize(context, snapshot);
+            NativeConditionFields.ReadUpdates(context, root, payload);
+            return PublishAsync(
+                new Entry(Kind.NativeCondition, occurrenceId, conditionId, branchId, Variant.From(payload)),
+                cancellationToken);
         }
 
         /// <summary>
@@ -284,7 +400,7 @@ namespace Opc.Ua.Redundancy.Server
         private async ValueTask<ByteString> PublishAsync(Entry entry, CancellationToken ct)
         {
             if (entry.OccurrenceId == Guid.Empty ||
-                (entry.Type == Kind.Ordinary
+                (IsOrdinary(entry.Type)
                     ? !m_notifiers.ContainsKey(entry.SourceId)
                     : !m_conditions.ContainsKey(entry.SourceId)))
             {
@@ -383,12 +499,14 @@ namespace Opc.Ua.Redundancy.Server
                 {
                     throw new ServiceResultException(StatusCodes.BadDecodingError, "Duplicate committed occurrence.");
                 }
-                if (entry.Type == Kind.Ordinary)
+                if (IsOrdinary(entry.Type))
                 {
                     NodeState notifier = m_notifiers[entry.SourceId];
                     if (publish)
                     {
-                        BaseEventState state = m_source.CreateEvent(context, notifier, entry.Payload);
+                        BaseEventState state = entry.Type == Kind.NativeOrdinary
+                            ? ReadNativeEvent(context, entry.Payload)
+                            : m_source.CreateEvent(context, notifier, entry.Payload);
                         await m_reporter.ReportEventAsync(context, notifier, state, identity).ConfigureAwait(false);
                     }
                 }
@@ -423,8 +541,63 @@ namespace Opc.Ua.Redundancy.Server
             }
         }
 
+        private static bool IsOrdinary(Kind kind)
+        {
+            return kind is Kind.Ordinary or Kind.NativeOrdinary;
+        }
+
+        private static BaseEventState ReadNativeEvent(ISystemContext context, Variant payload)
+        {
+            if (!payload.TryGetValue(out ByteString encoded) || encoded.IsEmpty)
+            {
+                throw new ServiceResultException(StatusCodes.BadDecodingError, "Invalid native event payload.");
+            }
+            BaseEventState state = NodeStateSerializer.DeserializeEvent(context, encoded);
+            if (state.EventType is not { Value.IsNull: false } ||
+                state.Time is not { Value.IsNull: false } ||
+                state.ReceiveTime is not { Value.IsNull: false })
+            {
+                throw new ServiceResultException(StatusCodes.BadDecodingError,
+                    "A native event requires an EventType and authoritative timestamps.");
+            }
+            return state;
+        }
+
+        private static void NameBaseEventFields(BaseEventState snapshot)
+        {
+            Name(snapshot.EventType, BrowseNames.EventType);
+            Name(snapshot.SourceNode, BrowseNames.SourceNode);
+            Name(snapshot.SourceName, BrowseNames.SourceName);
+            Name(snapshot.Time, BrowseNames.Time);
+            Name(snapshot.ReceiveTime, BrowseNames.ReceiveTime);
+            Name(snapshot.Severity, BrowseNames.Severity);
+            Name(snapshot.Message, BrowseNames.Message);
+
+            static void Name(BaseInstanceState? field, string name)
+            {
+                if (field is { BrowseName.IsNull: true })
+                {
+                    field.BrowseName = QualifiedName.From(name);
+                }
+            }
+        }
+
         private void ApplyCondition(ISystemContext context, AcknowledgeableConditionState target, Entry entry)
         {
+            if (entry.Type == Kind.NativeCondition)
+            {
+                if (!entry.Payload.TryGetValue(out ByteString payload) || payload.IsEmpty)
+                {
+                    throw new ServiceResultException(StatusCodes.BadDecodingError, "Invalid native condition payload.");
+                }
+                foreach ((BaseVariableState field, BaseVariableState saved) in
+                    NativeConditionFields.ReadUpdates(context, target, payload))
+                {
+                    field.WrappedValue = saved.WrappedValue;
+                    field.StatusCode = saved.StatusCode;
+                }
+                return;
+            }
             if (entry.Type == Kind.Condition)
             {
                 m_source.ApplyCondition(context, target, entry.Payload);
@@ -531,7 +704,7 @@ namespace Opc.Ua.Redundancy.Server
             }
             var type = (Kind)decoder.ReadByte(null);
             Uuid id = decoder.ReadGuid(null);
-            if (type is < Kind.Ordinary or > Kind.Retire || id == Guid.Empty)
+            if (type is < Kind.Ordinary or > Kind.NativeCondition || id == Guid.Empty)
             {
                 throw new ServiceResultException(StatusCodes.BadDecodingError);
             }
@@ -586,7 +759,9 @@ namespace Opc.Ua.Redundancy.Server
             Condition,
             Acknowledge,
             Confirm,
-            Retire
+            Retire,
+            NativeOrdinary,
+            NativeCondition
         }
 
         private sealed record Grant(string Key, Func<SharedStoreWriteGrant> Read);

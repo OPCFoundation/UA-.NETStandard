@@ -61,31 +61,39 @@ namespace Opc.Ua.Client.Tests
         }
 
         /// <summary>
-        /// With probing, the initial connect switches to the member with the
-        /// higher ServiceLevel.
+        /// Initial placement picks the higher ServiceLevel and keeps the seed on a tie.
         /// </summary>
-        [Test]
-        public async Task DefaultSelectionMovesFromDegradedToHealthyMemberAsync()
+        [TestCase(150, 250, true)]
+        [TestCase(200, 255, true)]
+        [TestCase(250, 250, false)]
+        public async Task DefaultInitialSelectionRanksVerifiedServiceLevelsAsync(
+            byte seedLevel,
+            byte peerLevel,
+            bool selectPeer)
         {
             using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(60));
             await using RedundantSet set = await RedundantSet.StartAsync(timeout.Token).ConfigureAwait(false);
-            set.Primary.SetServiceLevel(150);
-            set.Backup.SetServiceLevel(250);
+            set.Primary.SetServiceLevel(seedLevel);
+            set.Backup.SetServiceLevel(peerLevel);
 
             await using UaManagedSession session = await set.ConnectAsync(
                 new ServerRedundancyOptions(), timeout.Token).ConfigureAwait(false);
 
-            Assert.That(ServerUriOf(session), Is.EqualTo(set.Backup.ApplicationUri));
+            Assert.That(ServerUriOf(session), Is.EqualTo((selectPeer ? set.Backup : set.Primary).ApplicationUri));
             ServerRedundancyInfo? info = session.RedundancyInfo;
             Assert.That(info, Is.Not.Null);
-            Assert.That(info!.ServiceLevel, Is.EqualTo(250));
+            byte expectedLevel = selectPeer ? peerLevel : seedLevel;
+            Assert.That(info!.ServiceLevel, Is.EqualTo(expectedLevel));
             DataValue level = await session.ReadValueAsync(VariableIds.Server_ServiceLevel, timeout.Token)
                 .ConfigureAwait(false);
-            Assert.That(level.GetValue<byte>(0), Is.EqualTo(250));
-            Assert.That(
-                await EventuallyAsync(() => set.Primary.SessionCount == 0).ConfigureAwait(false),
-                Is.True,
-                "The session replaced on the Server connected to first must be closed there.");
+            Assert.That(level.GetValue<byte>(0), Is.EqualTo(expectedLevel));
+            if (selectPeer)
+            {
+                Assert.That(
+                    await EventuallyAsync(() => set.Primary.SessionCount == 0).ConfigureAwait(false),
+                    Is.True,
+                    "The session replaced on the Server connected to first must be closed there.");
+            }
         }
 
         /// <summary>
@@ -246,7 +254,7 @@ namespace Opc.Ua.Client.Tests
         {
             using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(60));
             await using RedundantSet set = await RedundantSet.StartAsync(timeout.Token).ConfigureAwait(false);
-            set.Primary.SetServiceLevel(150);
+            set.Primary.SetServiceLevel(190);
             set.Backup.SetServiceLevel(180);
             set.Backup.RefuseRead(VariableIds.Server_NamespaceArray);
             IUserIdentity? probeIdentity = useDedicatedIdentity ? new UserIdentity("user2", "password1"u8) : null;
@@ -343,7 +351,7 @@ namespace Opc.Ua.Client.Tests
             using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(60));
             await using RedundantSet set = await RedundantSet.StartAsync(timeout.Token).ConfigureAwait(false);
             set.Primary.SetServiceLevel(ServiceLevels.HealthyMinimum);
-            set.Backup.SetServiceLevel(ServiceLevels.Maximum);
+            set.Backup.SetServiceLevel(ServiceLevels.HealthyMinimum);
             var options = new ServerRedundancyOptions
             {
                 ProbeMemberServiceLevel = true,
@@ -352,14 +360,14 @@ namespace Opc.Ua.Client.Tests
 
             await using UaManagedSession session = await set.ConnectAsync(options, timeout.Token)
                 .ConfigureAwait(false);
-            await Task.Delay(500, timeout.Token).ConfigureAwait(false);
             int probesAfterConnect = set.Backup.CreatedSessionCount;
+            set.Backup.SetServiceLevel(ServiceLevels.Maximum);
             await Task.Delay(1500, timeout.Token).ConfigureAwait(false);
 
             Assert.Multiple(() =>
             {
                 Assert.That(ServerUriOf(session), Is.EqualTo(set.Primary.ApplicationUri));
-                Assert.That(probesAfterConnect, Is.Zero);
+                Assert.That(probesAfterConnect, Is.GreaterThan(0));
                 Assert.That(set.Backup.CreatedSessionCount, Is.EqualTo(probesAfterConnect));
             });
         }
@@ -447,10 +455,10 @@ namespace Opc.Ua.Client.Tests
         /// <summary>
         /// A degraded ServiceLevel of the Server in use fails over to the
         /// healthy member while connected, without a connection loss, and the
-        /// subscription continues on the new Server.
+        /// subscription continues and refreshes conditions on the new Server.
         /// </summary>
         [Test]
-        public async Task DegradedServiceLevelFailsOverAndSubscriptionContinuesAsync()
+        public async Task DegradedServiceLevelFailsOverAndRefreshesConditionsAsync()
         {
             using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(90));
             await using RedundantSet set = await RedundantSet.StartAsync(timeout.Token).ConfigureAwait(false);
@@ -467,7 +475,7 @@ namespace Opc.Ua.Client.Tests
             var stateChanges = new ConcurrentQueue<ConnectionStateChangedEventArgs>();
             session.ConnectionStateChanged += (_, e) => stateChanges.Enqueue(e);
 
-            var recorder = new DataChangeRecorder();
+            var recorder = new FailoverNotificationRecorder();
             ISubscriptionManager manager = session.RequireSubscriptionManager();
             ISubscription subscription = manager.Add(
                 recorder,
@@ -487,7 +495,18 @@ namespace Opc.Ua.Client.Tests
                     QueueSize = 1
                 }),
                 out _), Is.True);
+            Assert.That(subscription.MonitoredItems.TryAdd(
+                "Conditions",
+                OptionsFactory.Create(new Subscriptions.MonitoredItems.MonitoredItemOptions
+                {
+                    StartNodeId = ObjectIds.Server,
+                    AttributeId = Attributes.EventNotifier,
+                    QueueSize = 10,
+                    Filter = CreateRefreshEventFilter()
+                }),
+                out Subscriptions.MonitoredItems.IMonitoredItem? conditions), Is.True);
             await WaitUntilAsync(() => recorder.Count >= 3, timeout.Token).ConfigureAwait(false);
+            await WaitUntilAsync(() => conditions?.Created == true, timeout.Token).ConfigureAwait(false);
             Assert.That(
                 stateChanges.ToArray().Where(static change =>
                     change.PreviousState == ConnectionState.Connected),
@@ -507,6 +526,8 @@ namespace Opc.Ua.Client.Tests
             DateTime failedOverAt = DateTime.UtcNow;
             await WaitUntilAsync(() => recorder.LatestSourceTimestamp > failedOverAt, timeout.Token)
                 .ConfigureAwait(false);
+            await WaitUntilAsync(() => recorder.RefreshMarkers.Contains(ObjectTypeIds.RefreshEndEventType),
+                timeout.Token).ConfigureAwait(false);
 
             Assert.Multiple(() =>
             {
@@ -519,6 +540,10 @@ namespace Opc.Ua.Client.Tests
                 Assert.That(manager.Items.Single(), Is.SameAs(subscription));
                 Assert.That(session.RedundancyInfo?.ServiceLevel, Is.EqualTo(230));
                 Assert.That(recorder.Errors, Is.Empty);
+                Assert.That(recorder.RefreshMarkers, Is.EqualTo(new[]
+                {
+                    ObjectTypeIds.RefreshStartEventType, ObjectTypeIds.RefreshEndEventType
+                }));
             });
             Assert.That(
                 await EventuallyAsync(() => set.Primary.SessionCount == 0).ConfigureAwait(false),
@@ -527,18 +552,73 @@ namespace Opc.Ua.Client.Tests
         }
 
         /// <summary>
-        /// A connected session withholds service when the only reachable member enters Maintenance.
+        /// Classic event subscriptions receive one refresh sequence after failover.
         /// </summary>
         [Test]
-        public async Task MaintenanceWithNoEligiblePeerWithholdsServicesAsync()
+        public async Task FailoverRefreshesClassicEventSubscriptionAsync()
         {
             using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(60));
             await using RedundantSet set = await RedundantSet.StartAsync(timeout.Token).ConfigureAwait(false);
             set.Primary.SetServiceLevel(ServiceLevels.Maximum);
+            set.Backup.SetServiceLevel(230);
+            await using UaManagedSession session = await set.ConnectAsync(
+                new ServerRedundancyOptions(),
+                timeout.Token,
+                engineFactory: ClassicSubscriptionEngineFactory.Instance).ConfigureAwait(false);
+
+            var markers = new ConcurrentQueue<NodeId>();
+            using var subscription = new Subscription(set.Telemetry)
+            {
+                PublishingEnabled = true,
+                PublishingInterval = 100
+            };
+            var item = new MonitoredItem(set.Telemetry)
+            {
+                NodeClass = NodeClass.Object,
+                StartNodeId = ObjectIds.Server,
+                AttributeId = Attributes.EventNotifier,
+                QueueSize = 10,
+                Filter = CreateRefreshEventFilter()
+            };
+            item.Notification += (_, notification) =>
+            {
+                if (notification.NotificationValue is EventFieldList fields)
+                {
+                    RecordRefreshMarker(fields.EventFields, markers);
+                }
+            };
+            subscription.AddItem(item);
+            Assert.That(session.AddSubscription(subscription), Is.True);
+            await subscription.CreateAsync(timeout.Token).ConfigureAwait(false);
+
+            await session.FailoverAsync(set.Backup.Endpoint, timeout.Token).ConfigureAwait(false);
+            await WaitUntilAsync(() => markers.Contains(ObjectTypeIds.RefreshEndEventType), timeout.Token)
+                .ConfigureAwait(false);
+
+            Assert.That(ServerUriOf(session), Is.EqualTo(set.Backup.ApplicationUri));
+            Assert.That(markers, Is.EqualTo(new[]
+            {
+                ObjectTypeIds.RefreshStartEventType, ObjectTypeIds.RefreshEndEventType
+            }));
+        }
+
+        /// <summary>
+        /// The client retires its session when the only reachable member enters Maintenance.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task MaintenanceWithNoEligiblePeerClosesSessionAsync(bool useChannelManager)
+        {
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(60));
+            await using RedundantSet set = await RedundantSet.StartAsync(timeout.Token).ConfigureAwait(false);
+            await using ClientChannelManager? channels = useChannelManager
+                ? new ClientChannelManager(set.Client.Config, set.Telemetry)
+                : null;
+            set.Primary.SetServiceLevel(ServiceLevels.Maximum);
             set.Backup.SetServiceLevel(ServiceLevels.NoData);
             await using UaManagedSession session = await set.ConnectAsync(
                 new ServerRedundancyOptions { ServiceLevelMonitoringInterval = TimeSpan.FromMilliseconds(100) },
-                timeout.Token).ConfigureAwait(false);
+                timeout.Token, channelManager: channels).ConfigureAwait(false);
 
             set.Primary.SetServiceLevel(ServiceLevels.Maintenance);
             await WaitUntilAsync(() => session.StateMachine.State == ConnectionState.Disconnected, timeout.Token)
@@ -548,8 +628,62 @@ namespace Opc.Ua.Client.Tests
                 () => session.ReadValueAsync(VariableIds.Server_ServiceLevel, timeout.Token),
                 Throws.TypeOf<ServiceResultException>().With.Property(nameof(ServiceResultException.StatusCode))
                     .EqualTo((StatusCode)StatusCodes.BadServerHalted)).ConfigureAwait(false);
+            Assert.That(await EventuallyAsync(() => set.Primary.SessionCount == 0).ConfigureAwait(false), Is.True);
+            int createdSessions = set.Primary.CreatedSessionCount;
             session.StateMachine.TriggerReconnect();
             Assert.That(session.StateMachine.State, Is.EqualTo(ConnectionState.Disconnected));
+            Assert.That(set.Primary.CreatedSessionCount, Is.EqualTo(createdSessions));
+        }
+
+        /// <summary>
+        /// A new session restores local subscriptions after the announced Maintenance interval.
+        /// </summary>
+        [Test]
+        public async Task MaintenanceRecoveryRecreatesSubscriptionsAsync()
+        {
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(60));
+            await using RedundantSet set = await RedundantSet.StartAsync(timeout.Token).ConfigureAwait(false);
+            set.Primary.SetServiceLevel(ServiceLevels.Maximum);
+            set.Backup.SetServiceLevel(ServiceLevels.NoData);
+            await using UaManagedSession session = await set.ConnectAsync(
+                new ServerRedundancyOptions { ServiceLevelMonitoringInterval = TimeSpan.FromMilliseconds(100) },
+                timeout.Token).ConfigureAwait(false);
+
+            var recorder = new FailoverNotificationRecorder();
+            ISubscriptionManager manager = session.RequireSubscriptionManager();
+            ISubscription subscription = manager.Add(
+                recorder,
+                OptionsFactory.Create(new Subscriptions.SubscriptionOptions
+                {
+                    PublishingEnabled = true,
+                    PublishingInterval = TimeSpan.FromMilliseconds(100),
+                    KeepAliveCount = 10,
+                    LifetimeCount = 100
+                }));
+            Assert.That(subscription.MonitoredItems.TryAdd(
+                "CurrentTime",
+                OptionsFactory.Create(new Subscriptions.MonitoredItems.MonitoredItemOptions
+                {
+                    StartNodeId = VariableIds.Server_ServerStatus_CurrentTime,
+                    SamplingInterval = TimeSpan.FromMilliseconds(100),
+                    QueueSize = 1
+                }),
+                out _), Is.True);
+            await WaitUntilAsync(() => recorder.Count > 0, timeout.Token).ConfigureAwait(false);
+
+            set.Primary.SetEstimatedReturnTime(DateTime.UtcNow.AddSeconds(4));
+            set.Primary.SetServiceLevel(ServiceLevels.Maintenance);
+            await WaitUntilAsync(
+                () => session.StateMachine.State == ConnectionState.Disconnected && set.Primary.SessionCount == 0,
+                timeout.Token).ConfigureAwait(false);
+            DateTime restoredAt = DateTime.UtcNow;
+            set.Primary.SetServiceLevel(ServiceLevels.Maximum);
+
+            await WaitUntilAsync(() => session.StateMachine.IsConnected, timeout.Token).ConfigureAwait(false);
+            await WaitUntilAsync(() => recorder.LatestSourceTimestamp > restoredAt, timeout.Token)
+                .ConfigureAwait(false);
+            Assert.That(manager.Items.Single(), Is.SameAs(subscription));
+            Assert.That(recorder.Errors, Is.Empty);
         }
 
         /// <summary>
@@ -685,6 +819,31 @@ namespace Opc.Ua.Client.Tests
             return info.RedundantServers.ToList().Single(s => s.ServerUri == member.ApplicationUri);
         }
 
+        private static EventFilter CreateRefreshEventFilter()
+        {
+            return new EventFilter
+            {
+                SelectClauses =
+                [
+                    new SimpleAttributeOperand
+                    {
+                        TypeDefinitionId = ObjectTypeIds.BaseEventType,
+                        BrowsePath = [new QualifiedName(BrowseNames.EventType)],
+                        AttributeId = Attributes.Value
+                    }
+                ]
+            };
+        }
+
+        private static void RecordRefreshMarker(ArrayOf<Variant> fields, ConcurrentQueue<NodeId> markers)
+        {
+            if (fields.Count != 0 && fields[0].TryGetValue(out NodeId eventType) &&
+                (eventType == ObjectTypeIds.RefreshStartEventType || eventType == ObjectTypeIds.RefreshEndEventType))
+            {
+                markers.Enqueue(eventType);
+            }
+        }
+
         private static async Task<ServerRedundancyInfo> WaitForResolvedMemberAsync(
             UaManagedSession session,
             RedundantMember member,
@@ -755,7 +914,8 @@ namespace Opc.Ua.Client.Tests
                 bool withRedundancyHandler = true,
                 ConfiguredEndpoint? backupEndpoint = null,
                 IUserIdentity? identity = null,
-                IClientChannelManager? channelManager = null)
+                IClientChannelManager? channelManager = null,
+                ISubscriptionEngineFactory? engineFactory = null)
             {
                 var resolver = new MemberEndpointResolver(new Dictionary<string, ConfiguredEndpoint>
                 {
@@ -772,6 +932,7 @@ namespace Opc.Ua.Client.Tests
                         : null,
                     telemetry: Telemetry,
                     channelManager: channelManager,
+                    engineFactory: engineFactory,
                     serverRedundancy: options with { ExpectedServerApplicationUri = Primary.ApplicationUri },
                     ct: ct);
             }
@@ -868,6 +1029,11 @@ namespace Opc.Ua.Client.Tests
                 m_setServiceLevel(level);
             }
 
+            public void SetEstimatedReturnTime(DateTime time)
+            {
+                m_server.CurrentInstance.ServerObject!.EstimatedReturnTime!.Value = time;
+            }
+
             /// <summary>
             /// Makes the server open reverse connections to the client listener.
             /// </summary>
@@ -941,15 +1107,17 @@ namespace Opc.Ua.Client.Tests
         }
 
         /// <summary>
-        /// Records the source timestamps of the data changes of a subscription.
+        /// Records data changes and condition refresh markers from a subscription.
         /// </summary>
-        private sealed class DataChangeRecorder : ISubscriptionNotificationHandler
+        private sealed class FailoverNotificationRecorder : ISubscriptionNotificationHandler
         {
             public int Count => Volatile.Read(ref m_count);
 
             public DateTime LatestSourceTimestamp => new(Interlocked.Read(ref m_latestTicks), DateTimeKind.Utc);
 
             public ConcurrentQueue<StatusCode> Errors { get; } = new();
+
+            public ConcurrentQueue<NodeId> RefreshMarkers { get; } = new();
 
             public ValueTask OnDataChangeNotificationAsync(
                 ISubscription subscription,
@@ -990,6 +1158,10 @@ namespace Opc.Ua.Client.Tests
                 PublishState publishStateMask,
                 IReadOnlyList<string> stringTable)
             {
+                foreach (EventNotification value in notification.Span)
+                {
+                    RecordRefreshMarker(value.Fields, RefreshMarkers);
+                }
                 return default;
             }
 

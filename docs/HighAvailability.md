@@ -200,11 +200,12 @@ Client-side, `DefaultServerRedundancyHandler.FetchRedundancyInfoAsync` reads `Re
 
 `ManagedSession` stores the default handler's basic snapshot as soon as that
 read succeeds, within the existing two-second metadata-read bound. Peer discovery
-runs separately in the background, in parallel with a two-second bound per peer;
-connection establishment does not wait for every backup. A peer timeout leaves
-its `Endpoint` unresolved without discarding the mode, peer URIs or other resolved
-endpoints. Caller cancellation is propagated, and session disposal cancels and
-drains the background refresh.
+runs in parallel with a bound per peer. The default handler waits for bounded discovery
+and probes at initial connection to a non-transparent set. It selects the reachable,
+verified member with the highest operational ServiceLevel and keeps the seed on a tie.
+A peer timeout does not discard the mode, peer URIs or other resolved endpoints.
+Caller cancellation is propagated, and session disposal cancels and drains the
+background refresh.
 
 ```csharp
 ManagedSession session = await new ManagedSessionBuilder(configuration, telemetry)
@@ -282,9 +283,11 @@ redundancy is not supported by this check: a TLS certificate can identify
 the transport terminator without identifying the OPC UA application.
 
 The default handler keeps an established Healthy server even if a peer
-reports a higher level. In Maintenance it uses `EstimatedReturnTime`, or a
-longer retry interval when none is provided. Transparent mode leaves
-failover to the server set and uses its shared application identity.
+reports a higher level. When no eligible peer is available and the current
+server enters Maintenance, the managed client closes the session and releases its
+channel lease. It keeps local subscription definitions for recovery and delays retry
+until `EstimatedReturnTime` or the longer maintenance interval. Transparent mode
+leaves failover to the server set and uses its shared application identity.
 
 On the server, `AddServerRedundancy` exchanges short-lived
 `ServiceLevel` and `ServerState` observations through the protected shared
@@ -480,8 +483,8 @@ You enable mirroring by registering the seams below on the server builder; each 
   in Transparent or HotAndMirrored mode. The feed and election must use the
   same enrolled `FreshnessProtectedKeyValueStore`; its authority must compare
   the current grant and enforce its deadline atomically at commit. Ordinary
-  linearizable CAS is not sufficient. Registering redundancy alone does not
-  synchronize EventIds.
+  linearizable CAS is not sufficient. Designate shared event sources explicitly:
+  replica-local diagnostics retain their own EventIds.
 - `RegisterNodes` returns the input NodeIds in this stack, so registered-node handles are already replica-consistent when the AddressSpace NodeIds are identical.
 - `UseDistributedAddressSpace(...)` mirrors node topology and values through `INodeStateStore`, helping each server present the same NodeIds and browse paths. Each node manager is restricted to its declared non-standard `NamespaceUris`; namespace-zero infrastructure remains replica-local, and a replicated root may not contain foreign descendants. Custom and shared-namespace partitions implement `ILocalAddressSpaceOwnership` with a stable `PartitionId` and an `OwnsNode(NodeId)` predicate. Hydration updates existing node graphs in place, preserving concrete node types, callbacks, and handles. Tracked subtree membership is independent of mutable child links, so deleting or replacing a graph also detaches its old replication callbacks.
 
@@ -544,8 +547,29 @@ Notes:
   rebuilds retained conditions and their native method associations by
   replaying the committed prefix. It advertises `NoData`
   until it has caught up under its own writer grant. An administrator's
-  `Maintenance` override still takes precedence. Clients can call
-  `ConditionRefresh` after failover to retrieve the retained events and their IDs.
+  `Maintenance` override still takes precedence. Managed failover calls
+  `ConditionRefresh` after recovering subscriptions that monitor events. For
+  Transparent sets, it needs a changed `CurrentServerId` to detect the takeover.
+  Other clients call `ConditionRefresh` to retrieve retained events and their IDs.
+- For a native event, call `PublishNativeEventAsync` with the populated
+  `BaseEventState`, or pass `CreateNativeEventPublishOptions` to a fluent
+  notifier's `Publish` registration. Run the stream on the ready writer
+  and give it the source's occurrence UUID and timestamps. For a native
+  condition transition, prepare a detached `AcknowledgeableConditionState`
+  with the same type and field layout as the bound node, then await
+  `PublishNativeConditionAsync`. The feed applies the values and status
+  codes to the live condition after committing; it does not copy methods or
+  permissions. Do not separately report it through a synchronous callback or
+  mutate the bound node before commit. Deploy readers that support these
+  record kinds to every replica before using the native publication methods.
+- Verify the authority in the deployment you intend to run. Use separate
+  server processes and exercise both replica roles: publish an ordinary
+  event and an unacknowledged condition, take the writer offline, and
+  verify the client refreshes the condition and can acknowledge and confirm
+  it on the successor using the original EventId. Hold a writer commit
+  past lease expiry and confirm the authority rejects it without an event
+  or condition update becoming visible. An in-process store cannot
+  establish those properties for a deployment.
 - Initial replay does not re-emit ordinary historical events; mirrored
   notifications remain the responsibility of subscription mirroring. The
   append-only feed retains up to 100,000 records of up to 256 KiB each and

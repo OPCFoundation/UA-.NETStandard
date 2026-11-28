@@ -1506,6 +1506,16 @@ namespace Opc.Ua.Client
             try
             {
                 await InnerSession.CompleteSessionRecoveryAsync(ct).ConfigureAwait(false);
+                if (StateMachine.State == ConnectionState.Reconnecting &&
+                    m_redundancyInfo?.Mode == RedundancySupport.Transparent)
+                {
+                    await RefreshRedundancyInfoBestEffortAsync(ct).ConfigureAwait(false);
+                }
+                if (m_refreshConditionsAfterFailover)
+                {
+                    m_refreshConditionsAfterFailover = false;
+                    await RefreshConditionsAfterFailoverAsync(ct).ConfigureAwait(false);
+                }
                 return ServiceResult.Good;
             }
             catch (Exception exception)
@@ -2121,9 +2131,16 @@ namespace Opc.Ua.Client
 
                     try
                     {
-                        ITransportWaitingConnection? connection = await WaitForRecoveryConnectionAsync(
-                            session.ConfiguredEndpoint, budget, ct).ConfigureAwait(false);
-                        await session.ReconnectWithConnectionAsync(budget, connection, ct).ConfigureAwait(false);
+                        if (Volatile.Read(ref m_suspendedMaintenanceUri) != null && !session.Connected)
+                        {
+                            await RecreateInPlaceAndRebindAsync(session, null, budget, ct).ConfigureAwait(false);
+                        }
+                        else
+                        {
+                            ITransportWaitingConnection? connection = await WaitForRecoveryConnectionAsync(
+                                session.ConfiguredEndpoint, budget, ct).ConfigureAwait(false);
+                            await session.ReconnectWithConnectionAsync(budget, connection, ct).ConfigureAwait(false);
+                        }
                     }
                     catch (ServiceResultException sre) when (
                         sre.StatusCode == StatusCodes.BadSecureChannelClosed &&
@@ -2202,7 +2219,7 @@ namespace Opc.Ua.Client
                     ConfiguredEndpoint? target = SelectEligibleFailoverTarget(m_redundancyHandler!, m_redundancyInfo);
                     if (target == null)
                     {
-                        return SuspendForMaintenance(m_redundancyInfo);
+                        return await SuspendForMaintenanceAsync(m_redundancyInfo, ct).ConfigureAwait(false);
                     }
 
                     await SwitchToRedundantServerAsync(
@@ -2748,7 +2765,7 @@ namespace Opc.Ua.Client
                 {
                     if (m_monitorServiceLevel && IsCurrentMemberInMaintenance(m_redundancyInfo))
                     {
-                        return SuspendForMaintenance(m_redundancyInfo);
+                        return await SuspendForMaintenanceAsync(m_redundancyInfo, ct).ConfigureAwait(false);
                     }
                     return new ServiceResult(
                         StatusCodes.BadNothingToDo);
@@ -2844,11 +2861,19 @@ namespace Opc.Ua.Client
             {
                 refresh = FetchRedundancySnapshotAsync(operation, ct);
                 m_redundancyRefreshTask = refresh;
+                ServerRedundancyInfo? previousSnapshot = m_redundancyInfo;
                 m_redundancyInfo = ApplyMemberConnections(
                     await refresh.WaitAsync(m_redundancyRefreshTimeout, m_timeProvider, ct)
                         .ConfigureAwait(false)
                         ?? throw ServiceResultException.Unexpected("The redundancy handler returned no snapshot."),
                     ConfiguredEndpoint);
+                if (previousSnapshot is { Mode: RedundancySupport.Transparent, CurrentServerId.Length: > 0 } &&
+                    m_redundancyInfo is { Mode: RedundancySupport.Transparent, CurrentServerId.Length: > 0 } &&
+                    !string.Equals(
+                        previousSnapshot.CurrentServerId, m_redundancyInfo.CurrentServerId, StringComparison.Ordinal))
+                {
+                    m_refreshConditionsAfterFailover = true;
+                }
                 if (handler is IServerRedundancyEndpointCache cache &&
                     m_redundancyInfo.Mode is not (RedundancySupport.None or RedundancySupport.Transparent))
                 {
@@ -4401,5 +4426,12 @@ namespace Opc.Ua.Client
             this ILogger logger,
             Exception exception,
             int count);
+
+        [LoggerMessage(EventId = ClientEventIds.ManagedSession + 38, Level = LogLevel.Warning,
+            Message = "ManagedSession: ConditionRefresh failed after failover for subscription {SubscriptionId}.")]
+        public static partial void ManagedSessionConditionRefreshFailed(
+            this ILogger logger,
+            Exception? exception,
+            uint subscriptionId);
     }
 }

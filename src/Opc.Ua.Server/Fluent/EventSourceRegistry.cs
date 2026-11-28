@@ -819,7 +819,7 @@ namespace Opc.Ua.Server.Fluent
                     {
                         return;
                     }
-                    DispatchEvent(entry, systemContext, e);
+                    await DispatchEventAsync(entry, systemContext, e, startupLifetime.Token).ConfigureAwait(false);
                 }
             }
             catch (OperationCanceledException) when (startupLifetime.IsCancellationRequested)
@@ -953,7 +953,8 @@ namespace Opc.Ua.Server.Fluent
             }
         }
 
-        private void DispatchEvent(SourceEntry entry, ISystemContext context, BaseEventState e)
+        private async ValueTask DispatchEventAsync(
+            SourceEntry entry, ISystemContext context, BaseEventState e, CancellationToken ct)
         {
             if (e == null)
             {
@@ -965,9 +966,16 @@ namespace Opc.Ua.Server.Fluent
                 {
                     PopulateDefaults(entry.Notifier, context, e, entry.Options.EventIdProvider);
                 }
-                entry.Notifier.ReportEvent(context, e);
+                if (entry.Options.DispatchAsync is { } dispatch)
+                {
+                    await dispatch(entry.Notifier, e, ct).ConfigureAwait(false);
+                }
+                else
+                {
+                    entry.Notifier.ReportEvent(context, e);
+                }
             }
-            catch (Exception ex)
+            catch (Exception ex) when (ex is not OperationCanceledException || !ct.IsCancellationRequested)
             {
                 m_logger?.PublishReportEventForBrowseIdNodeIdThrew(
                     ex,

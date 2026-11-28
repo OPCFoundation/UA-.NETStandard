@@ -4043,7 +4043,8 @@ namespace Opc.Ua.Client
                 else
                 {
                     ITransportChannel newChannel;
-                    IServiceMessageContext messageContext = MessageContext;
+                    IServiceMessageContext messageContext =
+                        NullableTransportChannel?.MessageContext ?? m_configuration.CreateMessageContext(Factory);
 
                     if (connection != null)
                     {
@@ -4631,6 +4632,39 @@ namespace Opc.Ua.Client
             finally
             {
                 Closing = false;
+            }
+        }
+
+        /// <summary>
+        /// Closes the server session and releases its channel while retaining local subscriptions for recovery.
+        /// </summary>
+        internal async Task WithdrawForMaintenanceAsync(CancellationToken ct)
+        {
+            if (m_engine is DefaultSubscriptionEngine engine &&
+                engine.SubscriptionManager is Subscriptions.SubscriptionManager manager)
+            {
+                manager.SetSessionRecoveryPaused(true);
+            }
+            else
+            {
+                m_engine.PausePublishing();
+            }
+            try
+            {
+                await CloseAsync(timeout: 2000, closeChannel: false, ct).ConfigureAwait(false);
+            }
+            finally
+            {
+                IManagedTransportChannel? managed = Interlocked.Exchange(ref m_managedChannel, null);
+                if (managed != null)
+                {
+                    ReleaseChannel();
+                    managed.Dispose();
+                }
+                else
+                {
+                    DisposeChannel();
+                }
             }
         }
 

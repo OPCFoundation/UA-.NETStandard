@@ -35,7 +35,7 @@ namespace Opc.Ua.Client.Tests
             using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(90));
             await using ReverseConnectSet set = await ReverseConnectSet.StartAsync(true, timeout.Token)
                 .ConfigureAwait(false);
-            set.Primary.SetServiceLevel(150);
+            set.Primary.SetServiceLevel(190);
             set.Backup.SetServiceLevel(180);
 
             await using UaManagedSession session = await set.ConnectAsync(
@@ -268,7 +268,7 @@ namespace Opc.Ua.Client.Tests
             using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(90));
             await using ReverseConnectSet set = await ReverseConnectSet.StartAsync(true, timeout.Token)
                 .ConfigureAwait(false);
-            set.Primary.SetServiceLevel(150);
+            set.Primary.SetServiceLevel(190);
             set.Backup.SetServiceLevel(180);
             var members = new ControlledMemberConnections(set.Source);
             var options = new ServerRedundancyOptions
@@ -310,7 +310,7 @@ namespace Opc.Ua.Client.Tests
             using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(120));
             await using ReverseConnectSet set = await ReverseConnectSet.StartAsync(true, timeout.Token)
                 .ConfigureAwait(false);
-            set.Primary.SetServiceLevel(150);
+            set.Primary.SetServiceLevel(190);
             set.Backup.SetServiceLevel(180);
             var members = new ControlledMemberConnections(set.Source)
             {
