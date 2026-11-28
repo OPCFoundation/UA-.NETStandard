@@ -8,7 +8,7 @@
     "DOTNET_gcServer": "0",
     "SERVER_DOTNET_gcServer": "0"
   },
-  "commonArgs": "--security encrypt --duration 5 --warmup 3 --baseline 3",
+  "commonArgs": "--security encrypt --duration 5 --warmup 3 --baseline 3 --simulation 0",
   "scenarios": [
     { "name": "read", "args": "--scenario read --sessions 4 --nodes 100" },
     { "name": "write", "args": "--scenario write --sessions 4 --nodes 100" },
@@ -40,7 +40,7 @@
     },
     {
       "scenario": "browse", "metric": "netAllocB", "max": 59000,
-      "catches": "server bytes per Browse of the Server object (reference enumeration, NodeState references); 49.6-52.1 K"
+      "catches": "server bytes per Browse of the Server object (reference enumeration, NodeState references); 49.6-52.1 K Windows, 42.1-42.4 K Linux"
     },
     {
       "scenario": "translate", "metric": "netAllocB", "max": 73000,
@@ -52,7 +52,7 @@
     },
     {
       "scenario": "sub-classic", "metric": "netAllocB2", "max": 1500,
-      "catches": "server bytes per written value incl. its data change fan-out to 20 monitored items and publish (#4757/#4834, A5); 590-1320 per round, min of 3 at most 860"
+      "catches": "server bytes per written value incl. its data change fan-out to 20 monitored items and publish (#4757/#4834, A5); 790-877 per round with the reference server simulation off (590-1320 with it on)"
     },
     {
       "scenario": "sub-classic", "metric": "netClientAllocB", "max": 135,
@@ -80,11 +80,11 @@
     },
     {
       "scenario": "connect", "metric": "netAllocB", "max": 470000,
-      "catches": "server bytes per encrypted channel + CreateSession + ActivateSession + CloseSession (#5171 key load, startup); 325-393 K"
+      "catches": "server bytes per encrypted channel + CreateSession + ActivateSession + CloseSession (#5171 key load, startup); 325-393 K Windows, 375-383 K Linux"
     },
     {
-      "scenario": "connect", "metric": "netClientAllocB", "max": 285000,
-      "catches": "client bytes per connect (#5184 validated key reuse); 242-246 K"
+      "scenario": "connect", "metric": "netClientAllocB", "max": 300000,
+      "catches": "client bytes per connect, reusing the key loaded at the start of the window (#5184 validated key reuse); 242-246 K Windows, 264 K Linux"
     }
   ]
 }

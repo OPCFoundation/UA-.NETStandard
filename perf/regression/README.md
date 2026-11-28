@@ -104,7 +104,9 @@ It must not fail on a slow or busy runner, so it checks nothing that depends on 
 | Measure | Why |
 |---|---|
 | Bytes per operation only | A busy machine completes fewer operations in a window; each one allocates the same. Throughput, latency and delivered % stay in the load floors. |
-| Net of the idle allocation rate (`--baseline 3`) | The reference server allocates about 5 MB/s on timers (simulation, keep-alives) with no load. Divided by the operations of a starved window, that added 50-100 % to a Read. The harness measures the rate in an idle window of the same run and checks `netAllocB`, `netAllocB2` and `netClientAllocB`. |
+| Reference server simulation off (`--simulation 0`) | The simulation assigns random values to the `Scalar_Simulation_*` variables every second, about 5 MB/s (mostly XmlElement comparisons). Divided by the operations of a starved window, that added 50-100 % to a Read. No scenario reads those variables. Without it the idle server allocates about 8 KB/s. |
+| Net of the idle allocation rate (`--baseline 3`) | What is left on timers (keep-alives, publish cycles) is measured in an idle window of the same run and taken out: the gate checks `netAllocB`, `netAllocB2` and `netClientAllocB`. |
+| Keys reloaded before the window (connect) | The CertificateManager reuses a loaded application key for 30 seconds (#5171/#5184); after that a connect loads it from the store, about 115 K more. The connect workload reloads the keys right before the window, so the check never depends on how long setup took. |
 | Smallest of three rounds (`aggregate: min`) | Work outside the operation only ever adds bytes. |
 | Confirmation (`confirmRounds: 2`) | A failed scenario runs twice more and fails the job only if it fails again. A regression fails every time. |
 | Retried runs, free ports | A run without a result (a server port taken by another process) is retried up to three times. |
@@ -116,13 +118,15 @@ client bytes within 1 %, where the plain `allocB` of a Read rose from 20.4 K to 
 A simulated regression of 50 bytes per written value (`-ExtraArgs "--inject-alloc 50"`, +8 K
 per 100-value Write) fails `write.netAllocB` in every round and confirmation round.
 
-Server bytes of the subscription scenarios are small next to the idle rate (about 45 bytes per
-notification against 5 MB/s), so `sub-classic.netAllocB2` varies by ±40 % between rounds and has
-a ceiling near twice its value; it catches a fan-out regression such as #4757, not a few
-percent. The managed subscription scenario checks only the client.
+With the simulation on, `sub-classic.netAllocB2` (about 45 server bytes per notification) varied
+by ±40 % between rounds; with it off, by ±5 %. Its ceiling is still near twice its value and
+catches a fan-out regression such as #4757, not a few percent. The managed subscription scenario
+checks only the client. A workload error in a confirmation round fails the job even when the
+first rounds had none.
 
-When a pull request lowers the bytes of a path, the summary lists the ceilings that are more
-than twice the measured value; lower them in the same pull request. When a change adds bytes
-on purpose, raise the ceiling and say why in the pull request. The ceilings were set on Windows;
-if a Linux runner measures more than 10 % away, re-run the gate there with `-Rounds 5` and set
-each ceiling 15 % above the largest round.
+The first Linux run (ubuntu-latest, 2026-11-28) agreed with Windows within 2 % except Browse
+(42 K against 50-52 K) and the client bytes of connect (264 K against 244 K); the catches text
+of each check lists both. When a pull request lowers the bytes of a path, the summary lists the
+ceilings that are more than twice the measured value; lower them in the same pull request. When
+a change adds bytes on purpose, raise the ceiling and say why in the pull request. To recalibrate,
+run the gate on the runner with `-Rounds 5` and set each ceiling 15 % above the largest round.

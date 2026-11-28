@@ -291,6 +291,7 @@ function Measure-Checks($results, [string[]] $names) {
             Ok = $total -eq 0
             Catches = 'failed requests or rejected operations counted as throughput'
             Aggregate = [double]$total
+            Errors = $true
         }
     }
     foreach ($check in $config.checks) {
@@ -379,11 +380,19 @@ if ($confirmRounds -gt 0 -and $failedScenarios.Count -gt 0) {
 $failures = 0
 foreach ($row in $rows) {
     $row | Add-Member -NotePropertyName Confirm -NotePropertyValue ''
-    if (-not $row.Ok -and $confirmed.ContainsKey($row.Check)) {
+    $isErrors = $row.PSObject.Properties.Name -contains 'Errors'
+    if ($confirmed.ContainsKey($row.Check) -and (-not $row.Ok -or $isErrors)) {
         $again = $confirmed[$row.Check]
         $row.Confirm = "$($again.Value) ($($again.Rounds))"
-        $row.Ok = $again.Ok
-        if ($again.Ok) { $row.Confirm += ' passed' }
+        if ($isErrors) {
+            # A workload error in any round, first or confirmation, invalidates the
+            # measurements: a confirmation that passed with rejected operations clears nothing.
+            $row.Ok = $row.Ok -and $again.Ok
+        }
+        else {
+            $row.Ok = $again.Ok
+            if ($again.Ok) { $row.Confirm += ' passed' }
+        }
     }
     if (-not $row.Ok) { $failures++ }
 }

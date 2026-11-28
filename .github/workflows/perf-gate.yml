@@ -70,8 +70,12 @@ jobs:
         $relevant = $true
         if ('${{ github.event_name }}' -eq 'pull_request') {
           $files = @(git diff --name-only '${{ github.event.pull_request.base.sha }}' '${{ github.sha }}')
+          # the harness and its transitive project references (obj/project.assets.json),
+          # the source generators the src projects run, and the root build files
           $patterns = @(
-            '^src/', '^perf/ServerLoadHarness/', '^perf/regression/', '^tests/Opc\.Ua\.(Client|Server)\.TestFramework/',
+            '^src/', '^perf/ServerLoadHarness/', '^perf/regression/',
+            '^tests/Opc\.Ua\.(Client\.TestFramework|Server\.TestFramework|Test\.Common)/',
+            '^samples/Quickstarts\.Servers/', '^tools/Opc\.Ua\.SourceGeneration',
             '^[^/]+\.(props|targets|json)$', '^\.github/workflows/perf-gate\.yml$'
           )
           $relevant = @($files | Where-Object { $f = $_; $patterns | Where-Object { $f -match $_ } }).Count -gt 0

@@ -234,6 +234,29 @@ namespace Opc.Ua.Perf.ServerLoadHarness
             }
         }
 
+        /// <summary>
+        /// Writes false to the reference server's Scalar_Simulation_Enabled variable, as a client
+        /// Write would, so its simulation loop stops assigning values.
+        /// </summary>
+        private static async Task DisableSimulationAsync(Opc.Ua.Server.IServerInternal server)
+        {
+            int namespaceIndex = server.NamespaceUris.GetIndex(Quickstarts.ReferenceServer.Namespaces.ReferenceServer);
+            NodeState? node = namespaceIndex < 0
+                ? null
+                : await server.NodeManager.FindNodeInAddressSpaceAsync(
+                    new NodeId("Scalar_Simulation_Enabled", (ushort)namespaceIndex)).ConfigureAwait(false);
+            ServiceResult? result = node?.WriteAttribute(
+                server.DefaultSystemContext,
+                Attributes.Value,
+                NumericRange.Null,
+                new DataValue(new Variant(false)));
+            if (result == null || ServiceResult.IsBad(result))
+            {
+                throw new InvalidOperationException(
+                    $"--simulation 0: cannot write Scalar_Simulation_Enabled ({result?.StatusCode.ToString() ?? "node not found"}).");
+            }
+        }
+
         private static async Task<int> RunServerAsync(ApplicationInstance application, ITelemetryContext telemetry)
         {
             int port = ArgInt("port", 62555);
@@ -359,6 +382,13 @@ namespace Opc.Ua.Perf.ServerLoadHarness
             var lifecycle = new LifecycleChurn(server, ArgInt("lc-managers", 0), ArgInt("lc-vars", 10));
             await using ConfiguredAsyncDisposable disposeLifecycle = lifecycle.ConfigureAwait(false);
             await lifecycle.InitializeAsync().ConfigureAwait(false);
+            // --simulation 0 stops the reference server's simulation, which assigns random values
+            // to the Scalar_Simulation_* variables every second (about 5 MB/s of allocation when
+            // no client is connected). No scenario reads those variables.
+            if (ArgInt("simulation", 1) == 0 && server is ReferenceServer)
+            {
+                await DisableSimulationAsync(server.CurrentInstance).ConfigureAwait(false);
+            }
             Console.WriteLine(FormattableString.Invariant($"READY {endpointUrl} {Environment.ProcessId}"));
 
             ProcessStats mark = ProcessStats.Capture();
@@ -518,7 +548,8 @@ namespace Opc.Ua.Perf.ServerLoadHarness
                 FormattableString.Invariant(
                     $"--password-length {passwordLength} --token-length {tokenLength} ") +
                 FormattableString.Invariant(
-                    $"--inject-alloc {Arg("inject-alloc", "0")} --inject-spin-us {Arg("inject-spin-us", "0")}"),
+                    $"--inject-alloc {Arg("inject-alloc", "0")} --inject-spin-us {Arg("inject-spin-us", "0")} ") +
+                FormattableString.Invariant($"--simulation {Arg("simulation", "1")}"),
                 serverEnvironment);
             using Process server = startedServer;
             using BlockingCollection<string> serverLines = startedLines;
@@ -765,6 +796,7 @@ namespace Opc.Ua.Perf.ServerLoadHarness
                 await Task.Delay(2000).ConfigureAwait(false);
             }
 
+            await workload.BeforeMeasureAsync().ConfigureAwait(false);
             await server.StandardInput.WriteLineAsync("mark").ConfigureAwait(false);
             Take(serverLines, "MARKED");
             GC.Collect();
@@ -1270,6 +1302,14 @@ namespace Opc.Ua.Perf.ServerLoadHarness
         }
 
         public abstract Task RunAsync(CancellationToken ct);
+
+        /// <summary>
+        /// Runs right before the measurement window starts, while the workload is running.
+        /// </summary>
+        public virtual Task BeforeMeasureAsync()
+        {
+            return Task.CompletedTask;
+        }
 
         public abstract void ResetStats();
 
