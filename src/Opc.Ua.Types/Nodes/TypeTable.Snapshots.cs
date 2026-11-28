@@ -260,7 +260,9 @@ namespace Opc.Ua
                 {
                     if (!merged.m_nodes.TryGetValue(parent.NodeId, out TypeInfo? superType))
                     {
-                        if (target.SuperType?.NodeId == parent.NodeId)
+                        // An unchanged capture may keep a deleted ancestor; a rebased registration may not, because
+                        // its supertype was removed after the batch saw it.
+                        if (only is null && target.SuperType?.NodeId == parent.NodeId)
                         {
                             continue;
                         }

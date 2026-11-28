@@ -193,6 +193,26 @@ namespace Opc.Ua.Server.Tests.NodeManager
             }
         }
 
+        /// <summary>
+        /// A conflict raised by the durable decision callback itself is not reported as the host's retryable
+        /// conflict: the callback already ran, so it reaches the caller unchanged.
+        /// </summary>
+        [Test]
+        public async Task DecisionCallbackConflictIsNotReportedAsRetryableAsync()
+        {
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+            INodeManagerLifecycle lifecycle = m_server.NodeManagerLifecycle;
+            await using IPreparedChanges prepared = await lifecycle.PrepareAsync(
+                [LifecycleChange.Add(RuntimeFactory(kModelNamespaceUri, kFirstRegistrationValue))], timeout.Token)
+                .ConfigureAwait(false);
+            var failure = new OptimisticPublicationConflictException("Raised by the decision callback.");
+
+            await Assert.ThatAsync(
+                async () => await prepared.CommitAsync(_ => throw failure, timeout.Token).ConfigureAwait(false),
+                Throws.Exception.SameAs(failure)).ConfigureAwait(false);
+            Assert.That(prepared.IsCommitted, Is.False);
+        }
+
         private static RuntimeNodeSetNodeManagerFactory RuntimeFactory(string namespaceUri, int value)
         {
             return new RuntimeNodeSetNodeManagerFactory(CreateOptions(namespaceUri, value));

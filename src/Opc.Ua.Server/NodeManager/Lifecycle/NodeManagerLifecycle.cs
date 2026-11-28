@@ -2273,6 +2273,30 @@ namespace Opc.Ua.Server
                     "A namespace or server URI index the batch assigned now identifies another URI.",
                     batch.RoutingRevision);
             }
+            // A read image bound for a live generation outside the batch replaces that owner's serving image: the
+            // owner must still be the same generation with the same serving image, or a newer image would be lost.
+            foreach (INodeManagerReadImage image in batch.ReadImages)
+            {
+                if (image?.Owner is not { } owner ||
+                    batch.Entries.Exists(entry => ReferenceEquals(entry.Manager, owner)))
+                {
+                    continue;
+                }
+                bool unchanged =
+                    batch.RoutingRevision.TryGetGeneration(owner, out NodeManagerGeneration? prepared) &&
+                    serving.TryGetGeneration(owner, out NodeManagerGeneration? current) &&
+                    ReferenceEquals(prepared, current) &&
+                    ReferenceEquals(
+                        batch.RoutingRevision.ReadImages.TryGetValue(owner, out INodeManagerReadImage? before)
+                            ? before : null,
+                        serving.ReadImages.TryGetValue(owner, out INodeManagerReadImage? after) ? after : null);
+                if (!unchanged)
+                {
+                    throw new NodeManagerRoutingConflictException(
+                        "A NodeManager whose read image the batch replaces changed after preparation.",
+                        batch.RoutingRevision);
+                }
+            }
             batch.Rebase(serving);
 
             static bool IsPrefixConsistent(StringTable prepared, StringTable serving)
@@ -2945,6 +2969,7 @@ namespace Opc.Ua.Server
                     throw new InvalidOperationException("A validation unit cannot publish.");
                 }
                 m_batch.Publication?.ValidateRevision(m_batch.Server);
+                m_batch.DecisionStarted = true;
                 if (m_decideAsync is not null)
                 {
                     await m_mutation.DecideAsync(m_decideAsync, reservation, cancellationToken)
@@ -3715,6 +3740,12 @@ namespace Opc.Ua.Server
             public bool DecisionCommitted { get; set; }
 
             /// <summary>
+            /// Gets or sets whether the durable decision callback was invoked. Only conflicts the host detects
+            /// before this point are reported as a retryable <see cref="NodeManagerLifecycleConflictException"/>.
+            /// </summary>
+            public bool DecisionStarted { get; set; }
+
+            /// <summary>
             /// Gets the sole worker allowed to commit this replacement.
             /// </summary>
             public HandoffRequest? Handoff { get; init; }
@@ -4163,10 +4194,11 @@ namespace Opc.Ua.Server
                     }
                     catch (Exception failure) when (failure is not OutOfMemoryException)
                     {
-                        // A stale type, factory, namespace or reference image found before the decision is the
-                        // same retryable conflict as a stale routing view.
+                        // A stale type, factory, namespace or reference image the host found before invoking the
+                        // decision is the same retryable conflict as a stale routing view. Exceptions from the
+                        // decision callback itself pass through unchanged.
                         executionFailure = failure is OptimisticPublicationConflictException &&
-                            !payload.DecisionCommitted && !payload.IsCommitted
+                            !payload.DecisionStarted && !payload.IsCommitted
                                 ? new NodeManagerLifecycleConflictException(failure.Message, failure)
                                 : failure;
                     }
