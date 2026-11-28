@@ -1,17 +1,26 @@
 <!-- SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL -->
 <!-- SPDX-License-Identifier: MIT -->
 
-# FDO enrollment and OPC UA handoff
+# Use FDO to onboard an OPC UA device
 
-This .NET 10 demo initializes one Device, transfers its ownership voucher,
-registers and retrieves the Owner through Rendezvous (TO0 and TO1), and
-enrolls a DCA certificate using `fdo.csr` in protected TO2. It then
-authenticates to a local OPC UA registrar with the installed certificate
-and calls `GetManagers`. It uses no OPC UA onboarding ticket.
+Run this sample to see how a device gets its first OPC UA application
+certificate through FIDO Device Onboard (FDO) instead of using an OPC UA
+onboarding ticket. You don't need an existing FDO deployment: the sample
+starts the FDO roles and an OPC UA registrar on your machine, and provisions
+one simulated device with its own keys.
+
+The FDO Owner uses the GDS certificate issuer to sign the device's certificate
+request. The device installs the certificate, opens an encrypted OPC UA
+connection, and calls `GetManagers`. That call verifies that the registrar
+accepts the new credential, not just that FDO returned a certificate.
+
+Use [OnboardingClient's FDO mode](../README.md#enroll-a-provisioned-fdo-device)
+instead if you already have a provisioned device and running FDO roles.
 
 ## Run locally
 
-From the OPC UA repository root, run:
+Install the [.NET SDK required by this repository](../../../docs/DeveloperGuide.md#prerequisites)
+and the .NET 10 runtime. From the repository root, run:
 
 ```powershell
 dotnet run --project samples\Gds\FdoOnboarding `
@@ -19,26 +28,47 @@ dotnet run --project samples\Gds\FdoOnboarding `
   -- D:\temp\fdo-onboarding-run-1 62561
 ```
 
-Use an empty user-controlled state directory and an unused loopback port.
-The demo prints `FDO_ONBOARDING_COMPLETE managers=0` when the registrar
-admits the DCA. No software or managed-application manager is configured.
-The state directory retains the demo PKI, including private keys. The default
-run keeps registrar receipts in memory; `--replace` persists them to disk.
-Keep the directory private and dispose of it after inspection.
-The demo does not use or modify the operating system certificate stores.
+The first argument is a new absolute directory for sample state. The second
+is a free loopback port for the OPC UA registrar. Use a fresh directory for
+each run. It holds the sample's certificates and private keys, so keep it
+private and delete it when you're done. The sample does not modify the
+operating system certificate stores.
 
-The demo is not part of `UA.slnx`. The solution includes the opt-in module,
-but applications that reference only the base GDS packages do not depend on FDO.
+Success is `FDO_ONBOARDING_COMPLETE managers=0`. Zero is expected: the sample
+checks registrar admission without configuring any software update or managed
+application managers.
 
-To enroll only a provisioned Device against an existing deployment, use
-[OnboardingClient's FDO mode](../README.md#enroll-a-provisioned-fdo-device).
+Run the demo project directly because it is a standalone walkthrough, not
+part of the standard `UA.slnx` build. The reusable `Opc.Ua.Gds.Fdo` module
+is in the solution and does not require the demo executable.
 
-### Credential replacement
+## What happens during enrollment
 
-Use a different empty state directory and unused loopback port. Supply a
-fresh 32-byte wrapping key to the sample process through the environment.
-Do not pass it on the command line, log it, or put it in the state directory.
-Build before setting the wrapping key, then run the compiled sample directly.
+1. The sample initializes the device and transfers its ownership voucher to an
+   Owner. The Owner registers with Rendezvous (TO0), and the device looks up
+   the Owner there (TO1).
+2. The device verifies the signed redirect and starts the protected Owner
+   exchange (TO2). It sends a certificate signing request through `fdo.csr`.
+   The Owner checks the approved device identity and asks GDS to sign it.
+3. The Owner commits the issuance receipt after authenticating the device's
+   `Done20` message. The device checks the issued certificate against its
+   enrollment trust and retained key before confirming enrollment, then
+   installs it only after authenticating `DoneAck20`.
+4. The device uses that certificate to connect to the registrar. The registrar
+   checks its own trust configuration and the committed receipt before allowing
+   `GetManagers`. Enrollment does not replace the device's OPC UA peer trust.
+
+## Try replacing the FDO credential
+
+The default run enrolls an OPC UA certificate but keeps the device's FDO
+credential. Use `--replace` to see the Owner also issue a replacement FDO
+credential and the device activate it only after `DoneAck20`. This mode writes
+the enrollment receipt and replacement checkpoints to disk rather than
+keeping the receipt in memory.
+
+Use another new state directory and a free port. Build first, then supply a
+fresh 32-byte wrapping key in the process environment to protect the device
+checkpoint. Keep the key out of command lines, logs, and the state directory.
 
 ```powershell
 dotnet build samples\Gds\FdoOnboarding\FdoOnboarding.csproj `
@@ -55,40 +85,17 @@ finally {
 }
 ```
 
-In this mode, the Owner signs the replacement with a distinct Owner2
-key. The Device stages its new voucher secret and credential header
-in an encrypted `fdo-device` checkpoint without replacing the active
-credential. After authenticating `Done20`, the Owner commits the replacement
-voucher separately in `fdo-owner`. After authenticating `DoneAck20`, the
-Device publishes the staged credential and then installs the DCA. The demo
-reopens both checkpoints and checks that the new secret, not the old one,
-validates the committed replacement voucher. It prints
-`FDO_REPLACEMENT_ACTIVATED` before the normal encrypted registrar handoff.
-The public registrar receipt contains no replacement secret.
+Look for `FDO_REPLACEMENT_ACTIVATED` before `FDO_ONBOARDING_COMPLETE`. The
+sample reopens the Owner and device checkpoints and verifies that the new
+secret, not the old one, validates the replacement voucher. The registrar
+receipt does not contain the replacement secret.
 
-## What the demo trusts
+## Scope and limits
 
-The demo uses loopback HTTP for the FDO roles and maps its configured
-`rvserver.local` name to that same listener. TO2 verifies the signed
-Rendezvous redirect against the voucher Owner and protects enrollment with
-the paired ECDH P-256/AES-128-GCM profile. The registrar checks the
-provisioned Device GUID and attestation certificate before signing the CSR;
-it records the exact leaf and commits the receipt only on authenticated
-`Done20`. The Device checks the leaf against separately configured enrollment
-trust and its retained RSA key before `Done20`. It persists, reloads and
-activates the exact leaf only after authenticating `DoneAck20`.
-
-The registrar provisions the enrollment CA and CRL independently in its OPC
-UA channel trust and external admission stores. The Device pins the local
-registrar certificate from the demo's own PKI directory before opening its
-encrypted OPC UA connection. Installation does not replace peer trust.
-
-This is a single-run demo on an operator-controlled local filesystem.
-Manufacturing, attestation and Owner keys and Rendezvous state live in
-memory; attestation revocation is not checked for the locally generated
-short-lived CA. The default run reuses the FDO credential. The replacement
-run demonstrates staged and activated checkpoint boundaries, not crash
-recovery, retry, or later resale. Its operator retains the wrapping key
-separately if the checkpoint must be inspected after the process exits.
-Neither run demonstrates HTTPS, full Base Profile support, or interoperability
-with another implementation.
+This is a single-machine sample, not a deployment recipe. The FDO roles use
+loopback HTTP and the paired ECDH P-256/AES-128-GCM profile. The sample
+generates its own trust material and does not check attestation revocation
+for its short-lived demo CA. It does not demonstrate HTTPS, crash recovery,
+later resale, full Base Profile support, or interoperability with another
+FDO implementation. For deployment responsibilities, see the
+[FDO onboarding guide](../../../docs/Onboarding.md#fdo-onboarding-for-opc-ua-gds).
