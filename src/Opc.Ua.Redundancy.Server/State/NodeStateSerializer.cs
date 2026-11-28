@@ -70,6 +70,16 @@ namespace Opc.Ua.Redundancy.Server
             return DeserializePayload(context, payload);
         }
 
+        /// <summary>
+        /// Restores an ordinary event and its child fields without installing it in the address space.
+        /// </summary>
+        internal static BaseEventState DeserializeEvent(ISystemContext context, ByteString payload)
+        {
+            var state = new BaseEventState(null);
+            DeserializePayload(context, payload, state);
+            return state;
+        }
+
         internal static HashSet<NodeId> GetDescendantNodeIds(ISystemContext context, NodeState node)
         {
             var ids = new HashSet<NodeId>();
@@ -121,7 +131,10 @@ namespace Opc.Ua.Redundancy.Server
             return existingNode;
         }
 
-        private static NodeState DeserializePayload(ISystemContext context, ByteString payload)
+        private static NodeState DeserializePayload(
+            ISystemContext context,
+            ByteString payload,
+            NodeState? target = null)
         {
             if (context == null)
             {
@@ -140,7 +153,12 @@ namespace Opc.Ua.Redundancy.Server
             }
 
             var nodeClass = (NodeClass)decoder.ReadInt32(null);
-            NodeState node = Create(nodeClass);
+            NodeState node = target ?? Create(nodeClass);
+            if (node.NodeClass != nodeClass)
+            {
+                throw new ServiceResultException(StatusCodes.BadDecodingError,
+                    "The encoded node class does not match the target.");
+            }
             ByteString nodePayload = decoder.ReadByteString(null);
             using var nodeStream = new MemoryStream(nodePayload.ToArray(), writable: false);
             node.LoadAsBinary(context, nodeStream);

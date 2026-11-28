@@ -13,6 +13,7 @@ using Moq;
 using NUnit.Framework;
 using Opc.Ua.Redundancy;
 using Opc.Ua.Redundancy.Server;
+using Opc.Ua.Server.Fluent;
 using Opc.Ua.Server.Hosting;
 using Opc.Ua.Tests;
 
@@ -25,8 +26,9 @@ namespace Opc.Ua.Server.Tests.Redundancy
     [Category("Distributed")]
     public sealed class ReplicatedEventFeedTests
     {
-        [Test]
-        public async Task HostedSuccessorCatchesUpBeforeServingAndCommitsAckAndConfirmAsync()
+        [TestCase(RedundancySupport.Transparent)]
+        [TestCase(RedundancySupport.HotAndMirrored)]
+        public async Task HostedSuccessorCatchesUpBeforeServingAndCommitsAckAndConfirmAsync(RedundancySupport mode)
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
             var leaseClock = new FakeTimeProvider();
@@ -47,10 +49,10 @@ namespace Opc.Ua.Server.Tests.Redundancy
                 TimeSpan.FromSeconds(10), TimeSpan.FromSeconds(2), leaseClock);
             await using var b = new SharedStoreLeaseElection(view, "lease/events", "b", ["a", "b"],
                 TimeSpan.FromSeconds(10), TimeSpan.FromSeconds(2), leaseClock);
-            using var serviceA = new LeaderServiceLevelProvider(a, RedundancySupport.HotAndMirrored);
-            using var serviceB = new LeaderServiceLevelProvider(b, RedundancySupport.HotAndMirrored);
-            await using ServiceProvider scopeA = CreateScope(view, a, serviceA, group, telemetry);
-            await using ServiceProvider scopeB = CreateScope(view, b, serviceB, group, telemetry);
+            using var serviceA = new LeaderServiceLevelProvider(a, mode);
+            using var serviceB = new LeaderServiceLevelProvider(b, mode);
+            await using ServiceProvider scopeA = CreateScope(view, a, serviceA, group, telemetry, mode);
+            await using ServiceProvider scopeB = CreateScope(view, b, serviceB, group, telemetry, mode);
             var policy = (Source)scopeB.GetRequiredService<IReplicatedEventSource>();
             var writer = scopeA.GetRequiredService<ReplicatedEventFeed>();
             var standby = scopeB.GetRequiredService<ReplicatedEventFeed>();
@@ -66,11 +68,19 @@ namespace Opc.Ua.Server.Tests.Redundancy
             writer.BindNotifier(notifierA);
             standby.BindNotifier(notifierB);
             var events = new List<ByteString>();
+            var replayed = new List<(ByteString EventId, LocalizedText Message)>();
             notifierA.OnReportEvent = (_, _, e) =>
             {
                 if (e is BaseEventState { EventId: { } id })
                 {
                     events.Add(id.Value);
+                }
+            };
+            notifierB.OnReportEvent = (_, _, e) =>
+            {
+                if (e is BaseEventState { EventId: { } id, Message: { } message })
+                {
+                    replayed.Add((id.Value, message.Value));
                 }
             };
             await StartAsync(scopeA, serverA).ConfigureAwait(false);
@@ -84,19 +94,55 @@ namespace Opc.Ua.Server.Tests.Redundancy
             Assert.That(await writer.PublishEventAsync(notifierA.NodeId, occurrence, 7).ConfigureAwait(false),
                 Is.EqualTo(ordinary));
             Assert.That(events, Is.EqualTo(new[] { ordinary }));
+
+            await Assert.ThatAsync(
+                () => writer.PublishNativeEventAsync(notifierA.NodeId, Uuid.NewUuid(), new BaseEventState(null)).AsTask(),
+                Throws.TypeOf<ServiceResultException>().With.Property(nameof(ServiceResultException.StatusCode))
+                    .EqualTo(StatusCodes.BadDecodingError)).ConfigureAwait(false);
+            Assert.That(writer.IsReady, Is.True);
+            var nativeMessage = new LocalizedText("en-US", "Native event");
+            var nativeEvent = new BaseEventState(null);
+            nativeEvent.Initialize(serverA.DefaultSystemContext, notifierA, EventSeverity.High, nativeMessage);
+            ByteString localId = nativeEvent.EventId!.Value;
+            Uuid nativeOccurrence = Uuid.NewUuid();
+            EventPublishOptions publishing = writer.CreateNativeEventPublishOptions(_ => nativeOccurrence);
+            await publishing.DispatchAsync!(notifierA, nativeEvent, default).ConfigureAwait(false);
+            ByteString native = events[^1];
+            Assert.That(await writer.PublishNativeEventAsync(notifierA.NodeId, nativeOccurrence, nativeEvent)
+                .ConfigureAwait(false), Is.EqualTo(native));
+            Assert.That(nativeEvent.EventId.Value, Is.EqualTo(localId));
+            ByteString distinct = await writer.PublishNativeEventAsync(notifierA.NodeId, Uuid.NewUuid(), nativeEvent)
+                .ConfigureAwait(false);
+            Assert.That(distinct, Is.Not.EqualTo(native));
+            await standby.CatchUpAsync(true, default).ConfigureAwait(false);
+            Assert.That(replayed.Where(item => item.Message == nativeMessage),
+                Is.EqualTo(new[] { (native, nativeMessage), (distinct, nativeMessage) }));
+
             var branch = new NodeId(51);
             ByteString old = await writer.PublishConditionAsync(conditionA.NodeId, branch, Uuid.NewUuid(), 1)
                 .ConfigureAwait(false);
-            ByteString current = await writer.PublishConditionAsync(conditionA.NodeId, branch, Uuid.NewUuid(), 2)
-                .ConfigureAwait(false);
+            AcknowledgeableConditionState draft = CreateCondition(serverA.DefaultSystemContext);
+            draft.Time!.Value = DateTimeUtc.Now;
+            draft.ReceiveTime!.Value = draft.Time.Value;
+            draft.Message!.Value = new LocalizedText("native condition");
+            draft.Retain!.Value = true;
+            Uuid conditionOccurrence = Uuid.NewUuid();
+            ByteString current = await writer.PublishNativeConditionAsync(
+                conditionA.NodeId, branch, conditionOccurrence, draft).ConfigureAwait(false);
+            Assert.That(await writer.PublishNativeConditionAsync(conditionA.NodeId, branch, conditionOccurrence, draft)
+                .ConfigureAwait(false), Is.EqualTo(current));
             await standby.CatchUpAsync(false, default).ConfigureAwait(false);
-            Assert.That(conditionB.GetBranch(current), Is.Not.Null);
+            Assert.That(conditionB.GetBranch(current)?.Message?.Value, Is.EqualTo(draft.Message.Value));
             Assert.That(serviceB.GetServiceLevel(), Is.EqualTo(ServiceLevels.NoData));
-            ByteString latest = await writer.PublishConditionAsync(conditionA.NodeId, branch, Uuid.NewUuid(), 3)
-                .ConfigureAwait(false);
+            var committedMessage = new LocalizedText("successor condition");
+            draft.Message.Value = committedMessage;
+            ByteString latest = await writer.PublishNativeConditionAsync(
+                conditionA.NodeId, branch, Uuid.NewUuid(), draft).ConfigureAwait(false);
 
             Volatile.Write(ref pauseCommit, true);
-            Task<ByteString> pending = writer.PublishEventAsync(notifierA.NodeId, Uuid.NewUuid(), 8).AsTask();
+            draft.Message.Value = new LocalizedText("condition from expired writer");
+            Task<ByteString> pending = writer.PublishNativeConditionAsync(
+                conditionA.NodeId, branch, Uuid.NewUuid(), draft).AsTask();
             try
             {
                 await entered.Task.WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
@@ -111,7 +157,7 @@ namespace Opc.Ua.Server.Tests.Redundancy
                 serviceB.ClearServiceLevelOverride();
                 await standby.CatchUpAsync(false, default).ConfigureAwait(false);
                 Assert.That(standby.IsReady, Is.True);
-                Assert.That(conditionB.GetBranch(latest), Is.Not.Null);
+                Assert.That(conditionB.GetBranch(latest)?.Message?.Value, Is.EqualTo(committedMessage));
             }
             finally
             {
@@ -121,7 +167,8 @@ namespace Opc.Ua.Server.Tests.Redundancy
             await Assert.ThatAsync(() => pending,
                 Throws.TypeOf<ServiceResultException>().With.Property(nameof(ServiceResultException.StatusCode))
                     .EqualTo(StatusCodes.BadNotWritable)).ConfigureAwait(false);
-            Assert.That(events, Is.EqualTo(new[] { ordinary }));
+            Assert.That(conditionA.GetBranch(latest)?.Message?.Value, Is.EqualTo(committedMessage));
+            Assert.That(events, Is.EqualTo(new[] { ordinary, native, distinct }));
 
             ByteString disabled = await standby.PublishConditionAsync(conditionB.NodeId, branch, Uuid.NewUuid(), 0)
                 .ConfigureAwait(false);
@@ -214,7 +261,8 @@ namespace Opc.Ua.Server.Tests.Redundancy
             ILeaderElection election,
             LeaderServiceLevelProvider serviceLevel,
             Uuid group,
-            ITelemetryContext telemetry)
+            ITelemetryContext telemetry,
+            RedundancySupport mode)
         {
             var builder = new DiTestServerBuilder();
             builder.Services
@@ -223,7 +271,7 @@ namespace Opc.Ua.Server.Tests.Redundancy
                 .AddSingleton<IServiceLevelProvider>(serviceLevel)
                 .AddSingleton<TimeProvider>(new FakeTimeProvider())
                 .AddSingleton(telemetry)
-                .AddSingleton(new ServerRedundancyOptions { Mode = RedundancySupport.HotAndMirrored });
+                .AddSingleton(new ServerRedundancyOptions { Mode = mode });
             builder.UseReplicatedEventReporting(group, _ => new Source());
             return builder.Services.BuildServiceProvider();
         }

@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: MIT
 
 using System;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace Opc.Ua.Server.Fluent
 {
@@ -50,6 +52,15 @@ namespace Opc.Ua.Server.Fluent
         /// UUID behavior.
         /// </summary>
         public IEventIdProvider? EventIdProvider { get; init; }
+
+        /// <summary>
+        /// Dispatches a prepared event instead of reporting it directly on the notifier.
+        /// </summary>
+        /// <remarks>
+        /// The registry awaits this callback before advancing the source iterator. When the callback fails,
+        /// the registry reports the error through <see cref="OnError"/>; it does not report the event locally.
+        /// </remarks>
+        public Func<BaseObjectState, BaseEventState, CancellationToken, ValueTask>? DispatchAsync { get; init; }
 
         /// <summary>
         /// When <c>true</c>, the notifier node is added to the manager's

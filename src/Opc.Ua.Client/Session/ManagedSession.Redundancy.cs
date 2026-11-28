@@ -235,7 +235,7 @@ namespace Opc.Ua.Client
             {
                 if (IsCurrentMemberInMaintenance(info))
                 {
-                    SuspendForMaintenance(info);
+                    await SuspendForMaintenanceAsync(info, ct, current).ConfigureAwait(false);
                 }
                 return;
             }
@@ -304,6 +304,7 @@ namespace Opc.Ua.Client
                     m_enableTokenReuseFailover && m_redundancyInfo?.Mode == RedundancySupport.HotAndMirrored;
                 try
                 {
+                    string? previousPeer = session.RedundantPeerUri;
                     await RecreateInPlaceAndRebindAsync(
                             session,
                             target,
@@ -312,6 +313,10 @@ namespace Opc.Ua.Client
                             retirePreviousSession,
                             peerUri)
                         .ConfigureAwait(false);
+                    if (!string.Equals(previousPeer, session.RedundantPeerUri, StringComparison.Ordinal))
+                    {
+                        m_refreshConditionsAfterFailover = true;
+                    }
                 }
                 finally
                 {
@@ -324,15 +329,20 @@ namespace Opc.Ua.Client
         }
 
         /// <summary>
-        /// Checks the initial server's health before admitting application services.
+        /// Selects the best initial server before admitting application services.
         /// </summary>
         private async Task SelectInitialRedundantServerAsync(CancellationToken ct)
         {
             ServerRedundancyInfo? info = m_redundancyInfo;
             if (info == null ||
                 m_redundancyHandler is not IServerRedundancyHandler handler ||
-                info.Mode is RedundancySupport.None or RedundancySupport.Transparent ||
-                (info.ServiceLevelAccessible && ServiceLevels.IsHealthy(info.ServiceLevel)))
+                info.Mode is RedundancySupport.None or RedundancySupport.Transparent)
+            {
+                return;
+            }
+
+            bool rankVerifiedMembers = m_probeMemberServiceLevel && handler is DefaultServerRedundancyHandler;
+            if (!rankVerifiedMembers && info.ServiceLevelAccessible && ServiceLevels.IsHealthy(info.ServiceLevel))
             {
                 return;
             }
@@ -350,16 +360,26 @@ namespace Opc.Ua.Client
             }
 
             byte? latestLevel = await ReadActiveServiceLevelAsync(ct).ConfigureAwait(false);
-            info = WithActiveServiceLevel(
-                m_redundancyInfo ?? info,
-                latestLevel ?? (IsCurrentMemberInMaintenance(info) ? info.ServiceLevel : null));
-            ConfiguredEndpoint? target = handler.ShouldFailover(ForPeerSelection(info), ConfiguredEndpoint)
-                .IsFailoverWarranted ? SelectEligibleFailoverTarget(handler, info, proactive: true) : null;
+            info = m_redundancyInfo ?? info;
+            info = WithActiveServiceLevel(info, latestLevel ?? (info.ServiceLevelAccessible ? info.ServiceLevel : null));
+            ConfiguredEndpoint? target;
+            if (rankVerifiedMembers)
+            {
+                ServerRedundancyInfo candidates = ForPeerSelection(info, requireHigherLevel: true);
+                target = handler.SelectFailoverTarget(candidates, ConfiguredEndpoint);
+            }
+            else
+            {
+                target = handler.ShouldFailover(ForPeerSelection(info), ConfiguredEndpoint).IsFailoverWarranted
+                    ? SelectEligibleFailoverTarget(handler, info, proactive: true)
+                    : null;
+            }
             if (target == null)
             {
                 if (m_monitorServiceLevel && IsCurrentMemberInMaintenance(info))
                 {
-                    throw new ServiceResultException(SuspendForMaintenance(info));
+                    throw new ServiceResultException(
+                        await SuspendForMaintenanceAsync(info, ct).ConfigureAwait(false));
                 }
                 return;
             }
@@ -395,7 +415,10 @@ namespace Opc.Ua.Client
                 : null;
         }
 
-        private ServerRedundancyInfo ForPeerSelection(ServerRedundancyInfo info, bool requiresHealthyPeer = false)
+        private ServerRedundancyInfo ForPeerSelection(
+            ServerRedundancyInfo info,
+            bool requiresHealthyPeer = false,
+            bool requireHigherLevel = false)
         {
             return !m_probeMemberServiceLevel ? info : CopySnapshot(
                 info,
@@ -404,6 +427,7 @@ namespace Opc.Ua.Client
                 info.RedundantServers.ToList().Where(server =>
                     server.ServiceLevelProbed && server.ServiceLevelKnown && server.ResolutionError == null &&
                     server.ServerState == ServerState.Running &&
+                    (!requireHigherLevel || !info.ServiceLevelAccessible || server.ServiceLevel > info.ServiceLevel) &&
                     (requiresHealthyPeer
                         ? ServiceLevels.IsHealthy(server.ServiceLevel)
                         : ServiceLevels.IsOperational(server.ServiceLevel)))
@@ -421,16 +445,32 @@ namespace Opc.Ua.Client
                 string.Equals(uri, m_session?.RedundantPeerUri, StringComparison.Ordinal);
         }
 
-        private ServiceResult SuspendForMaintenance(ServerRedundancyInfo? info)
+        private async Task<ServiceResult> SuspendForMaintenanceAsync(
+            ServerRedundancyInfo? info,
+            CancellationToken ct,
+            ConfiguredEndpoint? expectedEndpoint = null)
         {
             DateTime retryAfter = DefaultServerRedundancyHandler.GetMaintenanceRetryTime(
                 info?.EstimatedReturnTime ?? DateTime.MinValue, m_timeProvider.GetUtcNow().UtcDateTime);
             var failure = new ServiceResult(
                 StatusCodes.BadServerHalted,
                 new LocalizedText("The only available redundancy member is in maintenance."));
-            if (StateMachine.SuspendRecoveryUntil(retryAfter, failure))
+            using (await RecoveryWriterLockAsync(ct).ConfigureAwait(false))
             {
-                Volatile.Write(ref m_suspendedMaintenanceUri, m_session?.RedundantPeerUri);
+                if ((expectedEndpoint == null || ReferenceEquals(expectedEndpoint, ConfiguredEndpoint)) &&
+                    StateMachine.SuspendRecoveryUntil(retryAfter, failure) && m_session is { } session)
+                {
+                    Volatile.Write(ref m_suspendedMaintenanceUri, session.RedundantPeerUri);
+                    IManagedTransportChannel? channel = session.ManagedChannel;
+                    try
+                    {
+                        await session.WithdrawForMaintenanceAsync(ct).ConfigureAwait(false);
+                    }
+                    finally
+                    {
+                        RebindManagedChannelEvents(session, channel);
+                    }
+                }
             }
             return failure;
         }
@@ -438,6 +478,68 @@ namespace Opc.Ua.Client
         private static ServerRedundancyInfo WithActiveServiceLevel(ServerRedundancyInfo info, byte? level)
         {
             return CopySnapshot(info, level ?? ServiceLevels.NoData, level.HasValue, info.RedundantServers);
+        }
+
+        private async Task RefreshConditionsAfterFailoverAsync(CancellationToken ct)
+        {
+            Session session = InnerSession;
+#if OPCUA_V1_CLIENT
+            foreach (Subscription subscription in session.Subscriptions)
+            {
+                if (subscription.Created && subscription.MonitoredItems.Any(item =>
+                    item.Created && item.AttributeId == Attributes.EventNotifier))
+                {
+                    try
+                    {
+                        if (!await subscription.ConditionRefreshAsync(ct).ConfigureAwait(false))
+                        {
+                            m_logger.ManagedSessionConditionRefreshFailed(null, subscription.Id);
+                        }
+                    }
+                    catch (ServiceResultException exception)
+                    {
+                        m_logger.ManagedSessionConditionRefreshFailed(exception, subscription.Id);
+                    }
+                }
+            }
+#endif
+            if (session.SubscriptionEngine is DefaultSubscriptionEngine engine &&
+                engine.SubscriptionManager is Subscriptions.SubscriptionManager manager)
+            {
+                foreach (Subscriptions.ISubscription subscription in manager.Items)
+                {
+                    if (subscription is Subscriptions.LogicalSubscription logical)
+                    {
+                        foreach (Subscriptions.IManagedSubscription partition in logical.Partitions)
+                        {
+                            await RefreshPhysicalSubscriptionAsync(partition).ConfigureAwait(false);
+                        }
+                    }
+                    else
+                    {
+                        await RefreshPhysicalSubscriptionAsync(subscription).ConfigureAwait(false);
+                    }
+                }
+            }
+
+            async Task RefreshPhysicalSubscriptionAsync(Subscriptions.ISubscription subscription)
+            {
+                if (subscription is not Subscriptions.Subscription physical || !physical.Created ||
+                    !physical.MonitoredItems.Items.Any(item =>
+                    item is Subscriptions.MonitoredItems.MonitoredItem monitored && monitored.Created &&
+                    monitored.Options.CurrentValue.AttributeId == Attributes.EventNotifier))
+                {
+                    return;
+                }
+                try
+                {
+                    await physical.ConditionRefreshAsync(ct).ConfigureAwait(false);
+                }
+                catch (ServiceResultException exception)
+                {
+                    m_logger.ManagedSessionConditionRefreshFailed(exception, physical.Id);
+                }
+            }
         }
 
         private static ServerRedundancyInfo CopySnapshot(
@@ -855,6 +957,7 @@ namespace Opc.Ua.Client
         private readonly int m_maxProbedMembers;
         private readonly IUserIdentity? m_probeIdentity;
         private string? m_suspendedMaintenanceUri;
+        private bool m_refreshConditionsAfterFailover;
 
         private RetryBudget CreateRecoveryBudget()
         {

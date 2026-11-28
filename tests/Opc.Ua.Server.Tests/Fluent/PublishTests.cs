@@ -508,6 +508,50 @@ namespace Opc.Ua.Server.Tests.Fluent
         }
 
         [Test]
+        public async Task PublishAwaitsAlternateDispatchWithoutReportingLocallyAsync()
+        {
+            using TestablePublishManager manager = CreateManager();
+            BaseObjectState notifier = MakeNotifier(manager, "DeferredDispatch");
+            var failure = new ServiceResultException(StatusCodes.BadNotWritable);
+            var entered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var release = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var next = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var error = new TaskCompletionSource<Exception>(TaskCreationOptions.RunContinuationsAsynchronously);
+            int localReports = 0;
+            notifier.OnReportEvent = (_, _, _) => Interlocked.Increment(ref localReports);
+            var channel = Channel.CreateUnbounded<BaseEventState>();
+            var first = new BaseEventState(null);
+            var second = new BaseEventState(null);
+            manager.EventSources.Register(
+                notifier,
+                (_, _, ct) => channel.Reader.ReadAllAsync(ct),
+                new EventPublishOptions
+                {
+                    AlwaysOn = true,
+                    DispatchAsync = async (target, state, ct) =>
+                    {
+                        if (ReferenceEquals(state, first))
+                        {
+                            entered.TrySetResult(ReferenceEquals(target, notifier));
+                            await release.Task.WaitAsync(ct).ConfigureAwait(false);
+                            throw failure;
+                        }
+                        next.TrySetResult(ReferenceEquals(state, second));
+                    },
+                    OnError = ex => error.TrySetResult(ex)
+                });
+
+            await channel.Writer.WriteAsync(first).ConfigureAwait(false);
+            await channel.Writer.WriteAsync(second).ConfigureAwait(false);
+            Assert.That(await WaitForAsync(entered.Task).ConfigureAwait(false), Is.True);
+            Assert.That(next.Task.IsCompleted, Is.False);
+            release.TrySetResult(true);
+            Assert.That(await WaitForAsync(error.Task).ConfigureAwait(false), Is.SameAs(failure));
+            Assert.That(await WaitForAsync(next.Task).ConfigureAwait(false), Is.True);
+            Assert.That(Volatile.Read(ref localReports), Is.Zero);
+        }
+
+        [Test]
         public void Publish_DuplicateRegistration_ThrowsBadConfigurationError()
         {
             using TestablePublishManager manager = CreateManager();
