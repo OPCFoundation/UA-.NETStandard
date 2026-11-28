@@ -139,10 +139,12 @@ namespace Opc.Ua.Client.Tests.ManagedSession
         [Test]
         public async Task PublishOvertakesBatchedSnapshotWithoutSyntheticAcknowledgementsAsync()
         {
+            var initialSubscription = new AsyncOperationGate();
             await using var harness = new ManagedSessionReconnectHarness(TimeSpan.Zero)
             {
                 RecoveryActivationStatus = StatusCodes.Good,
-                ResendStatus = StatusCodes.BadMethodInvalid
+                ResendStatus = StatusCodes.BadMethodInvalid,
+                InitialSubscriptionResponse = initialSubscription
             };
             var firstRead = new TaskCompletionSource<ReadRequest>(TaskCreationOptions.RunContinuationsAsynchronously);
             var releaseRead = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -169,13 +171,11 @@ namespace Opc.Ua.Client.Tests.ManagedSession
             Assert.That(subscription.TryAddMonitoredItem("Bad", badNode, o => o, out IMonitoredItem? bad), Is.True);
             Assert.That(subscription.TryAddMonitoredItem(
                 "Third", new NodeId("Third", 1), o => o, out _), Is.True);
-            var items = new List<MonitoredItemCreateRequest>();
-            while (items.Count < 4)
-            {
-                CreateMonitoredItemsRequest request = await WaitForPhaseAsync(
-                    harness.NextMonitoredItemsAsync().AsTask(), "created monitored items").ConfigureAwait(false);
-                items.AddRange(request.ItemsToCreate.ToList());
-            }
+            initialSubscription.Release();
+            CreateMonitoredItemsRequest request = await WaitForPhaseAsync(
+                harness.NextMonitoredItemsAsync().AsTask(), "initial monitored-item batch").ConfigureAwait(false);
+            List<MonitoredItemCreateRequest> items = request.ItemsToCreate.ToList();
+            Assert.That(items, Has.Count.EqualTo(4));
             WirePublish publish = await WaitForPhaseAsync(harness.NextWirePublishAsync().AsTask(), "initial publish")
                 .ConfigureAwait(false);
             harness.FirstNotification.Release();
