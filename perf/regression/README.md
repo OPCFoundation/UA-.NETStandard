@@ -1,3 +1,6 @@
+<!-- SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL -->
+<!-- SPDX-License-Identifier: MIT -->
+
 # Server load floors
 
 `Invoke-LoadFloors.ps1` runs [ServerLoadHarness](../README.md) scenarios and checks the results
@@ -80,3 +83,45 @@ The values in the table were measured on a 24-core Windows machine. Byte counts 
 over to Linux runners, but rates and delivered % depend on the core count. After changing the
 runner or the shapes, run the script with the bounds of a check widened and set the bound from
 the measured median.
+
+## Allocation gate
+
+`alloc-gate.json` is a second floors file for the same script. It runs on every pull request in
+[perf-gate.yml](../../.github/workflows/perf-gate.yml) (the scenarios take about 9 minutes;
+most of it is fixed warm-up, baseline and measurement time) and checks only allocated bytes per operation, of the server and
+of the client, for ten scenarios: Read, Write, Browse, TranslateBrowsePaths, Call, classic and
+managed subscriptions, events, HistoryRead paging and connect. Each check names the path and
+the earlier regression or optimization it guards.
+
+```bash
+dotnet build perf/ServerLoadHarness -c Release -p:CustomTestTarget=net10.0
+pwsh perf/regression/Invoke-LoadFloors.ps1 -Floors perf/regression/alloc-gate.json
+```
+
+It must not fail on a slow or busy runner, so it checks nothing that depends on speed:
+
+| Measure | Why |
+|---|---|
+| Bytes per operation only | A busy machine completes fewer operations in a window; each one allocates the same. Throughput, latency and delivered % stay in the load floors. |
+| Net of the idle allocation rate (`--baseline 3`) | The reference server allocates about 5 MB/s on timers (simulation, keep-alives) with no load. Divided by the operations of a starved window, that added 50-100 % to a Read. The harness measures the rate in an idle window of the same run and checks `netAllocB`, `netAllocB2` and `netClientAllocB`. |
+| Smallest of three rounds (`aggregate: min`) | Work outside the operation only ever adds bytes. |
+| Confirmation (`confirmRounds: 2`) | A failed scenario runs twice more and fails the job only if it fails again. A regression fails every time. |
+| Retried runs, free ports | A run without a result (a server port taken by another process) is retried up to three times. |
+| Workstation GC in both processes | Allocation does not depend on the GC mode; fewer GC threads compete with the workload on a 4-core runner. |
+
+Measured on a 24-core Windows machine (2026-11-27), idle and with 24 busy processes that cut
+the request rate 20-fold: the net server bytes of the request scenarios agree within 10 %, the
+client bytes within 1 %, where the plain `allocB` of a Read rose from 20.4 K to 32.6-36.1 K.
+A simulated regression of 50 bytes per written value (`-ExtraArgs "--inject-alloc 50"`, +8 K
+per 100-value Write) fails `write.netAllocB` in every round and confirmation round.
+
+Server bytes of the subscription scenarios are small next to the idle rate (about 45 bytes per
+notification against 5 MB/s), so `sub-classic.netAllocB2` varies by ±40 % between rounds and has
+a ceiling near twice its value; it catches a fan-out regression such as #4757, not a few
+percent. The managed subscription scenario checks only the client.
+
+When a pull request lowers the bytes of a path, the summary lists the ceilings that are more
+than twice the measured value; lower them in the same pull request. When a change adds bytes
+on purpose, raise the ceiling and say why in the pull request. The ceilings were set on Windows;
+if a Linux runner measures more than 10 % away, re-run the gate there with `-Rounds 5` and set
+each ceiling 15 % above the largest round.

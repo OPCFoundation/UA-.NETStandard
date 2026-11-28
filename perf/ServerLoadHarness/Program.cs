@@ -723,6 +723,25 @@ namespace Opc.Ua.Perf.ServerLoadHarness
                 : new RequestWorkload(scenario, sessions, ArgInt("nodes", 100), ArgInt("inflight", 1));
             await workload.SetupAsync().ConfigureAwait(false);
 
+            // --baseline S: measure the allocation rate of both processes for S seconds with the
+            // sessions and subscriptions set up but no load, so bytes per operation can be reported
+            // without the work that runs on timers (simulation, keep-alives). That work allocates
+            // by the second, so it adds more to each operation the slower the machine is.
+            int baselineSeconds = ArgInt("baseline", 0);
+            (double Server, double Client)? background = null;
+            if (baselineSeconds > 0)
+            {
+                await Task.Delay(1000).ConfigureAwait(false);
+                await server.StandardInput.WriteLineAsync("mark").ConfigureAwait(false);
+                Take(serverLines, "MARKED");
+                ProcessStats baselineMark = ProcessStats.Capture();
+                await Task.Delay(TimeSpan.FromSeconds(baselineSeconds)).ConfigureAwait(false);
+                string clientBaseline = ProcessStats.Capture().Delta(baselineMark);
+                await server.StandardInput.WriteLineAsync("report").ConfigureAwait(false);
+                string serverBaseline = Take(serverLines, "REPORT")[7..];
+                background = (GetBytesPerSecond(serverBaseline), GetBytesPerSecond(clientBaseline));
+            }
+
             using var stop = new CancellationTokenSource();
             Task run = workload.RunAsync(stop.Token);
             if (workload is LifecycleWorkload lifecycleWorkload && ArgInt("lc-interval", 2000) > 0)
@@ -833,6 +852,27 @@ namespace Opc.Ua.Perf.ServerLoadHarness
                     $"  client-per-op: allocB={allocatedMb * 1048576 / operations:F0} ")
                     .Append("cpuUs=").Append(ProcessCpuReport.FormatPerOperation(cpuMs, operations))
                     .Append("  (").Append(workload.OperationName).Append(")\n");
+            }
+            if (background is (double serverRate, double clientRate) && operations > 0)
+            {
+                // bytes of the window minus what the idle baseline allocates in as many seconds
+                double serverNet = Math.Max(0, GetBytes(report) - (serverRate * GetSeconds(report)));
+                double clientNet = Math.Max(0, GetBytes(clientProcess) - (clientRate * GetSeconds(clientProcess)));
+                result.Append(
+                    CultureInfo.InvariantCulture,
+                    $"  background: serverB/s={serverRate:F0} clientB/s={clientRate:F0}\n");
+                result.Append(
+                    CultureInfo.InvariantCulture,
+                    $"  per-op-net: allocB={serverNet / operations:F0}  ({workload.OperationName})\n");
+                if (secondary is (double netSecondaryCount, string netSecondaryName) && netSecondaryCount > 0)
+                {
+                    result.Append(
+                        CultureInfo.InvariantCulture,
+                        $"  per-op2-net: allocB={serverNet / netSecondaryCount:F0}  ({netSecondaryName})\n");
+                }
+                result.Append(
+                    CultureInfo.InvariantCulture,
+                    $"  client-per-op-net: allocB={clientNet / operations:F0}  ({workload.OperationName})\n");
             }
             Console.Write(result.ToString());
             if (s_args.TryGetValue("out", out string? outFile))
@@ -978,6 +1018,35 @@ namespace Opc.Ua.Perf.ServerLoadHarness
             }
         }
 
+        private static double GetReportValue(string report, string key)
+        {
+            foreach (string part in report.Split(' '))
+            {
+                if (part.Length > key.Length + 1 &&
+                    part.StartsWith(key, StringComparison.Ordinal) &&
+                    part[key.Length] == '=')
+                {
+                    return double.Parse(part.AsSpan(key.Length + 1), CultureInfo.InvariantCulture);
+                }
+            }
+            throw new FormatException("No " + key + " in the process report: " + report);
+        }
+
+        private static double GetBytes(string report)
+        {
+            return GetReportValue(report, "allocBytes");
+        }
+
+        private static double GetSeconds(string report)
+        {
+            return GetReportValue(report, "sec");
+        }
+
+        private static double GetBytesPerSecond(string report)
+        {
+            return GetBytes(report) / GetSeconds(report);
+        }
+
         private static (double AllocatedMb, double CpuMs) ParseProcessReport(string report)
         {
             Dictionary<string, string> values = report
@@ -1041,7 +1110,8 @@ namespace Opc.Ua.Perf.ServerLoadHarness
                 FormattableString.Invariant(
                 $"contention={Contention - mark.Contention} threads={Threads} wsMB={WorkingSet / 1048576} heapMB={Heap / 1048576} ") +
                 FormattableString.Invariant(
-                $"userMs={(UserCpu - mark.UserCpu).TotalMilliseconds:F0} workItems={WorkItems - mark.WorkItems}");
+                $"userMs={(UserCpu - mark.UserCpu).TotalMilliseconds:F0} workItems={WorkItems - mark.WorkItems} ") +
+                FormattableString.Invariant($"allocBytes={Allocated - mark.Allocated}");
         }
     }
 

@@ -1,0 +1,90 @@
+{
+  "title": "Allocation gate",
+  "rounds": 3,
+  "aggregate": "min",
+  "confirmRounds": 2,
+  "headroom": 0.5,
+  "environment": {
+    "DOTNET_gcServer": "0",
+    "SERVER_DOTNET_gcServer": "0"
+  },
+  "commonArgs": "--security encrypt --duration 5 --warmup 3 --baseline 3",
+  "scenarios": [
+    { "name": "read", "args": "--scenario read --sessions 4 --nodes 100" },
+    { "name": "write", "args": "--scenario write --sessions 4 --nodes 100" },
+    { "name": "browse", "args": "--scenario browse --sessions 4" },
+    { "name": "translate", "args": "--scenario translate --sessions 4 --nodes 10" },
+    { "name": "call", "args": "--scenario call --sessions 4 --nodes 10" },
+    { "name": "sub-classic", "args": "--scenario sub --sessions 4 --subs 5 --nodes 200 --node-type all --pub 100 --write-interval 50 --client classic --queue-size 2" },
+    { "name": "sub-managed", "args": "--scenario sub --sessions 4 --subs 5 --nodes 200 --pub 100 --write-interval 50" },
+    { "name": "events", "args": "--scenario events --sessions 10 --subs 5 --pub 100 --event-rate 2000" },
+    { "name": "history", "args": "--scenario historyread-paging --sessions 2" },
+    { "name": "connect", "args": "--scenario connect --sessions 1 --workers 2" }
+  ],
+  "checks": [
+    {
+      "scenario": "read", "metric": "netAllocB", "max": 23000,
+      "catches": "server bytes per encrypted 100-value Read (read path, R0/#4995 grant lookups, #5183 namespace cache); 2026-11-27: 20.1 K idle, 18.0-20.2 K under load"
+    },
+    {
+      "scenario": "read", "metric": "netClientAllocB", "max": 6900,
+      "catches": "client bytes per 100-value Read (session send path, response decode); 6.02-6.04 K"
+    },
+    {
+      "scenario": "write", "metric": "netAllocB", "max": 24500,
+      "catches": "server bytes per encrypted 100-value Write (write path, N3 lookups, X1); 20.1-21.2 K"
+    },
+    {
+      "scenario": "write", "metric": "netClientAllocB", "max": 3250,
+      "catches": "client bytes per 100-value Write; 2.81-2.83 K"
+    },
+    {
+      "scenario": "browse", "metric": "netAllocB", "max": 59000,
+      "catches": "server bytes per Browse of the Server object (reference enumeration, NodeState references); 49.6-52.1 K"
+    },
+    {
+      "scenario": "translate", "metric": "netAllocB", "max": 73000,
+      "catches": "server bytes per 10-path TranslateBrowsePathsToNodeIds; 62.6-64.1 K"
+    },
+    {
+      "scenario": "call", "metric": "netAllocB", "max": 24000,
+      "catches": "server bytes per 10-method Call (method dispatch); 19.2-20.9 K"
+    },
+    {
+      "scenario": "sub-classic", "metric": "netAllocB2", "max": 1500,
+      "catches": "server bytes per written value incl. its data change fan-out to 20 monitored items and publish (#4757/#4834, A5); 590-1320 per round, min of 3 at most 860"
+    },
+    {
+      "scenario": "sub-classic", "metric": "netClientAllocB", "max": 135,
+      "catches": "classic subscription engine client bytes per notification; 108-114"
+    },
+    {
+      "scenario": "sub-managed", "metric": "netClientAllocB", "max": 220,
+      "catches": "V2 subscription engine client bytes per notification (#5003 client GC); 178-192"
+    },
+    {
+      "scenario": "events", "metric": "netAllocB2", "max": 30000,
+      "catches": "server bytes per event for 50 event subscriptions (event filter, E1-E6, #4757 per-item lock); 21.9-24.2 K"
+    },
+    {
+      "scenario": "events", "metric": "netClientAllocB", "max": 430,
+      "catches": "client bytes per event notification (EventFieldList decode); 354-362"
+    },
+    {
+      "scenario": "history", "metric": "netAllocB", "max": 44000,
+      "catches": "server bytes per 100-value HistoryRead page with continuation points (#5168); 35.9-38.1 K"
+    },
+    {
+      "scenario": "history", "metric": "netClientAllocB", "max": 7400,
+      "catches": "client bytes per HistoryRead page; 6.40-6.44 K"
+    },
+    {
+      "scenario": "connect", "metric": "netAllocB", "max": 470000,
+      "catches": "server bytes per encrypted channel + CreateSession + ActivateSession + CloseSession (#5171 key load, startup); 325-393 K"
+    },
+    {
+      "scenario": "connect", "metric": "netClientAllocB", "max": 285000,
+      "catches": "client bytes per connect (#5184 validated key reuse); 242-246 K"
+    }
+  ]
+}

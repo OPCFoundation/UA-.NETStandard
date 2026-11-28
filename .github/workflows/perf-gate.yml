@@ -1,0 +1,114 @@
+# SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+# SPDX-License-Identifier: MIT
+
+# Allocation gate.
+#
+# A quick check on every pull request that the request, subscription, event,
+# history and connect paths of the server and client do not allocate more per
+# operation than the ceilings in perf/regression/alloc-gate.json. It runs
+# ServerLoadHarness scenarios through perf/regression/Invoke-LoadFloors.ps1.
+#
+# It checks only bytes per operation, never throughput or latency, so a slow or
+# busy runner cannot fail it: a shared machine changes how many operations a
+# window completes, not what one operation allocates. The bytes that timers
+# allocate by the second (simulation, keep-alives) are measured in an idle
+# window of the same run and taken out, each check takes the smallest of three
+# rounds (background work only adds bytes), and a failed scenario is run twice
+# more and must fail again. See perf/regression/README.md#allocation-gate.
+#
+# Throughput, delivery and latency floors stay in load-floors.yml (nightly and
+# the 'performance' label).
+name: Allocation Gate
+
+on:
+  push:
+    branches: [ master, main, release/* ]
+  pull_request:
+    branches: [ master, main, develop/*, release/* ]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+env:
+  # One project is built, but keep the NBGV variables out of GITHUB_ENV as
+  # buildandtest.yml does; the 'Set Cloud Version' step exports them once.
+  NBGV_SetCloudBuildVersionVars: 'false'
+  DOTNET_NOLOGO: 'true'
+  DOTNET_CLI_TELEMETRY_OPTOUT: 'true'
+
+jobs:
+  alloc-gate:
+    name: Allocation gate
+    runs-on: ubuntu-latest
+    # About 4 minutes of build and 8 of scenarios; the confirmation rounds of
+    # a failing scenario add up to 3 more.
+    timeout-minutes: 25
+
+    env:
+      CONFIGURATION: 'Release'
+      CUSTOM_TEST_TARGET: 'net10.0'
+      HARNESS_PROJECT: './perf/ServerLoadHarness/ServerLoadHarness.csproj'
+      TESTRESULTS: './TestResults/alloc-gate'
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v7
+      with:
+        fetch-depth: 0
+
+    # The job always reports, so it can be a required check; it skips the
+    # measurement when a pull request changes nothing the harness runs.
+    - name: Check for relevant changes
+      id: changes
+      shell: pwsh
+      run: |
+        $relevant = $true
+        if ('${{ github.event_name }}' -eq 'pull_request') {
+          $files = @(git diff --name-only '${{ github.event.pull_request.base.sha }}' '${{ github.sha }}')
+          $patterns = @(
+            '^src/', '^perf/ServerLoadHarness/', '^perf/regression/', '^tests/Opc\.Ua\.(Client|Server)\.TestFramework/',
+            '^[^/]+\.(props|targets|json)$', '^\.github/workflows/perf-gate\.yml$'
+          )
+          $relevant = @($files | Where-Object { $f = $_; $patterns | Where-Object { $f -match $_ } }).Count -gt 0
+          Write-Host "$($files.Count) changed file(s); relevant: $relevant"
+        }
+        "relevant=$($relevant.ToString().ToLowerInvariant())" >> $env:GITHUB_OUTPUT
+
+    - name: Setup .NET from global.json
+      if: steps.changes.outputs.relevant == 'true'
+      uses: ./.github/actions/setup-repository-dotnet
+      with:
+        dotnet-version: 10.0.x
+
+    - name: Set Cloud Version
+      if: steps.changes.outputs.relevant == 'true'
+      shell: pwsh
+      run: ./.azurepipelines/set-version.ps1
+
+    - name: Build the server load harness
+      if: steps.changes.outputs.relevant == 'true'
+      run: >
+        dotnet build ${{ env.HARNESS_PROJECT }}
+        --configuration ${{ env.CONFIGURATION }}
+        /p:CustomTestTarget=${{ env.CUSTOM_TEST_TARGET }}
+
+    - name: Run the allocation gate
+      if: steps.changes.outputs.relevant == 'true'
+      shell: pwsh
+      run: |
+        ./perf/regression/Invoke-LoadFloors.ps1 `
+          -Floors ./perf/regression/alloc-gate.json `
+          -Harness "./perf/ServerLoadHarness/bin/$($env:CONFIGURATION)/$($env:CUSTOM_TEST_TARGET)/ServerLoadHarness" `
+          -OutDirectory $env:TESTRESULTS
+
+    - name: Upload allocation gate results
+      uses: actions/upload-artifact@v7
+      with:
+        name: alloc-gate
+        path: ${{ env.TESTRESULTS }}
+      if: always() && steps.changes.outputs.relevant == 'true'
