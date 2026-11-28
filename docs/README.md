@@ -364,6 +364,7 @@ Assumes [stage 5](#5-prepare-for-production).
   certificate management.
 - [Device onboarding](Onboarding.md) — registrar setup and pull and push
   provisioning.
+- [FDO onboarding](FdoOnboarding.md) — opt-in SDK adapters for external DCA enrollment.
 - [Pull DCA key-pair recovery](GDS.md#recover-pull-dca-key-pair-requests) — protected
   checkpoint storage for server-generated key pairs.
 - [Provisionable device replacement](Onboarding.md#replace-a-provisionable-devices-node-manager) —

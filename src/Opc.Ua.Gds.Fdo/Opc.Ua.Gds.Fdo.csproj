@@ -1,0 +1,21 @@
+<!-- SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL -->
+<!-- SPDX-License-Identifier: MIT -->
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFrameworks>$(ModernTargetFrameworks)</TargetFrameworks>
+    <RestrictForLegacyTfm>true</RestrictForLegacyTfm>
+    <PackageId>$(PackagePrefix).Opc.Ua.Gds.Fdo</PackageId>
+    <Description>Opt-in FDO enrollment adapters for OPC UA GDS.</Description>
+    <IsPackable>true</IsPackable>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <RestoreAdditionalProjectSources Condition="'$(FdoLocalFeed)' != ''">$(RestoreAdditionalProjectSources);$(FdoLocalFeed)</RestoreAdditionalProjectSources>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)' == 'Debug'">
+    <PackageId>$(PackageId).Debug</PackageId>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Fdo" />
+    <ProjectReference Include="..\Opc.Ua.Gds.Server\Opc.Ua.Gds.Server.csproj" />
+    <InternalsVisibleTo Include="Opc.Ua.Gds.Tests" />
+  </ItemGroup>
+</Project>

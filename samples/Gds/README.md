@@ -607,7 +607,7 @@ interoperability. See [the handoff contract](../../docs/Onboarding.md#external-a
 for provider registration and recovery.
 
 The FDO demo wires two sample components into its enrollment callbacks.
-[`FdoRegistrarEnrollmentPolicy`](OnboardingRegistrar/FdoRegistrarEnrollmentPolicy.cs)
+[`FdoRegistrarEnrollmentPolicy`](../../src/Opc.Ua.Gds.Fdo/FdoRegistrarEnrollmentPolicy.cs)
 checks the authenticated Device GUID and attestation certificate against
 operator-configured pins before asking the dedicated GDS group to sign the
 CSR. It records issuance before returning the certificate, then admits only

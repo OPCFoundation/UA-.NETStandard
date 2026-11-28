@@ -1,26 +1,5 @@
-/* ========================================================================
- * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person obtaining a copy
- * of this software and associated documentation files (the "Software"), to deal
- * in the Software without restriction, including without limitation the rights
- * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the Software is
- * furnished to do so, subject to the following conditions:
- *
- * The above copyright notice and this permission notice shall be included in
- * all copies or substantial portions of the Software.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
- * OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL
- * THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
- * IN THE SOFTWARE.
- * ======================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+// SPDX-License-Identifier: MIT
 
 #if NET10_0_OR_GREATER
 using System;
@@ -28,9 +7,11 @@ using System.IO;
 using System.Security.Cryptography;
 using System.Threading;
 using System.Threading.Tasks;
+using FdoOnboarding;
 using Moq;
 using NUnit.Framework;
 using OnboardingRegistrar;
+using Opc.Ua.Gds.Fdo;
 using Opc.Ua.Gds.Server;
 using Opc.Ua.Gds.Server.Onboarding;
 using Opc.Ua.Security.Certificates;
@@ -59,16 +40,18 @@ namespace Opc.Ua.Gds.Tests.Onboarding
                 using Certificate issued = CertificateBuilder.Create(Subject).CreateForRSA();
                 Mock<ICertificateGroupWithAuthenticatedSigningRequest> issuer = CreateIssuer(issued);
                 ByteString certificate;
-                using (FdoRegistrarEnrollmentPolicy policy = CreatePolicy(directory, issuer.Object))
+                using (var receipts = new FdoSampleReceiptStore(directory, Product, Application))
                 {
+                    FdoRegistrarEnrollmentPolicy policy = CreatePolicy(receipts, issuer.Object);
                     certificate = await policy.AuthorizeAndIssueAsync(run, s_device, s_attestation, s_csr)
                         .ConfigureAwait(false);
                     Assert.That(certificate, Is.EqualTo(ByteString.From(issued.RawData.AsSpan())));
                     await AssertDeniedAsync(policy, certificate, [Product, Application]).ConfigureAwait(false);
                 }
 
-                using (FdoRegistrarEnrollmentPolicy policy = CreatePolicy(directory, issuer.Object))
+                using (var receipts = new FdoSampleReceiptStore(directory, Product, Application))
                 {
+                    FdoRegistrarEnrollmentPolicy policy = CreatePolicy(receipts, issuer.Object);
                     await AssertDeniedAsync(policy, certificate, [Product, Application]).ConfigureAwait(false);
                     await policy.CommitAsync(run, s_device, s_attestation, s_csr, certificate)
                         .ConfigureAwait(false);
@@ -76,8 +59,9 @@ namespace Opc.Ua.Gds.Tests.Onboarding
                         .ConfigureAwait(false);
                 }
 
-                using (FdoRegistrarEnrollmentPolicy restarted = CreatePolicy(directory, issuer.Object))
+                using (var receipts = new FdoSampleReceiptStore(directory, Product, Application))
                 {
+                    FdoRegistrarEnrollmentPolicy restarted = CreatePolicy(receipts, issuer.Object);
                     await AssertDeniedAsync(restarted, s_otherCertificate, [Product, Application])
                         .ConfigureAwait(false);
                     await AssertDeniedAsync(restarted, certificate, [Product]).ConfigureAwait(false);
@@ -87,8 +71,9 @@ namespace Opc.Ua.Gds.Tests.Onboarding
                     Assert.That(decision.Decision.Application.ApplicationUri, Is.EqualTo(Application));
                 }
 
-                using var changedApproval = new FdoRegistrarEnrollmentPolicy(
-                    directory, Product, Application, Subject,
+                using var changedReceipts = new FdoSampleReceiptStore(directory, Product, Application);
+                var changedApproval = new FdoRegistrarEnrollmentPolicy(
+                    changedReceipts, new PullRegistrarPolicy(Product, Application), Product, Application, Subject,
                     s_device, ByteString.From(SHA256.HashData(s_otherCertificate.Span)), issuer.Object);
                 await AssertDeniedAsync(changedApproval, certificate, [Product, Application]).ConfigureAwait(false);
                 issuer.VerifyAll();
@@ -111,7 +96,8 @@ namespace Opc.Ua.Gds.Tests.Onboarding
             {
                 using Certificate issued = CertificateBuilder.Create(Subject).CreateForRSA();
                 Mock<ICertificateGroupWithAuthenticatedSigningRequest> issuer = CreateIssuer(issued);
-                using FdoRegistrarEnrollmentPolicy policy = CreatePolicy(directory, issuer.Object);
+                using var receipts = new FdoSampleReceiptStore(directory, Product, Application);
+                FdoRegistrarEnrollmentPolicy policy = CreatePolicy(receipts, issuer.Object);
                 ServiceResultException absent = await Assert.ThrowsAsync<ServiceResultException>(
                     () => policy.CommitAsync(run, s_device, s_attestation, s_csr, s_otherCertificate).AsTask());
                 Assert.That(absent.StatusCode, Is.EqualTo(StatusCodes.BadInvalidState));
@@ -151,7 +137,8 @@ namespace Opc.Ua.Gds.Tests.Onboarding
             try
             {
                 var issuer = new Mock<ICertificateGroupWithAuthenticatedSigningRequest>(MockBehavior.Strict);
-                using FdoRegistrarEnrollmentPolicy policy = CreatePolicy(directory, issuer.Object);
+                using var receipts = new FdoSampleReceiptStore(directory, Product, Application);
+                FdoRegistrarEnrollmentPolicy policy = CreatePolicy(receipts, issuer.Object);
 
                 ServiceResultException denied = await Assert.ThrowsAsync<ServiceResultException>(
                     () => policy.AuthorizeAndIssueAsync(Guid.NewGuid(), device, attestation, s_csr).AsTask());
@@ -186,7 +173,8 @@ namespace Opc.Ua.Gds.Tests.Onboarding
                 using ICertificateGroup group = factory.Create(Path.Combine(directory, "authorities"), configuration);
                 await group.InitAsync().ConfigureAwait(false);
                 var issuer = (ICertificateGroupWithAuthenticatedSigningRequest)group;
-                using FdoRegistrarEnrollmentPolicy policy = CreatePolicy(Path.Combine(directory, "receipts"), issuer);
+                using var receipts = new FdoSampleReceiptStore(Path.Combine(directory, "receipts"), Product, Application);
+                FdoRegistrarEnrollmentPolicy policy = CreatePolicy(receipts, issuer);
                 using Certificate deviceKey = CertificateBuilder.Create("CN=Unapproved CSR Subject").CreateForRSA();
                 ByteString csr = ByteString.From(DefaultCertificateFactory.Instance.CreateSigningRequest(deviceKey));
                 Guid run = Guid.NewGuid();
@@ -221,11 +209,11 @@ namespace Opc.Ua.Gds.Tests.Onboarding
         /// Constructs the policy with the operator's approved Device and issuance identity.
         /// </summary>
         private static FdoRegistrarEnrollmentPolicy CreatePolicy(
-            string directory,
+            IFdoEnrollmentReceiptStore receipts,
             ICertificateGroupWithAuthenticatedSigningRequest issuer)
         {
             return new FdoRegistrarEnrollmentPolicy(
-                directory, Product, Application, Subject,
+                receipts, new PullRegistrarPolicy(Product, Application), Product, Application, Subject,
                 s_device, ByteString.From(SHA256.HashData(s_attestation.Span)), issuer);
         }
 

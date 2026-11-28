@@ -1,4 +1,4 @@
-// Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
+// SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
 // SPDX-License-Identifier: MIT
 
 using System;
@@ -23,6 +23,7 @@ using Opc.Ua;
 using Opc.Ua.Client;
 using Opc.Ua.Configuration;
 using Opc.Ua.Gds.Client;
+using Opc.Ua.Gds.Fdo;
 using Opc.Ua.Gds.Server;
 using Opc.Ua.Gds.Server.Onboarding;
 using Opc.Ua.Security.Certificates;
@@ -147,6 +148,8 @@ static async Task RunAsync(string root, int port, bool replace, CancellationToke
         serverBuilder.Services.AddSingleton<IDeviceRegistrarApplicationAuthorization>(pullPolicy);
         serverBuilder.Services.AddSingleton<IDeviceRegistrarPushScheduler>(pullPolicy);
         serverBuilder.Services.AddSingleton<IDeviceRegistrarManagerProvider>(pullPolicy);
+        serverBuilder.Services.AddSingleton<IFdoEnrollmentReceiptStore>(_ =>
+            new FdoSampleReceiptStore(Path.Combine(root, "receipts"), product, applicationUri));
         serverBuilder.Services.AddSingleton<ITicketStore>(_ => new MemoryTicketStore());
         serverBuilder.Services.AddHostedFileSystemDeviceRegistrarLifecycle(Path.Combine(root, "device-lifecycle.json"));
         serverBuilder.Services.AddHostedDeviceRegistrarAuditing();
@@ -172,8 +175,9 @@ static async Task RunAsync(string root, int port, bool replace, CancellationToke
             .AddOnboardingTickets(Path.Combine(root, "ticket-trusted"), Path.Combine(root, "ticket-issuers"))
             .AddOnboardingIdentities(Path.Combine(root, "identity-trusted"), Path.Combine(root, "identity-issuers"))
             .AddDeviceRegistrarExternalAuthentication(groupConfig.TrustedListPath, groupConfig.IssuerListPath,
-                _ => new FdoRegistrarEnrollmentPolicy(Path.Combine(root, "receipts"), product, applicationUri,
-                    deviceSubject, guid, attestationPin, issuer))
+                services => new FdoRegistrarEnrollmentPolicy(
+                    services.GetRequiredService<IFdoEnrollmentReceiptStore>(), pullPolicy,
+                    product, applicationUri, deviceSubject, guid, attestationPin, issuer))
             .AddStartupTask((_, _, token) =>
             {
                 token.ThrowIfCancellationRequested();
@@ -186,13 +190,20 @@ static async Task RunAsync(string root, int port, bool replace, CancellationToke
         {
             var policy = (FdoRegistrarEnrollmentPolicy)server.Services
                 .GetRequiredService<IDeviceRegistrarExternalAuthenticationPolicy>();
-            var ownerHandler = new OwnerEnrollmentCallbacks(policy);
-            var deviceHandler = new DeviceEnrollmentCallbacks(
-                credentials, key.Certificate, deviceTrust, authority.TrustedCertificates, guid, csr, replacement);
+            var deviceHandler = new FdoDeviceEnrollmentHandler(
+                guid, csr,
+                (certificate, token) => credentials.ValidateExternalCredentialAsync(
+                    certificate, key.Certificate, deviceTrust, token),
+                (certificate, token) =>
+                {
+                    replacement?.RequireActivated();
+                    return credentials.InstallCompletedExternalCredentialAsync(
+                        certificate, key.Certificate, authority.TrustedCertificates, token);
+                });
             using TrustListData previousPeers = await deviceCertificates
                 .ReadTrustListAsync(TrustListIdentifier.Peers, TrustListMasks.All, ct).ConfigureAwait(false);
             FdoDeviceEnrollment enrolled = await RunEnrollmentAsync(
-                http, bootstrap, initialized, ownerHandler, deviceHandler, csr, replacement, ct).ConfigureAwait(false);
+                http, bootstrap, initialized, policy, deviceHandler, csr, replacement, ct).ConfigureAwait(false);
             using TrustListData currentPeers = await deviceCertificates
                 .ReadTrustListAsync(TrustListIdentifier.Peers, TrustListMasks.All, ct).ConfigureAwait(false);
             RequireSamePeerTrust(previousPeers, currentPeers);

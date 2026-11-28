@@ -1,3 +1,5 @@
+<!-- SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL -->
+<!-- SPDX-License-Identifier: MIT -->
 <Solution>
   <Folder Name="/samples/">
     <File Path="samples/UAReferenceServer.ctt.xml" />
@@ -250,6 +252,7 @@
     <Project Path="src/Opc.Ua.Extrusion.Server/Opc.Ua.Extrusion.Server.csproj" />
     <Project Path="src/Opc.Ua.Extrusion/Opc.Ua.Extrusion.csproj" />
     <Project Path="src/Opc.Ua.Gds.Client/Opc.Ua.Gds.Client.csproj" />
+    <Project Path="src/Opc.Ua.Gds.Fdo/Opc.Ua.Gds.Fdo.csproj" />
     <Project Path="src/Opc.Ua.Gds.Server/Opc.Ua.Gds.Server.csproj" />
     <Project Path="src/Opc.Ua.ISA95.Client/Opc.Ua.ISA95.Client.csproj" />
     <Project Path="src/Opc.Ua.ISA95.Server/Opc.Ua.ISA95.Server.csproj" />

@@ -1,3 +1,5 @@
+<!-- SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL -->
+<!-- SPDX-License-Identifier: MIT -->
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <OutputType>Exe</OutputType>
@@ -51,8 +53,9 @@
   <ItemGroup Condition="$([MSBuild]::IsTargetFrameworkCompatible('$(TargetFramework)', 'net10.0'))">
     <Compile Include="..\..\samples\Gds\OnboardingRegistrar\PushManagedApplicationTargetProvider.cs"
              Link="Onboarding\PushManagedApplicationTargetProvider.cs" />
-    <Compile Include="..\..\samples\Gds\OnboardingRegistrar\FdoRegistrarEnrollmentPolicy.cs"
-             Link="Onboarding\FdoRegistrarEnrollmentPolicy.cs" />
+    <ProjectReference Include="..\..\src\Opc.Ua.Gds.Fdo\Opc.Ua.Gds.Fdo.csproj" />
+    <Compile Include="..\..\samples\Gds\FdoOnboarding\FdoSampleReceiptStore.cs"
+             Link="Onboarding\FdoSampleReceiptStore.cs" />
     <Compile Include="..\..\samples\Gds\OnboardingRegistrar\PushEnrollmentCheckpointStore.cs"
              Link="Onboarding\PushEnrollmentCheckpointStore.cs" />
     <Compile Include="..\..\samples\Gds\OnboardingRegistrar\PushRegistrarIssuanceStore.cs"

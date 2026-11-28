@@ -1,3 +1,5 @@
+<!-- SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL -->
+<!-- SPDX-License-Identifier: MIT -->
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <OutputType>Exe</OutputType>
@@ -9,13 +11,12 @@
   </PropertyGroup>
   <ItemGroup>
     <FrameworkReference Include="Microsoft.AspNetCore.App" />
-    <PackageReference Include="Fdo" />
     <ProjectReference Include="..\..\..\src\Opc.Ua.Configuration\Opc.Ua.Configuration.csproj" />
     <ProjectReference Include="..\..\..\src\Opc.Ua.Gds.Client\Opc.Ua.Gds.Client.csproj" />
     <ProjectReference Include="..\..\..\src\Opc.Ua.Gds.Server\Opc.Ua.Gds.Server.csproj" />
+    <ProjectReference Include="..\..\..\src\Opc.Ua.Gds.Fdo\Opc.Ua.Gds.Fdo.csproj" />
     <Compile Include="..\OnboardingClient\OnboardingDeviceCredentials.cs" Link="OnboardingDeviceCredentials.cs" />
     <Compile Include="..\OnboardingDevice\DevicePullJournal.cs" Link="DevicePullJournal.cs" />
-    <Compile Include="..\OnboardingRegistrar\FdoRegistrarEnrollmentPolicy.cs" Link="FdoRegistrarEnrollmentPolicy.cs" />
     <Compile Include="..\OnboardingRegistrar\PullRegistrarPolicy.cs" Link="PullRegistrarPolicy.cs" />
     <Compile Include="..\OnboardingRegistrar\PushRegistrarCheckpointFiles.cs" Link="PushRegistrarCheckpointFiles.cs" />
   </ItemGroup>

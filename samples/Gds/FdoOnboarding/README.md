@@ -1,3 +1,6 @@
+<!-- SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL -->
+<!-- SPDX-License-Identifier: MIT -->
+
 # FDO enrollment and OPC UA handoff
 
 This .NET 10 demo initializes one Device, transfers its ownership voucher,
@@ -7,10 +10,6 @@ authenticates to a local OPC UA registrar with the installed certificate
 and calls `GetManagers`. It uses no OPC UA onboarding ticket.
 
 ## Run locally
-
-The demo pins [`Fdo` `0.1.0-preview`](https://www.nuget.org/packages/Fdo/0.1.0-preview).
-If NuGet.org is unavailable and you have a verified copy of that exact package,
-pass `-p:FdoLocalFeed=<absolute-feed-directory>` when restoring or building.
 
 From the OPC UA repository root, run:
 
@@ -27,8 +26,8 @@ The state directory retains the demo PKI, including private keys, and the
 registrar receipts. Keep it private and dispose of it after inspection.
 The demo does not use or modify the operating system certificate stores.
 
-The project is not part of `UA.slnx`, and the local feed is used only when
-explicitly supplied to this project. Routine stack restores do not need FDO.
+The demo is not part of `UA.slnx`. The solution includes the opt-in module,
+but applications that reference only the base GDS packages do not depend on FDO.
 
 ### Credential replacement
 

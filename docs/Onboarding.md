@@ -1395,7 +1395,9 @@ and approval to the exact CSR. The issuer verifies the DER encoding, SHA-2
 signature and key type; it does not authenticate the device, approve enrollment
 or admit the certificate to the registrar. Neither capability is exposed by
 the Part 12 signing services. The
-[FDO onboarding demo](../samples/Gds/FdoOnboarding/README.md) shows this handoff.
+[opt-in FDO SDK module](FdoOnboarding.md) implements this handoff using the
+FDO library. The [loopback demo](../samples/Gds/FdoOnboarding/README.md)
+shows how to configure it.
 
 The typed client uses the already installed external DCA credential. First
 obtain the configured managers without requesting application certificates:
