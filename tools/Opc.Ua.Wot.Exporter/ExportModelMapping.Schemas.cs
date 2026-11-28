@@ -400,6 +400,22 @@ namespace Opc.Ua.Wot.Exporter
             {
                 return fields;
             }
+            if (m_nodes.TryGetValue(identity, out NativeNode? native) && native.Node is Export.UADataType dataType)
+            {
+                var localNames = (dataType.Definition?.Field ?? [])
+                    .Select(field => field.Name).ToHashSet(StringComparer.Ordinal);
+                for (int overlap = Math.Min(fields.Count, inherited.Count); overlap > 0; overlap--)
+                {
+                    if (Enumerable.Range(0, overlap).All(position =>
+                        !localNames.Contains(String(fields[position], "uav:fieldName")) &&
+                        s_fieldIdentityMembers.All(member => JsonNode.DeepEquals(
+                            fields[position][member], inherited[inherited.Count - overlap + position][member]))))
+                    {
+                        fields.RemoveRange(0, overlap);
+                        break;
+                    }
+                }
+            }
             var names = inherited.Select(field => String(field, "uav:fieldName")).ToHashSet(StringComparer.Ordinal);
             if (fields.Any(field => names.Contains(String(field, "uav:fieldName"))))
             {
@@ -695,5 +711,12 @@ namespace Opc.Ua.Wot.Exporter
         /// <summary>Preserves field metadata at the generated value occurrence.</summary>
         private static readonly string[] s_fieldMetadata =
             ["uav:valueRank", "uav:arrayDimensions", "title", "titles", "description", "descriptions", "@context"];
+
+        /// <summary>Identifies a projected field independently of its document's locale.</summary>
+        private static readonly string[] s_fieldIdentityMembers =
+        [
+            "@type", "uav:fieldName", "uav:fieldDataTypeId", "uav:valueRank", "uav:arrayDimensions",
+            "uav:maxStringLength", "uav:isOptional", "uav:allowSubtypes"
+        ];
     }
 }

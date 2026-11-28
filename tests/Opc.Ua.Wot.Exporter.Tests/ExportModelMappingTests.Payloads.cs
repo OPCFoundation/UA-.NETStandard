@@ -431,6 +431,102 @@ namespace Opc.Ua.Wot.Exporter.Tests
         }
 
         /// <summary>
+        /// Distinguishes partially projected inherited fields from conflicting local declarations.
+        /// </summary>
+        [TestCase("Extra", false)]
+        [TestCase("Count", true)]
+        public async Task InheritedFieldsAcrossFilesPreserveLocalConflictChecksAsync(string localField, bool conflict)
+        {
+            UANodeSet parent = Source("""
+                <UADataType NodeId="ns=1;i=3001" BrowseName="1:BaseSettings" IsAbstract="true">
+                  <References><Reference ReferenceType="i=45" IsForward="false">i=22</Reference></References>
+                  <Definition Name="1:BaseSettings"><Field Name="Enabled" DataType="i=1" /></Definition>
+                </UADataType>
+                """);
+            UANodeSet child = Source($$"""
+                <UADataType NodeId="ns=1;i=3002" BrowseName="1:Settings" IsAbstract="true">
+                  <References><Reference ReferenceType="i=45" IsForward="false">ns=1;i=3001</Reference></References>
+                  <Definition Name="1:Settings"><Field Name="Count" DataType="i=5" /></Definition>
+                </UADataType>
+                <UADataType NodeId="ns=1;i=3003" BrowseName="1:IntermediateSettings" IsAbstract="true">
+                  <References><Reference ReferenceType="i=45" IsForward="false">ns=1;i=3002</Reference></References>
+                </UADataType>
+                <UADataType NodeId="ns=1;i=3004" BrowseName="1:ConcreteSettings">
+                  <References><Reference ReferenceType="i=45" IsForward="false">ns=1;i=3003</Reference></References>
+                  <Definition Name="1:ConcreteSettings"><Field Name="{{localField}}" DataType="i=5" /></Definition>
+                </UADataType>
+                """);
+            var mapping = new ExportModelMapping([parent, child], new ExportMetadata(), false);
+            foreach (UANodeSet source in new[] { parent, child })
+            {
+                WotConversionResult<WotDocumentSet> result = await WotNodeSetConverter
+                    .FromNodeSetDocumentsAsync(source, "model").ConfigureAwait(false);
+                Assert.That(result.Success, Is.True, string.Join(Environment.NewLine, result.Diagnostics));
+                using WotDocumentSet documents = result.Value!;
+                mapping.AddDefinitions(documents);
+            }
+            const string json = """
+                {"actions":{"Scan":{"input":{"uav:mapToType":"nsu=https://models.example.com/pump;i=3004"}}}}
+                """;
+            if (conflict)
+            {
+                Assert.That(() => Apply(mapping, json), Throws.TypeOf<FormatException>()
+                    .With.Message.Contains("Conflicting inherited Structure fields"));
+                return;
+            }
+            using JsonDocument document = Apply(mapping, json);
+            JsonElement input = document.RootElement.GetProperty("actions").GetProperty("Scan").GetProperty("input");
+            Assert.That(input.GetProperty("properties").EnumerateObject().Select(field => field.Name),
+                Is.EqualTo(["Enabled", "Count", "Extra"]));
+            Assert.That(input.GetProperty("required").EnumerateArray().Select(value => value.GetString()),
+                Is.EqualTo(["Enabled", "Count", "Extra"]));
+        }
+
+        /// <summary>
+        /// Compares partial inherited fields independently of localized text without ignoring type differences.
+        /// </summary>
+        [TestCase("i=5", false)]
+        [TestCase("i=6", true)]
+        public void PartialInheritedFieldsIgnoreDocumentLocaleButRequireMatchingTypes(string fieldType, bool conflict)
+        {
+            UANodeSet source = Source("""
+                <UADataType NodeId="ns=1;i=3002" BrowseName="1:Settings">
+                  <Definition Name="1:Settings"><Field Name="Count" DataType="i=5" /></Definition>
+                </UADataType>
+                <UADataType NodeId="ns=1;i=3003" BrowseName="1:ConcreteSettings">
+                  <References><Reference ReferenceType="i=45" IsForward="false">ns=1;i=3002</Reference></References>
+                </UADataType>
+                """);
+            var mapping = new ExportModelMapping([source], new ExportMetadata(), false);
+            using var documents = new WotDocumentSet("model", [
+                new WotDocumentSetEntry("model", WotDocument.Parse(Encoding.UTF8.GetBytes($$"""
+                    {"uav:dataTypeDefinitions":[
+                      {"uav:dataTypeId":"nsu=https://models.example.com/pump;i=3002","uav:fields":[
+                        {"uav:fieldName":"Enabled","uav:fieldDataTypeId":"i=1"},
+                        {"uav:fieldName":"Count","uav:fieldDataTypeId":"i=5","title":"Count"}]},
+                      {"uav:dataTypeId":"nsu=https://models.example.com/pump;i=3003",
+                       "uav:dataTypeSubtypeOf":{"uav:dataTypeId":"nsu=https://models.example.com/pump;i=3002"},
+                       "uav:fields":[
+                         {"uav:fieldName":"Count","uav:fieldDataTypeId":"{{fieldType}}","title":"Anzahl"}]}
+                    ]}
+                    """)))]);
+            mapping.AddDefinitions(documents);
+            const string json = """
+                {"actions":{"Scan":{"input":{"uav:mapToType":"nsu=https://models.example.com/pump;i=3003"}}}}
+                """;
+            if (conflict)
+            {
+                Assert.That(() => Apply(mapping, json), Throws.TypeOf<FormatException>()
+                    .With.Message.Contains("Conflicting inherited Structure fields"));
+                return;
+            }
+            using JsonDocument document = Apply(mapping, json);
+            JsonElement input = document.RootElement.GetProperty("actions").GetProperty("Scan").GetProperty("input");
+            Assert.That(input.GetProperty("properties").EnumerateObject().Select(field => field.Name),
+                Is.EqualTo(["Enabled", "Count"]));
+        }
+
+        /// <summary>
         /// Rewrites support-document fragments without changing their representation type or location.
         /// </summary>
         [Test]
