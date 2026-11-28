@@ -276,9 +276,9 @@ namespace Opc.Ua.Server
         public override object Clone()
         {
             var clone = (PooledReadResponse)base.Clone();
-            // the clone owns no buffer, so it must not share the pooled values.
+            // the clone owns no buffer; the generated MemberwiseClone already copied the
+            // results, so it does not share the pooled values.
             clone.m_buffer = null;
-            clone.Results = Results.ToArray().ToArrayOf();
             return clone;
         }
 
