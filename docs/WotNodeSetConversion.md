@@ -1,3 +1,8 @@
+<!--
+SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+SPDX-License-Identifier: MIT
+-->
+
 # WoT / NodeSet conversion
 
 For command-line export, see the [.NET 10 global tool](WotExportTool.md).
@@ -314,7 +319,13 @@ invalid archival digests remain errors.
 When an archival `uav:nodeSet` is present, known readable facts are checked
 against that baseline and conflicts are reported rather than overwritten.
 Routing-only enrichment does not grant permission to add or replace archived
-model facts.
+model facts. If the structured projection cannot reproduce the source, the
+converter emits the envelope without `uav:nodes`. Older fallback documents may
+contain an incomplete `uav:nodes`; the converter accepts it with a warning only
+when it matches the complete projection regenerated from the validated envelope.
+A truncated legacy projection remains a conflict because it cannot be
+distinguished from a projection with deleted records. The configured
+`MaxXmlDepth` also applies when exporting or restoring an envelope.
 
 ### Generated document-set limits
 

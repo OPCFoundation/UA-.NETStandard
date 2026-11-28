@@ -8,6 +8,7 @@ using System.IO;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
+using System.Xml;
 using Opc.Ua.Export;
 
 namespace Opc.Ua.Wot
@@ -1511,6 +1512,11 @@ namespace Opc.Ua.Wot
                 return null;
             }
 
+            if (!ValidateNodeSetXmlDepth(nodeSetBytes, options, diagnostics, location))
+            {
+                return null;
+            }
+
             UANodeSet? nodeSet;
             try
             {
@@ -1543,6 +1549,43 @@ namespace Opc.Ua.Wot
             return nodeSet;
         }
 
+        private static bool ValidateNodeSetXmlDepth(
+            byte[] nodeSetBytes,
+            WotNodeSetConverterOptions options,
+            List<WotDiagnostic> diagnostics,
+            WotLocation? location = null)
+        {
+            try
+            {
+                using var stream = new MemoryStream(nodeSetBytes, writable: false);
+                XmlReaderSettings settings = CoreUtils.DefaultXmlReaderSettings();
+                settings.MaxCharactersInDocument = options.MaxNodeSetSize;
+                using var reader = XmlReader.Create(stream, settings);
+                while (reader.Read())
+                {
+                    if (reader.NodeType == XmlNodeType.Element && reader.Depth >= options.MaxXmlDepth)
+                    {
+                        diagnostics.Add(new WotDiagnostic(
+                            WotDiagnosticSeverity.Error,
+                            WotDiagnosticCode.DepthExceeded,
+                            "The NodeSet exceeds the configured XML depth bound.",
+                            location));
+                        return false;
+                    }
+                }
+                return true;
+            }
+            catch (XmlException)
+            {
+                diagnostics.Add(new WotDiagnostic(
+                    WotDiagnosticSeverity.Error,
+                    WotDiagnosticCode.MalformedNodeSet,
+                    "The NodeSet payload is not valid XML.",
+                    location));
+                return false;
+            }
+        }
+
         private static bool RejectUnresolvedProjectionPlan(WotDocument document, List<WotDiagnostic> diagnostics)
         {
             if (!WotProjection.IsProjection(document))
@@ -1567,28 +1610,47 @@ namespace Opc.Ua.Wot
                 projection,
                 options,
                 nativeDiagnostics);
-            if (projected is null || HasErrors(nativeDiagnostics))
+            bool nativeValid = projected is not null && !HasErrors(nativeDiagnostics);
+            NodeSetComparisonResult? comparison = nativeValid
+                ? NodeSetComparer.Compare(baseline, projected!, options.ToComparisonOptions())
+                : null;
+            if (!nativeValid || !comparison!.AreEquivalent)
             {
+                // Older fallback documents included the incomplete projection alongside
+                // the envelope. Accept it only if it matches the envelope's projection.
+                try
+                {
+                    var writeDiagnostics = new List<WotDiagnostic>();
+                    byte[] regenerated = WotNativeProjection.Write(baseline, options, writeDiagnostics);
+                    if (!HasErrors(writeDiagnostics))
+                    {
+                        using var expected = JsonDocument.Parse(
+                            regenerated, new JsonDocumentOptions { MaxDepth = options.MaxJsonDepth });
+                        if (JsonElement.DeepEquals(projection, expected.RootElement))
+                        {
+                            diagnostics.Add(new WotDiagnostic(
+                                WotDiagnosticSeverity.Warning,
+                                WotDiagnosticCode.NativeProjectionIncomplete,
+                                "The native projection is incomplete; the uav:nodeSet envelope was used."));
+                            return null;
+                        }
+                    }
+                }
+                catch (Exception ex) when (ex is JsonException or InvalidOperationException)
+                {
+                    // An over-depth regeneration cannot establish consistency.
+                }
                 diagnostics.Add(new WotDiagnostic(
                     WotDiagnosticSeverity.Error,
                     WotDiagnosticCode.NativeProjectionConflict,
-                    FirstDiagnosticMessage(nativeDiagnostics) ??
-                    "The native projection could not be reconstructed."));
-                return null;
-            }
-
-            NodeSetComparisonResult comparison =
-                NodeSetComparer.Compare(baseline, projected, options.ToComparisonOptions());
-            if (!comparison.AreEquivalent)
-            {
-                diagnostics.Add(new WotDiagnostic(
-                    WotDiagnosticSeverity.Error,
-                    WotDiagnosticCode.NativeProjectionConflict,
-                    comparison.Differences.Count > 0
+                    !nativeValid
+                        ? FirstDiagnosticMessage(nativeDiagnostics) ??
+                            "The native projection could not be reconstructed."
+                        : comparison!.Differences.Count > 0
                         ? comparison.Differences[0]
                         : "The native projection conflicts with the preservation baseline."));
             }
-            return projected;
+            return nativeValid ? projected : null;
         }
 
         private static void ValidateNativeAffordanceCoverage(
