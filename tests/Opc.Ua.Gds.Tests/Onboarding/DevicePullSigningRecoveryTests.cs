@@ -359,7 +359,8 @@ namespace Opc.Ua.Gds.Tests.Onboarding
             var connection = new PullDcaConnection(
                 session.InnerSession, prepared.Registrar, m_telemetry, 1024, _ => default, journal, recovery);
 
-            await Assert.ThrowsAsync<CryptographicException>(async () =>
+            // CatchAsync: the macOS PAL throws a CryptographicException subclass.
+            await Assert.CatchAsync<CryptographicException>(async () =>
                 await connection.StartWithEvidenceAsync(
                     prepared.ApplicationId, prepared.Profile, prepared.SigningRequest,
                     prepared.SigningKeyCertificate, CancellationToken.None).ConfigureAwait(false));

@@ -210,6 +210,52 @@ namespace Opc.Ua.Client.Tests.ManagedSession
             AssertAcknowledgement(acknowledgement.Request.SubscriptionAcknowledgements);
         }
 
+        /// <summary>
+        /// An item added while an earlier item waits out its per-item retry backoff is created at once: the
+        /// new change cuts the backoff short (which, on the fake clock, would otherwise never elapse).
+        /// </summary>
+        [Test]
+        public async Task ItemAddedDuringPendingItemBackoffIsCreatedAtOnceAsync()
+        {
+            var flakyNode = new NodeId("Flaky", 1);
+            var lateNode = new NodeId("Late", 1);
+            bool lateAdded = false;
+            await using var harness = new ManagedSessionReconnectHarness(TimeSpan.Zero)
+            {
+                MonitoredItemCreateStatus = item => item.ItemToMonitor.NodeId == flakyNode &&
+                    !Volatile.Read(ref lateAdded) ? StatusCodes.BadResourceUnavailable : null
+            };
+            await harness.ConnectAsync(false).ConfigureAwait(false);
+            ISubscription subscription = harness.AddSubscription();
+            await WaitForPhaseAsync(harness.NextMonitoredItemsAsync().AsTask(), "initial monitored item")
+                .ConfigureAwait(false);
+            Assert.That(subscription.TryAddMonitoredItem("Flaky", flakyNode, o => o, out IMonitoredItem? flaky),
+                Is.True);
+            CreateMonitoredItemsRequest rejected = await WaitForPhaseAsync(
+                harness.NextMonitoredItemsAsync().AsTask(), "rejected monitored item").ConfigureAwait(false);
+            Assert.That(rejected.ItemsToCreate[0].ItemToMonitor.NodeId, Is.EqualTo(flakyNode));
+            // Let the rejecting pass record the failure, so the late item arrives after it, during the backoff.
+            await WaitForPhaseAsync(WaitUntilAsync(() => ServiceResult.IsBad(flaky!.Error)), "rejection recorded")
+                .ConfigureAwait(false);
+
+            Volatile.Write(ref lateAdded, true);
+            Assert.That(subscription.TryAddMonitoredItem("Late", lateNode, o => o, out IMonitoredItem? late),
+                Is.True);
+            await WaitForPhaseAsync(WaitUntilAsync(() => late!.Created),
+                "late monitored item created").ConfigureAwait(false);
+            await WaitForPhaseAsync(WaitUntilAsync(() => flaky!.Created),
+                "retried monitored item created").ConfigureAwait(false);
+
+            static async Task WaitUntilAsync(Func<bool> condition)
+            {
+                for (int i = 0; i < 4000 && !condition(); i++)
+                {
+                    await Task.Delay(5).ConfigureAwait(false);
+                }
+                Assert.That(condition(), Is.True);
+            }
+        }
+
         [Test]
         public async Task NewRecoveryInvalidatesPendingSnapshotAsync()
         {

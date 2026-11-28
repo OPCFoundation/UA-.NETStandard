@@ -1305,6 +1305,22 @@ namespace Opc.Ua.Client.Subscriptions
         }
 
         /// <summary>
+        /// Waits for the retry backoff to elapse or for the state manager to be
+        /// signalled, whichever happens first. A consumed signal is restored by
+        /// the caller, which signals the state manager after every backoff.
+        /// </summary>
+        private async Task WaitForBackoffOrChangeAsync(TimeSpan backoff, CancellationToken ct)
+        {
+            using var cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+            Task changed = m_stateControl.WaitAsync(cts.Token);
+            Task elapsed = TimeProvider.Delay(backoff, cts.Token);
+            await Task.WhenAny(changed, elapsed).ConfigureAwait(false);
+            // Withdraw the losing wait so it cannot consume a later signal.
+            cts.Cancel();
+            ct.ThrowIfCancellationRequested();
+        }
+
+        /// <summary>
         /// Controls the state changes of the subscriptions and the contained monitored
         /// items.
         /// </summary>
@@ -1349,11 +1365,22 @@ namespace Opc.Ua.Client.Subscriptions
                         int backoffMs = Math.Min(
                             kBaseApplyRetryBackoffMs << Math.Min(consecutiveApplyFailures - 1, 5),
                             kMaxApplyRetryBackoffMs);
+                        var backoff = TimeSpan.FromMilliseconds(backoffMs);
                         try
                         {
-                            await TimeProvider
-                                .Delay(TimeSpan.FromMilliseconds(backoffMs), ct)
-                                .ConfigureAwait(false);
+                            if (applyFailed)
+                            {
+                                await TimeProvider.Delay(backoff, ct).ConfigureAwait(false);
+                            }
+                            else
+                            {
+                                // Only per-item work is left (e.g. an item the
+                                // server rejected transiently, or one added after
+                                // the pass took its snapshot). A new change must
+                                // not queue behind that item's backoff: wake as
+                                // soon as the state manager is signalled again.
+                                await WaitForBackoffOrChangeAsync(backoff, ct).ConfigureAwait(false);
+                            }
                         }
                         catch (OperationCanceledException)
                         {
