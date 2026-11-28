@@ -527,7 +527,8 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 }
                 else
                 {
-                    Assert.That(observed, Is.TypeOf<OptimisticPublicationConflictException>());
+                    Assert.That(observed, Is.TypeOf<NodeManagerLifecycleConflictException>());
+                    Assert.That(observed!.InnerException, Is.TypeOf<OptimisticPublicationConflictException>());
                     failure = observed!;
                 }
                 manager.Verify(value => value.DeleteAddressSpaceAsync(It.IsAny<CancellationToken>()), Times.Once);
