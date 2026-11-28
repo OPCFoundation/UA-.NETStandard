@@ -229,14 +229,17 @@ namespace Opc.Ua.Client.Tests.ManagedSession
             ISubscription subscription = harness.AddSubscription();
             await WaitForPhaseAsync(harness.NextMonitoredItemsAsync().AsTask(), "initial monitored item")
                 .ConfigureAwait(false);
+            // The first retry backoff after a clean pass is the 250 ms base delay. Register before adding the item.
+            Task backoffStarted = harness.Clock.WaitForTimerCreatedAsync(TimeSpan.FromMilliseconds(250));
             Assert.That(subscription.TryAddMonitoredItem("Flaky", flakyNode, o => o, out IMonitoredItem? flaky),
                 Is.True);
             CreateMonitoredItemsRequest rejected = await WaitForPhaseAsync(
                 harness.NextMonitoredItemsAsync().AsTask(), "rejected monitored item").ConfigureAwait(false);
             Assert.That(rejected.ItemsToCreate[0].ItemToMonitor.NodeId, Is.EqualTo(flakyNode));
-            // Let the rejecting pass record the failure, so the late item arrives after it, during the backoff.
-            await WaitForPhaseAsync(WaitUntilAsync(() => ServiceResult.IsBad(flaky!.Error)), "rejection recorded")
-                .ConfigureAwait(false);
+            // Wait until the rejecting pass has ended and its backoff started, so the late item cannot join that
+            // pass and arrives during the backoff.
+            await WaitForPhaseAsync(backoffStarted, "pending-item backoff started").ConfigureAwait(false);
+            Assert.That(ServiceResult.IsBad(flaky!.Error), Is.True);
 
             Volatile.Write(ref lateAdded, true);
             Assert.That(subscription.TryAddMonitoredItem("Late", lateNode, o => o, out IMonitoredItem? late),
