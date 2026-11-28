@@ -207,6 +207,66 @@ namespace Opc.Ua.Client.Tests
                 ByteString.From([1, 2, 3])).ConfigureAwait(false));
         }
 
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task BatchBrowsePreservesUncertainStatusAndDiagnosticsAsync(bool browseNext)
+        {
+            BrowseResult[] results =
+            [
+                new BrowseResult { StatusCode = StatusCodes.Good },
+                new BrowseResult
+                {
+                    StatusCode = StatusCodes.UncertainNotAllNodesAvailable,
+                    ContinuationPoint = ByteString.From([1]),
+                    References = [new ReferenceDescription { BrowseName = QualifiedName.From("Available") }]
+                },
+                new BrowseResult { StatusCode = StatusCodes.BadNodeIdUnknown }
+            ];
+            DiagnosticInfo[] diagnostics =
+            [
+                new DiagnosticInfo(),
+                new DiagnosticInfo { AdditionalInfo = "incomplete" },
+                new DiagnosticInfo { AdditionalInfo = "unknown node" }
+            ];
+            using ISession session = CreateSession(
+                browseResponseFactory: _ => new BrowseResponse
+                {
+                    ResponseHeader = new ResponseHeader(),
+                    Results = results,
+                    DiagnosticInfos = diagnostics
+                },
+                browseNextResponseFactory: _ => new BrowseNextResponse
+                {
+                    ResponseHeader = new ResponseHeader(),
+                    Results = results,
+                    DiagnosticInfos = diagnostics
+                });
+
+            ArrayOf<ByteString> continuationPoints;
+            ArrayOf<ArrayOf<ReferenceDescription>> references;
+            ArrayOf<ServiceResult> errors;
+            if (browseNext)
+            {
+                (_, continuationPoints, references, errors) = await session.BrowseNextAsync(
+                    null, [ByteString.From([1]), ByteString.From([2]), ByteString.From([3])], false)
+                    .ConfigureAwait(false);
+            }
+            else
+            {
+                (_, continuationPoints, references, errors) = await session.BrowseAsync(
+                    null, null, [new NodeId(1), new NodeId(2), new NodeId(3)], 0,
+                    BrowseDirection.Forward, ReferenceTypeIds.Organizes, false, 0).ConfigureAwait(false);
+            }
+
+            Assert.That(errors[0].StatusCode, Is.EqualTo(StatusCodes.Good));
+            Assert.That(errors[1].StatusCode, Is.EqualTo(StatusCodes.UncertainNotAllNodesAvailable));
+            Assert.That(errors[1].AdditionalInfo, Is.EqualTo("incomplete"));
+            Assert.That(errors[2].StatusCode, Is.EqualTo(StatusCodes.BadNodeIdUnknown));
+            Assert.That(errors[2].AdditionalInfo, Is.EqualTo("unknown node"));
+            Assert.That(continuationPoints[1], Is.EqualTo(ByteString.From([1])));
+            Assert.That(references[1][0].BrowseName, Is.EqualTo(QualifiedName.From("Available")));
+        }
+
         [Test]
         public async Task ReadBytesAsyncWithSmallChunkReturnsChunkAsync()
         {

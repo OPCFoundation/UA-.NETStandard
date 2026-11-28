@@ -894,7 +894,11 @@ namespace Opc.Ua.Client
                 for (int ii = 0; ii < browseNextResults.Count; ii++)
                 {
                     nextResults[ii].AddRange(browseNextResults[ii]);
-                    nextErrors[ii].Reference = browseNextErrors[ii];
+                    if (StatusCode.IsNotGood(browseNextErrors[ii].StatusCode) ||
+                        StatusCode.IsGood(nextErrors[ii].Reference.StatusCode))
+                    {
+                        nextErrors[ii].Reference = browseNextErrors[ii];
+                    }
                 }
 
                 previousResults = nextResults;
