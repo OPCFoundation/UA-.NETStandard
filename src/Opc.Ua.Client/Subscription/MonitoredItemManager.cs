@@ -515,6 +515,7 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
                         lock (m_monitoredItemsLock)
                         {
                             m_deletedItems.AddRange(itemsToDelete);
+                            m_failedDeletes.UnionWith(itemsToDelete);
                         }
                     }
                     break;
@@ -625,6 +626,7 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
                         lock (m_monitoredItemsLock)
                         {
                             m_deletedItems.Add(itemsToDelete[index]);
+                            m_failedDeletes.Add(itemsToDelete[index]);
                         }
                     }
                 }
@@ -633,6 +635,7 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
                     lock (m_monitoredItemsLock)
                     {
                         m_deletedItems.AddRange(itemsToDelete);
+                        m_failedDeletes.UnionWith(itemsToDelete);
                     }
                     m_logger.FailedDeleteMonitoredItems(ex);
                 }
@@ -815,8 +818,8 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
         /// <param name="itemsToDelete"></param>
         /// <param name="itemsToModify"></param>
         /// <param name="resetAll"></param>
-        /// <param name="deferRetries">Leave failed deletes and changes that
-        /// already failed in the queue.</param>
+        /// <param name="deferRetries">Leave deletes and changes that already
+        /// failed in the queue; fresh removals and changes are still taken.</param>
         /// <returns></returns>
         internal bool TryGetMonitoredItemChanges(out List<MonitoredItem> itemsToDelete,
             out List<MonitoredItem.Change> itemsToModify, bool resetAll = false,
@@ -828,13 +831,17 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
             {
                 if (deferRetries)
                 {
-                    // Deletes are queued here only after a failed attempt.
-                    itemsToDelete = [];
+                    // Take only fresh removals; deletes that failed keep
+                    // their retry deadline.
+                    itemsToDelete = m_deletedItems.FindAll(m => !m_failedDeletes.Contains(m));
+                    m_deletedItems.RemoveAll(m => !m_failedDeletes.Contains(m));
                 }
                 else
                 {
                     itemsToDelete = [.. m_deletedItems];
                     m_deletedItems.Clear();
+                    // A delete that fails again is marked again.
+                    m_failedDeletes.Clear();
                 }
 
                 foreach (MonitoredItem monitoredItem in m_monitoredItems.Values)
@@ -1014,6 +1021,7 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
                 }
 
                 m_deletedItems.Clear();
+                m_failedDeletes.Clear();
                 itemsToDelete = new ArrayOf<uint>(serverClientHandleMap.Keys
                     .Concat(duplicateServerHandles)
                     .Distinct()
@@ -2143,6 +2151,8 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
 
         private readonly IMonitoredItemManagerContext m_context;
         private readonly List<MonitoredItem> m_deletedItems = [];
+        // Items in m_deletedItems whose delete already failed at least once.
+        private readonly HashSet<MonitoredItem> m_failedDeletes = [];
         private readonly Lock m_monitoredItemsLock = new();
         private SubscriptionValueRefresh? m_valueRefresh;
         private readonly Dictionary<uint, MonitoredItem> m_monitoredItems = [];

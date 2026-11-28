@@ -246,19 +246,11 @@ namespace Opc.Ua.Client.Tests.ManagedSession
                 Is.True);
             await WaitForPhaseAsync(WaitUntilAsync(() => late!.Created),
                 "late monitored item created").ConfigureAwait(false);
-            // The rejected item keeps its retry deadline: it is retried once the backoff ends.
-            harness.Clock.Advance(TimeSpan.FromMilliseconds(250));
-            await WaitForPhaseAsync(WaitUntilAsync(() => flaky!.Created),
+            // The rejected item keeps its retry deadline: it is retried once the backoff ends. Keep advancing:
+            // the state manager may register its backoff timer only after a single advance.
+            await WaitForPhaseAsync(AdvanceUntilAsync(harness.Clock, () => flaky!.Created),
                 "retried monitored item created").ConfigureAwait(false);
 
-            static async Task WaitUntilAsync(Func<bool> condition)
-            {
-                for (int i = 0; i < 4000 && !condition(); i++)
-                {
-                    await Task.Delay(5).ConfigureAwait(false);
-                }
-                Assert.That(condition(), Is.True);
-            }
         }
         /// <summary>
         /// New items that cut the retry backoff short do not retry an item that already failed: it keeps its
@@ -305,21 +297,77 @@ namespace Opc.Ua.Client.Tests.ManagedSession
 
             // The server recovers and the backoff ends: the retry still has budget left and succeeds.
             Volatile.Write(ref recovered, true);
-            harness.Clock.Advance(TimeSpan.FromMilliseconds(250));
-            await WaitForPhaseAsync(WaitUntilAsync(() => flaky.Created), "retried monitored item created")
-                .ConfigureAwait(false);
+            await WaitForPhaseAsync(AdvanceUntilAsync(harness.Clock, () => flaky.Created),
+                "retried monitored item created").ConfigureAwait(false);
             Assert.That(Volatile.Read(ref flakyAttempts), Is.EqualTo(2));
 
-            static async Task WaitUntilAsync(Func<bool> condition)
-            {
-                for (int i = 0; i < 4000 && !condition(); i++)
-                {
-                    await Task.Delay(5).ConfigureAwait(false);
-                }
-                Assert.That(condition(), Is.True);
-            }
         }
 
+        /// <summary>
+        /// Removing an item while another item waits out its retry backoff deletes it on the server at once:
+        /// only deletes that already failed keep the retry deadline.
+        /// </summary>
+        [Test]
+        public async Task ItemRemovedDuringPendingItemBackoffIsDeletedAtOnceAsync()
+        {
+            var flakyNode = new NodeId("Flaky", 1);
+            int flakyAttempts = 0;
+            await using var harness = new ManagedSessionReconnectHarness(TimeSpan.Zero)
+            {
+                MonitoredItemCreateStatus = item =>
+                {
+                    if (item.ItemToMonitor.NodeId != flakyNode)
+                    {
+                        return null;
+                    }
+                    Interlocked.Increment(ref flakyAttempts);
+                    return StatusCodes.BadResourceUnavailable;
+                }
+            };
+            await harness.ConnectAsync(false).ConfigureAwait(false);
+            ISubscription subscription = harness.AddSubscription();
+            await WaitForPhaseAsync(harness.NextMonitoredItemsAsync().AsTask(), "initial monitored item")
+                .ConfigureAwait(false);
+            Assert.That(subscription.TryAddMonitoredItem("Keep", new NodeId("Keep", 1), o => o,
+                out IMonitoredItem? keep), Is.True);
+            await WaitForPhaseAsync(WaitUntilAsync(() => keep!.Created), "monitored item created")
+                .ConfigureAwait(false);
+            Task backoffStarted = harness.Clock.WaitForTimerCreatedAsync(TimeSpan.FromMilliseconds(250));
+            Assert.That(subscription.TryAddMonitoredItem("Flaky", flakyNode, o => o, out _), Is.True);
+            await WaitForPhaseAsync(backoffStarted, "pending-item backoff started").ConfigureAwait(false);
+
+            uint keepServerId = keep!.ServerId;
+            Assert.That(subscription.MonitoredItems.TryRemove(keep.ClientHandle), Is.True);
+            await WaitForPhaseAsync(WaitUntilAsync(() => harness.Requests.ToList()
+                    .OfType<DeleteMonitoredItemsRequest>()
+                    .Any(r => r.MonitoredItemIds.ToList().Contains(keepServerId))),
+                "removed monitored item deleted").ConfigureAwait(false);
+            Assert.That(Volatile.Read(ref flakyAttempts), Is.EqualTo(1),
+                "The removal must not retry the rejected item before its backoff ends.");
+        }
+
+        /// <summary>
+        /// Advances the fake clock in backoff-sized steps until the condition holds, so the wait does not depend
+        /// on whether the state manager registered its backoff timer before an advance.
+        /// </summary>
+        private static async Task AdvanceUntilAsync(ObservableFakeTimeProvider clock, Func<bool> condition)
+        {
+            for (int i = 0; i < 4000 && !condition(); i++)
+            {
+                clock.Advance(TimeSpan.FromMilliseconds(250));
+                await Task.Delay(5).ConfigureAwait(false);
+            }
+            Assert.That(condition(), Is.True);
+        }
+
+        private static async Task WaitUntilAsync(Func<bool> condition)
+        {
+            for (int i = 0; i < 4000 && !condition(); i++)
+            {
+                await Task.Delay(5).ConfigureAwait(false);
+            }
+            Assert.That(condition(), Is.True);
+        }
         [Test]
         public async Task NewRecoveryInvalidatesPendingSnapshotAsync()
         {

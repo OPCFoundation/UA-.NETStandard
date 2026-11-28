@@ -723,6 +723,13 @@ namespace Opc.Ua.Client.Tests.Stack.Client.Fakes
                             RevisedQueueSize = item.RequestedParameters.QueueSize
                         }).ToArrayOf()
                     };
+                case DeleteMonitoredItemsRequest deleteItems:
+                    return new DeleteMonitoredItemsResponse
+                    {
+                        ResponseHeader = channel.CreateGoodHeader(),
+                        Results = deleteItems.MonitoredItemIds.ToList()
+                            .Select(_ => (StatusCode)StatusCodes.Good).ToArrayOf()
+                    };
                 case SetPublishingModeRequest publishing:
                     return new SetPublishingModeResponse
                     {
