@@ -1416,6 +1416,38 @@ namespace Opc.Ua.Server
                     context.StartResponseBudget(
                         server.GetResponseByteBudget(request.secureChannelContext));
 
+                    if (server.ServerInternal.NodeManager is MasterNodeManager master &&
+                        master.PoolsReadResults)
+                    {
+                        // the results are a pooled buffer that the response returns once the
+                        // transport has encoded it (see PooledReadResponse).
+                        // ValidateOperationLimits rejected an empty request.
+                        ReadResultBuffer buffer = ReadResultBuffer.Rent(request.nodesToRead.Count);
+                        (_, ArrayOf<DiagnosticInfo> pooledDiagnostics) = await master.ReadPooledAsync(
+                            context,
+                            request.maxAge,
+                            request.timestampsToReturn,
+                            request.nodesToRead,
+                            buffer,
+                            lifetime.CancellationToken).ConfigureAwait(false);
+
+                        PooledReadResponse pooled;
+                        try
+                        {
+                            pooled = new PooledReadResponse(buffer)
+                            {
+                                DiagnosticInfos = pooledDiagnostics
+                            };
+                            pooled.ResponseHeader = server.CreateResponse(header, context, pooled.ResponseHeader);
+                        }
+                        catch
+                        {
+                            buffer.Return();
+                            throw;
+                        }
+                        return pooled;
+                    }
+
                     (ArrayOf<DataValue> results, ArrayOf<DiagnosticInfo> diagnosticInfos) =
                         await server.ServerInternal.NodeManager.ReadAsync(
                             context,

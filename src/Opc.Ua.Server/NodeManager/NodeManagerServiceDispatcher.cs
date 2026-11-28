@@ -1723,186 +1723,274 @@ namespace Opc.Ua.Server
         /// Validates and dispatches attribute reads, applying timestamp selection and collecting diagnostics.
         /// </summary>
         /// <exception cref="ServiceResultException"></exception>
-        internal async ValueTask<(ArrayOf<DataValue> values, ArrayOf<DiagnosticInfo> diagnosticInfos)> ReadAsync(
+        internal ValueTask<(ArrayOf<DataValue> values, ArrayOf<DiagnosticInfo> diagnosticInfos)> ReadAsync(
             OperationContext context,
             double maxAge,
             TimestampsToReturn timestampsToReturn,
             ArrayOf<ReadValueId> nodesToRead,
             CancellationToken cancellationToken = default)
         {
-            using OperationContext.RoutingScope requestRouting = CaptureRouting(context);
-            if (maxAge < 0)
+            return ReadCoreAsync(context, maxAge, timestampsToReturn, nodesToRead, null, cancellationToken);
+        }
+
+        /// <summary>
+        /// Reads like <see cref="ReadAsync"/> into a <see cref="ReadResultBuffer"/> whose
+        /// values become the results of the response.
+        /// </summary>
+        /// <param name="context">The operation context.</param>
+        /// <param name="maxAge">The maximum age of the values.</param>
+        /// <param name="timestampsToReturn">The timestamps to return.</param>
+        /// <param name="nodesToRead">The nodes to read.</param>
+        /// <param name="buffer">An empty buffer of one entry per node to read, which this
+        /// method owns from now on: it returns the buffer when the read fails, and
+        /// otherwise hands it back to the caller with the result values.</param>
+        /// <param name="cancellationToken">The cancellation token.</param>
+        /// <returns>The result values, a slice of <paramref name="buffer"/>, and the
+        /// diagnostics.</returns>
+        /// <exception cref="ServiceResultException"></exception>
+        internal ValueTask<(ArrayOf<DataValue> values, ArrayOf<DiagnosticInfo> diagnosticInfos)> ReadPooledAsync(
+            OperationContext context,
+            double maxAge,
+            TimestampsToReturn timestampsToReturn,
+            ArrayOf<ReadValueId> nodesToRead,
+            ReadResultBuffer buffer,
+            CancellationToken cancellationToken = default)
+        {
+            return ReadCoreAsync(context, maxAge, timestampsToReturn, nodesToRead, buffer, cancellationToken);
+        }
+
+        /// <summary>
+        /// Validates and dispatches attribute reads, applying timestamp selection and
+        /// collecting diagnostics, into exact arrays or into <paramref name="buffer"/>.
+        /// </summary>
+        /// <param name="context">The operation context.</param>
+        /// <param name="maxAge">The maximum age of the values.</param>
+        /// <param name="timestampsToReturn">The timestamps to return.</param>
+        /// <param name="nodesToRead">The nodes to read.</param>
+        /// <param name="buffer">The buffer to read into, returned when the read fails, or
+        /// <c>null</c> to allocate the result arrays.</param>
+        /// <param name="cancellationToken">The cancellation token.</param>
+        /// <exception cref="ServiceResultException"></exception>
+        /// <exception cref="ArgumentException"><paramref name="buffer"/> does not have one
+        /// entry per node to read.</exception>
+        private async ValueTask<(ArrayOf<DataValue> values, ArrayOf<DiagnosticInfo> diagnosticInfos)> ReadCoreAsync(
+            OperationContext context,
+            double maxAge,
+            TimestampsToReturn timestampsToReturn,
+            ArrayOf<ReadValueId> nodesToRead,
+            ReadResultBuffer? buffer,
+            CancellationToken cancellationToken)
+        {
+            try
             {
-                throw new ServiceResultException(StatusCodes.BadMaxAgeInvalid);
-            }
-
-            if (timestampsToReturn is < TimestampsToReturn.Source or > TimestampsToReturn.Neither)
-            {
-                throw new ServiceResultException(StatusCodes.BadTimestampsToReturnInvalid);
-            }
-
-            // The node managers fill the results by index, so arrays serve as the result
-            // lists and become the response arrays without a copy. The diagnostics array is
-            // only allocated for the first operation diagnostic.
-            bool diagnosticsExist = false;
-            var values = new DataValue[nodesToRead.Count];
-            DiagnosticInfo[]? diagnosticInfos = null;
-            var errors = new ServiceResult[nodesToRead.Count];
-
-            bool validItems = false;
-
-            m_logger.MasterNodeManagerReadCountCount(nodesToRead.Count);
-
-            // a request with more than one node caches the permission attributes of the node
-            // of the previous value: clients read the attributes of a node one after another,
-            // and a cache of every node of the request costs a dictionary sized for it.
-            Dictionary<NodeId, Variant[]>? uniqueNodesReadAttributes =
-                nodesToRead.Count > 1 ? new Dictionary<NodeId, Variant[]>(1) : null;
-
-            (IAsyncNodeManager[] dispatchOrder,
-                IReadOnlyDictionary<int, IReadOnlyList<IAsyncNodeManager>> namespaceManagers) =
-                m_nodeManagers.GetDispatchView(context.RoutingSnapshot);
-            var routes = new NamespaceRoutes();
-
-            for (int ii = 0; ii < nodesToRead.Count; ii++)
-            {
-                if (uniqueNodesReadAttributes != null &&
-                    !uniqueNodesReadAttributes.ContainsKey(nodesToRead[ii].NodeId))
+                using OperationContext.RoutingScope requestRouting = CaptureRouting(context);
+                if (maxAge < 0)
                 {
-                    uniqueNodesReadAttributes.Clear();
+                    throw new ServiceResultException(StatusCodes.BadMaxAgeInvalid);
                 }
 
-                // pre-validate and pre-parse parameter.
-                errors[ii] = (await ValidateReadRequestAsync(
-                    context,
-                    nodesToRead[ii],
-                    uniqueNodesReadAttributes,
-                    permissionsOnly: uniqueNodesReadAttributes == null,
-                    routeHandle: true,
-                    cancellationToken)
-                    .ConfigureAwait(false))!;
-
-                // return error status.
-                if (ServiceResult.IsBad(errors[ii]))
+                if (timestampsToReturn is < TimestampsToReturn.Source or > TimestampsToReturn.Neither)
                 {
-                    nodesToRead[ii].Processed = true;
+                    throw new ServiceResultException(StatusCodes.BadTimestampsToReturnInvalid);
                 }
-                // found at least one valid item.
+
+                // The node managers fill the results by index, so arrays serve as the result
+                // lists and become the response arrays without a copy, or the response carries
+                // the pooled buffer. The node managers see lists of exactly one entry per node.
+                // The diagnostics array is only allocated for the first operation diagnostic.
+                bool diagnosticsExist = false;
+                DataValue[] values;
+                IList<DataValue> valueList;
+                ServiceResult[] errors;
+                IList<ServiceResult> errorList;
+                DiagnosticInfo[]? diagnosticInfos = null;
+
+                // a request with more than one node caches the permission attributes of the node
+                // of the previous value: clients read the attributes of a node one after another,
+                // and a cache of every node of the request costs a dictionary sized for it.
+                Dictionary<NodeId, Variant[]>? uniqueNodesReadAttributes;
+                if (buffer == null)
+                {
+                    valueList = values = new DataValue[nodesToRead.Count];
+                    errorList = errors = new ServiceResult[nodesToRead.Count];
+                    uniqueNodesReadAttributes = nodesToRead.Count > 1 ? new Dictionary<NodeId, Variant[]>(1) : null;
+                }
                 else
                 {
-                    nodesToRead[ii].Processed = false;
-                    validItems = true;
-                    routes.Include(namespaceManagers, nodesToRead[ii].NodeId);
-                }
-            }
-
-            // call each node manager that serves the namespace of a valid item.
-            if (validItems)
-            {
-                NodeManagerRoutingTable.RoutingSnapshot snapshot = GetRouting(context);
-                // the values kept for the response are charged against the response byte
-                // budget of the service while they are read: by the node managers that
-                // charge their values themselves, and here for the others.
-                int count = nodesToRead.Count;
-                bool[]? unread = context.ResponseBytesRemaining >= 0
-                    ? System.Buffers.ArrayPool<bool>.Shared.Rent(count)
-                    : null;
-                try
-                {
-                    if (snapshot.NodeOverrides.Count != 0)
+                    if (buffer.Count != nodesToRead.Count)
                     {
-                        await ReadWithOverridesAsync(
-                            snapshot, dispatchOrder, routes, context, maxAge, nodesToRead, values, errors,
-                            unread, cancellationToken).ConfigureAwait(false);
+                        throw new ArgumentException(
+                            "The buffer must have one entry per node to read.", nameof(buffer));
                     }
+                    values = buffer.Values;
+                    valueList = buffer.ValueList;
+                    errors = buffer.Errors;
+                    errorList = buffer.ErrorList;
+                    uniqueNodesReadAttributes = nodesToRead.Count > 1 ? buffer.AttributeCache : null;
+                }
+
+                bool validItems = false;
+
+                m_logger.MasterNodeManagerReadCountCount(nodesToRead.Count);
+
+                (IAsyncNodeManager[] dispatchOrder,
+                    IReadOnlyDictionary<int, IReadOnlyList<IAsyncNodeManager>> namespaceManagers) =
+                    m_nodeManagers.GetDispatchView(context.RoutingSnapshot);
+                var routes = new NamespaceRoutes();
+
+                for (int ii = 0; ii < nodesToRead.Count; ii++)
+                {
+                    if (uniqueNodesReadAttributes != null &&
+                        !uniqueNodesReadAttributes.ContainsKey(nodesToRead[ii].NodeId))
+                    {
+                        uniqueNodesReadAttributes.Clear();
+                    }
+
+                    // pre-validate and pre-parse parameter.
+                    errors[ii] = (await ValidateReadRequestAsync(
+                        context,
+                        nodesToRead[ii],
+                        uniqueNodesReadAttributes,
+                        permissionsOnly: uniqueNodesReadAttributes == null,
+                        routeHandle: true,
+                        cancellationToken)
+                        .ConfigureAwait(false))!;
+
+                    // return error status.
+                    if (ServiceResult.IsBad(errors[ii]))
+                    {
+                        nodesToRead[ii].Processed = true;
+                    }
+                    // found at least one valid item.
                     else
                     {
-                        // the common case captures nothing: a closure here would be allocated by every Read.
-                        foreach (IAsyncNodeManager nodeManager in dispatchOrder)
-                        {
-                            if (!routes.Includes(nodeManager) ||
-                                !CanDispatchTo(snapshot, nodeManager, context.Readiness))
-                            {
-                                continue;
-                            }
+                        nodesToRead[ii].Processed = false;
+                        validItems = true;
+                        routes.Include(namespaceManagers, nodesToRead[ii].NodeId);
+                    }
+                }
 
-                            await ReadWithBudgetAsync(
-                                nodeManager, context, maxAge, nodesToRead, values, errors, unread,
-                                cancellationToken).ConfigureAwait(false);
+                // call each node manager that serves the namespace of a valid item.
+                if (validItems)
+                {
+                    NodeManagerRoutingTable.RoutingSnapshot snapshot = GetRouting(context);
+                    // the values kept for the response are charged against the response byte
+                    // budget of the service while they are read: by the node managers that
+                    // charge their values themselves, and here for the others.
+                    int count = nodesToRead.Count;
+                    bool[]? unread = context.ResponseBytesRemaining >= 0
+                        ? System.Buffers.ArrayPool<bool>.Shared.Rent(count)
+                        : null;
+                    try
+                    {
+                        if (snapshot.NodeOverrides.Count != 0)
+                        {
+                            await ReadWithOverridesAsync(
+                                snapshot, dispatchOrder, routes, context, maxAge, nodesToRead, values, valueList,
+                                errorList, unread, cancellationToken).ConfigureAwait(false);
+                        }
+                        else
+                        {
+                            // the common case captures nothing: a closure here would be allocated by every Read.
+                            foreach (IAsyncNodeManager nodeManager in dispatchOrder)
+                            {
+                                if (!routes.Includes(nodeManager) ||
+                                    !CanDispatchTo(snapshot, nodeManager, context.Readiness))
+                                {
+                                    continue;
+                                }
+
+                                await ReadWithBudgetAsync(
+                                    nodeManager, context, maxAge, nodesToRead, values, valueList, errorList, unread,
+                                    cancellationToken).ConfigureAwait(false);
+                            }
+                        }
+                    }
+                    finally
+                    {
+                        if (unread != null)
+                        {
+                            System.Buffers.ArrayPool<bool>.Shared.Return(unread);
                         }
                     }
                 }
-                finally
+
+                // process results.
+                for (int ii = 0; ii < nodesToRead.Count; ii++)
                 {
-                    if (unread != null)
+                    DataValue value = values[ii];
+
+                    // set an error code for nodes that were not handled by any node manager.
+                    if (!nodesToRead[ii].Processed)
                     {
-                        System.Buffers.ArrayPool<bool>.Shared.Return(unread);
+                        value = values[ii] = DataValue.FromStatusCode(
+                            StatusCodes.BadNodeIdUnknown,
+                            DateTime.UtcNow);
+                        errors[ii] = new ServiceResult(values[ii].StatusCode);
+                    }
+
+                    // update the diagnostic info and ensure the status code in the data value is the same as the error code.
+                    if (errors[ii] != null && errors[ii].Code != StatusCodes.Good)
+                    {
+                        if (value.IsNull)
+                        {
+                            value = values[ii] = DataValue.FromStatusCode(errors[ii].Code, DateTime.UtcNow);
+                        }
+
+                        value = values[ii] = value.WithStatus(errors[ii].Code);
+
+                        if ((context.DiagnosticsMask & DiagnosticsMasks.OperationAll) != 0)
+                        {
+                            (diagnosticInfos ??= new DiagnosticInfo[nodesToRead.Count])[ii] =
+                                ServerUtils.CreateDiagnosticInfo(
+                                    Server,
+                                    context,
+                                    errors[ii],
+                                    m_logger)!;
+                            diagnosticsExist = true;
+                        }
+                    }
+
+                    // select the translations the session prefers (Part 4 5.4) for the
+                    // DisplayName, Description, InverseName and localized text values.
+                    value = values[ii] = TranslateValue(context, value);
+
+                    // apply the timestamp filters.
+                    if (timestampsToReturn is not TimestampsToReturn.Server and not TimestampsToReturn.Both)
+                    {
+                        value = values[ii] = value.WithServerTimestamp(DateTimeUtc.MinValue);
+                    }
+
+                    if (timestampsToReturn is not TimestampsToReturn.Source and not TimestampsToReturn.Both)
+                    {
+                        _ = values[ii] = value.WithSourceTimestamp(DateTimeUtc.MinValue);
                     }
                 }
-            }
 
-            // process results.
-            for (int ii = 0; ii < nodesToRead.Count; ii++)
+                // clear the diagnostics array if no diagnostics requested or no errors occurred.
+                UpdateDiagnostics(context, diagnosticsExist, ref diagnosticInfos);
+
+                ArrayOf<DiagnosticInfo> diagnostics = default;
+                if (diagnosticInfos != null)
+                {
+                    diagnostics = diagnosticInfos;
+                }
+
+                if (buffer == null)
+                {
+                    return (values, diagnostics);
+                }
+
+                // the operation results and the attribute cache are not part of the response.
+                buffer.ReleaseDispatchState();
+                return (buffer.Results, diagnostics);
+            }
+            catch when (buffer != null)
             {
-                DataValue value = values[ii];
-
-                // set an error code for nodes that were not handled by any node manager.
-                if (!nodesToRead[ii].Processed)
-                {
-                    value = values[ii] = DataValue.FromStatusCode(
-                        StatusCodes.BadNodeIdUnknown,
-                        DateTime.UtcNow);
-                    errors[ii] = new ServiceResult(values[ii].StatusCode);
-                }
-
-                // update the diagnostic info and ensure the status code in the data value is the same as the error code.
-                if (errors[ii] != null && errors[ii].Code != StatusCodes.Good)
-                {
-                    if (value.IsNull)
-                    {
-                        value = values[ii] = DataValue.FromStatusCode(errors[ii].Code, DateTime.UtcNow);
-                    }
-
-                    value = values[ii] = value.WithStatus(errors[ii].Code);
-
-                    if ((context.DiagnosticsMask & DiagnosticsMasks.OperationAll) != 0)
-                    {
-                        (diagnosticInfos ??= new DiagnosticInfo[nodesToRead.Count])[ii] =
-                            ServerUtils.CreateDiagnosticInfo(
-                                Server,
-                                context,
-                                errors[ii],
-                                m_logger)!;
-                        diagnosticsExist = true;
-                    }
-                }
-
-                // select the translations the session prefers (Part 4 5.4) for the
-                // DisplayName, Description, InverseName and localized text values.
-                value = values[ii] = TranslateValue(context, value);
-
-                // apply the timestamp filters.
-                if (timestampsToReturn is not TimestampsToReturn.Server and not TimestampsToReturn.Both)
-                {
-                    value = values[ii] = value.WithServerTimestamp(DateTimeUtc.MinValue);
-                }
-
-                if (timestampsToReturn is not TimestampsToReturn.Source and not TimestampsToReturn.Both)
-                {
-                    _ = values[ii] = value.WithSourceTimestamp(DateTimeUtc.MinValue);
-                }
+                // every node manager call has completed: none of them writes the buffer any more.
+                buffer.Return();
+                throw;
             }
-
-            // clear the diagnostics array if no diagnostics requested or no errors occurred.
-            UpdateDiagnostics(context, diagnosticsExist, ref diagnosticInfos);
-
-            ArrayOf<DiagnosticInfo> diagnostics = default;
-            if (diagnosticInfos != null)
-            {
-                diagnostics = diagnosticInfos;
-            }
-
-            return (values, diagnostics);
         }
 
         /// <summary>
@@ -5488,7 +5576,8 @@ namespace Opc.Ua.Server
             double maxAge,
             ArrayOf<ReadValueId> nodesToRead,
             DataValue[] values,
-            ServiceResult[] errors,
+            IList<DataValue> valueList,
+            IList<ServiceResult> errorList,
             bool[]? unread,
             CancellationToken cancellationToken)
         {
@@ -5499,7 +5588,8 @@ namespace Opc.Ua.Server
                 static item => item.Processed,
                 static (item, processed) => item.Processed = processed,
                 nodeManager => ReadWithBudgetAsync(
-                    nodeManager, context, maxAge, nodesToRead, values, errors, unread, cancellationToken),
+                    nodeManager, context, maxAge, nodesToRead, values, valueList, errorList, unread,
+                    cancellationToken),
                 context.Readiness).ConfigureAwait(false);
             foreach (IAsyncNodeManager nodeManager in dispatchOrder)
             {
@@ -5516,7 +5606,8 @@ namespace Opc.Ua.Server
                     static item => item.Processed,
                     static (item, processed) => item.Processed = processed,
                     () => ReadWithBudgetAsync(
-                        nodeManager, context, maxAge, nodesToRead, values, errors, unread, cancellationToken))
+                        nodeManager, context, maxAge, nodesToRead, values, valueList, errorList, unread,
+                        cancellationToken))
                     .ConfigureAwait(false);
             }
         }
@@ -5531,7 +5622,8 @@ namespace Opc.Ua.Server
             double maxAge,
             ArrayOf<ReadValueId> nodesToRead,
             DataValue[] values,
-            ServiceResult[] errors,
+            IList<DataValue> valueList,
+            IList<ServiceResult> errorList,
             bool[]? unread,
             CancellationToken cancellationToken)
         {
@@ -5548,7 +5640,7 @@ namespace Opc.Ua.Server
             }
 
             await nodeManager.ReadAsync(
-                context, maxAge, nodesToRead, values, errors, cancellationToken).ConfigureAwait(false);
+                context, maxAge, nodesToRead, valueList, errorList, cancellationToken).ConfigureAwait(false);
 
             if (unread == null)
             {

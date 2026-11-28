@@ -374,6 +374,71 @@ namespace Opc.Ua.Server
                 cancellationToken);
         }
 
+        /// <summary>
+        /// Whether a Read service call may read through <see cref="ReadPooledAsync"/>:
+        /// only when <see cref="ReadAsync"/> is not overridden, because an override may keep
+        /// the results it got from the base implementation.
+        /// </summary>
+        internal bool PoolsReadResults
+        {
+            get
+            {
+                int state = Volatile.Read(ref m_poolsReadResults);
+                if (state == 0)
+                {
+                    state = IsReadAsyncOverridden() ? 2 : 1;
+                    Volatile.Write(ref m_poolsReadResults, state);
+                }
+                return state == 1;
+            }
+        }
+
+        /// <summary>
+        /// Reads like <see cref="ReadAsync"/> into <paramref name="buffer"/>, a rented buffer
+        /// of one entry per node to read. The buffer is returned when the read fails;
+        /// otherwise the caller owns it with the result values and returns it once the
+        /// response that carries them was sent.
+        /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
+        internal ValueTask<(ArrayOf<DataValue> values, ArrayOf<DiagnosticInfo> diagnosticInfos)> ReadPooledAsync(
+            OperationContext context,
+            double maxAge,
+            TimestampsToReturn timestampsToReturn,
+            ArrayOf<ReadValueId> nodesToRead,
+            ReadResultBuffer buffer,
+            CancellationToken cancellationToken = default)
+        {
+            return m_serviceDispatch.ReadPooledAsync(
+                context,
+                maxAge,
+                timestampsToReturn,
+                nodesToRead,
+                buffer,
+                cancellationToken);
+        }
+
+        /// <summary>
+        /// Whether the runtime type overrides <see cref="ReadAsync"/>. A delegate to the
+        /// virtual method binds the most derived override. When the method cannot be
+        /// inspected, the read is treated as overridden and not pooled.
+        /// </summary>
+        private bool IsReadAsyncOverridden()
+        {
+            try
+            {
+                Func<OperationContext, double, TimestampsToReturn, ArrayOf<ReadValueId>, CancellationToken,
+                    ValueTask<(ArrayOf<DataValue> values, ArrayOf<DiagnosticInfo> diagnosticInfos)>> read = ReadAsync;
+                return read.Method.DeclaringType != typeof(MasterNodeManager);
+            }
+            catch (Exception)
+            {
+                return true;
+            }
+        }
+
+        // 0 = not determined, 1 = pooled, 2 = overridden.
+        private int m_poolsReadResults;
+
         /// <inheritdoc/>
         public virtual ValueTask<(ArrayOf<HistoryReadResult> values, ArrayOf<DiagnosticInfo> diagnosticInfos)> HistoryReadAsync(
             OperationContext context,
