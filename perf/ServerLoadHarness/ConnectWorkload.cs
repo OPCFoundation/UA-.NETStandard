@@ -66,6 +66,21 @@ namespace Opc.Ua.Perf.ServerLoadHarness
             await Task.WhenAll(tasks).ConfigureAwait(false);
         }
 
+        /// <summary>
+        /// Reads the application keys from the store again, so every connect of the window
+        /// reuses a key loaded less than 30 seconds ago (the reuse limit of the
+        /// CertificateManager, #5171/#5184). Without it the connects reuse the key only while
+        /// setup, warm-up and baseline take less than 30 seconds, and load it from the store
+        /// (about 115 KB more per connect) after that.
+        /// </summary>
+        public override Task BeforeMeasureAsync()
+        {
+            ApplicationConfiguration config = m_client.Config;
+            return config.CertificateManager.ReloadApplicationCertificatesAsync(
+                config.SecurityConfiguration,
+                config.ApplicationUri);
+        }
+
         public override void ResetStats()
         {
             Interlocked.Increment(ref m_epoch);

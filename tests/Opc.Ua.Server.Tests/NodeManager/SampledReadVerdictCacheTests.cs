@@ -68,6 +68,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
         [TestCase("SecurityMode")]
         [TestCase("Transport")]
         [TestCase("AccessRestrictions")]
+        [TestCase("NodeDeleted")]
         public async Task GoodVerdictIsRetiredByEachKeyAsync(string key)
         {
             await using var harness = new Harness();
@@ -82,6 +83,24 @@ namespace Opc.Ua.Server.Tests.NodeManager
             Assert.That(harness.ChecksIn(7), Is.Zero, "the new verdict is reused");
             for (int ii = 0; ii <= 7; ii++)
             {
+                Assert.That(harness.Status(ii), Is.EqualTo(StatusCodes.Good));
+            }
+        }
+
+        /// <summary>
+        /// N6: the deletion of another node does not retire the verdict of the sampled node.
+        /// </summary>
+        [Test]
+        public async Task GoodVerdictSurvivesUnrelatedNodeDeletionAsync()
+        {
+            await using var harness = new Harness();
+            harness.AfterSample(3, () => harness.Change("UnrelatedNodeDeleted"));
+            await harness.StartAsync().ConfigureAwait(false);
+            await harness.WaitForSampleAsync(6).ConfigureAwait(false);
+
+            for (int ii = 1; ii <= 6; ii++)
+            {
+                Assert.That(harness.ChecksIn(ii), Is.Zero, $"sample {ii} reran the exact-source check");
                 Assert.That(harness.Status(ii), Is.EqualTo(StatusCodes.Good));
             }
         }
@@ -127,6 +146,59 @@ namespace Opc.Ua.Server.Tests.NodeManager
             Assert.That(harness.Status(3), Is.EqualTo(StatusCodes.Good));
             Assert.That(harness.Status(4), Is.EqualTo(StatusCodes.BadUserAccessDenied));
             Assert.That(harness.Status(5), Is.EqualTo(StatusCodes.BadUserAccessDenied));
+        }
+
+        /// <summary>
+        /// N6: a sampled node removed while its role check runs leaves nothing of that cycle: the
+        /// value read from the removed instance is not queued and the next cycle reads and
+        /// validates again.
+        /// </summary>
+        [Test]
+        public async Task NodeDeletedDuringRoleCheckDiscardsTheCycleAsync()
+        {
+            await using var harness = new Harness();
+            harness.AfterSample(2, () =>
+            {
+                // forces the next cycle to run the role check, during which the node is removed.
+                harness.Change("IdentityGeneration");
+                harness.Owner.OnNextRoleCheck(() =>
+                {
+                    harness.Node.UpdateChangeMasks(NodeStateChangeMasks.Deleted);
+                    harness.Node.Value = 43;
+                });
+            });
+            await harness.StartAsync().ConfigureAwait(false);
+            await harness.WaitForSampleAsync(3).ConfigureAwait(false);
+
+            Assert.That(harness.Value(2), Is.EqualTo(new Variant(42)));
+            Assert.That(harness.Status(3), Is.EqualTo(StatusCodes.Good));
+            Assert.That(harness.Value(3), Is.EqualTo(new Variant(43)), "the stale cycle's value was queued");
+        }
+
+        /// <summary>
+        /// N6: a sampled node removed while its exact-source check runs leaves nothing of that
+        /// cycle either, although the check validates the removed instance again and grants.
+        /// </summary>
+        [Test]
+        public async Task NodeDeletedDuringExactSourceCheckDiscardsTheCycleAsync()
+        {
+            await using var harness = new Harness();
+            harness.AfterSample(2, () =>
+            {
+                // forces the next cycle to run the exact-source check, during which the node is removed.
+                harness.Change("IdentityGeneration");
+                harness.Owner.OnNextExactCheck(() =>
+                {
+                    harness.Node.UpdateChangeMasks(NodeStateChangeMasks.Deleted);
+                    harness.Node.Value = 43;
+                });
+            });
+            await harness.StartAsync().ConfigureAwait(false);
+            await harness.WaitForSampleAsync(3).ConfigureAwait(false);
+
+            Assert.That(harness.Value(2), Is.EqualTo(new Variant(42)));
+            Assert.That(harness.Status(3), Is.EqualTo(StatusCodes.Good));
+            Assert.That(harness.Value(3), Is.EqualTo(new Variant(43)), "the stale cycle's value was queued");
         }
 
         /// <summary>
@@ -461,6 +533,13 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     case "AccessRestrictions":
                         Node.AccessRestrictions = AccessRestrictionType.SigningRequired;
                         break;
+                    case "NodeDeleted":
+                        // the node manager marks every node it removes deleted.
+                        Node.UpdateChangeMasks(NodeStateChangeMasks.Deleted);
+                        break;
+                    case "UnrelatedNodeDeleted":
+                        new BaseDataVariableState(null).UpdateChangeMasks(NodeStateChangeMasks.Deleted);
+                        break;
                     default:
                         throw new ArgumentOutOfRangeException(nameof(key), key, null);
                 }
@@ -715,12 +794,48 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 if (managerHandle is NodeHandle && !ReferenceEquals(managerHandle, ItemHandle))
                 {
                     Interlocked.Increment(ref m_checks);
+                    Interlocked.Exchange(ref m_onNextExactCheck, null)?.Invoke();
                 }
                 return base.IsHandleInNamespace(managerHandle);
             }
 
+            /// <inheritdoc/>
+            public override async ValueTask<ServiceResult> ValidateRolePermissionsAsync(
+                OperationContext operationContext,
+                NodeId nodeId,
+                PermissionType requestedPermission,
+                CancellationToken cancellationToken = default)
+            {
+                ServiceResult result = await base.ValidateRolePermissionsAsync(
+                    operationContext, nodeId, requestedPermission, cancellationToken).ConfigureAwait(false);
+                Interlocked.Exchange(ref m_onNextRoleCheck, null)?.Invoke();
+                return result;
+            }
+
+            /// <summary>
+            /// Runs an action once, at the end of the next role permission check.
+            /// </summary>
+            public void OnNextRoleCheck(Action action)
+            {
+                Volatile.Write(ref m_onNextRoleCheck, action);
+            }
+
+            /// <summary>
+            /// Runs an action once, inside the next exact-source permission check.
+            /// </summary>
+            public void OnNextExactCheck(Action action)
+            {
+                Volatile.Write(ref m_onNextExactCheck, action);
+            }
+
             /// <summary>Exact-source authorization count.</summary>
             private int m_checks;
+
+            /// <summary>One-shot action run inside the next exact-source permission check.</summary>
+            private Action? m_onNextExactCheck;
+
+            /// <summary>One-shot action run at the end of the next role permission check.</summary>
+            private Action? m_onNextRoleCheck;
         }
     }
 }
